@@ -3,22 +3,22 @@
   # scriptzinho pra fazer o wifi funcionar
 
 - name: Instalar sistema mínimo
-  hosts:
+  hosts: install
   tags: NoDe
   pre_tasks:
     - name: checar modo de boot (uefi, mbr etc)
-      ansible.builin.stat:
+      ansible.builtin.stat:
         path: "/sys/firmware/efi/fw_platform_size"
       register: efi_size
     - name: settar modo de boot
-      ansible.builin.stat:
+      ansible.builtin.stat:
         boot_mode: "{{efi_size.stat.exists | ternary('uefi', 'bios')}}"
   roles:
     - particionamento
     - sistema
     - chroot
 
-- name: Resetar para instalacão correta
+- name: Resetar para instalacão
   hosts: install
   tags: reseta
   tasks:

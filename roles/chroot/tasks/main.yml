@@ -1,6 +1,6 @@
 - name: gerar fstab
   ansible.builtin.shell:
-    cmd: "genfstab -U {{ fsroot }}/etc/fstab"
+    cmd: "genfstab -U {{ fsroot }} >> {{ fsroot }}/etc/fstab"
 
 - name: syncar relógio
   # adicionar um .sh para o usuário settar a região dele
@@ -23,7 +23,7 @@
 - name: Settar a config de locale
   #mais um .sh
   ansible.builtin.copy:
-  content: "{{ (linguagem_selecionada }}"
+  content: "LANG={{ linguagem_selecionada }}\n"
   dest: "{{ fsroot }}/etc/locale.conf"
   mode: "644"
 
@@ -43,9 +43,7 @@
 - name: instalar refind
   ansible.builtin.command:
     cmd: >
-      arch-chroot {{ fsroot }}
-      pacman -S refind
-      refind-install
+      arch-chroot {{ fsroot }} bash -c 'pacman -S refind && refind-install'
 
 - name: Configurar refind
   # script pro e2label e pra fazer a configuracão manual do refind
@@ -61,7 +59,8 @@
 - name: Set root password
   changed_when: true
   ansible.builtin.command:
-    cmd: "arch-chroot {{ fsroot }} /usr/bin/bash -c 'echo 'root:{{ ansible_password }}' | chpasswd'"
+    cmd: >
+      arch-chroot {{ fsroot }} bash -c "echo 'root:{{ ansible_password }}' | chpasswd"
 
 - name: Permitir ssh na root temporariamente
   ansible.builtin.lineinfile:
