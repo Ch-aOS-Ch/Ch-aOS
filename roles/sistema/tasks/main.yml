@@ -1,0 +1,11 @@
+---
+- name: setup do reflector
+# colocar aqui um script .sh para interatividade do usuário (aplicar vários repos baseado no local onde o usuário está [deve ser settado pelo usuário.])
+
+- name: pacotes no pacstrap
+  ansible.builtin.command:
+    cmd: >
+      pacstrap -K {{ fsroot }} --needed
+      {% for pkg in necessarios %}
+        {{ pkg | quote }}
+      {% endfor %}

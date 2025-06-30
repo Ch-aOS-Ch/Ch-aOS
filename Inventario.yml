@@ -1,0 +1,17 @@
+---
+ungrouped:
+  hosts:
+    arch:
+      ansible_connection: ssh
+      ansible_ssh_common_args: "-o 'UserKnownHostsFile=/dev/null' -o 'StrictHostKeyChecking=no'"
+      ansible_host: 192.168.122.207 # muda isso aqui pro seu ip atual nessa config
+      ansible_user: root # não mudar
+      ansible_password: "123" # evitar mudar
+
+install:
+  hosts:
+    arch:
+
+configure:
+  hosts:
+    arch:

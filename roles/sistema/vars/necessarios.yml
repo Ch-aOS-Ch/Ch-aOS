@@ -1,0 +1,10 @@
+---
+necessarios:
+  - base
+  - base-devel
+  - linux
+  - linux-firmware
+  - reflector
+  - nano
+  - networkmanager
+  - openssh
