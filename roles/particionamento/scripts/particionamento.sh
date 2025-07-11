@@ -29,17 +29,23 @@ lsblk
 echo "---------------------------------------------------"
 read -p "Digite o nome do disco a ser particionado (ex: sda ou nvme0n1): " disco
 while [ ! -b "/dev/$disco" ]; do
+    echo ""
     echo "Disco /dev/$disco não encontrado!"
     read -p "Digite o nome do disco a ser particionado (ex: sda ou nvme0n1): " disco
 done
 cfdisk "/dev/$disco"
+sleep 1
+fdisk -l "/dev/$disco"
 echo "Particionamento concluído, você tem certeza de todas as partições? (caso as partições estejam corretas, digite 'Y', caso contrário, digite 'n')"
 echo "caso elas estejam erradas, isso irá quebrar seu sistema."
 read -p "Você tem certeza de todas as partições? (Y/n) " resposta
 while [ "$resposta" != "Y" ] && [ "$resposta" != "y" ] && [ "$resposta" != "" ]; do
     echo "Por favor, verifique as partições novamente."
     cfdisk "/dev/$disco"
+    sleep 1
     fdisk -l "/dev/$disco"
+    echo ""
+    sleep 1
     echo "Particionamento concluído, você tem certeza de todas as partições? (caso as partições estejam corretas, digite 'Y', caso contrário, digite 'n')"
     echo "Caso elas estejam erradas, isso irá quebrar seu sistema."
     read -p "Você tem certeza de todas as partições? (Y/n) " resposta
@@ -51,10 +57,13 @@ while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
 done
 lsblk
 read -p "E qual tua partição de root? " root
+sleep 1
 read -p "E qual tua partição de swap? " swap
+sleep 1
 read -p "E qual tua partição de home? " home
+sleep 1
 read -p "E qual tua partição de boot? " boot
-sleep 0.5
+sleep 1
 echo "... oooookay, pode deixar que daqui eu sigo"
 echo "..."
 tput bold; echo ">>> Formatando partições..."; tput sgr0
@@ -68,7 +77,7 @@ mkfs.ext4 "/dev/$home"
 mkfs.fat -F 32 "/dev/$boot"
 fdisk -l
 echo "---------------------------------------------------"
-read -p "tudo certo?" r
+read -p "tudo certo?(Y/n)" r
 while [ "$r" != "Y" ] && [ "$r" != "y" ] && [ "$r" != "" ]; do
     echo "Por favor, verifique as partições novamente e escreva os caminhos certos."
     fdisk -l
@@ -87,7 +96,7 @@ while [ "$r" != "Y" ] && [ "$r" != "y" ] && [ "$r" != "" ]; do
     fdisk -l
     sleep 1
     echo "---------------------------------------------------"
-    read -p "tudo certo?" r
+    read -p "tudo certo?(Y/n)" r
 done
 mount "/dev/$root" /mnt
 mkdir -p /mnt/{boot,home}
