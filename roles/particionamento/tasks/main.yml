@@ -1,1 +1,2 @@
-# colocar um .sh aqui para fazer o processo de particionamento interativo com cfdsisk
+- nome: particionamento
+  ansible.builtin.shell: ../scripts/particionamento.sh
