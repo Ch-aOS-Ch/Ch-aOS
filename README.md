@@ -152,7 +152,7 @@ O sistema detecta automaticamente se o boot está em UEFI ou BIOS (isso ainda n�
 ```bash
 iwctl                          # Conecte-se ao WiFi
 pacman -S git ansible          # Instale os pré-requisitos
-git clone https://github.com/Dexmachi/Dextall
+git clone https://github.com/Dexmachi/Ch-aronte
 cd Dextall
 ansible-playbook main.yaml --tags "NoDe"
 ```
@@ -163,7 +163,7 @@ ansible-playbook main.yaml --tags "NoDe"
 
 ## 🧪 Estado Atual do Projeto
 
-* Repositório: [github.com/Dexmachi/Dextall](https://github.com/Dexmachi/Dextall)
+* Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
 * Commits: **17**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
