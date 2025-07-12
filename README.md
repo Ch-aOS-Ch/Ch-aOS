@@ -163,7 +163,7 @@ ansible-playbook main.yaml --tags "NoDe"
 
 ## 🧪 Estado Atual do Projeto
 
-* Repositório: [github.com/Dexmachi/Dextall](https://github.com/Dexmachi/Ch-aronte)
+* Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
 * Commits: **17**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
