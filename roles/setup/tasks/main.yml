@@ -1,0 +1,13 @@
+---
+- name: Buscar scripts .sh nas pastas
+  ansible.builtin.find:
+    paths: "{{ item }}"
+    patterns: "*.sh"
+  loop: "{{ scripts_dirs }}"
+  register: encontrados
+
+- name: Tornar scripts executáveis
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0755"
+  loop: "{{ encontrados.results | map(attribute='files') | flatten }}"

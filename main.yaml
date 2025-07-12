@@ -1,7 +1,4 @@
 ---
-- name: configurar wifi
-  # scriptzinho pra fazer o wifi funcionar
-
 - name: Instalar sistema mínimo
   hosts: install
   tags: NoDe
@@ -14,6 +11,7 @@
       ansible.builtin.stat:
         boot_mode: "{{efi_size.stat.exists | ternary('uefi', 'bios')}}"
   roles:
+    - setup
     - particionamento
     - sistema
     - chroot
