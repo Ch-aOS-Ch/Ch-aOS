@@ -1,5 +1,5 @@
 sleep 1
-nome_pc="$echo /mny/etc/hostname"
+nome_pc="$echo /mnt/etc/hostname"
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
