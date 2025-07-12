@@ -174,6 +174,7 @@ Qualquer ajuda é bem-vinda — principalmente:
 
 ## Special thanks:
 Inspiração principal veio do projeto `https://github.com/0xzer0x/archible`, do usuário (0xzer0x)[https://github.com/0xzer0x]
+
 If you're reading this (i doubt it but oh well), thank you very much for your amazing tool, I hope to achieve this level of creativity and expertize you've got to make it come true.
 
 ---
