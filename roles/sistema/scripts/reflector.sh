@@ -15,5 +15,5 @@ fi
 echo "jesus amado, que comando grande... aliás, é esse aqui:"
 sleep 0.4
 echo "reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist"
-reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
+arch-chroot /mnt reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
 sleep 1
