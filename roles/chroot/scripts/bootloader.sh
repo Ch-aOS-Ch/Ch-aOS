@@ -34,3 +34,4 @@ if [[ $btrfs == "y" ]]; then
 else
     e2label "/dev/$root" "$nome_root"
 fi
+arch-chroot /mnt systemctl enable NetworkManager
