@@ -3,7 +3,7 @@
     cmd: "genfstab -U {{ fsroot }} >> {{ fsroot }}/etc/fstab"
 
 - name: syncar relógio
-  # adicionar um .sh para o usuário settar a região dele
+  ansible.builtin.shell: ../scripts/relogio.sh
   ansible.builtin.command:
     cmd: "arch-chroot {{ fsroot }} (script da região do relógio) /usr/bin/hwclock --systohc"
 
