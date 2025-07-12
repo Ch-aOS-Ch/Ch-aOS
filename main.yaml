@@ -21,13 +21,13 @@
   tags: reseta
   tasks:
     - name: Resetar sistema
-      ansible.builin.command:
+      ansible.builtin.command:
         cmd: "reboot"
       changed_when: false
       async: 1
       poll: 0
     - name: Esperando reboot
-      ansible.builin.wait_for_connection:
+      ansible.builtin.wait_for_connection:
         connect_timeout: 20
         timeout: 300
         delay: 5
