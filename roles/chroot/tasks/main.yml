@@ -2,5 +2,11 @@
   ansible.builtin.shell:
     cmd: "genfstab -U {{ fsroot }} >> {{ fsroot }}/etc/fstab"
 
-- name: configurar chroot
-  ansible.builtin.shell: ../scripts/config.sh
+- name: configurar a região
+  ansible.builtin.shell: ../scripts/regiao.sh
+
+- name: configurar a personalização
+  ansible.builtin.shell: ../scripts/personalizacao.sh
+
+- name: configurar o refind
+  ansible.builtin.shell: ../scripts/bootloader.sh
