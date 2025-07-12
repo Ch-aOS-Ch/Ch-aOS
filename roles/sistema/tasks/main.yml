@@ -2,6 +2,9 @@
 - name: setup do reflector
   ansible.builtin.shell: ../scripts/reflector.sh
 
+- name: setup dos pacotes essenciais
+  ansible.builtin.shell: ../scripts/instalacao.sh
+
 - name: pacotes no pacstrap
   ansible.builtin.command:
     cmd: >
