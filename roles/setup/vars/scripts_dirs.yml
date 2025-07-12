@@ -1,0 +1,5 @@
+---
+scripts_dirs:
+  - "../../chroot/scripts"
+  - "../../particionamento/scripts"
+  - "../../sistema/scripts"
