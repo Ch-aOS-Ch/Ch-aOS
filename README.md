@@ -1,90 +1,111 @@
-# Bem vindo à Ch-aronte, seu instalador arch aprofundado para aprendizado e instalação mínima (por enquanto)
+# 🧝‍♂️ Ch-aronte
 
-## Tree do projeto:
+> **Seu guia pelo submundo do Arch Linux.**
+> Um instalador imersivo, automatizado com Ansible, para quem quer aprender de verdade — sem copiar e colar no escuro.
+
+---
+
+## 🌐 Visão Geral
+
+O **Ch-aronte** é um instalador minimalista para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos e amantes do caos controlado. Ele automatiza o processo de instalação mantendo o usuário no comando, com foco em **aprendizado**, **imersão** e um toque de **estética cyberpunk** (sim, é meio cringe, mas é *nosso* cringe).
+
+Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futuros para ambientes **VM** e pós-instalação completa com gerenciamento de **dotfiles**.
+
+---
+
+## 🌳 Estrutura do Projeto
+
+```bash
 .
-├── ansible.cfg
-├── ATENÇÃO.md
-├── group_vars
-│   └── all
-│       └── config.yml
-├── Inventario.yml
-├── main.yaml
-└── roles
-    ├── chroot
-    │   ├── scripts
-    │   │   ├── bootloader.sh
-    │   │   ├── personalizacao.sh
-    │   │   └── regiao.sh
-    │   └── tasks
-    │       └── main.yml
-    ├── particionamento
-    │   ├── scripts
-    │   │   └── particionamento.sh
-    │   └── tasks
-    │       └── main.yml
-    ├── setup
-    │   ├── tasks
-    │   │   └── main.yml
-    │   └── vars
-    │       └── scripts_dirs.yml
-    └── sistema
-        ├── scripts
-        │   ├── instalacao.sh
-        │   └── reflector.sh
-        ├── tasks
-        │   └── main.yml
-        └── vars
-            └── necessarios.yml
+├── ansible.cfg               # Configurações do Ansible
+├── ATENÇÃO.md                # Avisos importantes
+├── group_vars/
+│   └── all/config.yml        # Variáveis globais
+├── Inventario.yml            # Inventário para execuções (últil em VMs)
+├── main.yaml                 # Playbook principal
+└── roles/
+    ├── chroot/               # Configurações dentro do chroot
+    │   ├── scripts/          # Scripts de personalização regional, boot, etc.
+    │   └── tasks/main.yml
+    ├── particionamento/      # Particionamento automático ou assistido
+    │   ├── scripts/
+    │   └── tasks/main.yml
+    ├── setup/                # Prepara permissões e pastas
+    │   ├── tasks/main.yml
+    │   └── vars/scripts_dirs.yml
+    └── sistema/              # Instalação do sistema base
+        ├── scripts/
+        ├── tasks/main.yml
+        └── vars/necessarios.yml
+```
 
-## Objetivo:
-  O Ch-aronte é um instalador FOSS voltado à usuários iniciantes que queiram utilizar Arch Linux, ele é um script feito em ansible e sh scprit imersivo feito para que quem entre nele saiba realmente o que está fazendo, não só copiando e colando código sem saber o que está fazendo.
-  Ele é voltado para usuários Brasileiros e Portugueses, mas conta apenas com tradução em pt br, mas todo sistema de automação de tradução é bem vinda, desde que feita com a lógica narrativa e easter eggs do projeto em mente (cyberpunk//hack, essas coisas [sim, eu sei o quão cringe é, mas é divertido]).
-  Automações em ansible são bem vindas sempre, desde que bem implementadas.
-  O projeto foi feito para ser utilizado em um ambiente liveboot, CONTÚDO tenho planos para fazer uma automação em VM também.
+---
 
-## TODO:
-  - [x] Instalador minimal
-  - [ ] Manager de dotfiles
-  - [ ] Post install
+## 🚀 Funcionalidades
 
-## Arquivos principais:
-### 1. `main.yml`
-  Esse é o coração do projeto, é com ele que se roda o projeto por completo.
-  - **NoDe** Instalação do sistema mínimo
-  - **reseta** reinicializa o sistema (automação para VMs (WIP))
-  - **post-install** configuração pós-instalação (DE/TWM/Dotfiles (WIP))
+* [x] **Instalador Minimal** — com detecção automática de BIOS/UEFI
+* [ ] **Gerenciador de Dotfiles** — WIP
+* [ ] **Configuração Pós-Instalação** — WIP
 
-### 2. `ansible.cfg`
-  Esse é o cérebro do projeto, nele temos
-  - inventário: todas as configurações básicas do projeto
-  - diretório temporário: o temp pro ansible
-  - verificação de chaves ssh (para VMs)
+---
 
-### 3. `Inventario.yml`
-  Esse é nosso sistema de inventário, feito majoritáriamente pra VMs
+## 🧩 Componentes-Chave
 
-### 4. `group_vars/all/config.yml`
-  Nossas variáveis globais
+### 🔹 `main.yaml`
 
-## Roles
-### 1. **setup**
-  Gere as permissões de execução dos shell scripts
+Playbook principal — o **núcleo do ritual**.
+Contém as seguintes tags:
 
-### 2. **particionamento**
-  Gere a parte de particionamento do projeto
+* `NoDe`: Instalação mínima (funcional)
+* `reseta`: Reset do sistema (WIP para testes em VM)
+* `post-install`: Pós-instalação (ambiente gráfico, dotfiles, etc — WIP)
 
-### 3. **sistema**
-  Gere a instalação de sistema base e pacotes extras selecionados pelo usuário.
+### 🔹 `ansible.cfg`
 
-### 4. **chroot**
-  Gere as configurações de chroot.
+Configurações base para o Ansible:
 
-#### TODOs
-##### 1. **dotfiles**
-##### 2. **limpeza**
-##### 3. backup.
-#
-O sistema detecta automaticamente se o boot é UEFI ou BIOS:
+* Inventário e diretório temporário
+* SSH desativado (pensado para liveboot)
+
+### 🔹 `Inventario.yml`
+
+Usado principalmente em execuções automatizadas (ex: VMs). Pode ser adaptado para diversos cenários.
+
+### 🔹 `group_vars/all/config.yml`
+
+Configurações globais do sistema: usuário, hostname, timezone, mirrors, pacotes, etc.
+
+---
+
+## 📦 Roles (Módulos)
+
+### 1. `setup`
+
+Configura permissões de execução para scripts auxiliares.
+
+### 2. `particionamento`
+
+Particiona o disco (com base no modo de boot detectado).
+
+### 3. `sistema`
+
+Instala o sistema base e pacotes adicionais definidos.
+
+### 4. `chroot`
+
+Executa ações dentro do ambiente chroot: configuração de região, bootloader, personalização.
+
+#### Futuras Roles:
+
+* `dotfiles`
+* `limpeza`
+* `backup`
+
+---
+
+## 🧰 Detecção Automática de Modo de Boot
+
+O sistema detecta automaticamente se o boot está em UEFI ou BIOS:
 
 ```yaml
 - name: checar modo de boot (uefi, mbr etc)
@@ -93,54 +114,63 @@ O sistema detecta automaticamente se o boot é UEFI ou BIOS:
   register: efi_size
 ```
 
-O sistema tem 3 módulos principais, com o único funcional até agora sendo o `NoDe`
+---
 
-# Tecnologias Utilizadas
+## ⚙️ Tecnologias Utilizadas
 
-- **Ansible**: Orquestração e automação
-- **Shell Scripts**: Scripts auxiliares de configuração
-- **YAML**: Configuração e definição de playbooks
-- **Arch Linux**: Sistema operacional alvo[^1]
+* **Ansible** – Orquestração e automação
+* **Shell Script** – Execução de tarefas no sistema alvo
+* **YAML** – Playbooks e variáveis
+* **Arch Linux** – O sistema base (claro)
 
-# Configuração e Uso
+---
 
-## Pré-requisitos
-  
-  1. Ansible instalado no sistema controlador
-  2. Acesso à wifi dentro do live boot
-  3. pacotes git e ansible.
+## 🛠️ Como Usar
 
-## Instalação:
-  Dentro do seu liveboot
-  1. configure sua WIFI com `iwctl`
-  2. rode `pacman -S git ansible`
-  3. rode `git clone https://github.com/Dexmachi/Dextall`
-  4. rode `cd Dextall`
-  5. rode `ansible-playbook main.yaml --tags "NoDe"`
-  6. siga as instruções entregues à você pelos scripts
+### Pré-requisitos:
 
-# Estado do Projeto
+* Ansible e Git instalados
+* Acesso à internet no ambiente LiveBoot (via `iwctl`)
+* Arch Linux Live ISO em execução
 
-O projeto está em desenvolvimento ativo com 17 commits realizados, sendo 100% escrito em Shell Script com automação Ansible. O repositório não possui releases publicados nem documentação README tradicional[^1].
+### Passos:
 
-<div style="text-align: center">⁂</div>
+```bash
+iwctl                          # Conecte-se ao WiFi
+pacman -S git ansible          # Instale os pré-requisitos
+git clone https://github.com/Dexmachi/Dextall
+cd Dextall
+ansible-playbook main.yaml --tags "NoDe"
+```
 
-[^1]: https://github.com/Dexmachi/Dextall.git
+**⚠️ Siga as instruções que surgirem no terminal — o script é interativo e explicativo.**
 
-[^2]: https://github.com/Dexmachi/Dextall
+---
 
-[^3]: https://github.com/Dexmachi/Dextall/blob/main/ATENÇÃO.md
+## 🧪 Estado Atual do Projeto
 
-[^4]: https://github.com/Dexmachi/Dextall/blob/main/main.yaml
+* Repositório: [github.com/Dexmachi/Dextall](https://github.com/Dexmachi/Dextall)
+* Commits: **17**
+* Linguagens: **Shell + YAML (Ansible)**
+* Licença: **FOSS / sem releases oficiais ainda**
+* Traduções: Somente em **pt-BR**
+  Contribuições são bem-vindas, desde que mantenham o estilo narrativo do projeto.
 
-[^5]: https://github.com/Dexmachi/Dextall/blob/main/ansible.cfg
+---
 
-[^6]: https://github.com/Dexmachi/Dextall/blob/main/Inventario.yml
+## ✨ Contribuindo
 
-[^7]: https://github.com/Dexmachi/Dextall/tree/main/roles
+Qualquer ajuda é bem-vinda — principalmente:
 
-[^8]: https://github.com/Dexmachi/Dextall/blob/main/roles/setup/tasks/main.yml
+* **Automatização de dotfiles**
+* **Traduções criativas** (com lore cyberpunk/hack em mente)
+* **Melhorias nas roles Ansible**
+* **Sugestões para pós-instalação (DEs, TWM, hardening, etc)**
 
-[^9]: https://github.com/Dexmachi/Dextall/blob/main/group_vars/all/config.yml
+---
 
-[^10]: https://github.com/Dexmachi/Dextall/tree/main/roles/sistema
+<div align="center">
+  ⁂ Navegue com consciência. Instale com estilo. Aprenda o Arch com alma. ⁂
+</div>
+
+---
