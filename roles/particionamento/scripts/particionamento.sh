@@ -1,4 +1,5 @@
 #!/bin/bash
+timedatectl
 sleep 1
 echo "Preparando particionamento..."
 sleep 1
