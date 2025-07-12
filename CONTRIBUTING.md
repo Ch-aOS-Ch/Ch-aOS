@@ -2,7 +2,7 @@
 
 Qualquer ajuda é bem-vinda — principalmente:
 
-* **Automatização de dotfiles**
+* **Automação de dotfiles**
 * **Traduções criativas** (com lore cyberpunk/hack em mente)
 * **Melhorias nas roles Ansible**
 * **Sugestões para pós-instalação (DEs, TWM, hardening, etc)**
