@@ -17,26 +17,40 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 
 ```bash
 .
-├── ansible.cfg               # Configurações do Ansible
-├── ATENÇÃO.md                # Avisos importantes
-├── group_vars/
-│   └── all/config.yml        # Variáveis globais
-├── Inventario.yml            # Inventário para execuções (últil em VMs)
-├── main.yaml                 # Playbook principal
-└── roles/
-    ├── chroot/               # Configurações dentro do chroot
-    │   ├── scripts/          # Scripts de personalização regional, boot, etc.
-    │   └── tasks/main.yml
-    ├── particionamento/      # Particionamento automático ou assistido
-    │   ├── scripts/
-    │   └── tasks/main.yml
-    ├── setup/                # Prepara permissões e pastas
-    │   ├── tasks/main.yml
-    │   └── vars/scripts_dirs.yml
-    └── sistema/              # Instalação do sistema base
-        ├── scripts/
-        ├── tasks/main.yml
-        └── vars/necessarios.yml
+├── ansible.cfg
+├── ATENÇÃO.md
+├── group_vars
+│   └── all
+│       └── config.yml
+├── Inventario.yml
+├── main.yaml
+└── roles
+    ├── chroot
+    │   ├── scripts
+    │   │   ├── bootloader.sh
+    │   │   ├── personalizacao.sh
+    │   │   └── regiao.sh
+    │   └── tasks
+    │       └── main.yml
+    ├── particionamento
+    │   ├── scripts
+    │   │   └── particionamento.sh
+    │   └── tasks
+    │       └── main.yml
+    ├── setup
+    │   ├── tasks
+    │   │   └── main.yml
+    │   └── vars
+    │       └── scripts_dirs.yml
+    └── sistema
+        ├── scripts
+        │   ├── instalacao.sh
+        │   └── reflector.sh
+        ├── tasks
+        │   └── main.yml
+        └── vars
+            └── necessarios.yml
+
 ```
 
 ---
