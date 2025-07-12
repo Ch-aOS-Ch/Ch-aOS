@@ -1,6 +1,6 @@
 ---
 - name: setup do reflector
-# colocar aqui um script .sh para interatividade do usuário (aplicar vários repos baseado no local onde o usuário está [deve ser settado pelo usuário.])
+  ansible.builtin.shell: ../scripts/reflector.sh
 
 - name: pacotes no pacstrap
   ansible.builtin.command:

@@ -1,7 +1,4 @@
 ---
-- name: configurar wifi
-  # scriptzinho pra fazer o wifi funcionar
-
 - name: Instalar sistema mínimo
   hosts: install
   tags: NoDe
