@@ -10,3 +10,5 @@ necessarios:
   - nano
   - networkmanager
   - openssh
+  - git
+  - ansible
