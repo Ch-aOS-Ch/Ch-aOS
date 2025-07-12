@@ -11,6 +11,7 @@
       ansible.builtin.stat:
         boot_mode: "{{efi_size.stat.exists | ternary('uefi', 'bios')}}"
   roles:
+    - setup
     - particionamento
     - sistema
     - chroot
