@@ -4,7 +4,9 @@ necessarios:
   - base-devel
   - linux
   - linux-firmware
+  - linux-headers
   - reflector
+  - refind
   - nano
   - networkmanager
   - openssh
