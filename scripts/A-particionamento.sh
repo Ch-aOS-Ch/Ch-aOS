@@ -1,4 +1,5 @@
 #!/bin/bash
+source resources.sh
 timedatectl
 sleep 1
 echo "Preparando particionamento..."
@@ -14,96 +15,86 @@ echo "Vamos começar a particionar o disco"
 echo ""
 echo "vamos usar o comando cfdisk, então se certifique de se preparar."
 echo ""
-echo "recomendo usar 4 partições, uma pra root, uma pra home, uma pra swap e uma pra boot."
-echo "boot deve ter 1G, root deve ter pelo menos 40G, swap deve ter ao menos 4G e home o resto."
-echo "a partição de boot deve ter tipo EFI system, boot linux root(x86_64), home deve ter linux home e swap deve ter linux swap"
-echo "Quando finalizar, pressione 'write' ou 'gravar' pra salvar suas alterações."
+echo "recomendo usar 4 partições: root, home, swap e boot."
+echo "boot = 1G / EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ | home = resto"
+echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
-read -p "você entendeu tudo? (Y/n) " resposta
-while [ "$resposta" != "Y" ] && [ "$resposta" != "y" ] && [ "$resposta" != "" ]; do
+
+read -p "Você entendeu tudo? (Y/n) " resposta
+while [[ "$resposta" != "Y" && "$resposta" != "y" && "$resposta" != "" ]]; do
     echo "Por favor, leia as instruções novamente."
-    read -p "você entendeu tudo? (Y/n) " resposta
+    read -p "Você entendeu tudo? (Y/n) " resposta
 done
+
 echo "Continuando..."
 sleep 1
+echo "---------------------------------------------------"
 lsblk
 echo "---------------------------------------------------"
-read -p "Digite o nome do disco a ser particionado (ex: sda ou nvme0n1): " disco
-while [ ! -b "/dev/$disco" ]; do
-    echo ""
-    echo "Disco /dev/$disco não encontrado!"
-    read -p "Digite o nome do disco a ser particionado (ex: sda ou nvme0n1): " disco
+
+read -p "Digite o disco que vai ser particionamento (ex: sda): " disco
+while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
+    echo "Por favor, digite um disco válido."
+    read -p "Digite o disco que vai ser particionamento (ex: sda): " disco
 done
+
+# Criar/respeitar respostas.env
+envfile="../respostas.env"
+touch "$envfile"
+
+set_env_var "DISCO" "$disco"
 cfdisk "/dev/$disco"
-sleep 1
-fdisk -l "/dev/$disco"
-echo "Particionamento concluído, você tem certeza de todas as partições? (caso as partições estejam corretas, digite 'Y', caso contrário, digite 'n')"
-echo "caso elas estejam erradas, isso irá quebrar seu sistema."
-read -p "Você tem certeza de todas as partições? (Y/n) " resposta
-while [ "$resposta" != "Y" ] && [ "$resposta" != "y" ] && [ "$resposta" != "" ]; do
-    echo "Por favor, verifique as partições novamente."
-    cfdisk "/dev/$disco"
-    sleep 1
-    fdisk -l "/dev/$disco"
-    echo ""
-    sleep 1
-    echo "Particionamento concluído, você tem certeza de todas as partições? (caso as partições estejam corretas, digite 'Y', caso contrário, digite 'n')"
-    echo "Caso elas estejam erradas, isso irá quebrar seu sistema."
-    read -p "Você tem certeza de todas as partições? (Y/n) " resposta
+
+read -p "qual a tua Partição ROOT? (ex: sda2): " root
+while [[ -z "$root" || ! -b "/dev/$root" ]]; do
+    echo "Por favor, digite uma partição válida."
+    read -p "qual a tua Partição ROOT? (ex: sda2): " root
 done
-read -p "Na tua root, tu quer btrfs ou ext4? " formato
+
+read -p "qual a tua Partição HOME? (ex: sda4): " home
+while [[ -z "$home" || ! -b "/dev/$home" ]]; do
+    echo "Por favor, digite uma partição válida."
+    read -p "qual a tua Partição HOME? (ex: sda4): " home
+done
+
+read -p "qual a tua Partição BOOT? (ex: sda1): " boot
+while [[ -z "$boot" || ! -b "/dev/$boot" ]]; do
+    echo "Por favor, digite uma partição válida."
+    read -p "qual a tua Partição BOOT? (ex: sda1): " boot
+done
+
+read -p "qual a tua Partição SWAP? (ex: sda3): " swap
+while [[ -z "$swap" || ! -b "/dev/$swap" ]]; do
+    echo "Por favor, digite uma partição válida."
+    read -p "qual a tua Partição SWAP? (ex: sda3): " swap
+done
+
+read -p "qual formato você quer sua particao root?(btrfs/ext4) " formato
 while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-    echo "Formato inválido. Digite apenas 'btrfs' ou 'ext4'."
-    read -p "Na tua root, tu quer btrfs ou ext4? " formato
+    echo "Formato inválido. Por favor, escolha btrfs ou ext4."
+    read -p "qual formato você quer sua particao root?(btrfs/ext4) " formato
 done
-lsblk
-read -p "E qual tua partição de root? " root
-sleep 1
-read -p "E qual tua partição de swap? " swap
-sleep 1
-read -p "E qual tua partição de home? " home
-sleep 1
-read -p "E qual tua partição de boot? " boot
-sleep 1
-echo "... oooookay, pode deixar que daqui eu sigo"
-echo "..."
-tput bold; echo ">>> Formatando partições..."; tput sgr0
-if [ "$formato" == "btrfs" ]; then
-    mkfs.btrfs "/dev/$root"
-else
-    mkfs.ext4 "/dev/$root"
-fi
-mkswap "/dev/$swap"
-mkfs.ext4 "/dev/$home"
-mkfs.fat -F 32 "/dev/$boot"
-fdisk -l
-echo "---------------------------------------------------"
-read -p "tudo certo?(Y/n)" r
-while [ "$r" != "Y" ] && [ "$r" != "y" ] && [ "$r" != "" ]; do
-    echo "Por favor, verifique as partições novamente e escreva os caminhos certos."
-    fdisk -l
-    read -p "qual tua partição de root? " root
-    read -p "qual tua partição de swap? " swap
-    read -p "qual tua partição de home? " home
-    read -p "qual tua partição de boot? " boot
-    if [ "$formato" == "btrfs" ]; then
-        mkfs.btrfs "/dev/$root"
-    else
-        mkfs.ext4 "/dev/$root"
-    fi
-    mkswap "/dev/$swap"
-    mkfs.ext4 "/dev/$home"
-    mkfs.fat -F 32 "/dev/$boot"
-    fdisk -l
-    sleep 1
-    echo "---------------------------------------------------"
-    read -p "tudo certo?(Y/n)" r
-done
-mount "/dev/$root" /mnt
-mkdir -p /mnt/{boot,home}
-mount "/dev/$home" /mnt/home
-mount "/dev/$boot" /mnt/boot
-swapon "/dev/$swap"
-sleep 1
-echo "tudo finalizado e montado meu/minha/minhe rei/rainha/ra (sla como seria rei/rainha no gênero neutro)"
-echo "partindo pro pacstrap..."
+
+set_env_var "FORMATO_ROOT" "$formato"
+set_env_var "ROOT" "/dev/$root"
+set_env_var "HOME" "/dev/$home"
+set_env_var "BOOT" "/dev/$boot"
+set_env_var "SWAP" "/dev/$swap"
+
+echo ""
+echo "Partições salvas:"
+echo "ROOT=$root"
+echo "HOME=$home"
+echo "BOOT=$boot"
+echo "SWAP=$swap"
+echo "Disco principal: $disco"
+
+set -o allexport
+source ../respostas.env
+set +o allexport
+
+# Chamada para o playbook de particionamento
+ansible-playbook ../main.yml --tags particionamento
+
+chmod +x ./B-reflector.sh
+bash ./B-reflector.sh

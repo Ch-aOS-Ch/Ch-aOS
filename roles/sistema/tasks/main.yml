@@ -1,14 +1,21 @@
 ---
-- name: setup do reflector
-  ansible.builtin.shell: roles/sistema/scripts/reflector.sh
-
-- name: setup dos pacotes essenciais
-  ansible.builtin.shell: roles/sistema/scripts/instalacao.sh
-
 - name: pacotes no pacstrap
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
-      {% for pkg in necessarios %}
+      {% for pkg in sistema %}
         {{ pkg | quote }}
       {% endfor %}
+
+- name: Carregar plugin externo
+  include_vars: "{{ plugin }}"
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+
+- name: Instalando plugin settado
+  ansible.builtin.command:
+    cmd: >
+      pacstrap -K {{ fsroot }} --needed
+      {% for pkg in pacotes %}
+        {{ pkg | quote }}
+      {% endfor %}
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
