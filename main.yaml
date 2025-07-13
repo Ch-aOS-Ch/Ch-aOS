@@ -8,8 +8,9 @@
         path: "/sys/firmware/efi/fw_platform_size"
       register: efi_size
     - name: settar modo de boot
-      ansible.builtin.stat:
-        boot_mode: "{{efi_size.stat.exists | ternary('uefi', 'bios')}}"
+      ansible.builtin.set_fact:
+        boot_mode: "{{ efi_size.stat.exists | ternary('uefi', 'bios') }}"
+
   roles:
     - setup
     - particionamento

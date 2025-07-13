@@ -1,4 +1,7 @@
 ---
+- name: Carregar variáveis com caminhos dos scripts
+  ansible.builtin.include_vars: "{{ role_path }}/vars/scripts_dirs.yml"
+
 - name: Buscar scripts .sh nas pastas
   ansible.builtin.find:
     paths: "{{ item }}"

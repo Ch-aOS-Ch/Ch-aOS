@@ -1,5 +1,5 @@
 ---
 scripts_dirs:
-  - "../../chroot/scripts"
-  - "../../particionamento/scripts"
-  - "../../sistema/scripts"
+  - "roles/chroot/scripts"
+  - "roles/particionamento/scripts"
+  - "roles/sistema/scripts"
