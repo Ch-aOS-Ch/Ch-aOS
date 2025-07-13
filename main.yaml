@@ -1,18 +1,20 @@
 ---
-- name: Instalar sistema mínimo
-  hosts: install
-  tags: NoDe
-  pre_tasks:
-    - name: checar modo de boot (uefi, mbr etc)
-      ansible.builtin.stat:
-        path: "/sys/firmware/efi/fw_platform_size"
-      register: efi_size
-    - name: settar modo de boot
-      ansible.builtin.set_fact:
-        boot_mode: "{{ efi_size.stat.exists | ternary('uefi', 'bios') }}"
-
+- name: Preparar partições
+  tags: [particionamento]
+  vars:
+    disco: "{{ lookup('env', 'DISCO') }}"
+    root: "{{ lookup('env', 'ROOT') }}"
+    home: "{{ lookup('env', 'HOME') }}"
+    swap: "{{ lookup('env', 'SWAP') }}"
+    boot: "{{ lookup('env', 'BOOT') }}"
+    formato: "{{ lookup('env', 'FORMATO_ROOT') }}"
   roles:
-    - setup
     - particionamento
+
+- name: Instalar sistema operacional
+  tags: [instalacao]
+  vars:
+    accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
+    plugin: "{{ lookup('env', 'PLUGIN') }}"
+  roles:
     - sistema
-    - chroot

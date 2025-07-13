@@ -20,3 +20,6 @@ arch-chroot /mnt passwd "$nome_user"
 if ! grep -q "^%wheel ALL=(ALL:ALL) ALL" /mnt/etc/sudoers; then
     sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /mnt/etc/sudoers
 fi
+
+chmod +x ./F-bootloader.sh
+bash ./F-bootloader.sh
