@@ -1,2 +1,2 @@
 - name: particionamento
-  ansible.builtin.shell: ../scripts/particionamento.sh
+  ansible.builtin.shell: roles/particionamento/scripts/particionamento.sh
