@@ -1,5 +1,5 @@
 sleep 1
-nome_pc="$echo /mny/etc/hostname"
+nome_pc="$echo /mnt/etc/hostname"
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
@@ -34,3 +34,4 @@ if [[ $btrfs == "y" ]]; then
 else
     e2label "/dev/$root" "$nome_root"
 fi
+arch-chroot /mnt systemctl enable NetworkManager
