@@ -18,38 +18,43 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 ```bash
 .
 ├── ansible.cfg
-├── ATENÇÃO.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 ├── group_vars
 │   └── all
 │       └── config.yml
 ├── Inventario.yml
+├── LICENSE
 ├── main.yaml
-└── roles
-    ├── chroot
-    │   ├── scripts
-    │   │   ├── bootloader.sh
-    │   │   ├── personalizacao.sh
-    │   │   └── regiao.sh
-    │   └── tasks
-    │       └── main.yml
-    ├── particionamento
-    │   ├── scripts
-    │   │   └── particionamento.sh
-    │   └── tasks
-    │       └── main.yml
-    ├── setup
-    │   ├── tasks
-    │   │   └── main.yml
-    │   └── vars
-    │       └── scripts_dirs.yml
-    └── sistema
-        ├── scripts
-        │   ├── instalacao.sh
-        │   └── reflector.sh
-        ├── tasks
-        │   └── main.yml
-        └── vars
-            └── necessarios.yml
+├── README.md
+├── respostas.env
+├── roles
+│   ├── chroot
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── particionamento
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── setup
+│   │   ├── tasks
+│   │   │   └── main.yml
+│   │   └── vars
+│   │       └── scripts_dirs.yml
+│   └── sistema
+│       ├── tasks
+│       │   └── main.yml
+│       └── vars
+│           └── necessarios.yml
+├── scripts
+│   ├── A-particionamento.sh
+│   ├── B-reflector.sh
+│   ├── C-instalacao.sh
+│   ├── D-regiao.sh
+│   ├── E-personalizacao.sh
+│   ├── F-bootloader.sh
+│   └── resources.sh
+├── SECURITY.md
+└── WIP.yml
 
 ```
 
@@ -70,10 +75,8 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 Playbook principal — o **núcleo do ritual**.
 Contém as seguintes tags:
 
-* `NoDe`: Instalação mínima (funcional)
-* `reseta`: Reset do sistema (WIP para testes em VM)
-* `post-install`: Pós-instalação (ambiente gráfico, dotfiles, etc — WIP)
-
+* `particionamento` particiona baseado nas coisas settadas em A-particionamento.sh
+* `instalacao`: instala o sistema base e pacotes adicionais definidos, já tem um sistema preparado pra plugins, só falta integrar direito com C-instalacao.sh.
 ### 🔹 `ansible.cfg`
 
 Configurações base para o Ansible:
@@ -154,7 +157,8 @@ iwctl                          # Conecte-se ao WiFi
 pacman -S git ansible          # Instale os pré-requisitos
 git clone https://github.com/Dexmachi/Ch-aronte
 cd Ch-aronte
-ansible-playbook main.yaml --tags "NoDe"
+chmod +x scripts/A-particionamento.sh
+./scripts/A-particionamento.sh
 ```
 
 **⚠️ Siga as instruções que surgirem no terminal — o script é interativo e explicativo.**
