@@ -153,7 +153,7 @@ O sistema detecta automaticamente se o boot está em UEFI ou BIOS (isso ainda n�
 iwctl                          # Conecte-se ao WiFi
 pacman -S git ansible          # Instale os pré-requisitos
 git clone https://github.com/Dexmachi/Ch-aronte
-cd Dextall
+cd Ch-aronte
 ansible-playbook main.yaml --tags "NoDe"
 ```
 
