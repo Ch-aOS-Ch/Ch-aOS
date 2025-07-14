@@ -33,5 +33,5 @@ done
 touch /mnt/etc/locale.conf; echo "LANG=$lingua.UTF-8" > /mnt/etc/locale.conf
 echo KEYMAP=br-abnt2 > /mnt/etc/vconsole.conf
 sleep 1
-chmod +x ./E-personalizacao.sh
-bash ./E-personalizacao.sh
+chmod +x ./scripts/E-personalizacao.sh
+bash ./scripts/E-personalizacao.sh

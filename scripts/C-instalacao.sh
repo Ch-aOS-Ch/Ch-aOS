@@ -1,6 +1,6 @@
 #!/bin/bash
 pacotes=()
-source resources.sh
+source scripts/resources.sh
 
 echo "Beleza, mirrors atualizados. Bora continuar..."
 echo ""
@@ -60,5 +60,5 @@ printf '%s\n' "${pacotes[@]}"
 
 ansible-playbook main.yml --tags instalacao
 
-chmod +x ./D-regiao.sh
-bash ./D-regiao.sh
+chmod +x ./scripts/D-regiao.sh
+bash ./scripts/D-regiao.sh
