@@ -58,7 +58,7 @@ echo ""
 echo "Lista dos pacotes que você escolheu:"
 printf '%s\n' "${pacotes[@]}"
 
-ansible-playbook ../main.yml --tags instalacao
+ansible-playbook main.yml --tags instalacao
 
 chmod +x ./D-regiao.sh
 bash ./D-regiao.sh
