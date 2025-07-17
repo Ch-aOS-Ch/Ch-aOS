@@ -1,6 +1,6 @@
 #!/bin/bash
 pacotes=()
-source scripts/resources.sh
+source ./scripts/resources.sh
 
 echo "Beleza, mirrors atualizados. Bora continuar..."
 echo ""
@@ -24,35 +24,35 @@ read -p "quer mais algum pacote? (Y/n) " ok
 set_env_var "PLUGIN_ACCEPT" "$ok"
 
 if [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; then
-    echo "Ok, vamos adicionar mais pacotes!"
-    # SISTEMA DE INICIALIZAÇÃO DE PLUGIN CUSTOM PARA ESSA INSTALAÇÃO
-    plugin_dir="../sistema/vars/"
-    qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml'| wc -l)
-    qtd=$((qtd+1))
-    mkdir -p "$plugin_dir"
-    arquivo="${plugin_dir}/custom${qtd}.yml"
-    set_env_var "PLUGIN" "$arquivo"
-    echo "pacotes:" >> "$arquivo"
+  echo "Ok, vamos adicionar mais pacotes!"
+  # SISTEMA DE INICIALIZAÇÃO DE PLUGIN CUSTOM PARA ESSA INSTALAÇÃO
+  plugin_dir="../sistema/vars/"
+  qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
+  qtd=$((qtd + 1))
+  mkdir -p "$plugin_dir"
+  arquivo="${plugin_dir}/custom${qtd}.yml"
+  set_env_var "PLUGIN" "$arquivo"
+  echo "pacotes:" >>"$arquivo"
 else
-    echo "Ok, vamos continuar sem mais pacotes adicionais."
+  echo "Ok, vamos continuar sem mais pacotes adicionais."
 fi
 
 while [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; do
+  read -p "Digite o nome do pacote: " pacote
+  while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
+    echo "Pacote não encontrado."
+    echo "Digite novamente:"
     read -p "Digite o nome do pacote: " pacote
-    while ! pacman -Ss "$pacote" > /dev/null 2>&1; do
-        echo "Pacote não encontrado."
-        echo "Digite novamente:"
-        read -p "Digite o nome do pacote: " pacote
-    done
-    if [[ ! " ${pacotes[*]} " =~ " $pacote " ]]; then
-        echo "Adicionando $pacote..."
-        pacotes+=("$pacote")
-        echo "  - $pacote" >> "$arquivo"
+  done
+  if [[ ! " ${pacotes[*]} " =~ " $pacote " ]]; then
+    echo "Adicionando $pacote..."
+    pacotes+=("$pacote")
+    echo "  - $pacote" >>"$arquivo"
 
-    else
-        echo "pacote já selecionado"
-    fi
-    read -p "mais algum? (Y/n) " ok
+  else
+    echo "pacote já selecionado"
+  fi
+  read -p "mais algum? (Y/n) " ok
 done
 echo ""
 echo "Lista dos pacotes que você escolheu:"
