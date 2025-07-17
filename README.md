@@ -142,7 +142,7 @@ Executa ações dentro do ambiente chroot: configuração de região, bootloader
 ```bash
 iwctl                          # Conecte-se ao WiFi
 pacman -Sy git ansible          # Instale os pré-requisitos
-git clone https://github.com/Dexmachi/Ch-aronte
+git clone https://github.com/Dexmachi/Ch-aronte.git
 cd Ch-aronte
 chmod +x scripts/A-particionamento.sh
 ./scripts/A-particionamento.sh
