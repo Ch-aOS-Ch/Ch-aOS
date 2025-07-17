@@ -120,19 +120,6 @@ Executa ações dentro do ambiente chroot: configuração de região, bootloader
 
 ---
 
-## 🧰 Detecção Automática de Modo de Boot
-
-O sistema detecta automaticamente se o boot está em UEFI ou BIOS (isso ainda não tem utilidade, a instalação ainda assume uso de UEFI.):
-
-```yaml
-- name: checar modo de boot (uefi, mbr etc)
-  ansible.builtin.stat:
-    path: "/sys/firmware/efi/fw_platform_size"
-  register: efi_size
-```
-
----
-
 ## ⚙️ Tecnologias Utilizadas
 
 * **Ansible** – Orquestração e automação
