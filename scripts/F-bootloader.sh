@@ -1,5 +1,6 @@
+#!/bin/bash
 sleep 1
-nome_pc="$echo /mnt/etc/hostname"
+nome_pc="$(cat /mnt/etc/hostname")
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
@@ -10,7 +11,7 @@ cat <<EOF >> /mnt/boot/refind/refind.conf
 # Entrada adicionada automaticamente pelo script Ch-aronte
 # ---------------------------------------------------------
 
-menuentry '$nome_pc' {
+menuentry "$nome_pc" {
     icon /EFI/refind/icons/os_arch.png
     volume $nome_pc
     loader /vmlinuz-linux
