@@ -98,7 +98,7 @@ source ./respostas.env
 set +o allexport
 
 # Chamada para o playbook de particionamento
-ansible-playbook ./main.yml --tags particionamento
+ansible-playbook -vvv ./main.yml --tags particionamento
 
-chmod +x ./scripts/B-reflector.sh
-bash ./scripts/B-reflector.sh
+#chmod +x ./scripts/B-reflector.sh
+#bash ./scripts/B-reflector.sh
