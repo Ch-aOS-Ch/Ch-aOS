@@ -1,4 +1,5 @@
 #!/bin/bash
+envfile="respostas.env"
 set_env_var() {
   local var="$1"
   local val="$2"
