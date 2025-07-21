@@ -2,30 +2,45 @@
   ansible.builtin.filesystem:
     fstype: "{{ formato }}"
     dev: "{{ root }}"
-  when: formato is defined and root is defined
+  when: root | length > 0 and formato | length > 0
 
 - name: Formatação de partição home
   ansible.builtin.filesystem:
     fstype: ext4
     dev: "{{ home }}"
-  when: home is defined
+  when: home | length > 0
 
 - name: Formatação de partição swap
   ansible.builtin.filesystem:
     fstype: swap
     dev: "{{ swap }}"
-  when: swap is defined
+  when: swap | length > 0
 
 - name: Formatação de partição boot
   ansible.builtin.filesystem:
     fstype: vfat
     dev: "{{ boot }}"
-  when: boot is defined
+  when: boot | length > 0
+
+- name: Criar diretório da home
+  ansible.builtin.file:
+    path: /mnt/home/
+    state: directory
+    mode: '0755'
+  when: home | length > 0
+
+- name: Criar diretório da boot
+  ansible.builtin.file:
+    path: /mnt/boot/
+    state: directory
+    mode: '0755'
+  when: boot | length > 0
 
 - name: ativar swap
   ansible.builtin.command:
     cmd: swapon {{ swap }}
-  when: swap is defined
+  when: swap | length > 0
+  ignore_errors: true
 
 - name: ativar root
   ansible.builtin.mount:
@@ -33,7 +48,7 @@
     src: "{{ root }}"
     fstype: "{{ formato }}"
     state: mounted
-  when: root is defined and formato is defined
+  when: root | length > 0 and formato | length > 0
 
 - name: ativar home
   ansible.builtin.mount:
@@ -41,7 +56,7 @@
     src: "{{ home }}"
     fstype: ext4
     state: mounted
-  when: home is defined and root is defined and formato is defined
+  when: home | length > 0 and root | length > 0 and formato | length > 0
 
 - name: ativar boot
   ansible.builtin.mount:
@@ -49,4 +64,4 @@
     src: "{{ boot }}"
     fstype: vfat
     state: mounted
-  when: boot is defined and formato is defined and root is defined
+  when: boot | length > 0 and root | length > 0 and formato | length > 0
