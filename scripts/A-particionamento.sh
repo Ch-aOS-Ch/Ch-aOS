@@ -2,7 +2,7 @@
 source scripts/resources.sh
 timedatectl
 loadkeys br-abnt2
-mkdir -p tmp/.ansible-${USER}/tmp
+mkdir -p "tmp/.ansible-${USER}/tmp"
 
 sleep 1
 echo "Preparando particionamento..."
@@ -23,10 +23,10 @@ echo "boot = 1G / EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ | h
 echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
 
-read -p "Você entendeu tudo? (Y/n) " resposta
+read -p -r "Você entendeu tudo? (Y/n) " resposta
 while [[ "$resposta" != "Y" && "$resposta" != "y" && "$resposta" != "" ]]; do
   echo "Por favor, leia as instruções novamente."
-  read -p "Você entendeu tudo? (Y/n) " resposta
+  read -p -r "Você entendeu tudo? (Y/n) " resposta
 done
 
 echo "Continuando..."
@@ -35,10 +35,10 @@ echo "---------------------------------------------------"
 lsblk
 echo "---------------------------------------------------"
 
-read -p "Digite o disco que vai ser particionamento (ex: sda): " disco
+read -p -r "Digite o disco que vai ser particionamento (ex: sda): " disco
 while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
   echo "Por favor, digite um disco válido."
-  read -p "Digite o disco que vai ser particionamento (ex: sda): " disco
+  read -p -r "Digite o disco que vai ser particionamento (ex: sda): " disco
 done
 
 # Criar/respeitar respostas.env
@@ -48,34 +48,34 @@ touch "$envfile"
 set_env_var "DISCO" "$disco"
 cfdisk "/dev/$disco"
 
-read -p "qual a tua Partição ROOT? (ex: sda2): " root
+read -p -r "qual a tua Partição ROOT? (ex: sda2): " root
 while [[ -z "$root" || ! -b "/dev/$root" ]]; do
   echo "Por favor, digite uma partição válida."
-  read -p "qual a tua Partição ROOT? (ex: sda2): " root
+  read -p -r "qual a tua Partição ROOT? (ex: sda2): " root
 done
 
-read -p "qual a tua Partição HOME? (ex: sda4): " home
+read -p -r "qual a tua Partição HOME? (ex: sda4): " home
 while [[ -z "$home" || ! -b "/dev/$home" ]]; do
   echo "Por favor, digite uma partição válida."
-  read -p "qual a tua Partição HOME? (ex: sda4): " home
+  read -p -r "qual a tua Partição HOME? (ex: sda4): " home
 done
 
-read -p "qual a tua Partição BOOT? (ex: sda1): " boot
+read -p -r "qual a tua Partição BOOT? (ex: sda1): " boot
 while [[ -z "$boot" || ! -b "/dev/$boot" ]]; do
   echo "Por favor, digite uma partição válida."
-  read -p "qual a tua Partição BOOT? (ex: sda1): " boot
+  read -p -r "qual a tua Partição BOOT? (ex: sda1): " boot
 done
 
-read -p "qual a tua Partição SWAP? (ex: sda3): " swap
+read -p -r "qual a tua Partição SWAP? (ex: sda3): " swap
 while [[ -z "$swap" || ! -b "/dev/$swap" ]]; do
   echo "Por favor, digite uma partição válida."
-  read -p "qual a tua Partição SWAP? (ex: sda3): " swap
+  read -p -r "qual a tua Partição SWAP? (ex: sda3): " swap
 done
 
-read -p "qual formato você quer sua particao root?(btrfs/ext4) " formato
+read -p -r "qual formato você quer sua particao root?(btrfs/ext4) " formato
 while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
   echo "Formato inválido. Por favor, escolha btrfs ou ext4."
-  read -p "qual formato você quer sua particao root?(btrfs/ext4) " formato
+  read -p -r "qual formato você quer sua particao root?(btrfs/ext4) " formato
 done
 
 set_env_var "FORMATO_ROOT" "$formato"
@@ -93,9 +93,9 @@ echo "SWAP=$swap"
 echo "Disco principal: $disco"
 echo "Formato da partição root: $formato"
 
-set -a allexport
+set -a
 source ./respostas.env
-set +a allexport
+set +a
 
 # Chamada para o playbook de particionamento
 
