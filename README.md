@@ -7,7 +7,7 @@
 
 ## 🌐 Visão Geral
 
-O **Ch-aronte** é um instalador minimalista para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos e amantes do caos controlado. Ele automatiza o processo de instalação mantendo o usuário no comando, com foco em **aprendizado**, **imersão** e um toque de **estética cyberpunk** (sim, é meio cringe, mas é *nosso* cringe).
+O **Ch-aronte** é um instalador minimal para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos(sim, é meio cringe, mas é *nosso* cringe).
 
 Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futuros para ambientes **VM** e pós-instalação completa com gerenciamento de **dotfiles**.
 
@@ -54,8 +54,7 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 │   ├── F-bootloader.sh
 │   └── resources.sh
 ├── SECURITY.md
-└── WIP.yml
-
+└── # WIP.yml
 ```
 
 ---
@@ -72,7 +71,7 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 
 ### 🔹 `main.yaml`
 
-Playbook principal — o **núcleo do ritual**.
+Playbook principal — o **núcleo dos scripts**.
 Contém as seguintes tags:
 
 * `particionamento` particiona baseado nas coisas settadas em A-particionamento.sh
@@ -90,7 +89,7 @@ Usado principalmente em execuções automatizadas (ex: VMs). Pode ser adaptado p
 
 ### 🔹 `group_vars/all/config.yml`
 
-Configurações globais do sistema: usuário, hostname, timezone, mirrors, pacotes, etc.
+Configurações globais do sistema: usuário, hostname, timezone, mirrors, pacotes, etc. Será utilizado no sistema de automação completa (como no archinstall quando você pode salvar sua config.)
 
 ---
 
@@ -102,19 +101,14 @@ Configura permissões de execução para scripts auxiliares.
 
 ### 2. `particionamento`
 
-Particiona o disco (com base no modo de boot detectado).
+Formata e monta as partições do disco criadas pelo usuário. 
 
 ### 3. `sistema`
 
-Instala o sistema base e pacotes adicionais definidos.
-
-### 4. `chroot`
-
-Executa ações dentro do ambiente chroot: configuração de região, bootloader, personalização.
+Instala o sistema base e pacotes adicionais definidos (esses pacotes adicionais serão encontrados em um plugin dentro de ./sistema/vars/custom/).
 
 #### Futuras Roles:
 
-* `dotfiles`
 * `limpeza`
 * `backup`
 
@@ -146,7 +140,7 @@ pacman -Sy git
 git clone https://github.com/Dexmachi/Ch-aronte.git
 cd Ch-aronte
 chmod +x scripts/A-particionamento.sh
-./scripts/A-particionamento.sh
+./scripts/A-particionamento.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
 ```
 
 **⚠️ Siga as instruções que surgirem no terminal — o script é interativo e explicativo.**
@@ -156,7 +150,7 @@ chmod +x scripts/A-particionamento.sh
 ## 🧪 Estado Atual do Projeto
 
 * Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
-* Commits: **17**
+* Commits: **70**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
 * Traduções: Somente em **pt-BR**
