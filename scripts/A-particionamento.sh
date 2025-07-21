@@ -93,12 +93,12 @@ echo "SWAP=$swap"
 echo "Disco principal: $disco"
 echo "Formato da partição root: $formato"
 
-set -o allexport
+set -a allexport
 source ./respostas.env
-set +o allexport
+set +a allexport
 
 # Chamada para o playbook de particionamento
-ansible-playbook ./main.yaml --tags particionamento
 
+ansible-playbook ./main.yaml --tags particionamento
 chmod +x ./scripts/B-reflector.sh
 bash ./scripts/B-reflector.sh
