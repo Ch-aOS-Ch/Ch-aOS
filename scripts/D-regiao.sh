@@ -23,6 +23,11 @@ sleep 1
 echo "oooookay, bora pro teu locale (tua linguagem), vamo usar nano /etc/locale.gen e VOCÊ (sim, VOCÊ) vai descomentar a linha do locale que tu quiser"
 sleep 1
 echo "ah, e deixa que eu rodo o locale-gen pra você"
+read -p -r "tudo certo? (Y/n) " certo
+while [[ "$certo" != "Y" && "$certo" != "y" && "$certo" != "" ]]; do
+  echo "Por favor, leia as instruções novamente."
+  read -p -r "tudo certo? (Y/n) " certo
+done
 sleep 1
 nano /mnt/etc/locale.gen
 sleep 1
