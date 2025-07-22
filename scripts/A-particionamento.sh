@@ -100,5 +100,6 @@ set +a
 # Chamada para o playbook de particionamento
 
 ansible-playbook ./main.yaml --tags particionamento
+genfstab -U /mnt >>/mnt/etc/fstab
 chmod +x ./scripts/B-reflector.sh
 bash ./scripts/B-reflector.sh
