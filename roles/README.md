@@ -1,6 +1,6 @@
 # Para escrever uma role[IMPORTANT]
 1. Considere a playbook principal:
-../imagens/2025-07-25T01-15-20Z_code.png
+![main.yaml](imagens/2025-07-25T01-15-20Z_code.png)
 
 2. você deve criar uma pasta dentro de 'roles' com o nome do que você quer fazer, como 'particionamento', 'plugins' ou coisas do tipo.
 
