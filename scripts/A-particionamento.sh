@@ -19,7 +19,7 @@ echo ""
 echo "vamos usar o comando cfdisk, então se certifique de se preparar."
 echo ""
 echo "recomendo usar 4 partições: root, home, swap e boot."
-echo "boot = 1G / EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ | home = resto"
+echo "boot = 1G com tipo EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ / linux swap | home = resto / linux home"
 echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
 
@@ -41,7 +41,6 @@ while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
   read -p -r "Digite o disco que vai ser particionamento (ex: sda): " disco
 done
 
-# Criar/respeitar respostas.env
 envfile="respostas.env"
 touch "$envfile"
 
@@ -72,6 +71,8 @@ while [[ -z "$swap" || ! -b "/dev/$swap" ]]; do
   read -p -r "qual a tua Partição SWAP? (ex: sda3): " swap
 done
 
+echo "O formato da partição root pode ser btrfs ou ext4."
+echo "btrfs ajuda a compactar mais seu disco root, mas piora performance em jogos, por exemplo, enquanto ext4 é mais tradicional."
 read -p -r "qual formato você quer sua particao root?(btrfs/ext4) " formato
 while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
   echo "Formato inválido. Por favor, escolha btrfs ou ext4."
@@ -92,13 +93,26 @@ echo "BOOT=$boot"
 echo "SWAP=$swap"
 echo "Disco principal: $disco"
 echo "Formato da partição root: $formato"
+echo "---------------------------------------------------"
+#read -p -r "Confirma? (Y/n) " confirmacao
+#while [[ "$confirmacao" != "Y" && "$confirmacao" != "y" && "$confirmacao" != "" ]]; do
+# echo "Por favor, confirme as partições."
+# echo "ROOT=$root"
+# echo "HOME=$home"
+# echo "BOOT=$boot"
+# echo "SWAP=$swap"
+# echo "Disco principal: $disco"
+# echo "Formato da partição root: $formato"
+# read -p -r "qual a partição atual da que quer mudar? (ex: sda2): " particao_atual
+# read -p -r "para qual você deseja mudar?(sda2, sda1, etc)" mudanca
+# read -p -r "Confirma? (Y/n) " confirmacao
+#done
 
 set -a
 source ./respostas.env
 set +a
 
 # Chamada para o playbook de particionamento
-
 ansible-playbook -vvv ./main.yaml --tags particionamento
 genfstab -U /mnt >>/mnt/etc/fstab
 chmod +x ./scripts/B-reflector.sh
