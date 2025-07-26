@@ -8,8 +8,8 @@ echo "[sons de teclado]"
 sleep 1
 
 if ! command -v reflector &>/dev/null; then
-    echo "Ai ai... não temos o reflector, deixa que eu instalo rapidão"
-    pacman -S reflector
+  echo "Ai ai... não temos o reflector, deixa que eu instalo rapidão"
+  pacman -Sy reflector
 fi
 
 echo "jesus amado, que comando grande... aliás, é esse aqui:"
