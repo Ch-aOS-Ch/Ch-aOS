@@ -23,10 +23,10 @@ echo "boot = 1G com tipo EFI system | root = 40G+ / Linux root(x86_64) | swap = 
 echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
 
-read -p -r "Você entendeu tudo? (Y/n) " resposta
-while [[ "$resposta" != "Y" && "$resposta" != "y" && "$resposta" != "" ]]; do
-  echo "Por favor, leia as instruções novamente."
-  read -p -r "Você entendeu tudo? (Y/n) " resposta
+read -p -r "Você entendeu tudo (digite N para confirmar)? (y/N) " resposta
+while [[ "$resposta" == "Y" && "$resposta" == "y" && "$resposta" == "" ]]; do
+  echo "Por favor, leia as instruções novamente e PARA DE FICAR SÓ DANDO ENTER!"
+  read -p -r "Você entendeu tudo? (y/N) " resposta
 done
 
 echo "Continuando..."
