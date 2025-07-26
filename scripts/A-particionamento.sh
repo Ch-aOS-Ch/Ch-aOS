@@ -35,7 +35,7 @@ echo "---------------------------------------------------"
 lsblk
 echo "---------------------------------------------------"
 
-read -p -r "Digite o disco que vai ser particionamento (ex: sda): " disco
+read -p -r "Digite o disco que vai ser particionado (ex: sda): " disco
 while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
   echo "Por favor, digite um disco válido."
   read -p -r "Digite o disco que vai ser particionamento (ex: sda): " disco
