@@ -13,10 +13,10 @@ cat <<EOF >>/mnt/boot/refind/refind.conf
 
 menuentry "$nome_pc" {
     icon /EFI/refind/icons/os_arch.png
-    volume $nome_pc
+    volume "$nome_pc"
     loader /vmlinuz-linux
     initrd /initramfs-linux.img
-    options "root=LABEL=$nome_root rw add_efi_memmap"
+    options "root=LABEL="$nome_root" rw add_efi_memmap"
     submenuentry 'fallback' {
         initrd /initramfs-linux-fallback.img
     }
