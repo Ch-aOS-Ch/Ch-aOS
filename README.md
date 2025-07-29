@@ -62,7 +62,7 @@ Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futur
 ## 🚀 Funcionalidades
 
 * [x] **Instalador Minimal** — com detecção automática de BIOS/UEFI
-* [ ] **Gerenciador de Dotfiles** — WIP
+* [-] **Gerenciador de Dotfiles** — WIP
 * [ ] **Configuração Pós-Instalação** — WIP
 
 ---
