@@ -23,7 +23,7 @@ echo "boot = 1G com tipo EFI system | root = 40G+ / Linux root(x86_64) | swap = 
 echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
 
-read -p "Você entendeu tudo (digite N para confirmar)? (y/N) " resposta
+read -p "Você entendeu tudo (digite N para confirmar)? (y/N) " -r resposta
 while [[ "$resposta" == "Y" && "$resposta" == "y" && "$resposta" == "" ]]; do
   echo "Por favor, leia as instruções novamente e PARA DE FICAR SÓ DANDO ENTER!"
   read -p -r "Você entendeu tudo? (y/N) " resposta
@@ -94,7 +94,7 @@ echo "SWAP=$swap"
 echo "Disco principal: $disco"
 echo "Formato da partição root: $formato"
 echo "---------------------------------------------------"
-#read -p -r "Confirma? (Y/n) " confirmacao
+#read -p "Confirma? (Y/n) " confirmacao
 #while [[ "$confirmacao" != "Y" && "$confirmacao" != "y" && "$confirmacao" != "" ]]; do
 # echo "Por favor, confirme as partições."
 # echo "ROOT=$root"
@@ -103,9 +103,9 @@ echo "---------------------------------------------------"
 # echo "SWAP=$swap"
 # echo "Disco principal: $disco"
 # echo "Formato da partição root: $formato"
-# read -p -r "qual a partição atual da que quer mudar? (ex: sda2): " particao_atual
-# read -p -r "para qual você deseja mudar?(sda2, sda1, etc)" mudanca
-# read -p -r "Confirma? (Y/n) " confirmacao
+# read -p "qual a partição atual da que quer mudar? (ex: sda2): " particao_atual
+# read -p "para qual você deseja mudar?(sda2, sda1, etc)" mudanca
+# read -p "Confirma? (Y/n) " confirmacao
 #done
 
 set -a
