@@ -1,4 +1,4 @@
-# Para escrever uma role[IMPORTANT]
+# Para escrever uma role [IMPORTANT]
 1. Considere a playbook principal:
 ![main.yaml](../imagens/2025-07-25T01-15-20Z_code.png)
 
