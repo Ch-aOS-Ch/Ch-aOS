@@ -20,7 +20,7 @@ echo "  - networkmanager"
 echo "  - openssh"
 echo "---------------------------------------------------"
 sleep 1
-read -p "quer mais algum pacote? (Y/n) " ok
+read -p "quer mais algum pacote? (Y/n) " -r ok
 set_env_var "PLUGIN_ACCEPT" "$ok"
 
 if [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; then
@@ -38,11 +38,11 @@ else
 fi
 
 while [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; do
-  read -p "Digite o nome do pacote: " pacote
+  read -p "Digite o nome do pacote: " -r pacote
   while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
     echo "Pacote não encontrado."
     echo "Digite novamente:"
-    read -p "Digite o nome do pacote: " pacote
+    read -p "Digite o nome do pacote: " -r pacote
   done
   if [[ ! "${pacotes[*]}" =~ $pacote ]]; then
     echo "Adicionando $pacote..."
@@ -51,7 +51,7 @@ while [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; do
   else
     echo "pacote já selecionado"
   fi
-  read -p "mais algum? (Y/n) " ok
+  read -p "mais algum? (Y/n) " -r ok
 done
 echo ""
 echo "Lista dos pacotes que você escolheu:"

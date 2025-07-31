@@ -4,7 +4,7 @@ nome_pc="$(cat /mnt/etc/hostname)"
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
-read -p "me dá um nome daora aí pro teu disco de root" nome_root
+read -p "me dá um nome daora aí pro teu disco de root" -r nome_root
 cat <<EOF >>/mnt/boot/refind/refind.conf
 
 # ---------------------------------------------------------
@@ -28,8 +28,8 @@ EOF
 
 lsblk
 echo ""
-read -p "qual era tua partição de root mesmo?" root
-read -p "e tu usava btrfs ou nem (y/N)? " btrfs
+read -p "qual era tua partição de root mesmo?" -r root
+read -p "e tu usava btrfs ou nem (y/N)? " -r btrfs
 if [[ $btrfs == "y" ]]; then
   btrfs filesystem label "/dev/$root" "$nome_root"
 else
