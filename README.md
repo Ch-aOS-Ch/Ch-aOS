@@ -151,7 +151,7 @@ chmod +x scripts/A-particionamento.sh
 ## 🧪 Estado Atual do Projeto
 
 * Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
-* Commits: **70**
+* Commits: **95**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
 * Traduções: **pt-BR**
