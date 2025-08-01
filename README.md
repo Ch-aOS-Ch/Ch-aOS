@@ -154,7 +154,7 @@ chmod +x scripts/A-particionamento.sh
 * Commits: **70**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
-* Traduções: Somente em **pt-BR**
+* Traduções: **pt-BR**
   Contribuições são bem-vindas, desde que mantenham o estilo narrativo do projeto.
 
 ---
