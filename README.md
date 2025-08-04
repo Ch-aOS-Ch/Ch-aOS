@@ -7,7 +7,7 @@
 
 ## 🌐 Visão Geral
 
-O **Ch-aronte** é um instalador minimal para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos(sim, é meio cringe, mas é *nosso* cringe).
+O **Ch-aronte** é um instalador minimal para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos.
 
 Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futuros para ambientes **VM** e pós-instalação completa com gerenciamento de **dotfiles**.
 
