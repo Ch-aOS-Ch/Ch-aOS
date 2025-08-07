@@ -144,7 +144,7 @@ chmod +x scripts/A-particionamento.sh
 ./scripts/A-particionamento.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
 ```
 
-> [!WARNING]    Siga as instruções que surgirem no terminal — o script é interativo e explicativo.
+>[!WARNING] Siga as instruções que surgirem no terminal — o script é interativo e explicativo.
  
 
 ---
