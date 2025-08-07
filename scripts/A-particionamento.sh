@@ -24,9 +24,9 @@ echo "Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
 echo "---------------------------------------------------"
 
 read -p "Você entendeu tudo (digite N para confirmar)? (y/N) " -r resposta
-while [[ "$resposta" == "Y" && "$resposta" == "y" && "$resposta" == "" ]]; do
+while [[ "$resposta" == "Y" || "$resposta" == "y" || "$resposta" == "" ]]; do
   echo "Por favor, leia as instruções novamente e PARA DE FICAR SÓ DANDO ENTER!"
-  read -p -r "Você entendeu tudo? (y/N) " resposta
+  read -p "Você entendeu tudo? (y/N) " -r resposta
 done
 
 echo "Continuando..."
