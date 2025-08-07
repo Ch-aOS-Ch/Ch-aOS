@@ -135,6 +135,7 @@ Instala o sistema base e pacotes adicionais definidos (esses pacotes adicionais 
 
 ```bash
 iwctl                          # Conecte-se ao WiFi
+mount - remount,size=2G /run/archiso/cowspace #aumenta o tamanho q seu liveboot usa pra fazer algumas instalações 
 pacman -Sy ansible          # Instale os pré-requisitos
 pacman -Sy git
 git clone https://github.com/Dexmachi/Ch-aronte.git
