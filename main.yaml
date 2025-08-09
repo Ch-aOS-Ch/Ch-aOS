@@ -13,7 +13,7 @@
     - particionamento
 
 - name: Instalar sistema operacional
-  host: localhost
+  hosts: localhost
   tags: [instalacao]
   vars:
     accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
