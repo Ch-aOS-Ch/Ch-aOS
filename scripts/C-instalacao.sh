@@ -30,7 +30,7 @@ if [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; then
   qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
   qtd=$((qtd + 1))
   mkdir -p "$plugin_dir"
-  arquivo="${plugin_dir}/custom${qtd}.yml"
+  arquivo="${plugin_dir}custom${qtd}.yml"
   set_env_var "PLUGIN" "$arquivo"
   echo "pacotes:" >>"$arquivo"
 else
