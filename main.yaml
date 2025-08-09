@@ -1,5 +1,6 @@
 ---
 - name: Preparar partições
+  hosts: localhost
   tags: [particionamento]
   vars:
     disco: "{{ lookup('env', 'DISCO') }}"
@@ -12,6 +13,7 @@
     - particionamento
 
 - name: Instalar sistema operacional
+  host: localhost
   tags: [instalacao]
   vars:
     accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
