@@ -1,21 +1,15 @@
----
-- name: pacotes no pacstrap
-  ansible.builtin.command:
-    cmd: >
-      pacstrap -K {{ fsroot }} --needed
-      {% for pkg in sistema %}
-        {{ pkg | quote }}
-      {% endfor %}
-
 - name: Carregar plugin externo
   include_vars: "{{ plugin }}"
-  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', '
 
-- name: Instalando plugin settado
+- name: Instalar sistema base e pacotes de plugin
+  vars:
+    pacotes_plugin: "{{ pacotes | default([]) }}"
+  
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
-      {% for pkg in pacotes %}
+      {% for pkg in sistema + pacotes_plugin %}
         {{ pkg | quote }}
       {% endfor %}
-  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+  changed_when: true
