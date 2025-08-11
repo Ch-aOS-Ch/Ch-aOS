@@ -80,10 +80,10 @@ while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
 done
 
 set_env_var "FORMATO_ROOT" "$formato"
-set_env_var "ROOTp" "/dev/$root"
-set_env_var "HOMEp" "/dev/$home"
-set_env_var "BOOTp" "/dev/$boot"
-set_env_var "SWAPp" "/dev/$swap"
+set_env_var "ROOTP" "/dev/$root"
+set_env_var "HOMEP" "/dev/$home"
+set_env_var "BOOTP" "/dev/$boot"
+set_env_var "SWAPP" "/dev/$swap"
 
 echo ""
 echo "Partições salvas:"
