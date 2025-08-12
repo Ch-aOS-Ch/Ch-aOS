@@ -4,10 +4,10 @@
   tags: [particionamento]
   vars:
     disco: "{{ lookup('env', 'DISCO') }}"
-    root: "{{ lookup('env', 'ROOTp') }}"
-    home: "{{ lookup('env', 'HOMEp') }}"
-    swap: "{{ lookup('env', 'SWAPp') }}"
-    boot: "{{ lookup('env', 'BOOTp') }}"
+    root: "{{ lookup('env', 'ROOTP') }}"
+    home: "{{ lookup('env', 'HOMEP') }}"
+    swap: "{{ lookup('env', 'SWAPP') }}"
+    boot: "{{ lookup('env', 'BOOTP') }}"
     formato: "{{ lookup('env', 'FORMATO_ROOT') }}"
   roles:
     - particionamento
