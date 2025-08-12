@@ -1,10 +1,10 @@
 ---
 sistema:
-  - base
-  - base-devel
   - linux
   - linux-firmware
   - linux-headers
+  - base
+  - base-devem
   - reflector
   - refind
   - nano
