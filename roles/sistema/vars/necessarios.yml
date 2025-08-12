@@ -4,7 +4,7 @@ sistema:
   - linux-firmware
   - linux-headers
   - base
-  - base-devem
+  - base-devel
   - reflector
   - refind
   - nano
