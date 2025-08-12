@@ -1,6 +1,6 @@
 - name: Carregar plugin externo
   include_vars: "{{ plugin }}"
-  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', '
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
 
 - name: Instalar sistema base e pacotes de plugin
   vars:
