@@ -1,3 +1,4 @@
+---
 - name: Carregar plugin externo
   include_vars: "{{ plugin }}"
   when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
