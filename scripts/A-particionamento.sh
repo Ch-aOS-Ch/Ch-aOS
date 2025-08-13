@@ -109,7 +109,7 @@ echo "---------------------------------------------------"
 #done
 
 set -a
-source ./respostas.env
+source respostas.env
 set +a
 
 # Chamada para o playbook de particionamento
