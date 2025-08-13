@@ -25,8 +25,9 @@ set_env_var "PLUGIN_ACCEPT" "$ok"
 
 if [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; then
   echo "Ok, vamos adicionar mais pacotes!"
+
   # SISTEMA DE INICIALIZAÇÃO DE PLUGIN CUSTOM PARA ESSA INSTALAÇÃO
-  plugin_dir="./sistema/vars/"
+  plugin_dir="./roles/sistema/vars/"
   qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
   qtd=$((qtd + 1))
   mkdir -p "$plugin_dir"
