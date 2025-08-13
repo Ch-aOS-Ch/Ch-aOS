@@ -1,12 +1,13 @@
 ---
 - name: Carregar plugin externo
-  include_vars: 
-    - "{{ plugin }}"
-    - ../vars/necessarios.yml
+  include_vars: "{{ plugin }}"
   when:
     - plugin is defined
     - plugin is file
     - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+
+- name: Carregar necessarios
+  include_vars: "../vars/necessarios.yml"
 
 - name: Instalar sistema base e pacotes de plugin
   vars:
