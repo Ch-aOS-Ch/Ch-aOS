@@ -1,6 +1,8 @@
 ---
 - name: Carregar plugin externo
-  include_vars: "{{ plugin }}"
+  include_vars: 
+    - "{{ plugin }}"
+    - ../vars/necessarios.yml
   when:
     - plugin is defined
     - plugin is file
