@@ -13,7 +13,7 @@
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
-      {% for pkg in sistema + pacotes_plugin %}
+      {% for pkg in necessarios + pacotes_plugin %}
         {{ pkg | quote }}
       {% endfor %}
   changed_when: true
