@@ -9,6 +9,8 @@
       {% for pkg in sistema %}
         {{ pkg | quote }}
       {% endfor %}
+  async: 3600
+  poll: 15
 
 - name: Carregar plugin externo
   include_vars: "{{ plugin }}"
@@ -22,4 +24,6 @@
         {{ pkg | quote }}
       {% endfor %}
   when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+  async: 3600
+  poll: 15
 
