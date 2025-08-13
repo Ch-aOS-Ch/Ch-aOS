@@ -59,6 +59,6 @@ echo "Lista dos pacotes que você escolheu:"
 printf '%s\n' "${pacotes[@]}"
 
 ansible-playbook -vvv ./main.yaml --tags instalacao
-
+genfstab -U /mnt >>/mnt/etc/fstab
 chmod +x ./scripts/D-regiao.sh
 bash ./scripts/D-regiao.sh
