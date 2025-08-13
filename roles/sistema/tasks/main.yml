@@ -9,7 +9,6 @@
 - name: Instalar sistema base e pacotes de plugin
   vars:
     pacotes_plugin: "{{ pacotes | default([]) }}"
-  
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
