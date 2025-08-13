@@ -22,6 +22,14 @@
     dev: "{{ boot }}"
   when: boot | length > 0
 
+- name: ativar root
+  ansible.builtin.mount:
+    path: /mnt
+    src: "{{ root }}"
+    fstype: "{{ formato }}"
+    state: mounted
+  when: root | length > 0 and formato | length > 0
+
 - name: Criar diretório da home
   ansible.builtin.file:
     path: /mnt/home/
@@ -41,14 +49,6 @@
     cmd: swapon {{ swap }}
   when: swap | length > 0
   ignore_errors: true
-
-- name: ativar root
-  ansible.builtin.mount:
-    path: /mnt
-    src: "{{ root }}"
-    fstype: "{{ formato }}"
-    state: mounted
-  when: root | length > 0 and formato | length > 0
 
 - name: ativar home
   ansible.builtin.mount:
