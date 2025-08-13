@@ -1,21 +1,25 @@
 ---
-- name: Carregar plugin externo
-  include_vars: "{{ plugin }}"
-  when:
-    - plugin is defined
-    - plugin is file
-    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+- name: carregar necessarios
+  include_vars: ../vars/necessarios.yml
 
-- name: Carregar necessarios
-  include_vars: "../vars/necessarios.yml"
-
-- name: Instalar sistema base e pacotes de plugin
-  vars:
-    pacotes_plugin: "{{ pacotes | default([]) }}"
+- name: pacotes no pacstrap
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
-      {% for pkg in necessarios + pacotes_plugin %}
+      {% for pkg in sistema %}
         {{ pkg | quote }}
       {% endfor %}
-  changed_when: true
+
+- name: Carregar plugin externo
+  include_vars: "{{ plugin }}"
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+
+- name: Instalando plugin settado
+  ansible.builtin.command:
+    cmd: >
+      pacstrap -K {{ fsroot }} --needed
+      {% for pkg in pacotes %}
+        {{ pkg | quote }}
+      {% endfor %}
+  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+
