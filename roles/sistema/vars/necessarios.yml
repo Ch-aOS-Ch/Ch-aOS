@@ -1,5 +1,5 @@
 ---
-sistema:
+necessarios:
   - linux
   - linux-firmware
   - linux-headers
