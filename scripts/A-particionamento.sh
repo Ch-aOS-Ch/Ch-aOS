@@ -3,6 +3,12 @@ source scripts/resources.sh
 timedatectl
 loadkeys br-abnt2
 mkdir -p "tmp/.ansible-${USER}/tmp"
+if [ -d /sys/firmware/efi ]; then
+  firmware="UEFI"
+else
+  firmware="BIOS"
+fi
+echo "FIRMWARE=$firmware" >>./respostas.env
 
 sleep 1
 echo "Preparando particionamento..."
