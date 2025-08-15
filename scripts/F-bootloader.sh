@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$LANG" == "Portugues" ]; then
+if [ "$LANGC" == "Portugues" ]; then
   sleep 1
   nome_pc="$(cat /mnt/etc/hostname)"
   echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
@@ -43,7 +43,7 @@ EOF
   echo "Obrigado por usar o Ch-aronte, espero que tenha gostado"else
   echo "Unsupported language setting."
 
-elif [ "$LANG" == "English" ]; then
+elif [ "$LANGC" == "English" ]; then
   sleep 1
   nome_pc="$(cat /mnt/etc/hostname)"
   echo "Alright, now it's the hard part, are you ready?"
@@ -86,6 +86,6 @@ EOF
   echo "If it fails, message me on GitHub and I'll try to fix the bug, but you need to identify the problem."
   echo "Thanks for using Ch-aronte, hope you liked it!"
 else
-  echo "Language not recognized. Please set LANG to either 'Portugues' or 'English'."
+  echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'."
   bash scripts/F-bootloader.sh
 fi
