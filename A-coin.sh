@@ -15,6 +15,3 @@ bash scripts/D-regiao.sh
 
 chmod +x scripts/E-personalizacao.sh
 bash scripts/E-personalizacao.sh
-
-chmod +x scripts/F-bootloader.sh
-bash scripts/F-bootloader.sh
