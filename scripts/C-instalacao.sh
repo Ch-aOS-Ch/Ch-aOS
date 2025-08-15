@@ -60,9 +60,6 @@ if [ "$LANGC" = Portugues ]; then
   echo ""
   echo "Lista dos pacotes que você escolheu:"
   printf '%s\n' "${pacotes[@]}"
-
-  ansible-playbook -vvv ./main.yaml --tags instalacao
-  genfstab -U /mnt >>/mnt/etc/fstab
 elif [ "$LANGC" = English ]; then
   echo "Alright, mirrors updated. Let's continue..."
   echo ""
@@ -92,9 +89,9 @@ elif [ "$LANGC" = English ]; then
     qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
     qtd=$((qtd + 1))
     mkdir -p "$plugin_dir"
-    arquivo="${plugin_dir}custom${qtd}.yml"
-    set_env_var "PLUGIN" "$arquivo"
-    echo "pacotes:" >>"$arquivo"
+    arquivo="custom${qtd}.yml"
+    set_env_var "PLUGIN" "$HOME/Ch-aronte/roles/sistema/vars/$arquivo"
+    echo "pacotes:" >>"$plugin_dir$arquivo"
   else
     echo "Okay, let's continue without additional packages."
   fi
@@ -117,10 +114,12 @@ elif [ "$LANGC" = English ]; then
   echo ""
   echo "List of packages you chose:"
   printf '%s\n' "${pacotes[@]}"
-  ansible-playbook -vvv ./main.yaml --tags instalacao
-  genfstab -U /mnt >>/mnt/etc/fstab
 else
   echo "Unsupported language setting."
   bash scripts/C-instalacao.sh
-  exit 1
 fi
+set -a
+source respostas.env
+set +a
+ansible-playbook -vvv ./main.yaml --tags instalacao
+genfstab -U /mnt >>/mnt/etc/fstab
