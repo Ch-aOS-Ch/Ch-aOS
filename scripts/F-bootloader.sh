@@ -1,4 +1,7 @@
 #!/bin/bash
+set -a
+source respostas.env
+set +a
 if [ "$LANGC" == "Portugues" ]; then
   sleep 1
   nome_pc="$(cat /mnt/etc/hostname)"
