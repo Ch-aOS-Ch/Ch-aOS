@@ -26,7 +26,10 @@
       {% for pkg in pacotes %}
         {{ pkg | quote }}
       {% endfor %}
-  when: plugin is defined and accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+  when: 
+    - plugin is defined
+    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+    - plugin is file
   async: 3600
   poll: 15
 
