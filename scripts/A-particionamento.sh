@@ -1,4 +1,7 @@
 #!/bin/bash
+set -a
+source respostas.env
+set +a
 echo "$LANGC"
 source scripts/resources.sh
 if [ -f "$LANGC"==Portugues ]; then

@@ -1,4 +1,7 @@
 #!/bin/bash
+set -a
+source respostas.env
+set +a
 if [ "$LANGC" == "Portugues" ]; then
   read -p "ok, me dá um nome pro seu pc aí... e pelo amor de deus, me dá um nome bonito... " -r nome_pc
   while [[ -z "$nome_pc" || "$nome_pc" =~ [^a-zA-Z0-9.-] ]]; do
