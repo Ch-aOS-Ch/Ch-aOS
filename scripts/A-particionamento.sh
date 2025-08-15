@@ -1,7 +1,6 @@
 #!/bin/bash
-source respostas.env
 source scripts/resources.sh
-if [ -f "$LANG"==Portugues ]; then
+if [ -f "$LANGC"==Portugues ]; then
   timedatectl
   loadkeys br-abnt2
   mkdir -p "tmp/.ansible-${USER}/tmp"
@@ -122,7 +121,7 @@ if [ -f "$LANG"==Portugues ]; then
 
   # Chamada para o playbook de particionamento
   ansible-playbook -vvv ./main.yaml --tags particionamento
-elif [ -f "$LANG"==English ]; then
+elif [ -f "$LANGC"==English ]; then
   timedatectl
   loadkeys us
   mkdir -p "tmp/.ansible-${USER}/tmp"
@@ -240,6 +239,6 @@ elif [ -f "$LANG"==English ]; then
   # Call the partitioning playbook
   ansible-playbook -vvv ./main.yaml --tags particionamento
 else
-  echo "Language not recognized. Please set LANG to either 'Portugues' or 'English'"
+  echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'"
   bash scripts/A-particionamento.sh
 fi

@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$LANG" == "Portugues" ]; then
+if [ "$LANGC" == "Portugues" ]; then
   sleep 1
   echo "///...///"
   sleep 1
@@ -19,7 +19,7 @@ if [ "$LANG" == "Portugues" ]; then
   reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
   sleep 1
 
-elif [ "$LANG" == "English" ]; then
+elif [ "$LANGC" == "English" ]; then
   echo "///...///"
   sleep 1
   echo "Oh, I almost forgot to run reflector, hold on, it will be quick"

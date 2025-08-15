@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$LANG" == "Portugues" ]; then
+if [ "$LANGC" == "Portugues" ]; then
   read -p "ok, me dá um nome pro seu pc aí... e pelo amor de deus, me dá um nome bonito... " -r nome_pc
   while [[ -z "$nome_pc" || "$nome_pc" =~ [^a-zA-Z0-9.-] ]]; do
     read -p "Nome inválido. Só letras, números, ponto ou hífen. Tenta de novo aí oh jegue: " -r nome_pc
@@ -19,7 +19,7 @@ if [ "$LANG" == "Portugues" ]; then
   read -p "Nome do teu usuário: " -r nome_user
   arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$nome_user"
   arch-chroot /mnt passwd "$nome_user"
-elif [ "$LANG" == "English" ]; then
+elif [ "$LANGC" == "English" ]; then
   read -p "Alright, give your PC a name... and please, make it a nice one... " -r pc_name
   while [[ -z "$pc_name" || "$pc_name" =~ [^a-zA-Z0-9.-] ]]; do
     read -p "Invalid name. Only letters, numbers, dot or hyphen. Try again: " -r pc_name
@@ -40,7 +40,7 @@ elif [ "$LANG" == "English" ]; then
   arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$user_name"
   arch-chroot /mnt passwd "$user_name"
 else
-  echo "Language not recognized. Please set LANG to either 'Portugues' or 'English'."
+  echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'."
   bash scripts/E-personalizacao.sh
 fi
 if ! grep -q "^%wheel ALL=(ALL:ALL) ALL" /mnt/etc/sudoers; then

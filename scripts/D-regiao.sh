@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$LANG" == "Portugues" ]; then
+if [ "$LANGC" == "Portugues" ]; then
   sleep 1
   echo "tá, teu sistema tá instalado, agora bora pra parte legal"
   echo "primeiro, vamos usar ln -sf /usr/share/zoneinfo/(sua região) pra consertar esse relógio..."
@@ -39,10 +39,10 @@ if [ "$LANG" == "Portugues" ]; then
     read -p "Tenta de novo, com algo tipo pt_BR ou en_US: " -r lingua
   done
   touch /mnt/etc/locale.conf
-  echo "LANG=$lingua.UTF-8" >/mnt/etc/locale.conf
+  echo "LANGC=$lingua.UTF-8" >/mnt/etc/locale.conf
   echo KEYMAP=br-abnt2 >/mnt/etc/vconsole.conf
   sleep 1
-elif [ "$LANG" == "English" ]; then
+elif [ "$LANGC" == "English" ]; then
   sleep 1
   echo "Alright, your system is installed, now let's get to the fun part"
   echo "First, we'll use ln -sf /usr/share/zoneinfo/(your region) to fix the clock..."
@@ -80,7 +80,7 @@ elif [ "$LANG" == "English" ]; then
     read -p "Try again, with something like en_US or pt_BR: " -r lingua
   done
   touch /mnt/etc/locale.conf
-  echo "LANG=$lingua.UTF-8" >/mnt/etc/locale.conf
+  echo "LANGC=$lingua.UTF-8" >/mnt/etc/locale.conf
   echo KEYMAP=us >/mnt/etc/vconsole.conf
   sleep 1
 else
