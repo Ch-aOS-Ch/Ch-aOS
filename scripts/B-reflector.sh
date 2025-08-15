@@ -36,7 +36,7 @@ elif [ "$LANGC" = "English" ]; then
   echo "Damn, that's a long command... here it is:"
   sleep 0.4
   echo "reflector -c eu -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist"
-  reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
+  reflector -c eu -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
 else
   echo "Unsupported language setting."
   bash scripts/B-reflector.sh
