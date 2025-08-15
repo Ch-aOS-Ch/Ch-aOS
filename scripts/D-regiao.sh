@@ -52,13 +52,15 @@ elif [ "$LANGC" = English ]; then
   sleep 1
   echo "Search for the closest timedatectl region to you (or leave it blank to set it to NY)"
   read -p "Region: " -r region
+
+  if [ "$region" == "" ]; then
+    region="America/New_York"
+  fi
   while [ ! -f "/usr/share/zoneinfo/$region" ]; do
     echo "Invalid region! Please try again."
     read -p "Region: " -r region
   done
-  if [ "$region" == "" ]; then
-    region="America/New_York"
-  fi
+
   ln -sf "/usr/share/zoneinfo/$region" "/mnt/etc/localtime"
   echo "Syncing the clock with hwclock --systohc..."
   sleep 1
