@@ -1,12 +1,6 @@
 #!/bin/bash
 sleep 1
 nome_pc="$(cat /mnt/etc/hostname)"
-if [ -d /sys/firmware/efi ]; then
-  firmware="UEFI"
-else
-  firmware="BIOS"
-fi
-echo "Firmware: $firmware"
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
@@ -46,3 +40,4 @@ echo "Ok, meu trabnalho aqui tá feito, agora é contigo, se vira nos 30. Em teo
 echo "mas se der ruim, aí é contigo, tentei fazer o script redondinho e o mais fácil"
 echo "e se der ruim, manda mensagem lá no github que eu vou tentar corrigir o bug, mas vc que tem que identificar o problema"
 echo "Obrigado por usar o Ch-aronte, espero que tenha gostado"
+
