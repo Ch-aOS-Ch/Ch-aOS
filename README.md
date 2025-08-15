@@ -140,8 +140,8 @@ pacman -Sy ansible          # Instale os pré-requisitos
 pacman -Sy git
 git clone https://github.com/Dexmachi/Ch-aronte.git
 cd Ch-aronte
-chmod +x scripts/A-particionamento.sh
-./scripts/A-particionamento.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
+chmod +x A-coin.sh
+A-coin.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
 ```
 
 > [!WARNING] 
@@ -153,10 +153,9 @@ chmod +x scripts/A-particionamento.sh
 ## 🧪 Estado Atual do Projeto
 
 * Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
-* Commits: **98**
 * Linguagens: **Shell + YAML (Ansible)**
 * Licença: **FOSS / sem releases oficiais ainda**
-* Traduções: **pt-BR**
+* Traduções: **pt-BR** (en_US WIP)
   Contribuições são bem-vindas, desde que mantenham o estilo narrativo do projeto.
 
 ---
