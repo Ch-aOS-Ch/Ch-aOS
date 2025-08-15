@@ -45,16 +45,18 @@ EOF
 
 elif [ "$LANG" == "English" ]; then
   sleep 1
-  pc_name="$(cat /mnt/etc/hostname)"
+  nome_pc="$(cat /mnt/etc/hostname)"
   echo "Alright, now it's the hard part, are you ready?"
   echo "Let's configure your refind."
   arch-chroot /mnt refind-install
   read -p "Give a cool name for your root disk: " -r root_name
   cat <<EOF >>/mnt/boot/efi/refind/refind.conf
-  # ---------------------------------------------------------
-  # Entry automatically added by the Ch-aronte script
-  # ---------------------------------------------------------
-   menuentry "$nome_pc" {
+
+# ---------------------------------------------------------
+# Entry automatically added by the Ch-aronte script
+# ---------------------------------------------------------
+
+menuentry "$nome_pc" {
     icon /EFI/refind/icons/os_arch.png
     volume $nome_pc
     loader /vmlinuz-linux
@@ -67,6 +69,7 @@ elif [ "$LANG" == "English" ]; then
         add_options "systemd.unit=multi-user.target"
     }
 }
+
 EOF
   lsblk
   echo ""
