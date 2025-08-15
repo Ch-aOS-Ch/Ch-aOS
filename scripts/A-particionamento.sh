@@ -1,4 +1,5 @@
 #!/bin/bash
+echo "$LANGC"
 source scripts/resources.sh
 if [ -f "$LANGC"==Portugues ]; then
   timedatectl
