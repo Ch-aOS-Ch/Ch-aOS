@@ -35,7 +35,7 @@ if [ "$LANGC" = Portugues ]; then
     qtd=$((qtd + 1))
     mkdir -p "$plugin_dir"
     arquivo="custom${qtd}.yml"
-    set_env_var "PLUGIN" "$arquivo"
+    set_env_var "PLUGIN" "$HOME/Ch-aronte/roles/sistema/vars/$arquivo"
     echo "pacotes:" >>"$plugin_dir$arquivo"
   else
     echo "Ok, vamos continuar sem mais pacotes adicionais."
