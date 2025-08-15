@@ -1,6 +1,12 @@
 #!/bin/bash
 sleep 1
 nome_pc="$(cat /mnt/etc/hostname)"
+if [ -d /sys/firmware/efi ]; then
+  firmware="UEFI"
+else
+  firmware="BIOS"
+fi
+echo "Firmware: $firmware"
 echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
 echo "vamo configurar teu refind."
 arch-chroot /mnt refind-install
