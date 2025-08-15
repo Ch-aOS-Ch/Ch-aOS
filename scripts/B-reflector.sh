@@ -17,6 +17,3 @@ sleep 0.4
 echo "reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist"
 reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
 sleep 1
-
-chmod +x ./scripts/C-instalacao.sh
-bash ./scripts/C-instalacao.sh

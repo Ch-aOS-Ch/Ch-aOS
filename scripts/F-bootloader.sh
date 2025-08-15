@@ -36,8 +36,7 @@ else
   e2label "/dev/$root" "$nome_root"
 fi
 arch-chroot /mnt systemctl enable NetworkManager
-echo "Ok, meu trabnalho aqui tá feito, agora é contigo, se vira nos 30. Em teoria, é só reiniciar"
+echo "Ok, meu trabalho aqui tá feito, agora é contigo, se vira nos 30. Em teoria, é só reiniciar"
 echo "mas se der ruim, aí é contigo, tentei fazer o script redondinho e o mais fácil"
 echo "e se der ruim, manda mensagem lá no github que eu vou tentar corrigir o bug, mas vc que tem que identificar o problema"
 echo "Obrigado por usar o Ch-aronte, espero que tenha gostado"
-
