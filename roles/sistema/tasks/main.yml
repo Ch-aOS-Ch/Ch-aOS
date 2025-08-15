@@ -14,16 +14,20 @@
 
 - name: Carregar plugin externo
   include_vars: "{{ plugin }}"
-  debug:
-    msg: "Plugin carregado: {{ plugin | realpath }}"
   when: 
     - plugin is defined
     - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
     - plugin is file
 
-- name: Instalando plugin settado
+- name: Mostrar caminho do plugin carregado
   debug:
-    msg: "Plugin carregado: {{ plugin | realpath }}"
+    msg: "O plugin carregado foi: {{ plugin }}"
+  when:
+    - plugin is defined
+    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+    - plugin is file
+
+- name: Instalando plugin settado
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
