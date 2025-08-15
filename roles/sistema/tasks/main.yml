@@ -25,7 +25,6 @@
   when:
     - plugin is defined
     - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
-    - plugin is file
 
 - name: Instalando plugin settado
   ansible.builtin.command:
