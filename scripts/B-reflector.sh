@@ -2,7 +2,7 @@
 set -a
 source respostas.env
 set +a
-if [ "$LANGC" == "Portugues" ]; then
+if [ "$LANGC" = "Portugues" ]; then
   sleep 1
   echo "///...///"
   sleep 1
@@ -22,7 +22,7 @@ if [ "$LANGC" == "Portugues" ]; then
   reflector -c br -c us --verbose --latest 25 --sort rate --save /etc/pacman.d/mirrorlist
   sleep 1
 
-elif [ "$LANGC" == "English" ]; then
+elif [ "$LANGC" = "English" ]; then
   echo "///...///"
   sleep 1
   echo "Oh, I almost forgot to run reflector, hold on, it will be quick"

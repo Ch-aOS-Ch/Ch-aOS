@@ -2,7 +2,7 @@
 set -a
 source respostas.env
 set +a
-if [ "$LANGC" == "Portugues" ]; then
+if [ "$LANGC" = Portugues ]; then
   sleep 1
   nome_pc="$(cat /mnt/etc/hostname)"
   echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
@@ -46,7 +46,7 @@ EOF
   echo "Obrigado por usar o Ch-aronte, espero que tenha gostado"else
   echo "Unsupported language setting."
 
-elif [ "$LANGC" == "English" ]; then
+elif [ "$LANGC" = English ]; then
   sleep 1
   nome_pc="$(cat /mnt/etc/hostname)"
   echo "Alright, now it's the hard part, are you ready?"

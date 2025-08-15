@@ -2,7 +2,7 @@
 set -a
 source respostas.env
 set +a
-if [ "$LANGC" == "Portugues" ]; then
+if [ "$LANGC" = Portugues ]; then
   read -p "ok, me dá um nome pro seu pc aí... e pelo amor de deus, me dá um nome bonito... " -r nome_pc
   while [[ -z "$nome_pc" || "$nome_pc" =~ [^a-zA-Z0-9.-] ]]; do
     read -p "Nome inválido. Só letras, números, ponto ou hífen. Tenta de novo aí oh jegue: " -r nome_pc
@@ -22,7 +22,7 @@ if [ "$LANGC" == "Portugues" ]; then
   read -p "Nome do teu usuário: " -r nome_user
   arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$nome_user"
   arch-chroot /mnt passwd "$nome_user"
-elif [ "$LANGC" == "English" ]; then
+elif [ "$LANGC" = English ]; then
   read -p "Alright, give your PC a name... and please, make it a nice one... " -r pc_name
   while [[ -z "$pc_name" || "$pc_name" =~ [^a-zA-Z0-9.-] ]]; do
     read -p "Invalid name. Only letters, numbers, dot or hyphen. Try again: " -r pc_name
