@@ -51,7 +51,7 @@ if [ "$LANGC" = Portugues ]; then
     if [[ ! "${pacotes[*]}" =~ $pacote ]]; then
       echo "Adicionando $pacote..."
       pacotes+=("$pacote")
-      echo "  - $pacote" >>"$arquivo"
+      echo "  - $pacote" >>"$plugin_dir$arquivo"
     else
       echo "pacote já selecionado"
     fi
@@ -105,7 +105,7 @@ elif [ "$LANGC" = English ]; then
     if [[ ! "${pacotes[*]}" =~ $pacote ]]; then
       echo "Adding $pacote..."
       pacotes+=("$pacote")
-      echo "  - $pacote" >>"$arquivo"
+      echo "  - $pacote" >>"$plugin_dir$arquivo"
     else
       echo "Package already selected."
     fi
