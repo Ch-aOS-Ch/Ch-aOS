@@ -1,6 +1,7 @@
+touch respostas.env
 echo "Choose your language / Escolha sua linguagem:"
-while [[ "$lang" != "1" || "$lang" != "2" ]]; do
-  read -p "1- English / 2- Português: " -r lang
+read -p "1- English / 2- Português: " -r lang
+while [[ "$lang" != "1" && "$lang" != "2" ]]; do
   if [[ "$lang" == "1" ]]; then
     echo "You chose English"
     LANG="English"
