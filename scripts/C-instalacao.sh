@@ -34,9 +34,9 @@ if [ "$LANGC" = Portugues ]; then
     qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
     qtd=$((qtd + 1))
     mkdir -p "$plugin_dir"
-    arquivo="${plugin_dir}custom${qtd}.yml"
+    arquivo="custom${qtd}.yml"
     set_env_var "PLUGIN" "$arquivo"
-    echo "pacotes:" >>"$arquivo"
+    echo "pacotes:" >>"$plugin_dir$arquivo"
   else
     echo "Ok, vamos continuar sem mais pacotes adicionais."
   fi
