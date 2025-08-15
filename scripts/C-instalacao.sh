@@ -4,7 +4,7 @@ source respostas.env
 set +a
 pacotes=()
 source ./scripts/resources.sh
-if [ -f "$LANGC"==Portugues ]; then
+if [ "$LANGC" = Portugues ]; then
   echo "Beleza, mirrors atualizados. Bora continuar..."
   echo ""
   echo "Ok, agora vou te mostrar os pacotes essenciais que serão instalados no seu sistema base:"
@@ -63,7 +63,7 @@ if [ -f "$LANGC"==Portugues ]; then
 
   ansible-playbook -vvv ./main.yaml --tags instalacao
   genfstab -U /mnt >>/mnt/etc/fstab
-elif [ -f "$LANGC"==English ]; then
+elif [ "$LANGC" = English ]; then
   echo "Alright, mirrors updated. Let's continue..."
   echo ""
   echo "Now I'll show you the essential packages that will be installed on your base system:"
