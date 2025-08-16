@@ -8,7 +8,7 @@ if [ "$LANGC" = Portugues ]; then
   echo "belezinha belezinha, agora é a parte fudida, tá preparado?"
   echo "vamo configurar teu refind."
   arch-chroot /mnt refind-install
-  read -p "me dá um nome daora aí pro teu disco de root: " -r nome_root
+  read -p "me dá um nome daora aí pro teu partição de root: " -r nome_root
   cat <<EOF >>/mnt/boot/efi/refind/refind.conf
 
 # ---------------------------------------------------------
@@ -52,7 +52,7 @@ elif [ "$LANGC" = English ]; then
   echo "Alright, now it's the hard part, are you ready?"
   echo "Let's configure your refind."
   arch-chroot /mnt refind-install
-  read -p "Give a cool name for your root disk: " -r root_name
+  read -p "Give a cool name to your root partition: " -r root_name
   cat <<EOF >>/mnt/boot/efi/refind/refind.conf
 
 # ---------------------------------------------------------
@@ -74,6 +74,7 @@ menuentry "$nome_pc" {
 }
 
 EOF
+
   lsblk
   echo ""
   read -p "What was your root partition again? " -r root
