@@ -141,7 +141,7 @@ pacman -Sy git
 git clone https://github.com/Dexmachi/Ch-aronte.git
 cd Ch-aronte
 chmod +x A-coin.sh
-A-coin.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
+./A-coin.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
 ```
 
 > [!WARNING] 
