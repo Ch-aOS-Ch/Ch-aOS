@@ -24,7 +24,7 @@ if [ "$LANGC" = Portugues ]; then
   arch-chroot /mnt passwd "$nome_user"
 
   rm -rf ~/Ch-aronte/.git
-  cp ~/Ch-aronte /mnt/home/"$nome_user"/Ch-aronte
+  cp -r ~/Ch-aronte /mnt/home/"$nome_user"/Ch-aronte
 elif [ "$LANGC" = English ]; then
   read -p "Alright, give your PC a name... and please, make it a nice one... " -r pc_name
   while [[ -z "$pc_name" || "$pc_name" =~ [^a-zA-Z0-9.-] ]]; do
@@ -47,7 +47,7 @@ elif [ "$LANGC" = English ]; then
   arch-chroot /mnt passwd "$user_name"
 
   rm -rf ~/Ch-aronte/.git
-  cp ~/Ch-aronte /mnt/home/"$user_name"/Ch-aronte
+  cp -r ~/Ch-aronte /mnt/home/"$user_name"/Ch-aronte
 else
   echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'."
   bash scripts/E-personalizacao.sh
