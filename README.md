@@ -1,189 +1,191 @@
 # 🧝‍♂️ Ch-aronte
 
-> **Seu guia pelo submundo do Arch Linux.**
-> Um instalador imersivo, automatizado com Ansible, para quem quer aprender de verdade — sem copiar e colar no escuro.
+**Seu guia pelo submundo do Arch Linux.**
+
+[![Status do Projeto: Ativo](https://img.shields.io/badge/status-ativo-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
 ---
 
-## 🌐 Visão Geral
+**Ch-aronte** não é apenas um instalador. É uma jornada guiada e interativa pelo coração do Arch Linux, projetada para quem deseja instalar com confiança e aprender o processo de verdade — sem copiar e colar comandos no escuro.
 
-O **Ch-aronte** é um instalador minimal para o Arch Linux, feito com Ansible e Shell Script, voltado para iniciantes curiosos.
+Construído com a robustez do **Ansible** e a interatividade do **Shell Script**, ele automatiza as partes tediosas e te entrega o controle onde importa, transformando uma instalação complexa em uma experiência imersiva.
 
-Projetado para ser usado em um ambiente **liveboot**, o projeto tem planos futuros para ambientes **VM** e pós-instalação completa com gerenciamento de **dotfiles**.
+## ✨ Funcionalidades Principais
 
----
+* ✅ **Instalação Interativa e Guiada**: Um passo a passo que explica o que está acontecendo.
+* ✅ **Detecção Automática de Firmware**: Instalação otimizada para **UEFI (com rEFInd)** ou **BIOS (com GRUB)** sem dor de cabeça.
+* ✅ **Sistema de Plugins**: Adicione seus próprios pacotes e, futuramente, gerencie seus dotfiles com presets customizados.
+* ✅ **Código Aberto e Didático**: A base de código foi refatorada para ser um exemplo prático e legível de automação.
 
-## 🌳 Estrutura do Projeto
+## 🏛️ A Arquitetura: Orquestrador + Worker
 
-```bash
-.
-├── ansible.cfg
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── group_vars
-│   └── all
-│       └── config.yml
-├── Inventario.yml
-├── LICENSE
-├── main.yaml
-├── README.md
-├── respostas.env
-├── roles
-│   ├── chroot
-│   │   └── tasks
-│   │       └── main.yml
-│   ├── particionamento
-│   │   └── tasks
-│   │       └── main.yml
-│   ├── setup
-│   │   ├── tasks
-│   │   │   └── main.yml
-│   │   └── vars
-│   │       └── scripts_dirs.yml
-│   └── sistema
-│       ├── tasks
-│       │   └── main.yml
-│       └── vars
-│           └── necessarios.yml
-├── scripts
-│   ├── A-particionamento.sh
-│   ├── B-reflector.sh
-│   ├── C-instalacao.sh
-│   ├── D-regiao.sh
-│   ├── E-personalizacao.sh
-│   ├── F-bootloader.sh
-│   └── resources.sh
-├── SECURITY.md
-└── # WIP.yml
-```
+O projeto utiliza uma arquitetura híbrida poderosa e flexível:
 
----
+* **Shell Script (O Orquestrador)**: Atua como a interface interativa com o usuário, coletando informações, validando entradas e orquestrando a sequência de instalação.
+* **Ansible (O Worker)**: Atua no backend, executando as tarefas pesadas de forma declarativa e robusta — particionamento, instalação de pacotes e configuração do sistema.
 
-## 🚀 Funcionalidades
+## 🚀 Começando
 
-* [x] **Instalador Minimal** — com detecção automática de BIOS/UEFI
-* [-] **Gerenciador de Dotfiles** — WIP
-* [ ] **Configuração Pós-Instalação** — WIP
-
----
-
-## 🧩 Componentes-Chave
-
-### 🔹 `main.yaml`
-
-Playbook principal — o **núcleo dos scripts**.
-Contém as seguintes tags:
-
-* `particionamento` particiona baseado nas coisas settadas em A-particionamento.sh
-* `instalacao`: instala o sistema base e pacotes adicionais definidos, já tem um sistema preparado pra plugins, só falta integrar direito com C-instalacao.sh.
-### 🔹 `ansible.cfg`
-
-Configurações base para o Ansible:
-
-* Inventário e diretório temporário
-* SSH desativado (pensado para liveboot)
-
-### 🔹 `Inventario.yml`
-
-Usado principalmente em execuções automatizadas (ex: VMs). Pode ser adaptado para diversos cenários.
-
-### 🔹 `group_vars/all/config.yml`
-
-Configurações globais do sistema: usuário, hostname, timezone, mirrors, pacotes, etc. Será utilizado no sistema de automação completa (como no archinstall quando você pode salvar sua config.)
-
----
-
-## 📦 Roles (Módulos)
-
-### 1. `setup`
-
-Configura permissões de execução para scripts auxiliares.
-
-### 2. `particionamento`
-
-Formata e monta as partições do disco criadas pelo usuário. 
-
-### 3. `sistema`
-
-Instala o sistema base e pacotes adicionais definidos (esses pacotes adicionais serão encontrados em um plugin dentro de ./sistema/vars/custom/).
-
-#### Futuras Roles:
-
-* `limpeza`
-* `backup`
-
----
-
-## ⚙️ Tecnologias Utilizadas
-
-* **Ansible** – Orquestração e automação
-* **Shell Script** – Execução de tarefas no sistema alvo
-* **YAML** – Playbooks e variáveis
-* **Arch Linux** – O sistema base (claro)
-
----
-
-## 🛠️ Como Usar
+Projetado para ser executado diretamente do ambiente Live ISO do Arch Linux.
 
 ### Pré-requisitos:
 
-* Ansible e Git instalados
-* Acesso à internet no ambiente LiveBoot (via `iwctl`)
-* Arch Linux Live ISO em execução
+* Conexão com a internet (use `iwctl` no live environment).
+* Arch Linux Live ISO em execução.
 
-### Passos:
+### Passos da Instalação:
 
 ```bash
-iwctl                          # Conecte-se ao WiFi
-mount -o remount,size=2G /run/archiso/cowspace #aumenta o tamanho q seu liveboot usa pra fazer algumas instalações 
-pacman -Sy ansible          # Instale os pré-requisitos
-pacman -Sy git
-git clone https://github.com/Dexmachi/Ch-aronte.git
+# 1. No ambiente live, conecte-se à internet
+iwctl
+
+# 2. (Opcional, mas recomendado) Aumente o espaço em RAM para o liveboot
+mount -o remount,size=2G /run/archiso/cowspace
+
+# 3. Instale as dependências
+pacman -Sy --noconfirm ansible git
+# 4. Clone o repositório e inicie a instalação
+git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
 cd Ch-aronte
+
+# IMPORTANTE: Execute o script de dentro da pasta do projeto
 chmod +x A-coin.sh
-./A-coin.sh #SUPER IMPORTANTE: execute este script DA PASTA Ch-aronte, CASO O CONTRÁRIO O SCRIPT NÃO VAI FUNCIONAR.
+./A-coin.sh
 ```
 
-> [!WARNING] 
-> Siga as instruções que surgirem no terminal — o script é interativo e explicativo.
- 
+> [!WARNING]
+> O script é seu guia. Siga as instruções no terminal e deixe que o Ch-aronte te conduza pela instalação.
 
----
+## 🧩 Sistema de Plugins
+Personalize sua instalação criando seus próprios "presets" de pacotes.
+1. Crie um arquivo custom-SEU-PLUGIN.yml dentro de ./roles/sistema/vars/.
+2. Use o formato abaixo para listar os pacotes desejados:
 
-## 🧪 Estado Atual do Projeto
+##🗺️ Roadmap do Projeto
+- [x] Instalador Minimal com Detecção de Firmware
+- [x] Sistema de Plugins para Pacotes Customizados
+- [ ] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
+- [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
 
-* Repositório: [github.com/Dexmachi/Ch-aronte](https://github.com/Dexmachi/Ch-aronte)
-* Linguagens: **Shell + YAML (Ansible)**
-* Licença: **FOSS / sem releases oficiais ainda**
-* Traduções: **pt-BR** (en_US WIP)
-  Contribuições são bem-vindas, desde que mantenham o estilo narrativo do projeto.
+## 🤝 Contribuindo
 
----
+Contribuições são a alma do software livre. Se você tem ideias para melhorar o Ch-aronte, sua ajuda é muito bem-vinda! Dê uma olhada em CONTRIBUTING.md para começar.
 
-## ✨ Contribuindo
+As áreas de maior interesse são:
+- Traduções criativas e melhorias na narrativa.
+- Automatização do gerenciamento de dotfiles.
+- Sugestões e implementações de configurações pós-instalação.
+- Criação de issues
 
-Qualquer ajuda é bem-vinda — principalmente:
+## 🙏 Agradecimentos
 
-* **Automatização de dotfiles**
-* **Traduções criativas** (com lore cyberpunk/hack em mente)
-* **Melhorias nas roles Ansible**
-* **Sugestões para pós-instalação (DEs, TWM, hardening, etc)**
-
-- siga as regras:
-  1. crie uma branch
-  2. implemente suas funções
-  3. crie uma PR da sua branch para main e aguarde aprovação
-
-## Special thanks:
-Inspiração principal veio do projeto [archible](https://github.com/0xzer0x/archible), do usuário [0xzer0x](https://github.com/0xzer0x)
-
-If you're reading this (i doubt it but oh well), thank you very much for your amazing tool, I hope to achieve this level of creativity and expertize you've got to make it come true.
-
----
+> A inspiração principal para este projeto veio do [archible](https://github.com/0xzer0x/archible) feito pelo [0xzer0x](https://github.com/0xzer0x). Obrigado por criar uma ferramenta tão incrível e por inspirar a comunidade.
 
 <div align="center">
-  ⁂ Navegue com consciência. Instale com estilo. Aprenda o Arch com alma. ⁂
+⁂ Navegue com consciência. Instale com estilo. Domine o Arch com alma. ⁂
 </div>
 
+---
+
+### 📋 `README.md` File (English Version - EN-US)
+
+# 🧝‍♂️ Ch-aronte
+
+**Your guide through the Arch Linux underworld.**
+
+[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
 ---
+
+**Ch-aronte** is not just an installer. It's a guided, interactive journey into the heart of Arch Linux, designed for those who want to install with confidence and truly learn the process—no more blind copy-pasting.
+
+Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an immersive experience.
+
+## ✨ Key Features
+
+* ✅ **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
+* ✅ **Automatic Firmware Detection**: Optimized installation for **UEFI (with rEFInd)** or **BIOS (with GRUB)**, hassle-free.
+* ✅ **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom presets.
+* ✅ **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
+
+## 🏛️ The Architecture: Orchestrator + Worker
+
+The project uses a powerful and flexible hybrid architecture:
+
+* **Shell Script (The Orchestrator)**: Acts as the interactive frontend, gathering user input, validating data, and orchestrating the installation sequence.
+* **Ansible (The Worker)**: Acts as the backend, executing the heavy-lifting tasks declaratively and reliably—partitioning, package installation, and system configuration.
+
+## 🚀 Getting Started
+
+Designed to be run directly from the Arch Linux Live ISO environment.
+
+### Prerequisites:
+
+* An internet connection (use `iwctl` in the live environment).
+* A running Arch Linux Live ISO.
+
+### Installation Steps:
+
+```bash
+# 1. In the live environment, connect to the internet
+iwctl
+
+# 2. (Optional, but recommended) Increase the RAM space for the liveboot
+mount -o remount,size=2G /run/archiso/cowspace
+
+# 3. Install the dependencies
+pacman -Sy --noconfirm ansible git dialog
+
+# 4. Clone the repository and start the installer
+git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
+cd Ch-aronte
+
+# IMPORTANT: Run the script from inside the project folder
+chmod +x A-coin.sh
+./A-coin.sh
+```
+> [!WARNING]
+> The script is your guide. Follow the instructions in the terminal and let Ch-aronte lead you through the installation
+
+## 🧩 Plugin System
+
+Customize your installation by creating your own package presets.
+1. Create a file named custom-YOUR-PLUGIN.yml inside ./roles/sistema/vars/.
+2. Use the format below to list your desired packages:
+```YAML
+pacotes:
+  - neovim
+  - fish
+  - starship
+
+# Coming soon: dotfiles support
+# dotfiles:
+  # - [https://github.com/your-user/your-dotfiles.git](https://github.com/your-user/your-dotfiles.git)
+```
+
+## 🗺️ Project Roadmap
+
+- [x] Minimal Installer with Firmware Detection
+- [x] Plugin System for Custom Packages
+- [ ] Dotfile Manager integrated with the Plugin System
+- [ ] Fully Automated Execution Mode with a Config File
+
+## 🤝 Contributing
+
+Contributions are the lifeblood of open-source software. If you have ideas to improve Ch-aronte, your help is very welcome! Check out CONTRIBUTING.md to get started.
+
+Areas of particular interest include:
+
+- Creative translations and improvements to the narrative style.
+- Automation of dotfile management.
+- Suggestions and implementations for post-install configurations.
+- Creation of issues.
+
+## 🙏 Acknowledgements
+
+The primary inspiration for this project came from [archible](https://github.com/0xzer0x/archible) from [0xzer0x](https://github.com/0xzer0x).
+> If you're reading this (I doubt it but oh well), thank you very much for your amazing tool, I hope to achieve this level of creativity and expertise you've got to make it come true.
+
+<div align="center">
+⁂ Navigate with knowledge. Install with style. Master Arch with soul. ⁂
+</div>
