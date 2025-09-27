@@ -50,7 +50,7 @@ sleep 1
 echo "---------------------------------------------------"
 echo "Pacotes necessários / Required packages:"
 echo "  - base, base-devel, linux, linux-firmware, linux-headers"
-echo "  - reflector, refind, nano, networkmanager, openssh"
+echo "  - reflector, bootloader(entre grub e refind), nano, networkmanager, openssh"
 echo "---------------------------------------------------"
 sleep 1
 
