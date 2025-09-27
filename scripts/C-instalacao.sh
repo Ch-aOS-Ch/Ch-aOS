@@ -94,7 +94,7 @@ select_or_create_plugin_file() {
       read -rp "$MSG_PROMPT_WHICH_PLUGIN" arquivo
     done
     echo "$MSG_USING_EXISTING $arquivo" >&2
-    set_env_var "PLUGIN" "$HOME/Ch-aronte/$plugin_dir$arquivo"
+    set_env_var "PLUGIN" "$plugin_dir$arquivo"
   else
     local qtd
     qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
