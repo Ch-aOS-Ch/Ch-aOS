@@ -10,7 +10,7 @@
   ansible.builtin.include_vars: "{{ plugin }}"
   when:
     - plugin is defined
-    - accept | default('n') | bool
+    - accept in ["Y", "y", "S", "s", ""]
     - plugin is file
 
 # ----------------------------------------------------------------
@@ -46,7 +46,7 @@
   when:
     - pacotes is defined
     - pacotes | length > 0
-    - accept | default('n') | bool
+    - accept in ["Y", "y", "S", "s", ""]
 
 - name: Instalar pacotes do plugin
   ansible.builtin.command:
@@ -60,4 +60,5 @@
   when:
     - pacotes is defined
     - pacotes | length > 0
-    - accept | default('n') | bool
+    - accept in ["Y", "y", "S", "s", ""]
+
