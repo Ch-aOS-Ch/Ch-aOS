@@ -60,6 +60,18 @@ chmod +x A-coin.sh
 Personalize sua instalação criando seus próprios "presets" de pacotes.
 1. Crie um arquivo custom-SEU-PLUGIN.yml dentro de ./roles/sistema/vars/.
 2. Use o formato abaixo para listar os pacotes desejados:
+```YAML
+pacotes:
+  - neovim
+  - fish
+  - starship
+
+# Coming soon: dotfiles support
+# dotfiles:
+  # - [https://github.com/your-user/your-dotfiles.git](https://github.com/your-user/your-dotfiles.git)
+```
+> [!WARNING]
+> USE BARRAS DE ESPAÇO AO INVÉS DE TABS, O ANSIBLE É SUPER SENSÍVEL A ISSO.
 
 ##🗺️ Roadmap do Projeto
 - [x] Instalador Minimal com Detecção de Firmware
@@ -162,6 +174,8 @@ pacotes:
 # dotfiles:
   # - [https://github.com/your-user/your-dotfiles.git](https://github.com/your-user/your-dotfiles.git)
 ```
+> [!WARNING]
+> USE SPACES INSTEAD OF TABS, ANSIBLE IS VERY SENSITIVE.
 
 ## 🗺️ Project Roadmap
 
