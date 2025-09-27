@@ -73,7 +73,15 @@ pacotes:
 > [!WARNING]
 > USE BARRAS DE ESPAÇO AO INVÉS DE TABS, O ANSIBLE É SUPER SENSÍVEL A ISSO.
 
-##🗺️ Roadmap do Projeto
+### Para gerar seu plugin do sistema atual, rode:
+```bash
+cd Ch-aronte
+DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqe | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
+```
+> [!INFO]
+> Funciona diretamente do terminal!
+
+## 🗺️ Roadmap do Projeto
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
 - [ ] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
