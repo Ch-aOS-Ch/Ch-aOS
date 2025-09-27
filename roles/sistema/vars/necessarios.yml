@@ -5,7 +5,6 @@ necessarios:
   - linux-headers
   - base
   - base-devel
-  - reflector
   - refind
   - nano
   - networkmanager

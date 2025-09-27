@@ -18,5 +18,6 @@
   vars:
     accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
     plugin: "{{ lookup('env', 'PLUGIN') }}"
+    firmware: "{{ lookup('env', 'FIRMWARE') }}"
   roles:
     - sistema
