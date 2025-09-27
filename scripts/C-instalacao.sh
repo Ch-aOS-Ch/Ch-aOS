@@ -2,6 +2,7 @@
 set -a
 source respostas.env
 set +a
+source scripts/resources.sh
 
 # Variáveis globais
 pacotes=()
@@ -57,53 +58,58 @@ esac
 
 # --- FUNÇÕES ---
 
-# Esta função lida com a lógica de escolher ou criar um arquivo de plugin.
-# Ela retorna o nome do arquivo de plugin a ser usado.
+# Função para escolher ou criar plugin
+
 select_or_create_plugin_file() {
-  local choice
-  local arquivo
+  shopt -s nullglob
   mkdir -p "$plugin_dir"
 
   local existing_plugins=("$plugin_dir"custom*.yml)
+  local choice arquivo
 
-  if [ -e "${existing_plugins[0]}" ]; then
-    echo "$MSG_EXISTING_PLUGINS_FOUND"
-    ls -1 "$plugin_dir"custom*.yml | xargs -n 1 basename
-    echo ""
+  if [ ${#existing_plugins[@]} -gt 0 ]; then
+    # Imprime na saída de erro (stderr) para aparecer na tela
+    echo "$MSG_EXISTING_PLUGINS_FOUND" >&2
+    for file in "${existing_plugins[@]}"; do
+      basename "$file"
+    done >&2 # Redireciona a saída do loop inteiro
+
+    echo "" >&2 # Linha em branco também para stderr
     read -rp "$MSG_CHOICE_PROMPT" choice
   else
     choice="novo"
   fi
 
-  # Padroniza a escolha para minúsculas
+  shopt -u nullglob
+
   choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
 
   if [[ "$choice" == "usar" || "$choice" == "use" ]]; then
     read -rp "$MSG_PROMPT_WHICH_PLUGIN" arquivo
-
     while [[ -z "$arquivo" || ! -f "$plugin_dir$arquivo" ]]; do
-      echo "$MSG_INVALID_FILE"
-      ls -1 "$plugin_dir"custom*.yml | xargs -n 1 basename
+      echo "$MSG_INVALID_FILE" >&2
+      for file in "${existing_plugins[@]}"; do
+        basename "$file"
+      done >&2
       read -rp "$MSG_PROMPT_WHICH_PLUGIN" arquivo
     done
-    echo "$MSG_USING_EXISTING $arquivo"
+    echo "$MSG_USING_EXISTING $arquivo" >&2
     set_env_var "PLUGIN" "$HOME/Ch-aronte/$plugin_dir$arquivo"
   else
     local qtd
     qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
     arquivo="custom$((qtd + 1)).yml"
 
-    echo "$MSG_CREATING_NEW $arquivo"
+    echo "$MSG_CREATING_NEW $arquivo" >&2
     set_env_var "PLUGIN" "$HOME/Ch-aronte/$plugin_dir$arquivo"
     echo "pacotes:" >"$plugin_dir$arquivo"
   fi
 
-  # Retorna o nome do arquivo para a próxima função
+  # Este é o único echo que vai para a saída padrão (stdout).
+  # Ele será o valor retornado para a variável 'arquivo_plugin'.
   echo "$arquivo"
 }
 
-# Esta função lida com o loop de adicionar pacotes a um arquivo específico.
-# Argumento $1: O nome do arquivo de destino.
 add_packages_to_file() {
   local target_file="$1"
   local ok="y"
@@ -142,11 +148,8 @@ read -p "$MSG_WANT_MORE" -r ok_plugin
 set_env_var "PLUGIN_ACCEPT" "$ok_plugin"
 
 if [[ "$ok_plugin" == "Y" || "$ok_plugin" == "y" || "$ok_plugin" == "" ]]; then
-
   arquivo_plugin=$(select_or_create_plugin_file)
-
   add_packages_to_file "$arquivo_plugin"
-
 fi
 
 echo ""
