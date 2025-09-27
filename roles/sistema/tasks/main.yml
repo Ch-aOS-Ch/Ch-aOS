@@ -1,42 +1,63 @@
 ---
-- name: carregar necessarios
-  include_vars: ../vars/necessarios.yml
+- name: 1. Carregar variáveis de pacotes
+  ansible.builtin.include_vars: "{{ item }}"
+  loop:
+    - ../vars/necessarios.yml
+    # Inclui o vars do bootloader correto baseado na variável 'firmware'
+    - "../vars/{{ firmware | default('UEFI') }}.yml"
 
-- name: pacotes no pacstrap
+- name: 2. Carregar variáveis do plugin externo (se aplicável)
+  ansible.builtin.include_vars: "{{ plugin }}"
+  when:
+    - plugin is defined
+    - accept | default('n') | bool
+    - plugin is file
+
+# ----------------------------------------------------------------
+# ETAPA 1: INSTALAÇÃO DO SISTEMA BASE (ESSENCIAIS + BOOTLOADER)
+# ----------------------------------------------------------------
+
+- name: Definir a lista de pacotes base
+  ansible.builtin.set_fact:
+    pacotes_base: "{{ (necessarios + bootloader) | unique | list }}"
+
+- name: (Debug) Mostrar pacotes base a serem instalados
+  ansible.builtin.debug:
+    var: pacotes_base
+
+- name: Instalar pacotes essenciais e do bootloader
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
-      {% for pkg in necessarios %}
+      {% for pkg in pacotes_base %}
         {{ pkg | quote }}
       {% endfor %}
   async: 3600
   poll: 15
+  when: pacotes_base is defined and pacotes_base | length > 0
 
-- name: Carregar plugin externo
-  include_vars: "{{ plugin }}"
-  when: 
-    - plugin is defined
-    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
-    - plugin is file
+# ----------------------------------------------------------------
+# ETAPA 2: INSTALAÇÃO DO PLUGIN (SEPARADAMENTE)
+# ----------------------------------------------------------------
 
-- name: Mostrar caminho do plugin carregado
-  debug:
-    msg: "O plugin carregado foi: {{ plugin }}"
+- name: Mostrar pacotes do plugin a serem instalados
+  ansible.builtin.debug:
+    var: pacotes
   when:
-    - plugin is defined
-    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
+    - pacotes is defined
+    - pacotes | length > 0
+    - accept | default('n') | bool
 
-- name: Instalando plugin settado
+- name: Instalar pacotes do plugin
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
       {% for pkg in pacotes %}
         {{ pkg | quote }}
       {% endfor %}
-  when: 
-    - plugin is defined
-    - accept in ['y', 'Y', 'yes', 'YES', 'Yes', '', 's', 'S', 'sim', 'SIM', 'Sim']
-    - plugin is file
   async: 3600
   poll: 15
-
+  when:
+    - pacotes is defined
+    - pacotes | length > 0
+    - accept | default('n') | bool
