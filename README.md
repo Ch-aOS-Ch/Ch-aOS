@@ -185,6 +185,15 @@ pacotes:
 > [!WARNING]
 > USE SPACES INSTEAD OF TABS, ANSIBLE IS VERY SENSITIVE.
 
+### To generate your current system's plugin, run:
+```bash
+cd Ch-aronte
+DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqe | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
+```
+> [!INFO]
+> Works directly from your terminal!
+
+
 ## 🗺️ Project Roadmap
 
 - [x] Minimal Installer with Firmware Detection
