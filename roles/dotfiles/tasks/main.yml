@@ -1,0 +1,55 @@
+- name: Carregar variáveis de Dotfiles
+  ansible.builtin.include_vars: "{{ plugin }}"
+
+- name: Garantir que os pacotes de gerenciamento estejam instalados
+  ansible.builtin.pacman:
+    name:
+      - git
+      - stow
+    state: present
+  become: yes
+
+- name: Iterar sobre a lista de dotfiles do plugin
+  loop: "{{ dotfiles }}"
+  loop_control:
+    loop_var: dotfile_item
+  block:
+    - name: "Clonando o repo: {{ dotfile_item.repo }}"
+      ansible.builtin.git:
+        repo: "{{ dotfile_item.repo }}"
+        dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo }}"
+        version: main
+        accept_hostkey: yes
+      become: yes
+      become_user: "{{ nome_user }}"
+      register: git_clone_result
+
+    - name: Executando comando de instalação custom
+      ansible.builtin.shell:
+        cmd: "{{ dotfile_item.install_command }}"
+        chdir: "{{ git_clone_result.dest }}"
+      when: dotfile_item.install_command is not in ["", " "] and dotfile_item.install_command is defined
+      become: yes
+      become_user: "{{ nome_user }}"
+
+    - name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager }}"
+      ansible.builtin.shell:
+        cmd: |
+          {% if dotfile_item.manager == 'stow' %}
+          stow --target=/home//{{ nome_user }} --dir=. *
+          {% elif dotfile_item.manager == 'yadm' %}
+          echo "yadm not implemented yet, please use stow."
+          {% endif %}
+        chdir: "{{ git_clone_result.dest }}"
+      when: dotfile_item.manager is not in ["", " "] and dotfile_item.manager is defined
+
+    - name: Verificando por scripts de instalação padrão (install.sh)
+      ansible.builtin.shell:
+        cmd: "bash install.sh"
+        chdir: "{{ git_clone_result.dest }}"
+      when:
+        - dotfile_item.install_command is not defined or dotfile_item.install_command is in ["", " ", "none"]
+        - dotfile_item.manager is not defined or dotfile_item.manager is in ["", " ", "none"]
+        - "'install.sh' in ansible_facts.files"
+      become: yes
+      become_user: "{{ nome_user }}"
