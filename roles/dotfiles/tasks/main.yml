@@ -17,7 +17,7 @@
     - name: "Clonando o repo: {{ dotfile_item.repo }}"
       ansible.builtin.git:
         repo: "{{ dotfile_item.repo }}"
-        dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo }}"
+        dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
         version: main
         accept_hostkey: yes
       become: yes
@@ -43,13 +43,18 @@
         chdir: "{{ git_clone_result.dest }}"
       when: dotfile_item.manager is not in ["", " "] and dotfile_item.manager is defined
 
-    - name: Verificando por scripts de instalação padrão (install.sh)
+    - name: Verificar se 'install.sh' existe no repositório
+      ansible.builtin.stat:
+        path: "{{ git_clone_result.dest }}/install.sh"
+      register: install_script_stat
+      when:
+        - dotfile_item.install_command is not defined
+        - dotfile_item.manager is not defined
+
+    - name: Executar script de instalação padrão (install.sh) se encontrado
       ansible.builtin.shell:
         cmd: "bash install.sh"
         chdir: "{{ git_clone_result.dest }}"
-      when:
-        - dotfile_item.install_command is not defined or dotfile_item.install_command is in ["", " ", "none"]
-        - dotfile_item.manager is not defined or dotfile_item.manager is in ["", " ", "none"]
-        - "'install.sh' in ansible_facts.files"
+      when: install_script_stat.stat.exists
       become: yes
       become_user: "{{ nome_user }}"
