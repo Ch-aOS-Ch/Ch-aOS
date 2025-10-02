@@ -21,3 +21,13 @@
     firmware: "{{ lookup('env', 'FIRMWARE') }}"
   roles:
     - sistema
+
+- name: Instalar Dotfiles
+  hosts: localhost
+  tags: [dotfiles]
+  vars:
+    plugin: "{{ lookup('env', 'PLUGIN') }}"
+    nome_user: "{{ lookup('env', 'USER') }}"
+  roles:
+    - dotfiles
+
