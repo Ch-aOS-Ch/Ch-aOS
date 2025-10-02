@@ -87,7 +87,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ## 🗺️ Roadmap do Projeto
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
-- [ ] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
+- [x] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
 - [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
 
 ## 🤝 Contribuindo
@@ -195,7 +195,7 @@ dotfiles:
 
 - [x] Minimal Installer with Firmware Detection
 - [x] Plugin System for Custom Packages
-- [ ] Dotfile Manager integrated with the Plugin System
+- [x] Dotfile Manager integrated with the Plugin System
 - [ ] Fully Automated Execution Mode with a Config File
 
 ## 🤝 Contributing
