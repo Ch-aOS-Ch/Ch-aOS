@@ -72,6 +72,14 @@ dotfiles:
     install_command: "your_custom_dotfile_command.sh" # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
     manager: "stow" # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
     # FORMA 3: não colocar nada faz o script buscar por um script "install.sh" dentro da root do seu repositório de dotfiles.
+
+hostname: your_hostname
+
+users:
+  - name: your-name
+    shell: your-shell
+    groups: ["your", "groups"]
+
 ```
 > [!WARNING]
 > USE BARRAS DE ESPAÇO AO INVÉS DE TABS, O ANSIBLE É SUPER SENSÍVEL A ISSO.

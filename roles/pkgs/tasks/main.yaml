@@ -1,0 +1,33 @@
+- name: Pkgs list exists
+  ansible.builtin.set_fact:
+  pacotes_desejados: "{{ pacotes | default([]) }}"
+
+- name: Get true pkg list
+  ansible.builtin.command:
+    cmd: pacman -Qqe
+  register: pacotes_instalados_raw
+  changed_when: false
+  check_mode: no
+
+- name: Get removal pkgs
+  ansible.builtin.set_fact:
+    pacotes_a_remover: "{{ pacotes_instalados_raw.stdout_lines | difference(pacotes_desejados) }}"
+
+- name: (Debug) Show removal pkgs
+  ansible.builtin.debug:
+    var: pacotes_a_remover
+  when: pacotes_a_remover | length > 0
+
+- name: Remove removal pkgs
+  ansible.builtin.pacman:
+    name: "{{ pacotes_a_remover }}"
+    state: absent
+  become: yes
+  when: pacotes_a_remover | length > 0
+
+- name: Install wanted pkgs
+  ansible.builtin.pacman:
+    name: "{{ pacotes_desejados }}"
+    state: present
+  become: yes
+  when: pacotes_desejados | length > 0

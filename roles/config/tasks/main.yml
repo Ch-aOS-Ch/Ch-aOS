@@ -1,0 +1,38 @@
+- name: Load vars
+  ansible.builtin.include_vars: "{{ plugin }}"
+
+- name: Define Hostname
+  ansible.builtin.Hostname:
+    name: "{{ hostname }}"
+
+- name: "Users exist"
+  loop: "{{ config }}"
+  loop_control:
+    loop_var: "{{ users }}"
+  block:
+  - name: "User '{{ user.name }}' exists"
+    ansible.builtin.user:
+      name: "{{ user.name }}"
+      shell: "{{ user.shell }}"
+      groups: "{{ user.groups }}"
+      append: yes
+      create_home: yes
+      password: "{{ user.password_hash }}"
+
+- name: Grant WHEEL sudoers
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^#wheel ALL=\(ALL:ALL\) ALL'
+    line: '%wheel ALL=ALL(ALL:ALL) ALL'
+    validate: '/usr/bin/visudo -cf %s'
+  when: wheel_access == "yes"
+
+- name: Remove WHEEL sudoers
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: 'wheel ALL=\(ALL:ALL\) ALL'
+    line: '#%wheel ALL=ALL(ALL:ALL) ALL'
+    validate: '/usr/bin/visudo -cf %s'
+  when: wheel_access == "no"
