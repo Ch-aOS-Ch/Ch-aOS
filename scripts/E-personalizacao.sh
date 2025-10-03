@@ -43,7 +43,10 @@ read -p "$MSG_HOSTNAME_PROMPT" -r hostname
 while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
 done
-echo "$hostname" >/mnt/etc/hostname
+cat <<EOF >>$PLUGIN
+hostname: '$hostname'
+EOF
+
 sleep 1
 
 # --- Initramfs ---
@@ -65,7 +68,12 @@ read -p "$MSG_USERNAME_PROMPT" -r username
 while [[ -z "$username" || ! "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]; do
   read -p "$MSG_INVALID_USERNAME" -r username
 done
-set_env_var "USER" "$username"
+cat <<EOF >>$PLUGIN
+users:
+  - name: '$username'
+    groups ["wheel"]
+    shell: "bash"
+EOF
 
 arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$username"
 echo "Agora defina a senha para o usuário '$username':"
