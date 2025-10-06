@@ -1,38 +1,47 @@
 - name: Load vars
-  ansible.builtin.include_vars: "{{ plugin }}"
+  include_vars: "{{ item }}"
+  loop:
+    - "{{ plugin }}"
+    - "{{ secrets }}"
 
 - name: Define Hostname
-  ansible.builtin.Hostname:
+  ansible.builtin.hostname:
     name: "{{ hostname }}"
 
-- name: "Users exist"
-  loop: "{{ config }}"
+- name: Make sure users exist
+  loop: "{{ users }}"
   loop_control:
-    loop_var: "{{ users }}"
+    loop_var: user_item
   block:
-  - name: "User '{{ user.name }}' exists"
+  - name: "user_item '{{ user_item.name }}' exists"
     ansible.builtin.user:
-      name: "{{ user.name }}"
-      shell: "{{ user.shell }}"
-      groups: "{{ user.groups }}"
+      name: "{{ user_item.name }}"
+      shell: "{{ user_item.shell }}"
+      groups: "{{ user_item.groups | join(',') }}"
       append: yes
       create_home: yes
-      password: "{{ user.password_hash }}"
+      password: "{{ user_secrets[user_item.name].password | default(omit) }}"
 
-- name: Grant WHEEL sudoers
+- name: Manage sudoers
   ansible.builtin.lineinfile:
     path: /etc/sudoers
-    state: present
-    regexp: '^#wheel ALL=\(ALL:ALL\) ALL'
-    line: '%wheel ALL=ALL(ALL:ALL) ALL'
-    validate: '/usr/bin/visudo -cf %s'
-  when: wheel_access == "yes"
+    regexp: "{{ '^#\\s*%wheel ALL=\\(ALL:ALL\\) ALL' if wheel_access | bool else '^%wheel ALL=\\(ALL:ALL\\) ALL' }}"
+    line: "{{ '%wheel ALL=(ALL:ALL) ALL' if wheel_access | bool else '#%wheel ALL=(ALL:ALL) ALL' }}"
+    validate: '/usr/sbin/visudo -cf %s'
 
-- name: Remove WHEEL sudoers
-  ansible.builtin.lineinfile:
-    path: /etc/sudoers
-    state: present
-    regexp: 'wheel ALL=\(ALL:ALL\) ALL'
-    line: '#%wheel ALL=ALL(ALL:ALL) ALL'
-    validate: '/usr/bin/visudo -cf %s'
-  when: wheel_access == "no"
+- name: Check if Ch-aronte destination folder already exists
+  ansible.builtin.stat:
+    path: "/home/{{ users[0].name }}/Ch-aronte"
+  register: charonte_dest_stat
+  when: users is defined and users | length > 0
+
+- name: "Copy Ch-aronte to first user's home directory"
+  ansible.builtin.copy:
+    src: "/root/Ch-aronte" # Assumindo que o playbook roda de dentro do chroot
+    dest: "/home/{{ users[0].name }}/Ch-aronte"
+    owner: "{{ users[0].name }}"
+    group: "{{ users[0].name }}"
+    mode: '0755'
+  when: 
+    - users is defined and users | length > 0
+    - not charonte_dest_stat.stat.exists

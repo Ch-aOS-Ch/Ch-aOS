@@ -1,7 +1,7 @@
-- name: Carregar variáveis de Dotfiles
+- name: Loading vars
   ansible.builtin.include_vars: "{{ plugin }}"
 
-- name: Garantir que os pacotes de gerenciamento estejam instalados
+- name: Making sure necessary packages are installed
   ansible.builtin.pacman:
     name:
       - git
@@ -9,22 +9,22 @@
     state: present
   become: yes
 
-- name: Iterar sobre a lista de dotfiles do plugin
+- name: Iterating through dotfile list
   loop: "{{ dotfiles }}"
   loop_control:
     loop_var: dotfile_item
   block:
-    - name: "Clonando o repo: {{ dotfile_item.repo }}"
+    - name: "Cloning the repo: {{ dotfile_item.repo }}"
       ansible.builtin.git:
         repo: "{{ dotfile_item.repo }}"
-        dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
+        dest: "/home/{{ nome_user }}/Dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
         version: main
         accept_hostkey: yes
       become: yes
       become_user: "{{ nome_user }}"
       register: git_clone_result
 
-    - name: Executando comando de instalação custom
+    - name: Execute install_command
       ansible.builtin.shell:
         cmd: "{{ dotfile_item.install_command }}"
         chdir: "{{ git_clone_result.dest }}"
@@ -32,7 +32,7 @@
       become: yes
       become_user: "{{ nome_user }}"
 
-    - name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager }}"
+    - name: "Applying dotfiles with manager: {{ dotfile_item.manager }}"
       ansible.builtin.shell:
         cmd: |
           {% if dotfile_item.manager == 'stow' %}
@@ -43,7 +43,7 @@
         chdir: "{{ git_clone_result.dest }}"
       when: dotfile_item.manager is not in ["", " "] and dotfile_item.manager is defined
 
-    - name: Verificar se 'install.sh' existe no repositório
+    - name: Checking if install.sh exists in Dotfiles' root dir
       ansible.builtin.stat:
         path: "{{ git_clone_result.dest }}/install.sh"
       register: install_script_stat
@@ -51,7 +51,7 @@
         - dotfile_item.install_command is not defined
         - dotfile_item.manager is not defined
 
-    - name: Executar script de instalação padrão (install.sh) se encontrado
+    - name: Executing install.sh
       ansible.builtin.shell:
         cmd: "bash install.sh"
         chdir: "{{ git_clone_result.dest }}"

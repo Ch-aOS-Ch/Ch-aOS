@@ -34,11 +34,12 @@ case "$LANGC" in
   ;;
 esac
 
+SECRETS_FILE="roles/sistema/vars/secrets.yml"
+
 # ==============================================================================
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
 
-# --- Hostname ---
 read -p "$MSG_HOSTNAME_PROMPT" -r hostname
 while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
@@ -46,21 +47,19 @@ done
 cat <<EOF >>$PLUGIN
 hostname: '$hostname'
 EOF
+echo "$hostname" >/mnt/etc/hostname
 
 sleep 1
 
-# --- Initramfs ---
 echo "$MSG_RUNNING_MKINITCPIO"
 arch-chroot /mnt mkinitcpio -P
 echo ""
 sleep 1
-
-# --- Senha do Root ---
 echo "$MSG_MKINITCPIO_DONE"
+
 arch-chroot /mnt passwd
 sleep 1
 
-# --- Criação do Usuário ---
 echo "$MSG_SET_USER"
 read -p "$MSG_USERNAME_PROMPT" -r username
 
@@ -71,38 +70,82 @@ done
 cat <<EOF >>$PLUGIN
 users:
   - name: '$username'
-    groups ["wheel"]
-    shell: "bash"
+    groups:
+      - "wheel"
+      - "'$username'"
+    shell: "/bin/bash"
 EOF
 
-arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$username"
-echo "Agora defina a senha para o usuário '$username':"
-arch-chroot /mnt passwd "$username"
+touch $SECRETS_FILE
+set_env_var "SECRETS" "$SECRETS_FILE"
 
-# --- Copia os scripts para o novo sistema ---
-echo "Copiando os scripts de instalação para /home/$username/Ch-aronte..."
-rm -rf ~/Ch-aronte/.git
-cp -r ~/Ch-aronte "/mnt/home/$username/Ch-aronte"
-# Garante que o novo usuário seja o dono dos arquivos copiados
-arch-chroot /mnt chown -R "$username:$username" "/home/$username/Ch-aronte"
-sleep 1
+dialog --title "Senha para o usuário: ${username}" --clear \
+  --menu "Como deseja configurar a senha?" 15 70 3 \
+  "1" "Digitar agora e salvar como HASH (Recomendado, Nix-like)" \
+  "2" "Digitar agora e salvar em COFRE (Vault com texto puro)" \
+  "3" "Digitar agora e não salvar em cofre (Plain Text, Extremamente inseguro, mas fácil de ler)" \
+  "4" "Não definir senha agora (configuração manual pós-reboot)" \
+  2>/tmp/choice.txt
 
+choice=$(cat /tmp/choice.txt)
+
+case $choice in
+"1")
+  read -srp "Digite a senha para '${username}': " user_pass
+  echo ""
+  user_hash=$(python -c "import crypt,getpass; print(crypt.crypt('${user_pass}'))")
+
+  echo "  ${username}:" >>"$SECRETS_FILE"
+  echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
+  ;;
+"2")
+  read -srp "Digite a senha para '${username}': " user_pass
+  echo ""
+  echo "  ${username}:" >>"$SECRETS_FILE"
+  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  USE_VAULT=true
+  ;;
+"3")
+  read -srp "Digite a senha para '${username}': " user_pass
+  echo ""
+  echo "  ${username}:" >>"$SECRETS_FILE"
+  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  ;;
+"4")
+  echo "  ${username}: {}" >>"$SECRETS_FILE"
+  echo "Lembre-se de definir a senha para '${username}' manualmente após o reboot." >&2
+  ;;
+esac
+
+if [ "$USE_VAULT" = true ]; then
+  echo "Uma ou mais senhas foram salvas em texto puro." >&2
+  echo "Vamos criptografar o arquivo 'segredos.yml' com o Ansible Vault." >&2
+  echo "Por favor, crie uma senha para o seu cofre (vault)." >&2
+  ansible-vault encrypt "$SECRETS_FILE"
+  echo "Arquivo '$SECRETS_FILE' criptografado com sucesso." >&2
+fi
+
+echo "$SECRETS_FILE" >>./.gitignore
 # ==============================================================================
 # LÓGICA COMPARTILHADA FINAL
 # ==============================================================================
 
 # --- Habilita o Sudo para o grupo 'wheel' ---
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
-if ! grep -q "^%wheel ALL=(ALL:ALL) ALL" /mnt/etc/sudoers; then
-  # Usa sed para descomentar a linha do wheel
-  sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /mnt/etc/sudoers
-fi
+echo "wheel_access: yes" >>"$PLUGIN"
 
 read -rp "$MSG_WANT_DOTS" dot_accept
 if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
   chmod +x scripts/G-dotfiles.sh
   bash scripts/G-dotfiles.sh
 fi
+
+set -a
+source respostas.env
+set +a
+
+rm -rf ~/Ch-aronte/.git
+ansible-playbook -vvv ./main.yaml --tags config
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."
