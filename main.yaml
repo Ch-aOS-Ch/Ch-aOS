@@ -22,6 +22,14 @@
   roles:
     - sistema
 
+- name: Setup config
+  hosts: localhost
+  tags:
+    - config
+  vars:
+    plugin: "{{ lookup('env', 'PLUGIN') }}"
+    secrets: "{{ lookup('env', 'SECRETS') }}"
+
 - name: Instalar Dotfiles
   hosts: localhost
   tags: [dotfiles]
