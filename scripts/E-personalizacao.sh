@@ -145,7 +145,8 @@ source respostas.env
 set +a
 
 rm -rf ~/Ch-aronte/.git
-ansible-playbook -vvv ./main.yaml --tags config
+cp -r /root/Ch-aronte /mnt/root/Ch-aronte
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."

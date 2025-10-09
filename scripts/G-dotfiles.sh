@@ -18,4 +18,4 @@ esac
 
 echo "$MSG_LOADING_DOTS"
 sleep 0.5
-ansible-playbook -vvv ./main.yaml --tags dotfiles
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags dotfiles
