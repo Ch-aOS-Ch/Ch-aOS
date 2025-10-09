@@ -66,9 +66,12 @@ pacotes:
   - fish
   - starship
 
-# Coming soon: dotfiles support
-# dotfiles:
-  # - [https://github.com/your-user/your-dotfiles.git](https://github.com/your-user/your-dotfiles.git)
+dotfiles:
+  - repo: https://github.com/your-user/your-dotfiles.git
+    # Para o script decidir como vai aplicar as dotfiles, você pode inserir de 3 formas:
+    install_command: "your_custom_dotfile_command.sh" # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
+    manager: "stow" # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
+    # FORMA 3: não colocar nada faz o script buscar por um script "install.sh" dentro da root do seu repositório de dotfiles.
 ```
 > [!WARNING]
 > USE BARRAS DE ESPAÇO AO INVÉS DE TABS, O ANSIBLE É SUPER SENSÍVEL A ISSO.
@@ -84,7 +87,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ## 🗺️ Roadmap do Projeto
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
-- [ ] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
+- [x] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
 - [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
 
 ## 🤝 Contribuindo
@@ -178,18 +181,30 @@ pacotes:
   - fish
   - starship
 
-# Coming soon: dotfiles support
-# dotfiles:
-  # - [https://github.com/your-user/your-dotfiles.git](https://github.com/your-user/your-dotfiles.git)
+dotfiles:
+  - repo: https://github.com/your-user/your-dotfiles.git
+    # To decide how the script will behave, you have 3 options as to how it will work.
+    install_command: "your_custom_dotfile_command.sh" # OPTION 1: install_command is an variable that you can set to decide how the script will install your dotfiles. It uses the root of your repo as a base point, so be aware of that.
+    manager: "stow" # OPTION 2: You set an manager and the script applies it to every folder in your repo.
+    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for a "install.sh" inside of the root of your repo, using it as a basis to install your dotfiles.
 ```
 > [!WARNING]
 > USE SPACES INSTEAD OF TABS, ANSIBLE IS VERY SENSITIVE.
+
+### To generate your current system's plugin, run:
+```bash
+cd Ch-aronte
+DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqe | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
+```
+> [!INFO]
+> Works directly from your terminal!
+
 
 ## 🗺️ Project Roadmap
 
 - [x] Minimal Installer with Firmware Detection
 - [x] Plugin System for Custom Packages
-- [ ] Dotfile Manager integrated with the Plugin System
+- [x] Dotfile Manager integrated with the Plugin System
 - [ ] Fully Automated Execution Mode with a Config File
 
 ## 🤝 Contributing
