@@ -19,6 +19,8 @@ echo -en "\e]PFc4ffbb" # bright white (foreground)
 # Set default foreground and background
 echo -en "\033[0m"
 
+clear
+
 echo "Choose your language / Escolha sua linguagem:"
 
 while true; do
