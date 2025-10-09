@@ -2,6 +2,7 @@
 set -a
 source respostas.env
 set +a
+source scripts/resources.sh
 
 # ==============================================================================
 # SETUP DE IDIOMA E VARIÁVEIS
@@ -15,6 +16,7 @@ case "$LANGC" in
   MSG_SET_USER="agora me fala teu user, vamo criar e tacar ele lá no sudoers"
   MSG_USERNAME_PROMPT="Nome do teu usuário: "
   MSG_INVALID_USERNAME="Nome de usuário inválido. Deve começar com letra minúscula e conter apenas letras minúsculas, números, _ ou -. Mals aí "
+  MSG_WANT_DOTS="Você tem alguma dotfile ou nem? (S/n)"
   ;;
 "English")
   MSG_HOSTNAME_PROMPT="Alright, give your PC a name... and please, make it a nice one... "
@@ -24,6 +26,7 @@ case "$LANGC" in
   MSG_SET_USER="Now tell me your username, let's create it and add it to the sudoers."
   MSG_USERNAME_PROMPT="Your username: "
   MSG_INVALID_USERNAME="Invalid username. Must start with a lowercase letter and contain only lowercase letters, numbers, _ or -. Try again: "
+  MSG_WANT_DOTS="Do you have any dotfiles or nah? (Y/n)"
   ;;
 *)
   echo "Language not recognized. Exiting."
@@ -62,6 +65,7 @@ read -p "$MSG_USERNAME_PROMPT" -r username
 while [[ -z "$username" || ! "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]; do
   read -p "$MSG_INVALID_USERNAME" -r username
 done
+set_env_var "USER" "$username"
 
 arch-chroot /mnt useradd -m -g users -G wheel -s /bin/bash "$username"
 echo "Agora defina a senha para o usuário '$username':"
@@ -77,7 +81,6 @@ sleep 1
 
 # ==============================================================================
 # LÓGICA COMPARTILHADA FINAL
-# (Esta parte já estava ótima!)
 # ==============================================================================
 
 # --- Habilita o Sudo para o grupo 'wheel' ---
@@ -85,6 +88,12 @@ echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
 if ! grep -q "^%wheel ALL=(ALL:ALL) ALL" /mnt/etc/sudoers; then
   # Usa sed para descomentar a linha do wheel
   sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /mnt/etc/sudoers
+fi
+
+read -rp "$MSG_WANT_DOTS" dot_accept
+if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
+  chmod +x scripts/G-dotfiles.sh
+  bash scripts/G-dotfiles.sh
 fi
 
 # --- Encadeia o próximo script ---
