@@ -90,11 +90,11 @@ if ! grep -q "^%wheel ALL=(ALL:ALL) ALL" /mnt/etc/sudoers; then
   sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /mnt/etc/sudoers
 fi
 
-read -rp "$MSG_WANT_DOTS" dot_accept
-if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
-  chmod +x scripts/G-dotfiles.sh
-  bash scripts/G-dotfiles.sh
-fi
+#read -rp "$MSG_WANT_DOTS" dot_accept
+#if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
+#  chmod +x scripts/G-dotfiles.sh
+#  bash scripts/G-dotfiles.sh
+#fi
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."
