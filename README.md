@@ -102,7 +102,6 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ### Modularity + Automation
 - [-] Dotfile Manager integrated with the Plugin System
 - [ ] Fully Automated Execution Mode with a Config File
-- [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 
 ### Declarativity + Rollback
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
@@ -115,6 +114,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ### Ideas being studied
 - [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and so on and so forth).
+- [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 
 ## Contributing
 
