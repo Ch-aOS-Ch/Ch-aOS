@@ -69,8 +69,10 @@ pacotes:
 dotfiles:
   - repo: https://github.com/your-user/your-dotfiles.git
     # Para o script decidir como vai aplicar as dotfiles, você pode inserir de 3 formas:
-    install_command: "your_custom_dotfile_command.sh" # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
-    manager: "stow" # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
+    install_command: "your_custom_dotfile_command.sh"
+    # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
+    manager: "stow"
+    # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
     # FORMA 3: não colocar nada faz o script buscar por um script "install.sh" dentro da root do seu repositório de dotfiles.
 ```
 > [!WARNING]
@@ -85,17 +87,25 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 > Funciona diretamente do terminal!
 
 ## Roadmap do Projeto
+
+### MVP
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
+
+### Automação e modularidade
 - [-] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
 - [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
 - [ ] Suporte ao ALA/ALHA (Arch Linux Archive/History Archive) como alternativa ao flakes.lock.
+
+### Automação completa e declaratividade
 - [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
 - [ ] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
 - [ ] Gerenciador de pacotes alternativo parecido com o nixpkgs, com uma lista declarativa e com rollback (ALA/ALHA).
+
+### Qualidade e Testes
 - [ ] Testes com ansible-lint e ansible-test.
 
-TALVEZ EU IMPLEMENTE ISSO AQUI, MAS AINDA N TENHO CTZ:
+### Idéias em estudo:
 - [ ] Manager de secrets (já tô implementando algo do gênero com as senhas de usuário, em q vc escolhe plain text, hashing ou ansible vault pra encriptar a senha do user, mas talvez eu adicione senhas de wifi, gpg, ssh, git e por aí vai).
 
 ## Contribuindo

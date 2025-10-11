@@ -11,6 +11,9 @@
 
 Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an immersive experience.
 
+## Why "Ch-aronte"?
+Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Charon's" name gets a Por
+
 ## Key Features
 
 * **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
@@ -89,17 +92,24 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ## Project Roadmap
 
+### MVP
 - [x] Minimal Installer with Firmware Detection
 - [x] Plugin System for Custom Packages
+
+### Modularity + Automation
 - [-] Dotfile Manager integrated with the Plugin System
 - [ ] Fully Automated Execution Mode with a Config File
 - [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
+
+### Declarativity + Rollback
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
 - [ ] Fully declarative post-install system configuration with only one custom*.yml file.
 - [ ] Package manager akin to nixpkgs, with a declarative package list and versioning.
-- [ ansible-lint and ansible-test tests.
 
-MAYBE ILL IMPLEMENT THIS, BUT IDK:
+### Quality + security
+- [ ] ansible-lint and ansible-test tests.
+
+### Ideas being studied
 - [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and son on and so forth).
 
 ## Contributing
