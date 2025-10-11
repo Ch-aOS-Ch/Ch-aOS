@@ -9,16 +9,19 @@
 
 **Ch-aronte** is not just an installer. It's a guided, interactive journey into the heart of Arch Linux, designed for those who want to install with confidence and truly learn the process—no more blind copy-pasting.
 
-Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an immersive experience.
+Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an declarative experience.
 
 ## Why "Ch-aronte"?
-Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Charon's" name gets a Por
+
+1. The name: Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Ch-aron's" name gets "portuguesified".
+2. The parts: Charon, the ferryman, also took 2 coins to guide the souls, and Arch takes 2 parts to configure (the install and pont-install), so this script will also have 2 parts, one to install arch and another one to manage your system (A-coin.sh and B-coin helper respectively), both declaratively.
+3. But why use Ch-aronte? Quite simple: it follows nix's philosophy, it's meant to add an declarative abstraction layer to your configuration, allowing you to, in the script's language, say "create these users with these groups" or "keep these packages installed, install the ones that aren't and delete all the rest (yes, dangerous, I know)" all from the comfort of your own Arch installation. Also, it doubles doen as a declarative installer, allowing for easy reproducibility of your system.
 
 ## Key Features
 
 * **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
-* **Automatic Firmware Detection**: Optimized installation for **UEFI (with rEFInd)** or **BIOS (with GRUB)**, hassle-free.
-* **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom presets.
+* **Automatic Firmware Detection**: Installation for **UEFI** or **BIOS**.
+* **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom preset, manage linux's system configurations (such as users, hostname and such), manage packsges declaratively and manage repos
 * **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
 
 ## The Architecture: Orchestrator + Worker
@@ -105,12 +108,13 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
 - [ ] Fully declarative post-install system configuration with only one custom*.yml file.
 - [ ] Package manager akin to nixpkgs, with a declarative package list and versioning.
+- [ ] Repo manager.
 
 ### Quality + security
 - [ ] ansible-lint and ansible-test tests.
 
 ### Ideas being studied
-- [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and son on and so forth).
+- [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and so on and so forth).
 
 ## Contributing
 
