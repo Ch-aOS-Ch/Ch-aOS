@@ -1,5 +1,5 @@
 [versão pt br](./READMEpt_BR.md)
-# 🧝‍♂️ Ch-aronte
+# Ch-aronte
 
 **Your guide through the Arch Linux underworld.**
 
@@ -11,21 +11,21 @@
 
 Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an immersive experience.
 
-## ✨ Key Features
+## Key Features
 
-* ✅ **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
-* ✅ **Automatic Firmware Detection**: Optimized installation for **UEFI (with rEFInd)** or **BIOS (with GRUB)**, hassle-free.
-* ✅ **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom presets.
-* ✅ **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
+* **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
+* **Automatic Firmware Detection**: Optimized installation for **UEFI (with rEFInd)** or **BIOS (with GRUB)**, hassle-free.
+* **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom presets.
+* **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
 
-## 🏛️ The Architecture: Orchestrator + Worker
+## The Architecture: Orchestrator + Worker
 
 The project uses a powerful and flexible hybrid architecture:
 
 * **Shell Script (The Orchestrator)**: Acts as the interactive frontend, gathering user input, validating data, and orchestrating the installation sequence.
 * **Ansible (The Worker)**: Acts as the backend, executing the heavy-lifting tasks declaratively and reliably—partitioning, package installation, and system configuration.
 
-## 🚀 Getting Started
+## Getting Started
 
 Designed to be run directly from the Arch Linux Live ISO environment.
 
@@ -57,7 +57,7 @@ chmod +x A-coin.sh
 > [!WARNING]
 > The script is your guide. Follow the instructions in the terminal and let Ch-aronte lead you through the installation
 
-## 🧩 Plugin System
+## Plugin System
 
 Customize your installation by creating your own package presets.
 1. Create a file named custom-YOUR-PLUGIN.yml inside ./roles/sistema/vars/.
@@ -87,7 +87,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 > Works directly from your terminal!
 
 
-## 🗺️ Project Roadmap
+## Project Roadmap
 
 - [x] Minimal Installer with Firmware Detection
 - [x] Plugin System for Custom Packages
@@ -96,8 +96,9 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
 - [ ] Fully declarative post-install system configuration with only one custom*.yml file.
+- [ ] Package manager akin to nixpkgs, with a declarative package list and versioning.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are the lifeblood of open-source software. If you have ideas to improve Ch-aronte, your help is very welcome! Check out CONTRIBUTING.md to get started.
 
@@ -108,7 +109,7 @@ Areas of particular interest include:
 - Suggestions and implementations for post-install configurations.
 - Creation of issues.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 The primary inspiration for this project came from [archible](https://github.com/0xzer0x/archible) from [0xzer0x](https://github.com/0xzer0x).
 > If you're reading this (I doubt it but oh well), thank you very much for your amazing tool, I hope to achieve this level of creativity and expertise you've got to make it come true.
