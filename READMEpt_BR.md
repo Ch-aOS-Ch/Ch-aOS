@@ -93,6 +93,10 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
 - [ ] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
 - [ ] Gerenciador de pacotes alternativo parecido com o nixpkgs, com uma lista declarativa e com rollback (ALA/ALHA).
+- [ ] Testes com ansible-lint e ansible-test.
+
+TALVEZ EU IMPLEMENTE ISSO AQUI, MAS AINDA N TENHO CTZ:
+- [ ] Manager de secrets (já tô implementando algo do gênero com as senhas de usuário, em q vc escolhe plain text, hashing ou ansible vault pra encriptar a senha do user, mas talvez eu adicione senhas de wifi, gpg, ssh, git e por aí vai).
 
 ## Contribuindo
 
