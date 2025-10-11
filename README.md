@@ -97,6 +97,10 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
 - [ ] Fully declarative post-install system configuration with only one custom*.yml file.
 - [ ] Package manager akin to nixpkgs, with a declarative package list and versioning.
+- [ ansible-lint and ansible-test tests.
+
+MAYBE ILL IMPLEMENT THIS, BUT IDK:
+- [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and son on and so forth).
 
 ## Contributing
 
