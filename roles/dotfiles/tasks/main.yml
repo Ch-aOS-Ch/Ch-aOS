@@ -9,52 +9,9 @@
     state: present
   become: yes
 
-- name: Iterating through dotfile list
+- name: Iterar e processar cada dotfile da lista
+  ansible.builtin.include_tasks: tasks/process_dotfile.yml
   loop: "{{ dotfiles }}"
   loop_control:
     loop_var: dotfile_item
-  block:
-    - name: "Cloning the repo: {{ dotfile_item.repo }}"
-      ansible.builtin.git:
-        repo: "{{ dotfile_item.repo }}"
-        dest: "/home/{{ nome_user }}/Dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
-        version: main
-        accept_hostkey: yes
-      become: yes
-      become_user: "{{ nome_user }}"
-      register: git_clone_result
 
-    - name: Execute install_command
-      ansible.builtin.shell:
-        cmd: "{{ dotfile_item.install_command }}"
-        chdir: "{{ git_clone_result.dest }}"
-      when: dotfile_item.install_command is not in ["", " "] and dotfile_item.install_command is defined
-      become: yes
-      become_user: "{{ nome_user }}"
-
-    - name: "Applying dotfiles with manager: {{ dotfile_item.manager }}"
-      ansible.builtin.shell:
-        cmd: |
-          {% if dotfile_item.manager == 'stow' %}
-          stow --target=/home//{{ nome_user }} --dir=. *
-          {% elif dotfile_item.manager == 'yadm' %}
-          echo "yadm not implemented yet, please use stow."
-          {% endif %}
-        chdir: "{{ git_clone_result.dest }}"
-      when: dotfile_item.manager is not in ["", " "] and dotfile_item.manager is defined
-
-    - name: Checking if install.sh exists in Dotfiles' root dir
-      ansible.builtin.stat:
-        path: "{{ git_clone_result.dest }}/install.sh"
-      register: install_script_stat
-      when:
-        - dotfile_item.install_command is not defined
-        - dotfile_item.manager is not defined
-
-    - name: Executing install.sh
-      ansible.builtin.shell:
-        cmd: "bash install.sh"
-        chdir: "{{ git_clone_result.dest }}"
-      when: install_script_stat.stat.exists
-      become: yes
-      become_user: "{{ nome_user }}"
