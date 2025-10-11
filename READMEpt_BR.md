@@ -95,7 +95,6 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ### Automação e modularidade
 - [-] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
 - [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
-- [ ] Suporte ao ALA/ALHA (Arch Linux Archive/History Archive) como alternativa ao flakes.lock.
 
 ### Automação completa e declaratividade
 - [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
@@ -105,8 +104,9 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ### Qualidade e Testes
 - [ ] Testes com ansible-lint e ansible-test.
 
-### Idéias em estudo:
+### Idéias em estudo
 - [ ] Manager de secrets (já tô implementando algo do gênero com as senhas de usuário, em q vc escolhe plain text, hashing ou ansible vault pra encriptar a senha do user, mas talvez eu adicione senhas de wifi, gpg, ssh, git e por aí vai).
+- [ ] Suporte ao ALA/ALHA (Arch Linux Archive/History Archive) como alternativa ao flakes.lock.
 
 ## Contribuindo
 
