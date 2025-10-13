@@ -1,4 +1,3 @@
----
 - name: Preparar partições
   hosts: localhost
   tags: [particionamento]

@@ -34,6 +34,7 @@
       {% endfor %}
   async: 3600
   poll: 15
+  changed_when: false
   when: pacotes_base is defined and pacotes_base | length > 0
 
 # ----------------------------------------------------------------
@@ -57,8 +58,8 @@
       {% endfor %}
   async: 3600
   poll: 15
+  changed_when: false
   when:
     - pacotes is defined
     - pacotes | length > 0
     - accept in ["Y", "y", "S", "s", ""]
-

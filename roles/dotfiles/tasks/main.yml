@@ -1,4 +1,3 @@
-
 - name: Carregar variáveis de Dotfiles
   ansible.builtin.include_vars: "{{ plugin }}"
 
@@ -8,11 +7,10 @@
       - git
       - stow
     state: present
-  become: yes
+  become: true
 
 - name: Iterar e processar cada dotfile da lista
   ansible.builtin.include_tasks: tasks/process_dotfile.yml
   loop: "{{ dotfiles }}"
   loop_control:
     loop_var: dotfile_item
-
