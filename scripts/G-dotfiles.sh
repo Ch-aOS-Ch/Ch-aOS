@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 set -a
 source respostas.env
 set +a
@@ -18,4 +19,4 @@ esac
 
 echo "$MSG_LOADING_DOTS"
 sleep 0.5
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags dotfiles
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags dotfiles -e @plugins/"$ARQUIVO_PLUGIN"

@@ -1,8 +1,10 @@
 #!/bin/bash
+set -e
 set -a
 source respostas.env
 set +a
 source scripts/resources.sh
+plugin_dir="./plugins/"
 
 # ==============================================================================
 # SETUP DE IDIOMA E MENSAGENS
@@ -42,6 +44,14 @@ case "$LANGC" in
   MSG_UPDATED_VALUES="Valores atualizados:"
   MSG_INVALID_OPTION="Opção inválida. Por favor, escolha uma das opções listadas."
   MSG_CONFIG_CONFIRMED="Ótimo! Configurações confirmadas."
+
+  # Mensagens específicas da lógica de plugin
+  MSG_EXISTING_PLUGINS_FOUND="Plugins existentes foram encontrados:"
+  MSG_CHOICE_PROMPT="Deseja criar um NOVO plugin ou usar um EXISTENTE? (novo/usar): "
+  MSG_PROMPT_WHICH_PLUGIN="Digite o nome do plugin que você quer usar (ex: custom1.yml): "
+  MSG_INVALID_FILE="Arquivo inválido ou não encontrado. Por favor, escolha um da lista."
+  MSG_USING_EXISTING="Usando o plugin existente:"
+  MSG_CREATING_NEW="Criando novo plugin:"
   ;;
 "English")
   # General Messages
@@ -76,6 +86,14 @@ case "$LANGC" in
   MSG_UPDATED_VALUES="Updated values:"
   MSG_INVALID_OPTION="Invalid option. Please choose one of the listed options."
   MSG_CONFIG_CONFIRMED="Great! Settings confirmed."
+
+  # Plugin-specific logic messages
+  MSG_EXISTING_PLUGINS_FOUND="Existing plugins were found:"
+  MSG_CHOICE_PROMPT="Do you want to create a NEW plugin or USE an existing one? (new/use): "
+  MSG_PROMPT_WHICH_PLUGIN="Enter the name of the plugin you want to use (e.g., custom1.yml): "
+  MSG_INVALID_FILE="Invalid file or not found. Please choose one from the list."
+  MSG_USING_EXISTING="Using existing plugin:"
+  MSG_CREATING_NEW="Creating new plugin:"
   ;;
 *)
   echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'"
@@ -102,9 +120,61 @@ prompt_for_partition() {
   echo "$partition_var"
 }
 
+select_or_create_plugin_file() {
+  shopt -s nullglob
+  mkdir -p "$plugin_dir"
+
+  local existing_plugins=("$plugin_dir"custom*.yml)
+  local choice arquivo
+
+  if [ ${#existing_plugins[@]} -gt 0 ]; then
+    # Imprime na saída de erro (stderr) para aparecer na tela
+    echo "$MSG_EXISTING_PLUGINS_FOUND" >&2
+    for file in "${existing_plugins[@]}"; do
+      basename "$file"
+    done >&2 # Redireciona a saída do loop inteiro
+
+    echo "" >&2 # Linha em branco também para stderr
+    read -rp "$MSG_CHOICE_PROMPT" choice
+  else
+    choice="novo"
+  fi
+
+  shopt -u nullglob
+
+  choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
+
+  if [[ "$choice" == "usar" || "$choice" == "use" ]]; then
+    read -rp "$MSG_PROMPT_WHICH_PLUGIN" arquivo
+    while [[ -z "$arquivo" || ! -f "$plugin_dir$arquivo" ]]; do
+      echo "$MSG_INVALID_FILE" >&2
+      for file in "${existing_plugins[@]}"; do
+        basename "$file"
+      done >&2
+      read -rp "$MSG_PROMPT_WHICH_PLUGIN" arquivo
+    done
+    echo "$MSG_USING_EXISTING $arquivo" >&2
+    set_env_var "PLUGIN" "$arquivo"
+  else
+    local qtd
+    qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
+    arquivo="custom$((qtd + 1)).yml"
+
+    echo "$MSG_CREATING_NEW $arquivo" >&2
+    set_env_var "PLUGIN_PATH" "$HOME/Ch-aronte/$plugin_dir$arquivo"
+    set_env_var "CHOICE" "$choice"
+  fi
+
+  echo "$arquivo"
+}
+
 # ==============================================================================
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
+
+set -a
+source respostas.env
+set +a
 
 # Configuração inicial do sistema
 if [ "$LANGC" = "Portugues" ]; then
@@ -116,10 +186,13 @@ timedatectl
 
 # Preparação e instruções
 if [ -d /sys/firmware/efi ]; then
-  firmware="UEFI"
+  set_yml_var "plugins/$PLUGIN" "firmware" "UEFI"
 else
-  firmware="BIOS"
+  set_yml_var "plugins/$PLUGIN" "firmware" "BIOS"
 fi
+
+arquivo_plugin=$(select_or_create_plugin_file)
+set_env_var "PLUGIN" "$arquivo_plugin"
 
 echo "$MSG_PREPARING"
 sleep 1
@@ -220,17 +293,12 @@ done
 
 echo "$MSG_CONFIG_CONFIRMED"
 
-# Salva as variáveis finais no arquivo de respostas
-set_env_var "DISCO" "$disco"
+set_yml_var "plugins/$PLUGIN" "disco" "$disco"
+set_yml_var "plugins/$PLUGIN" "root" "/dev/$root"
 set_env_var "ROOTP" "/dev/$root"
-set_env_var "HOMEP" "/dev/$home"
-set_env_var "BOOTP" "/dev/$boot"
-set_env_var "SWAPP" "/dev/$swap"
-set_env_var "FORMATO_ROOT" "$formato"
-set_env_var "FIRMWARE" "$firmware"
+set_yml_var "plugins/$PLUGIN" "home" "/dev/$home"
+set_yml_var "plugins/$PLUGIN" "boot" "/dev/$boot"
+set_yml_var "plugins/$PLUGIN" "swap" "/dev/$swap"
+set_yml_var "plugins/$PLUGIN" "formato_root" "$formato"
 
-# Chamada para o playbook Ansible
-set -a
-source respostas.env
-set +a
-ansible-playbook -vvv ./main.yaml --tags particionamento
+ansible-playbook -vvv ./main.yaml --tags particionamento -e @plugins/"$PLUGIN"
