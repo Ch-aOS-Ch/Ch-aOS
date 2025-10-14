@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 set -a
 source respostas.env
 set +a

@@ -45,10 +45,10 @@
   when: boot | length > 0
 
 - name: ativar swap
-  ansible.builtin.command:
-    cmd: swapon {{ swap }}
+  ansible.posix.swapon:
+    device: {{ swap }}
+    state: present
   when: swap | length > 0
-  ignore_errors: true
 
 - name: ativar home
   ansible.builtin.mount:

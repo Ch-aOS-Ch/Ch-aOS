@@ -1,9 +1,3 @@
-- name: Load vars
-  include_vars: "{{ item }}"
-  loop:
-    - "{{ plugin }}"
-    - "{{ secrets }}"
-
 - name: Define Hostname
   ansible.builtin.hostname:
     name: "{{ hostname }}"
@@ -13,14 +7,14 @@
   loop_control:
     loop_var: user_item
   block:
-  - name: "user_item '{{ user_item.name }}' exists"
-    ansible.builtin.user:
-      name: "{{ user_item.name }}"
-      shell: "{{ user_item.shell }}"
-      groups: "{{ user_item.groups | join(',') }}"
-      append: yes
-      create_home: yes
-      password: "{{ user_secrets[user_item.name].password | default(omit) }}"
+    - name: "user_item '{{ user_item.name }}' exists"
+      ansible.builtin.user:
+        name: "{{ user_item.name }}"
+        shell: "{{ user_item.shell }}"
+        groups: "{{ user_item.groups | join(',') }}"
+        append: true
+        create_home: true
+        password: "{{ user_secrets[user_item.name].password | default(omit) }}"
 
 - name: Manage sudoers
   ansible.builtin.lineinfile:
@@ -42,6 +36,6 @@
     owner: "{{ users[0].name }}"
     group: "{{ users[0].name }}"
     mode: '0755'
-  when: 
+  when:
     - users is defined and users | length > 0
     - not charonte_dest_stat.stat.exists

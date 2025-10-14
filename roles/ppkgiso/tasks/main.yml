@@ -1,0 +1,13 @@
+- name: Show pkgs to install
+  ansible.builtin.debug:
+    var: pacotes
+  when:
+    - pacotes is defined
+    - pacotes | length > 0
+
+- name: Install base pkgs (chroot exists let's go)
+  ansible.builtin.pacman:
+    name: "{{ pacotes }}"
+    state: present
+    update_cache: false
+  cache_valid_time: 3600

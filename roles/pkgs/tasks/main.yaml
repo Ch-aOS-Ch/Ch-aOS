@@ -1,17 +1,35 @@
+- name: Set base bootloader
+  ansible.builtin.set_fact:
+    pacotes_firmware_especificos: "{{ ['efibootmgr', 'refind'] if firmware == 'UEFI' else ['grub'] }}"
+
+- name: unite base pkgs and firmware pkgs
+  ansible.builtin.set_fact:
+    pacotes_base: "{{ necessarios | union(pacotes_firmware_especificos) }}"
+
+- name: (Debug) Show base pkg list
+  ansible.builtin.debug:
+    msg: "Firmware detected: {{ firmware }}. base pkg list: {{ pacotes_base }}"
+  vars:
+    firmware: "{{ lookup('env', 'FIRMWARE') }}"
+
 - name: Pkgs list exists
   ansible.builtin.set_fact:
   pacotes_desejados: "{{ pacotes | default([]) }}"
+
+- name: Unite base pkg and desired pkgs
+  ansible.builtin.set_fact:
+    pacotes_finais: "{{ pacotes_base | union(pacotes_desejados) }}"
 
 - name: Get true pkg list
   ansible.builtin.command:
     cmd: pacman -Qqe
   register: pacotes_instalados_raw
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Get removal pkgs
   ansible.builtin.set_fact:
-    pacotes_a_remover: "{{ pacotes_instalados_raw.stdout_lines | difference(pacotes_desejados) }}"
+    pacotes_a_remover: "{{ pacotes_instalados_raw.stdout_lines | difference(pacotes_finais) }}"
 
 - name: (Debug) Show removal pkgs
   ansible.builtin.debug:
@@ -22,12 +40,12 @@
   ansible.builtin.pacman:
     name: "{{ pacotes_a_remover }}"
     state: absent
-  become: yes
+  become: true
   when: pacotes_a_remover | length > 0
 
 - name: Install wanted pkgs
   ansible.builtin.pacman:
     name: "{{ pacotes_desejados }}"
     state: present
-  become: yes
+  become: true
   when: pacotes_desejados | length > 0

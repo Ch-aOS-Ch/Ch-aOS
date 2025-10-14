@@ -1,31 +1,17 @@
----
-- name: 1. Carregar variáveis de pacotes
+- name: Load firmware mode
   ansible.builtin.include_vars: "{{ item }}"
   loop:
-    - ../vars/necessarios.yml
-    # Inclui o vars do bootloader correto baseado na variável 'firmware'
     - "../vars/{{ firmware | default('UEFI') }}.yml"
 
-- name: 2. Carregar variáveis do plugin externo (se aplicável)
-  ansible.builtin.include_vars: "{{ plugin }}"
-  when:
-    - plugin is defined
-    - accept in ["Y", "y", "S", "s", ""]
-    - plugin is file
-
-# ----------------------------------------------------------------
-# ETAPA 1: INSTALAÇÃO DO SISTEMA BASE (ESSENCIAIS + BOOTLOADER)
-# ----------------------------------------------------------------
-
-- name: Definir a lista de pacotes base
+- name: Define base pkg list
   ansible.builtin.set_fact:
     pacotes_base: "{{ (necessarios + bootloader) | unique | list }}"
 
-- name: (Debug) Mostrar pacotes base a serem instalados
+- name: (Debug) Show base pkg list
   ansible.builtin.debug:
     var: pacotes_base
 
-- name: Instalar pacotes essenciais e do bootloader
+- name: Install base pkgs (no chroot)
   ansible.builtin.command:
     cmd: >
       pacstrap -K {{ fsroot }} --needed
@@ -34,31 +20,5 @@
       {% endfor %}
   async: 3600
   poll: 15
+  changed_when: false
   when: pacotes_base is defined and pacotes_base | length > 0
-
-# ----------------------------------------------------------------
-# ETAPA 2: INSTALAÇÃO DO PLUGIN (SEPARADAMENTE)
-# ----------------------------------------------------------------
-
-- name: Mostrar pacotes do plugin a serem instalados
-  ansible.builtin.debug:
-    var: pacotes
-  when:
-    - pacotes is defined
-    - pacotes | length > 0
-    - accept in ["Y", "y", "S", "s", ""]
-
-- name: Instalar pacotes do plugin
-  ansible.builtin.command:
-    cmd: >
-      pacstrap -K {{ fsroot }} --needed
-      {% for pkg in pacotes %}
-        {{ pkg | quote }}
-      {% endfor %}
-  async: 3600
-  poll: 15
-  when:
-    - pacotes is defined
-    - pacotes | length > 0
-    - accept in ["Y", "y", "S", "s", ""]
-

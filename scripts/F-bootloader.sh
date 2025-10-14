@@ -1,5 +1,5 @@
 #!/bin/bash
-# Carrega as respostas salvas nos scripts anteriores
+set -e
 set -a
 source respostas.env
 set +a
@@ -54,7 +54,8 @@ if [ "$FIRMWARE" == "UEFI" ]; then
   read -p "$MSG_ROOT_LABEL_PROMPT" -r root_label
 
   # Adiciona a entrada de boot customizada no refind.conf
-  cat <<EOF >>/mnt/boot/efi/refind/refind.conf
+  if ! grep -q "Ch-aronte" /mnt/boot/efi/refind/refind.conf; then
+    cat <<EOF >>/mnt/boot/efi/refind/refind.conf
 
 # ---------------------------------------------------------
 # Entrada adicionada automaticamente pelo script Ch-aronte
@@ -73,6 +74,7 @@ menuentry "$hostname" {
     }
 }
 EOF
+  fi
 
   echo "Definindo o label da partição root para '$root_label'..."
   if [[ "$FORMATO_ROOT" == "btrfs" ]]; then

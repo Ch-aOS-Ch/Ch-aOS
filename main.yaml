@@ -1,41 +1,24 @@
----
 - name: Preparar partições
   hosts: localhost
   tags: [particionamento]
-  vars:
-    disco: "{{ lookup('env', 'DISCO') }}"
-    root: "{{ lookup('env', 'ROOTP') }}"
-    home: "{{ lookup('env', 'HOMEP') }}"
-    swap: "{{ lookup('env', 'SWAPP') }}"
-    boot: "{{ lookup('env', 'BOOTP') }}"
-    formato: "{{ lookup('env', 'FORMATO_ROOT') }}"
   roles:
     - particionamento
 
 - name: Instalar sistema operacional
   hosts: localhost
   tags: [instalacao]
-  vars:
-    accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
-    plugin: "{{ lookup('env', 'PLUGIN') }}"
-    firmware: "{{ lookup('env', 'FIRMWARE') }}"
   roles:
     - sistema
 
 - name: Setup config
   hosts: localhost
-  tags:
+  tags: [config]
+  roles:
     - config
-  vars:
-    plugin: "{{ lookup('env', 'PLUGIN') }}"
-    secrets: "{{ lookup('env', 'SECRETS') }}"
 
 - name: Instalar Dotfiles
   hosts: localhost
   tags: [dotfiles]
-  vars:
-    plugin: "{{ lookup('env', 'PLUGIN') }}"
-    nome_user: "{{ lookup('env', 'USER') }}"
   roles:
     - dotfiles
 
