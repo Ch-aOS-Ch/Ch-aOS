@@ -30,6 +30,6 @@
 
 - name: Install plugin pkgs
   hosts: localhost
-  tags: [plug-pkgs]
+  tags: [pkgs]
   roles:
-    - plug-pkgs
+    - pkgs
