@@ -1,0 +1,48 @@
+- name: Configure repositories from plugin list
+  loop: "{{ repos }}"
+  loop_control:
+    loop_var: repo_item
+  block:
+    - name: Manage standard pacman repositories (e.g., multilib)
+      when: repo_item.name in ['core', 'extra', 'multilib']
+      block:
+        - name: "Ensure repository block [{{ repo_item.name }}] is uncommented"
+          ansible.builtin.replace:
+            path: /etc/pacman.conf
+            regexp: '(?s)^#\s*(\[{{ repo_item.name }}\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+            replace: '\1'
+
+    - name: Manage CachyOS repository
+      when: repo_item.name == 'cachy'
+      block:
+        - name: Fetch CachyOS signing key
+          ansible.builtin.get_url:
+            url: https://mirror.cachyos.org/cachyos-repo.tar.xz
+            dest: /tmp/cachyos-repo.tar.xz
+            mode: '0644'
+
+        - name: Unarchive CachyOS repo files
+          ansible.builtin.unarchive:
+            src: /tmp/cachyos-repo.tar.xz
+            dest: /tmp
+            remote_src: true
+
+        - name: Run CachyOS repo script
+          ansible.builtin.command:
+            cmd: ./cachyos-repo.sh
+            chdir: /tmp/cachyos-repo
+          changed_when: false
+
+        - name: Ensure CachyOS repo is in pacman.conf
+          ansible.builtin.blockinfile:
+            path: /etc/pacman.conf
+            block: |
+              [cachyos]
+              Include = /etc/pacman.d/cachyos-mirrorlist
+            marker: "# {mark} ANSIBLE MANAGED BLOCK CACHYOS"
+            state: present # Garante que o bloco exista
+
+- name: Update pacman cache after all repository changes
+  ansible.builtin.command:
+    cmd: pacman -Sy
+  changed_when: false
