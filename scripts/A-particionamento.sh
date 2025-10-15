@@ -184,15 +184,19 @@ else
 fi
 timedatectl
 
+arquivo_plugin=$(select_or_create_plugin_file)
+set_env_var "PLUGIN" "$arquivo_plugin"
+
 # Preparação e instruções
 if [ -d /sys/firmware/efi ]; then
   set_yml_var "plugins/$PLUGIN" "firmware" "UEFI"
+  set_env_var "FIRMWARE" "UEFI"
+  firmware="UEFI"
 else
   set_yml_var "plugins/$PLUGIN" "firmware" "BIOS"
+  set_env_var "FIRMWARE" "BIOS"
+  firmware="BIOS"
 fi
-
-arquivo_plugin=$(select_or_create_plugin_file)
-set_env_var "PLUGIN" "$arquivo_plugin"
 
 echo "$MSG_PREPARING"
 sleep 1
@@ -294,11 +298,13 @@ done
 echo "$MSG_CONFIG_CONFIRMED"
 
 set_yml_var "plugins/$PLUGIN" "disco" "$disco"
+set_env_var "DISCO" "$disco"
 set_yml_var "plugins/$PLUGIN" "root" "/dev/$root"
 set_env_var "ROOTP" "/dev/$root"
 set_yml_var "plugins/$PLUGIN" "home" "/dev/$home"
 set_yml_var "plugins/$PLUGIN" "boot" "/dev/$boot"
 set_yml_var "plugins/$PLUGIN" "swap" "/dev/$swap"
 set_yml_var "plugins/$PLUGIN" "formato_root" "$formato"
+set_env_var "FORMATO_ROOT" "$formato"
 
 ansible-playbook -vvv ./main.yaml --tags particionamento -e @plugins/"$PLUGIN"

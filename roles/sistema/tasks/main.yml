@@ -5,17 +5,17 @@
 
 - name: Define base pkg list
   ansible.builtin.set_fact:
-    pacotes_base: "{{ (necessarios + bootloader) | unique | list }}"
+    sistema_pacotes_base: "{{ (necessarios + sistema_bootloader) | unique | list }}"
 
 - name: (Debug) Show base pkg list
   ansible.builtin.debug:
-    var: pacotes_base
+    var: sistema_pacotes_base
 
 - name: Install base pkgs (no chroot)
   ansible.builtin.command:
     cmd: >
-      pacstrap -K /mnt --needed {{ pacotes_base | join(' ') }}
+      pacstrap -K /mnt --needed {{ sistema_pacotes_base | join(' ') }}
   async: 3600
   poll: 15
   changed_when: false
-  when: pacotes_base is defined and pacotes_base | length > 0
+  when: sistema_pacotes_base is defined and sistema_pacotes_base | length > 0

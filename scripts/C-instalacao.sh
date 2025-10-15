@@ -20,6 +20,7 @@ case "$LANGC" in
   MSG_ALREADY_SELECTED="Pacote já selecionado ou já presente no arquivo."
   MSG_ANY_MORE="Mais algum? (Y/n) "
   MSG_WHICH_REPO="Qual repositório você quer usar? (extra, multilib, cachy) "
+  MSG_TRY_AGAIN="Tente novamente: "
   ;;
 "English")
   MSG_CONTINUE="Alright, mirrors updated. Let's continue..."
@@ -31,6 +32,7 @@ case "$LANGC" in
   MSG_ALREADY_SELECTED="Package already selected or already in the file."
   MSG_ANY_MORE="Any more? (Y/n) "
   MSG_WHICH_REPO="Which repository do you want to use? (extra, multilib, cachy) "
+  MSG_TRY_AGAIN="Try again: "
   ;;
 *)
   echo "Unsupported language setting."

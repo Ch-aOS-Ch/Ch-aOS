@@ -5,12 +5,12 @@
     version: main
   become: false
   become_user: "{{ nome_user }}"
-  register: git_clone_result
+  register: dotfiles_git_clone_result
 
 - name: "Executando comando de instalação custom"
   ansible.builtin.command:
     cmd: "{{ dotfile_item.install_command }}"
-    chdir: "{{ git_clone_result.dest }}"
+    chdir: "{{ dotfiles_git_clone_result.dest }}"
   when: dotfile_item.install_command is defined and dotfile_item.install_command | length > 0
   become: true
   changed_when: false
@@ -24,7 +24,7 @@
       {% elif dotfile_item.manager == 'yadm' %}
       echo "yadm not implemented yet, please use stow."
       {% endif %}
-    chdir: "{{ git_clone_result.dest }}"
+    chdir: "{{ dotfiles_git_clone_result.dest }}"
   when: dotfile_item.manager is defined and dotfile_item.manager | length > 0
   become: true
   changed_when: false
@@ -32,8 +32,8 @@
 
 - name: "Verificar se 'install.sh' existe no repositório"
   ansible.builtin.stat:
-    path: "{{ git_clone_result.dest }}/install.sh"
-  register: install_script_stat
+    path: "{{ dotfiles_git_clone_result.dest }}/install.sh"
+  register: dotfiles_install_script_stat
   when:
     - dotfile_item.install_command is not defined
     - dotfile_item.manager is not defined
@@ -43,8 +43,8 @@
 - name: "Executar script de instalação padrão (install.sh) se encontrado"
   ansible.builtin.command:
     cmd: "bash install.sh"
-    chdir: "{{ git_clone_result.dest }}"
-  when: install_script_stat.stat.exists
+    chdir: "{{ dotfiles_git_clone_result.dest }}"
+  when: dotfiles_install_script_stat.stat.exists
   become: true
   changed_when: false
   become_user: "{{ nome_user }}"

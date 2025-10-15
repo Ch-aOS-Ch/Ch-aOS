@@ -19,8 +19,6 @@
   tags: post-install
   hosts: configure
   roles:
-    - comum
-    - pacotes
+    - config
+    - pkgs
     - dotfiles
-    - limpeza
-    - backup
