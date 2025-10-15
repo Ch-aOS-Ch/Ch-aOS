@@ -56,20 +56,20 @@ repos_update() {
 
     # Checa com yq se o repo já existe
     if yq -e ".repos[] | select(.name == \"$repo_name\")" "plugins/$PLUGIN" >/dev/null; then
-        echo "$MSG_ALREADY_SELECTED"
-        read -p "$MSG_ANY_MORE" -r want_repo
-        continue
+      echo "$MSG_ALREADY_SELECTED"
+      read -p "$MSG_ANY_MORE" -r want_repo
+      continue
     fi
 
     case $repo_name in
-    "multilib"|"extra")
+    "multilib" | "extra")
       echo "$MSG_ADDING $repo_name..."
-      yq -i ".repos += [{\"name\": \"$repo_name\", \"state\": \"present\", \"method\": \"uncomment\"}]" "plugins/$PLUGIN"
+      yq -iy ".repos += [{\"name\": \"$repo_name\", \"state\": \"present\", \"method\": \"uncomment\"}]" "plugins/$PLUGIN"
       ;;
-    "cachyos"|"cachy")
+    "cachyos" | "cachy")
       echo "$MSG_ADDING cachyos..."
       local cachy_command="curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
-      yq -i ".repos += [{\"name\": \"cachyos\", \"state\": \"present\", \"method\": \"script\", \"command\": \"$cachy_command\"}]" "plugins/$PLUGIN"
+      yq -iy ".repos += [{\"name\": \"cachyos\", \"state\": \"present\", \"method\": \"script\", \"command\": \"$cachy_command\"}]" "plugins/$PLUGIN"
       ;;
     *)
       echo "Repositório inválido. Tente novamente."
@@ -91,27 +91,27 @@ echo "---------------------------------------------------"
 sleep 1
 
 # Garante que a chave 'pacotes' exista como uma lista no plugin
-yq -i '.pacotes |= (select(.) // [])' "plugins/$PLUGIN"
+yq -iy '.pacotes |= (select(.) // [])' "plugins/$PLUGIN"
 
 add_pkg="n"
 read -p "$MSG_WANT_MORE" -r add_pkg
 while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
-    read -p "$MSG_PKG_NAME" -r pacote
-    while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
-        echo "$MSG_NOT_FOUND"
-        read -p "$MSG_TRY_AGAIN" -r pacote
-    done
+  read -p "$MSG_PKG_NAME" -r pacote
+  while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
+    echo "$MSG_NOT_FOUND"
+    read -p "$MSG_TRY_AGAIN" -r pacote
+  done
 
-    # Adiciona o pacote à lista 'pacotes' de forma segura, sem duplicatas
-    yq -i ".pacotes += [\"$pacote\"] | .pacotes |= unique" "plugins/$PLUGIN"
-    echo "$MSG_ADDING $pacote..."
+  # Adiciona o pacote à lista 'pacotes' de forma segura, sem duplicatas
+  yq -iy ".pacotes += [\"$pacote\"] | .pacotes |= unique" "plugins/$PLUGIN"
+  echo "$MSG_ADDING $pacote..."
 
-    read -p "$MSG_ANY_MORE" -r add_pkg
+  read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
 # Garante que a chave 'repos' exista como uma lista e adiciona 'core'
-yq -i '.repos |= (select(.) // [])' "plugins/$PLUGIN"
-yq -i '.repos += [{"name": "core", "state": "present", "method": "uncomment"}] | .repos |= unique_by(.name)' "plugins/$PLUGIN"
+yq -iy '.repos |= (select(.) // [])' "plugins/$PLUGIN"
+yq -iy '.repos += [{"name": "core", "state": "present", "method": "uncomment"}] | .repos |= unique_by(.name)' "plugins/$PLUGIN"
 
 repos_update
 
@@ -134,3 +134,4 @@ fi
 rm -rf /mnt/root/Ch-aronte
 
 genfstab -U /mnt >/mnt/etc/fstab
+
