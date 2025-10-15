@@ -88,6 +88,8 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ## Roadmap do Projeto
 
+- [-] = Em andamento (geralmente em uma branch separada e parcialmente {se não totalmente} implementada, mas não testada.)
+
 ### MVP
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
@@ -98,11 +100,11 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ### Automação completa e declaratividade
 - [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
-- [ ] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
-- [ ] Gerenciador de pacotes alternativo parecido com o nixpkgs, com uma lista declarativa e com rollback (ALA/ALHA).
+- [-] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
+- [-] Gerenciador de pacotes alternativo parecido com o nixpkgs, com uma lista declarativa e com rollback (ALA/ALHA).
 
 ### Qualidade e Testes
-- [ ] Testes com ansible-lint e ansible-test.
+- [-] Testes com ansible-lint e ansible-test.
 
 ### Idéias em estudo
 - [ ] Manager de secrets (já tô implementando algo do gênero com as senhas de usuário, em q vc escolhe plain text, hashing ou ansible vault pra encriptar a senha do user, mas talvez eu adicione senhas de wifi, gpg, ssh, git e por aí vai).

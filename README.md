@@ -95,6 +95,8 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ## Project Roadmap
 
+- [-] = In Progress, probably in another branch, either being worked on or already implemented, but not fully tested.
+
 ### MVP
 - [x] Minimal Installer with Firmware Detection
 - [x] Plugin System for Custom Packages
@@ -105,12 +107,12 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ### Declarativity + Rollback
 - [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
-- [ ] Fully declarative post-install system configuration with only one custom*.yml file.
-- [ ] Package manager akin to nixpkgs, with a declarative package list and versioning.
-- [ ] Repo manager.
+- [-] Fully declarative post-install system configuration with only one custom*.yml file.
+- [-] Package manager akin to nixpkgs, with a declarative package list and versioning.
+- [-] Repo manager.
 
 ### Quality + security
-- [ ] ansible-lint and ansible-test tests.
+- [-] ansible-lint and ansible-test tests.
 
 ### Ideas being studied
 - [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and so on and so forth).
