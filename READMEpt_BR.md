@@ -1,4 +1,4 @@
-# 🧝‍♂️ Ch-aronte
+# Ch-aronte
 
 **Seu guia pelo submundo do Arch Linux.**
 
@@ -10,21 +10,21 @@
 
 Construído com a robustez do **Ansible** e a interatividade do **Shell Script**, ele automatiza as partes tediosas e te entrega o controle onde importa, transformando uma instalação complexa em uma experiência imersiva.
 
-## ✨ Funcionalidades Principais
+## Funcionalidades Principais
 
-* ✅ **Instalação Interativa e Guiada**: Um passo a passo que explica o que está acontecendo.
-* ✅ **Detecção Automática de Firmware**: Instalação otimizada para **UEFI (com rEFInd)** ou **BIOS (com GRUB)** sem dor de cabeça.
-* ✅ **Sistema de Plugins**: Adicione seus próprios pacotes e, futuramente, gerencie seus dotfiles com presets customizados.
-* ✅ **Código Aberto e Didático**: A base de código foi refatorada para ser um exemplo prático e legível de automação.
+* **Instalação Interativa e Guiada**: Um passo a passo que explica o que está acontecendo.
+* **Detecção Automática de Firmware**: Instalação otimizada para **UEFI (com rEFInd)** ou **BIOS (com GRUB)** sem dor de cabeça.
+* **Sistema de Plugins**: Adicione seus próprios pacotes e, futuramente, gerencie seus dotfiles com presets customizados.
+* **Código Aberto e Didático**: A base de código foi refatorada para ser um exemplo prático e legível de automação.
 
-## 🏛️ A Arquitetura: Orquestrador + Worker
+## A Arquitetura: Orquestrador + Worker
 
 O projeto utiliza uma arquitetura híbrida poderosa e flexível:
 
 * **Shell Script (O Orquestrador)**: Atua como a interface interativa com o usuário, coletando informações, validando entradas e orquestrando a sequência de instalação.
 * **Ansible (O Worker)**: Atua no backend, executando as tarefas pesadas de forma declarativa e robusta — particionamento, instalação de pacotes e configuração do sistema.
 
-## 🚀 Começando
+## Começando
 
 Projetado para ser executado diretamente do ambiente Live ISO do Arch Linux.
 
@@ -56,7 +56,7 @@ chmod +x A-coin.sh
 > [!WARNING]
 > O script é seu guia. Siga as instruções no terminal e deixe que o Ch-aronte te conduza pela instalação.
 
-## 🧩 Sistema de Plugins
+## Sistema de Plugins
 Personalize sua instalação criando seus próprios "presets" de pacotes.
 1. Crie um arquivo custom-SEU-PLUGIN.yml dentro de ./roles/sistema/vars/.
 2. Use o formato abaixo para listar os pacotes desejados:
@@ -69,8 +69,10 @@ pacotes:
 dotfiles:
   - repo: https://github.com/your-user/your-dotfiles.git
     # Para o script decidir como vai aplicar as dotfiles, você pode inserir de 3 formas:
-    install_command: "your_custom_dotfile_command.sh" # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
-    manager: "stow" # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
+    install_command: "your_custom_dotfile_command.sh"
+    # FORMA 1: você setta um comando específico de como você instala suas dotfiles. Tenha em mente que o script assume que esse comando será rodado dentro da root do seu repo.
+    manager: "stow"
+    # FORMA 2: você setta um manager de dotfiles e o script utiliza ele (por exemplo, o stow aplicar todas suas dots).
     # FORMA 3: não colocar nada faz o script buscar por um script "install.sh" dentro da root do seu repositório de dotfiles.
 ```
 > [!WARNING]
@@ -84,16 +86,31 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 > [!INFO]
 > Funciona diretamente do terminal!
 
-## 🗺️ Roadmap do Projeto
+## Roadmap do Projeto
+
+- [-] = Em andamento (geralmente em uma branch separada e parcialmente {se não totalmente} implementada, mas não testada.)
+
+### MVP
 - [x] Instalador Minimal com Detecção de Firmware
 - [x] Sistema de Plugins para Pacotes Customizados
+
+### Automação e modularidade
 - [-] Gerenciador de Dotfiles Integrado ao Sistema de Plugins
 - [ ] Modo de Execução Totalmente Automatizado com Arquivo de Configuração
-- [ ] Suporte ao ALA/ALHA (Arch Linux Archive/History Archive) como alternativa ao flakes.lock.
-- [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
-- [ ] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
 
-## 🤝 Contribuindo
+### Automação completa e declaratividade
+- [ ] Modo de instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
+- [-] Modo de configuração pós instalação completamente declarativa, necessitando apenas do arquivo custom*.yml.
+- [-] Gerenciador de pacotes alternativo parecido com o nixpkgs, com uma lista declarativa e com rollback (ALA/ALHA).
+
+### Qualidade e Testes
+- [-] Testes com ansible-lint e ansible-test.
+
+### Idéias em estudo
+- [ ] Manager de secrets (já tô implementando algo do gênero com as senhas de usuário, em q vc escolhe plain text, hashing ou ansible vault pra encriptar a senha do user, mas talvez eu adicione senhas de wifi, gpg, ssh, git e por aí vai).
+- [ ] Suporte ao ALA/ALHA (Arch Linux Archive/History Archive) como alternativa ao flakes.lock.
+
+## Contribuindo
 
 Contribuições são a alma do software livre. Se você tem ideias para melhorar o Ch-aronte, sua ajuda é muito bem-vinda! Dê uma olhada em CONTRIBUTING.md para começar.
 
@@ -103,7 +120,7 @@ As áreas de maior interesse são:
 - Sugestões e implementações de configurações pós-instalação.
 - Criação de issues
 
-## 🙏 Agradecimentos
+## Agradecimentos
 
 > A inspiração principal para este projeto veio do [archible](https://github.com/0xzer0x/archible) feito pelo [0xzer0x](https://github.com/0xzer0x). Obrigado por criar uma ferramenta tão incrível e por inspirar a comunidade.
 
