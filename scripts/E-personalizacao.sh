@@ -45,7 +45,7 @@ read -p "$MSG_HOSTNAME_PROMPT" -r hostname
 while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
 done
-set_yml_var "plugins/$PLUGIN" "hostname" "$hostname"
+yq -iy ".hostname = \"$hostname\"" "plugins/$PLUGIN"
 
 sleep 1
 
@@ -64,24 +64,24 @@ read -p "$MSG_USERNAME_PROMPT" -r username
 while [[ -z "$username" || ! "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]; do
   read -p "$MSG_INVALID_USERNAME" -r username
 done
-if ! grep "users:" "plugins/$PLUGIN" >/dev/null 2>&1; then
-  cat <<EOF >>"plugins/$PLUGIN"
-users:
-  - name: '$username'
-    shell: "/bin/bash"
-    groups:
-      - "wheel"
-      - "'$username'"
 
-  - name: 'root'
-    shell: "/bin/bash"
-    groups:
-      - "root"
-EOF
-fi
+# Adiciona a lista de usuários com yq de forma estruturada
+yq -iy '.users = [
+  {
+    "name": "'$username'",
+    "shell": "/bin/bash",
+    "groups": ["wheel", "'$username'"],
+  },
+  {
+    "name": "root",
+    "shell": "/bin/bash",
+    "groups": ["root"],
+  }
+]' "plugins/$plugin"
 
 touch $SECRETS_FILE
-set_yml_var "plugins/$PLUGIN" "secrets" "$SECRETS_FILE"
+echo "{}" >"$SECRETS_FILE"
+yq -iy ".secrets = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
 
 clear
 echo "Senha para o usuário: ${username}"
@@ -97,32 +97,26 @@ case $choice in
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
   user_hash=$(printf '%s' "$user_pass" | python -c "import crypt, sys; print(crypt.crypt(sys.stdin.read(), crypt.METHOD_SHA512))")
-  echo "  ${username}:" >>"$SECRETS_FILE"
-  echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
-  echo "  root:" >>"$SECRETS_FILE"
-  echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
+  yq -iy ".${username}.password = \"$user_hash\"" "$SECRETS_FILE"
+  yq -iy ".root.password = \"$user_hash\"" "$SECRETS_FILE"
   ;;
 "2")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  echo "  ${username}:" >>"$SECRETS_FILE"
-  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
-  echo "  root:" >>"$SECRETS_FILE"
-  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  yq -iy ".${username}.password = \"$user_pass\"" "$SECRETS_FILE"
+  yq -iy ".root.password = \"$user_pass\"" "$SECRETS_FILE"
   USE_VAULT=true
   ;;
 "3")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  echo "  ${username}:" >>"$SECRETS_FILE"
-  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
-  echo "  root:" >>"$SECRETS_FILE"
-  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  yq -iy ".${username}.password = \"$user_pass\"" "$SECRETS_FILE"
+  yq -iy ".root.password = \"$user_pass\"" "$SECRETS_FILE"
 
   ;;
 "4")
-  echo "  ${username}: {}" >>"$SECRETS_FILE"
-  echo "  root: {}" >>"$SECRETS_FILE"
+  yq -iy ".${username} = {}" "$SECRETS_FILE"
+  yq -iy ".root = {}" "$SECRETS_FILE"
   echo "Lembre-se de definir a senha para '${username}' manualmente após o reboot." >&2
   ;;
 esac
@@ -142,7 +136,7 @@ echo "$SECRETS_FILE" >>./.gitignore
 
 # --- Habilita o Sudo para o grupo 'wheel' ---
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
-echo "wheel_access: yes" >>"plugins/$PLUGIN"
+yq -iy '.wheel_access = true' "plugins/$PLUGIN"
 
 read -rp "$MSG_WANT_DOTS" dot_accept
 if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then

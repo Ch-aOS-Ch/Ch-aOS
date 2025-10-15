@@ -54,7 +54,8 @@ repos_update() {
     local repo_name
     repo_name=$(echo "$repo" | tr '[:upper:]' '[:lower:]')
 
-    if grep -q "name: $repo_name" "plugins/$PLUGIN"; then
+    # Checa com yq se o repo já existe
+    if yq -e ".repos[] | select(.name == \"$repo_name\")" "plugins/$PLUGIN" >/dev/null; then
         echo "$MSG_ALREADY_SELECTED"
         read -p "$MSG_ANY_MORE" -r want_repo
         continue
@@ -63,22 +64,12 @@ repos_update() {
     case $repo_name in
     "multilib"|"extra")
       echo "$MSG_ADDING $repo_name..."
-      cat <<EOF >> "plugins/$PLUGIN"
-  - name: $repo_name
-    state: present
-    method: uncomment
-EOF
+      yq -i ".repos += [{\"name\": \"$repo_name\", \"state\": \"present\", \"method\": \"uncomment\"}]" "plugins/$PLUGIN"
       ;;
     "cachyos"|"cachy")
       echo "$MSG_ADDING cachyos..."
       local cachy_command="curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
-      cat <<EOF >> "plugins/$PLUGIN"
-  - name: cachyos
-    state: present
-    method: script
-    command: >
-      ${cachy_command}
-EOF
+      yq -i ".repos += [{\"name\": \"cachyos\", \"state\": \"present\", \"method\": \"script\", \"command\": \"$cachy_command\"}]" "plugins/$PLUGIN"
       ;;
     *)
       echo "Repositório inválido. Tente novamente."
@@ -99,31 +90,29 @@ echo "  - reflector, bootloader(grub ou refind), nano, networkmanager, openssh"
 echo "---------------------------------------------------"
 sleep 1
 
-echo "pacotes:" >> "plugins/$PLUGIN"
+# Garante que a chave 'pacotes' exista como uma lista no plugin
+yq -i '.pacotes |= (select(.) // [])' "plugins/$PLUGIN"
+
 add_pkg="n"
 read -p "$MSG_WANT_MORE" -r add_pkg
 while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
     read -p "$MSG_PKG_NAME" -r pacote
     while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
-        echo "$MSG_PKG_NOT_FOUND"
+        echo "$MSG_NOT_FOUND"
         read -p "$MSG_TRY_AGAIN" -r pacote
     done
 
-    if ! grep -q -- "- $pacote" "plugins/$PLUGIN"; then
-        echo "$MSG_ADDING $pacote..."
-        echo "  - $pacote" >> "plugins/$PLUGIN"
-    else
-        echo "$MSG_ALREADY_SELECTED"
-    fi
+    # Adiciona o pacote à lista 'pacotes' de forma segura, sem duplicatas
+    yq -i ".pacotes += [\"$pacote\"] | .pacotes |= unique" "plugins/$PLUGIN"
+    echo "$MSG_ADDING $pacote..."
+
     read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
-echo "repos:" >> "plugins/$PLUGIN"
-cat <<EOF >> "plugins/$PLUGIN"
-  - name: core
-    state: present
-    method: uncomment
-EOF
+# Garante que a chave 'repos' exista como uma lista e adiciona 'core'
+yq -i '.repos |= (select(.) // [])' "plugins/$PLUGIN"
+yq -i '.repos += [{"name": "core", "state": "present", "method": "uncomment"}] | .repos |= unique_by(.name)' "plugins/$PLUGIN"
+
 repos_update
 
 set -a
