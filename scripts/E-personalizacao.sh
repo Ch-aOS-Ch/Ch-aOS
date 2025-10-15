@@ -55,7 +55,6 @@ echo ""
 sleep 1
 echo "$MSG_MKINITCPIO_DONE"
 
-arch-chroot /mnt passwd
 sleep 1
 
 echo "$MSG_SET_USER"
@@ -65,7 +64,8 @@ read -p "$MSG_USERNAME_PROMPT" -r username
 while [[ -z "$username" || ! "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]; do
   read -p "$MSG_INVALID_USERNAME" -r username
 done
-cat <<EOF >>"plugins/$PLUGIN"
+if ! grep "users:" "plugins/$PLUGIN" >/dev/null 2>&1; then
+  cat <<EOF >>"plugins/$PLUGIN"
 users:
   - name: '$username'
     shell: "/bin/bash"
@@ -78,6 +78,7 @@ users:
     groups:
       - "root"
 EOF
+fi
 
 touch $SECRETS_FILE
 set_yml_var "plugins/$PLUGIN" "secrets" "$SECRETS_FILE"
@@ -95,8 +96,7 @@ case $choice in
 "1")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  user_hash=$(python -c "import crypt, getpass; print(crypt.crypt('${user_pass}', crypt.METHOD_SHA512))")
-
+  user_hash=$(printf '%s' "$user_pass" | python -c "import crypt, sys; print(crypt.crypt(sys.stdin.read(), crypt.METHOD_SHA512))")
   echo "  ${username}:" >>"$SECRETS_FILE"
   echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
   echo "  root:" >>"$SECRETS_FILE"
@@ -154,9 +154,9 @@ set -a
 source respostas.env
 set +a
 
-rm -rf ~/Ch-aronte/.git
+rm -rf ./.git
 rm -rf /mnt/root/Ch-aronte/
-cp -r /root/Ch-aronte /mnt/root/Ch-aronte
+cp -r ../Ch-aronte /mnt/root/Ch-aronte
 arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @plugins/"$PLUGIN"
 
 # --- Encadeia o próximo script ---

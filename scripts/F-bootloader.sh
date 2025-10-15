@@ -13,6 +13,8 @@ case "$LANGC" in
   MSG_CONFIGURING_REFIND="vamo configurar teu refind (UEFI)..."
   MSG_CONFIGURING_GRUB="Beleza, detectei um sistema BIOS. Vamo configurar o GRUB..."
   MSG_ROOT_LABEL_PROMPT="me dá um nome daora aí pro teu partição de root (ex: ARCH_ROOT): "
+  MSG_INVALID_LABEL="Label inválido. Use apenas caracteres alfanuméricos, underscores e hifens."
+  MSG_LABEL_TOO_LONG="Label muito longo. Máximo de 16 caracteres."
   MSG_GRUB_INSTALL="Instalando o GRUB no disco /dev/${DISCO}..."
   MSG_GRUB_CONFIG="Gerando o arquivo de configuração do GRUB..."
   MSG_ENABLE_NETWORK="Habilitando o NetworkManager para iniciar com o sistema..."
@@ -25,6 +27,8 @@ case "$LANGC" in
   MSG_CONFIGURING_REFIND="Let's configure your refind (UEFI)..."
   MSG_CONFIGURING_GRUB="Okay, BIOS system detected. Let's configure GRUB..."
   MSG_ROOT_LABEL_PROMPT="Give a cool name for your root partition label (e.g., ARCH_ROOT): "
+  MSG_INVALID_LABEL="Invalid label. Use only alphanumeric characters, underscores, and hyphens."
+  MSG_LABEL_TOO_LONG="Label is too long. Maximum 16 characters."
   MSG_GRUB_INSTALL="Installing GRUB on disk /dev/${DISCO}..."
   MSG_GRUB_CONFIG="Generating GRUB configuration file..."
   MSG_ENABLE_NETWORK="Enabling NetworkManager to start on boot..."
@@ -52,6 +56,16 @@ if [ "$FIRMWARE" == "UEFI" ]; then
   arch-chroot /mnt refind-install
 
   read -p "$MSG_ROOT_LABEL_PROMPT" -r root_label
+  while true; do
+    if [[ ! "$root_label" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+      echo "$MSG_INVALID_LABEL"
+    elif (( ${#root_label} > 16 )); then
+      echo "$MSG_LABEL_TOO_LONG"
+    else
+      break
+    fi
+    read -p "$MSG_ROOT_LABEL_PROMPT" -r root_label
+  done
 
   # Adiciona a entrada de boot customizada no refind.conf
   if ! grep -q "Ch-aronte" /mnt/boot/efi/refind/refind.conf; then

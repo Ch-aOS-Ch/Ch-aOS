@@ -2,7 +2,7 @@
   ansible.builtin.include_vars: "{{ plugin }}"
 
 - name: Making sure necessary packages are installed
-  ansible.builtin.pacman:
+  community.general.pacman:
     name:
       - git
       - stow

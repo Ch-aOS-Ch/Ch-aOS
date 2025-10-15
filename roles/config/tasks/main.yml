@@ -3,18 +3,15 @@
     name: "{{ hostname }}"
 
 - name: Make sure users exist
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: "{{ item.shell }}"
+    groups: "{{ item.groups | join(',') }}"
+    append: true
+    create_home: true
+    password: "{{ user_secrets[item.name].password | default(omit) }}"
   loop: "{{ users }}"
-  loop_control:
-    loop_var: user_item
-  block:
-    - name: "user_item '{{ user_item.name }}' exists"
-      ansible.builtin.user:
-        name: "{{ user_item.name }}"
-        shell: "{{ user_item.shell }}"
-        groups: "{{ user_item.groups | join(',') }}"
-        append: true
-        create_home: true
-        password: "{{ user_secrets[user_item.name].password | default(omit) }}"
+
 
 - name: Manage sudoers
   ansible.builtin.lineinfile:
@@ -26,7 +23,7 @@
 - name: Check if Ch-aronte destination folder already exists
   ansible.builtin.stat:
     path: "/home/{{ users[0].name }}/Ch-aronte"
-  register: charonte_dest_stat
+  register: config_charonte_dest_stat
   when: users is defined and users | length > 0
 
 - name: "Copy Ch-aronte to first user's home directory"
@@ -38,4 +35,4 @@
     mode: '0755'
   when:
     - users is defined and users | length > 0
-    - not charonte_dest_stat.stat.exists
+    - not config_charonte_dest_stat.exists

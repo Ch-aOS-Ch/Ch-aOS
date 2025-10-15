@@ -1,29 +1,29 @@
 - name: Formatação de partição root
-  ansible.builtin.filesystem:
+  community.general.filesystem:
     fstype: "{{ formato }}"
     dev: "{{ root }}"
   when: root | length > 0 and formato | length > 0
 
 - name: Formatação de partição home
-  ansible.builtin.filesystem:
+  community.general.filesystem:
     fstype: ext4
     dev: "{{ home }}"
   when: home | length > 0
 
 - name: Formatação de partição swap
-  ansible.builtin.filesystem:
+  community.general.filesystem:
     fstype: swap
     dev: "{{ swap }}"
   when: swap | length > 0
 
 - name: Formatação de partição boot
-  ansible.builtin.filesystem:
+  community.general.filesystem:
     fstype: vfat
     dev: "{{ boot }}"
   when: boot | length > 0
 
-- name: ativar root
-  ansible.builtin.mount:
+- name: Ativar root
+  ansible.posix.mount:
     path: /mnt
     src: "{{ root }}"
     fstype: "{{ formato }}"
@@ -44,22 +44,22 @@
     mode: '0755'
   when: boot | length > 0
 
-- name: ativar swap
-  ansible.posix.swapon:
-    device: {{ swap }}
-    state: present
+- name: Ativar swap
+  ansible.builtin.command:
+    cmd: "swapon {{ swap }}"
   when: swap | length > 0
+  changed_when: false
 
-- name: ativar home
-  ansible.builtin.mount:
+- name: Ativar home
+  ansible.posix.mount:
     path: /mnt/home
     src: "{{ home }}"
     fstype: ext4
     state: mounted
   when: home | length > 0 and root | length > 0 and formato | length > 0
 
-- name: ativar boot
-  ansible.builtin.mount:
+- name: Ativar boot
+  ansible.posix.mount:
     path: /mnt/boot
     src: "{{ boot }}"
     fstype: vfat
