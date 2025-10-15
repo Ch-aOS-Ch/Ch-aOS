@@ -159,6 +159,7 @@ select_or_create_plugin_file() {
     local qtd
     qtd=$(find "$plugin_dir" -maxdepth 1 -type f -name 'custom*.yml' | wc -l)
     arquivo="custom$((qtd + 1)).yml"
+    echo "{}" >"$plugin_dir$arquivo"
 
     echo "$MSG_CREATING_NEW $arquivo" >&2
     set_env_var "PLUGIN_PATH" "$HOME/Ch-aronte/$plugin_dir$arquivo"
@@ -189,11 +190,11 @@ set_env_var "PLUGIN" "$arquivo_plugin"
 
 # Preparação e instruções
 if [ -d /sys/firmware/efi ]; then
-  set_yml_var "plugins/$PLUGIN" "firmware" "UEFI"
+  yq -iy '.firmware = "UEFI"' "plugins/$PLUGIN"
   set_env_var "FIRMWARE" "UEFI"
   firmware="UEFI"
 else
-  set_yml_var "plugins/$PLUGIN" "firmware" "BIOS"
+  yq -iy '.firmware = "BIOS"' "plugins/$PLUGIN"
   set_env_var "FIRMWARE" "BIOS"
   firmware="BIOS"
 fi
@@ -297,14 +298,14 @@ done
 
 echo "$MSG_CONFIG_CONFIRMED"
 
-set_yml_var "plugins/$PLUGIN" "disco" "$disco"
+yq -iy ".disco = \"$disco\"" "plugins/$PLUGIN"
 set_env_var "DISCO" "$disco"
-set_yml_var "plugins/$PLUGIN" "root" "/dev/$root"
+yq -iy ".root = \"/dev/$root\"" "plugins/$PLUGIN"
 set_env_var "ROOTP" "/dev/$root"
-set_yml_var "plugins/$PLUGIN" "home" "/dev/$home"
-set_yml_var "plugins/$PLUGIN" "boot" "/dev/$boot"
-set_yml_var "plugins/$PLUGIN" "swap" "/dev/$swap"
-set_yml_var "plugins/$PLUGIN" "formato_root" "$formato"
+yq -iy ".home = \"/dev/$home\"" "plugins/$PLUGIN"
+yq -iy ".boot = \"/dev/$boot\"" "plugins/$PLUGIN"
+yq -iy ".swap = \"/dev/$swap\"" "plugins/$PLUGIN"
+yq -iy ".formato_root = \"$formato\"" "plugins/$PLUGIN"
 set_env_var "FORMATO_ROOT" "$formato"
 
 ansible-playbook -vvv ./main.yaml --tags particionamento -e @plugins/"$PLUGIN"

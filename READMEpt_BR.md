@@ -43,7 +43,7 @@ iwctl
 mount -o remount,size=2G /run/archiso/cowspace
 
 # 3. Instale as dependências
-pacman -Sy --noconfirm ansible git
+pacman -Sy --noconfirm ansible git yq
 # 4. Clone o repositório e inicie a instalação
 git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
 cd Ch-aronte
