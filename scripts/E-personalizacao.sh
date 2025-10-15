@@ -68,38 +68,46 @@ done
 cat <<EOF >>"plugins/$PLUGIN"
 users:
   - name: '$username'
+    shell: "/bin/bash"
     groups:
       - "wheel"
       - "'$username'"
+
+  - name: 'root'
     shell: "/bin/bash"
+    groups:
+      - "root"
 EOF
 
 touch $SECRETS_FILE
 set_yml_var "plugins/$PLUGIN" "secrets" "$SECRETS_FILE"
 
-dialog --title "Senha para o usuário: ${username}" --clear \
-  --menu "Como deseja configurar a senha?" 15 70 3 \
-  "1" "Digitar agora e salvar como HASH (Recomendado, Nix-like)" \
-  "2" "Digitar agora e salvar em COFRE (Vault com texto puro)" \
-  "3" "Digitar agora e não salvar em cofre (Plain Text, Extremamente inseguro, mas fácil de ler)" \
-  "4" "Não definir senha agora (configuração manual pós-reboot)" \
-  2>/tmp/choice.txt
-
-choice=$(cat /tmp/choice.txt)
+clear
+echo "Senha para o usuário: ${username}"
+echo "Como deseja configurar a senha?"
+echo "1" "Digitar agora e salvar como HASH (Recomendado, Nix-like)"
+echo "2" "Digitar agora e salvar em COFRE (Vault com texto puro)"
+echo "3" "Digitar agora e não salvar em cofre (Plain Text, Extremamente inseguro, mas fácil de ler)"
+echo "4" "Não definir senha agora (configuração manual pós-reboot)"
+read -r choice
 
 case $choice in
 "1")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  user_hash=$(python -c "import crypt,getpass; print(crypt.crypt('${user_pass}'))")
+  user_hash=$(python -c "import crypt, getpass; print(crypt.crypt('${user_pass}', crypt.METHOD_SHA512))")
 
   echo "  ${username}:" >>"$SECRETS_FILE"
+  echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
+  echo "  root:" >>"$SECRETS_FILE"
   echo "    password: '${user_hash}'" >>"$SECRETS_FILE"
   ;;
 "2")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
   echo "  ${username}:" >>"$SECRETS_FILE"
+  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  echo "  root:" >>"$SECRETS_FILE"
   echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
   USE_VAULT=true
   ;;
@@ -108,9 +116,13 @@ case $choice in
   echo ""
   echo "  ${username}:" >>"$SECRETS_FILE"
   echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+  echo "  root:" >>"$SECRETS_FILE"
+  echo "    password: '${user_pass}'" >>"$SECRETS_FILE"
+
   ;;
 "4")
   echo "  ${username}: {}" >>"$SECRETS_FILE"
+  echo "  root: {}" >>"$SECRETS_FILE"
   echo "Lembre-se de definir a senha para '${username}' manualmente após o reboot." >&2
   ;;
 esac

@@ -22,3 +22,14 @@
   roles:
     - dotfiles
 
+- name: Setup Repos
+  hosts: localhost
+  tags: [repos]
+  roles:
+    - repos
+
+- name: Install plugin pkgs
+  hosts: localhost
+  tags: [plug-pkgs]
+  roles:
+    - plug-pkgs

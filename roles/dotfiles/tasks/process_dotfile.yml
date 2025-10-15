@@ -3,21 +3,21 @@
     repo: "{{ dotfile_item.repo }}"
     dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
     version: main
-    accept_hostkey: yes
-  become: yes
+  become: false
   become_user: "{{ nome_user }}"
   register: git_clone_result
 
 - name: "Executando comando de instalação custom"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "{{ dotfile_item.install_command }}"
     chdir: "{{ git_clone_result.dest }}"
   when: dotfile_item.install_command is defined and dotfile_item.install_command | length > 0
-  become: yes
+  become: true
+  changed_when: false
   become_user: "{{ nome_user }}"
 
 - name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager | default('Nenhum') }}"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: |
       {% if dotfile_item.manager == 'stow' %}
       stow --target=/home/{{ nome_user }} --dir=. *
@@ -26,7 +26,8 @@
       {% endif %}
     chdir: "{{ git_clone_result.dest }}"
   when: dotfile_item.manager is defined and dotfile_item.manager | length > 0
-  become: yes
+  become: true
+  changed_when: false
   become_user: "{{ nome_user }}"
 
 - name: "Verificar se 'install.sh' existe no repositório"
@@ -36,13 +37,14 @@
   when:
     - dotfile_item.install_command is not defined
     - dotfile_item.manager is not defined
-  become: yes
+  become: true
   become_user: "{{ nome_user }}"
 
 - name: "Executar script de instalação padrão (install.sh) se encontrado"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "bash install.sh"
     chdir: "{{ git_clone_result.dest }}"
   when: install_script_stat.stat.exists
-  become: yes
+  become: true
+  changed_when: false
   become_user: "{{ nome_user }}"
