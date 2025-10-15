@@ -6,7 +6,6 @@ set +a
 source scripts/resources.sh
 
 # Variáveis globais
-pacotes=()
 plugin_dir="./plugins/"
 
 # --- SEÇÃO DE CONFIGURAÇÃO DE IDIOMA ---
@@ -15,28 +14,22 @@ case "$LANGC" in
   MSG_CONTINUE="Beleza, mirrors atualizados. Bora continuar..."
   MSG_SHOW_PKGS="Ok, agora vou te mostrar os pacotes essenciais..."
   MSG_WANT_MORE="Quer mais algum pacote? (Y/n) "
-  MSG_LETS_ADD="Ok, vamos adicionar mais pacotes!"
   MSG_PKG_NAME="Digite o nome do pacote: "
-  MSG_PKG_NOT_FOUND="Pacote não encontrado."
-  MSG_TRY_AGAIN="Digite novamente:"
+  MSG_NOT_FOUND="Pacote não encontrado."
   MSG_ADDING="Adicionando"
   MSG_ALREADY_SELECTED="Pacote já selecionado ou já presente no arquivo."
   MSG_ANY_MORE="Mais algum? (Y/n) "
-
   MSG_WHICH_REPO="Qual repositório você quer usar? (extra, multilib, cachy) "
   ;;
 "English")
   MSG_CONTINUE="Alright, mirrors updated. Let's continue..."
   MSG_SHOW_PKGS="Now I'll show you the essential packages..."
   MSG_WANT_MORE="Do you want to add more packages? (Y/n) "
-  MSG_LETS_ADD="Okay, let's add more packages!"
   MSG_PKG_NAME="Enter the package name: "
-  MSG_PKG_NOT_FOUND="Package not found."
-  MSG_TRY_AGAIN="Please enter again:"
+  MSG_NOT_FOUND="Package not found."
   MSG_ADDING="Adding"
   MSG_ALREADY_SELECTED="Package already selected or already in the file."
   MSG_ANY_MORE="Any more? (Y/n) "
-
   MSG_WHICH_REPO="Which repository do you want to use? (extra, multilib, cachy) "
   ;;
 *)
@@ -46,49 +39,47 @@ case "$LANGC" in
 esac
 
 # --- FUNÇÕES ---
-
-# Função para escolher ou criar plugin
-
-add_packages_to_file() {
-  local target_file="$1"
-  local pacote
-
-  read -p "$MSG_ANY_MORE" -r ok
-  if [[ "$ok" == "N" || "$ok" == "n" ]]; then
+repos_update() {
+  local want_repo
+  read -p "Deseja configurar repositórios extras (multilib, cachy, etc)? (Y/n) " -r want_repo
+  if [[ "$want_repo" == "n" || "$want_repo" == "N" ]]; then
     return
   fi
-  read -p "$MSG_PKG_NAME" -r pacote
-  while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
-    echo "$MSG_PKG_NOT_FOUND"
-    read -p "$MSG_TRY_AGAIN" -r pacote
-  done
 
-  if ! grep -q -- "- $pacote" "$plugin_dir$target_file" && [[ ! " ${pacotes[*]} " =~ $pacote ]]; then
-    echo "$MSG_ADDING $pacote..."
-    pacotes+=("$pacote")
-    echo "  - $pacote" >>"$plugin_dir$target_file"
-  else
-    echo "$MSG_ALREADY_SELECTED"
-  fi
-  read -p "$MSG_ANY_MORE" -r ok
-}
-
-repos_update() {
   want_repo="y"
-  while [[ "$want_repo" == "Y" || "$want_repo" == "y" || "$want_repo" == "" ]]; do
+  while [[ "$want_repo" =~ ^[Yy]?$ ]]; do
     read -p "$MSG_WHICH_REPO" -r repo
-    case $repo in
-    "extra" | "multilib" | "cachy")
-      if ! grep -q -- "- $repo" "plugins/$PLUGIN"; then
-        echo "  - $repo" >>"plugins/$PLUGIN"
-        echo "    state: present" >>"plugins/$PLUGIN"
-        echo "$MSG_ADDING $repo..."
-      else
+    local repo_name
+    repo_name=$(echo "$repo" | tr '[:upper:]' '[:lower:]')
+
+    if grep -q "name: $repo_name" "plugins/$PLUGIN"; then
         echo "$MSG_ALREADY_SELECTED"
-      fi
+        read -p "$MSG_ANY_MORE" -r want_repo
+        continue
+    fi
+
+    case $repo_name in
+    "multilib"|"extra")
+      echo "$MSG_ADDING $repo_name..."
+      cat <<EOF >> "plugins/$PLUGIN"
+  - name: $repo_name
+    state: present
+    method: uncomment
+EOF
+      ;;
+    "cachyos"|"cachy")
+      echo "$MSG_ADDING cachyos..."
+      local cachy_command="curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
+      cat <<EOF >> "plugins/$PLUGIN"
+  - name: cachyos
+    state: present
+    method: script
+    command: >
+      ${cachy_command}
+EOF
       ;;
     *)
-      echo "Invalid repo, try again (extra, multilib, cachy)."
+      echo "Repositório inválido. Tente novamente."
       ;;
     esac
     read -p "$MSG_ANY_MORE" -r want_repo
@@ -106,25 +97,49 @@ echo "  - reflector, bootloader(grub ou refind), nano, networkmanager, openssh"
 echo "---------------------------------------------------"
 sleep 1
 
-echo "pacotes:" >>plugins/"$PLUGIN"
-ok="y"
-read -rp "$MSG_WANT_MORE" -r pkg_more
-if [[ "$pkg_more" == "y" || "$pkg_more" == "Y" ]]; then
-  while [[ "$ok" == "Y" || "$ok" == "y" || "$ok" == "" ]]; do
-    add_packages_to_file "plugins/$PLUGIN"
-  done
-fi
-echo "repos:" >>plugins/"$PLUGIN"
-echo "  - core" >>plugins/"$PLUGIN"
-echo "    state: present" >>plugins/"$PLUGIN"
+echo "pacotes:" >> "plugins/$PLUGIN"
+add_pkg="n"
+read -p "$MSG_WANT_MORE" -r add_pkg
+while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
+    read -p "$MSG_PKG_NAME" -r pacote
+    while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
+        echo "$MSG_PKG_NOT_FOUND"
+        read -p "$MSG_TRY_AGAIN" -r pacote
+    done
+
+    if ! grep -q -- "- $pacote" "plugins/$PLUGIN"; then
+        echo "$MSG_ADDING $pacote..."
+        echo "  - $pacote" >> "plugins/$PLUGIN"
+    else
+        echo "$MSG_ALREADY_SELECTED"
+    fi
+    read -p "$MSG_ANY_MORE" -r add_pkg
+done
+
+echo "repos:" >> "plugins/$PLUGIN"
+cat <<EOF >> "plugins/$PLUGIN"
+  - name: core
+    state: present
+    method: uncomment
+EOF
 repos_update
 
 set -a
 source respostas.env
 set +a
+
+# Copia o projeto para dentro do chroot para que o Ansible possa ser executado lá
+cp -r ./ /mnt/root/Ch-aronte/
+
+# Executa os playbooks em sequência, a maioria DENTRO do chroot
 ansible-playbook -vvv ./main.yaml --tags instalacao -e @plugins/"$PLUGIN"
-ansible-playbook -vvv ./main.yaml --tags repos -e @plugins/"$PLUGIN"
-if [[ "$pkg_more" != "N" && "$pkg_more" != "n" ]]; then
-  ansible-playbook -vvv ./main.yaml --tags plug-pkgs -e @plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags repos -e @/root/Ch-aronte/plugins/"$PLUGIN"
+
+if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
+  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags pkgs -e @/root/Ch-aronte/plugins/"$PLUGIN"
 fi
+
+# Limpa os arquivos de instalação
+rm -rf /mnt/root/Ch-aronte
+
 genfstab -U /mnt >/mnt/etc/fstab
