@@ -79,7 +79,7 @@ yq -iy '.users = [
   }
 ]' "plugins/$plugin"
 
-touch $SECRETS_FILE
+echo "$SECRETS_FILE" >>.gitignore && touch $SECRETS_FILE
 echo "{}" >"$SECRETS_FILE"
 yq -iy ".secrets = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
 

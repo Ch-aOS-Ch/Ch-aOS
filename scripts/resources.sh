@@ -26,9 +26,5 @@ set_yml_var() {
   local escaped_value
   escaped_value=$(printf '%s\n' "$value" | sed -e 's/[&\\|]/\\&/g')
 
-  if grep -q "^${key}:" "$config_file"; then
-    sed -i "s|^${key}:.*|${key}: '${escaped_value}'|" "$config_file"
-  else
-    echo "${key}: '${value}'" >>"$config_file"
-  fi
+  yq -iy ".${key} = \"${value}\"" "$config_file"
 }
