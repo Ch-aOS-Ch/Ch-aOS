@@ -4,7 +4,7 @@
 
 - name: Unite base pkgs and firmware pkgs
   ansible.builtin.set_fact:
-    pkgs_pacotes_base: "{{ necessarios | union(pkgs_pacotes_firmware_especificos) }}"
+    pkgs_pacotes_base: "{{ (pacotes_base_override | default(necessarios)) | union(pkgs_pacotes_firmware_especificos) }}"
 
 - name: (Debug) Show base pkg list
   ansible.builtin.debug:
@@ -35,6 +35,17 @@
   ansible.builtin.debug:
     var: pkgs_pacotes_a_remover
   when: pkgs_pacotes_a_remover | length > 0
+
+- name: Confirm removal pkgs
+  ansible.builtin.pause:
+    prompt: |
+      WARNING: Ch-aronte WILL REMOVE these last {{ pkgs_pacotes_a_remover | length }} packages.
+
+      This action CANNOT be undone (unless you reinstall everything).
+      Do you want to follow through? (Type 'yes' or 'sim' to continue.):
+  when: pkgs_pacotes_a_remover | length > 0
+  register: pause_result
+  failed_when: "'sim' not in pause_result.user_input or 'yes' not in pause_result.user_input"
 
 - name: Remove removal pkgs
   community.general.pacman:
