@@ -45,7 +45,7 @@
 
 - name: Install wanted pkgs
   community.general.pacman:
-    name: "{{ pkgs_pacotes_desejados }}"
+    name: "{{ pkgs_pacotes_finais }}"
     state: present
   become: true
   when: pkgs_pacotes_desejados | length > 0

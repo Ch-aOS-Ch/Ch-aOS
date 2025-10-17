@@ -1,4 +1,4 @@
-touch respostas.env
+echo "respostas.env" >>.gitignore && touch respostas.env
 echo -en "\e]P0152212" # black (background)
 echo -en "\e]P19d4131" # red
 echo -en "\e]P265d060" # green
