@@ -1,0 +1,7 @@
+- name: Manage services based on plugin configuration
+  ansible.builtin.service:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default('started') }}"
+    enabled: "{{ item.enabled | default(true) }}"
+  loop: "{{ final_services | default([]) }}"
+  become: true

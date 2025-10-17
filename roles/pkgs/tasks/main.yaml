@@ -14,7 +14,7 @@
 
 - name: Pkgs list exists
   ansible.builtin.set_fact:
-    pkgs_pacotes_desejados: "{{ pacotes | default([]) }}"
+    pkgs_pacotes_desejados: "{{ final_pacotes | default([]) }}"
 
 - name: Unite base pkg and desired pkgs
   ansible.builtin.set_fact:

@@ -1,7 +1,7 @@
 - name: Configure repositories from plugin list
   ansible.builtin.include_tasks:
     file: process_repo.yml
-  loop: "{{ repos }}"
+  loop: "{{ final_repos }}"
   loop_control:
     loop_var: repo_item
 
