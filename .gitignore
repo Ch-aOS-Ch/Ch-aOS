@@ -6,3 +6,4 @@ plugins/services
 plugins/users
 plugins/custom-plug-dex.yml
 plugins/secrets_custom-plug-dex.yml
+log.txt
