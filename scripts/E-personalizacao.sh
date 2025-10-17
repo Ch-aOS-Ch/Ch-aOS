@@ -77,9 +77,9 @@ yq -iy '.users = [
     "shell": "/bin/bash",
     "groups": ["root"],
   }
-]' "plugins/$plugin"
+]' "plugins/$PLUGIN"
 
-echo "$SECRETS_FILE" >>.gitignore && touch $SECRETS_FILE
+echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
 echo "{}" >"$SECRETS_FILE"
 yq -iy ".secrets = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
 
@@ -151,7 +151,7 @@ set +a
 rm -rf ./.git
 rm -rf /mnt/root/Ch-aronte/
 cp -r ../Ch-aronte /mnt/root/Ch-aronte
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @/root/Ch-aronte/plugins/"$PLUGIN"
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."

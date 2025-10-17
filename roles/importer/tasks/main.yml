@@ -1,0 +1,27 @@
+- name: Initialize final configuration with all existing variables
+  ansible.builtin.set_fact:
+    final_config: "{{ hostvars[inventory_hostname] }}"
+
+- name: Process each imported file based on its strategy
+  ansible.builtin.include_tasks: process_import.yml
+  loop: "{{ imports | default([]) }}"
+  loop_control:
+    loop_var: import_item
+
+- name: Find all unique keys that were merged across all imports
+  ansible.builtin.set_fact:
+    all_merged_keys: "{{ (imports | selectattr('strategy', 'equalto', 'merge') | map(attribute='merge_keys') | list | flatten | unique) }}"
+  when: imports is defined
+
+- name: Set final facts for merged lists (e.g., final_pacotes)
+  ansible.builtin.set_fact:
+    "final_{{ item }}": "{{ final_config[item] | default([]) }}"
+  loop: "{{ all_merged_keys | default([]) }}"
+
+- name: Publish final variables for other roles to use
+  ansible.builtin.set_fact:
+    final_pacotes: "{{ final_config.pacotes | default([]) }}"
+    final_repos: "{{ final_config.repos | default([]) }}"
+    final_users: "{{ final_config.users | default([]) }}"
+    final_services: "{{ final_config.services | default([]) }}"
+    final_dotfiles: "{{ final_config.dotfiles | default([]) }}"

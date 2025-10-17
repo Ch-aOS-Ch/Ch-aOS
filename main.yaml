@@ -1,3 +1,9 @@
+- name: Importar e juntar configurações do plugin
+  hosts: localhost
+  tags: [always]
+  roles:
+    - importer
+
 - name: Preparar partições
   hosts: localhost
   tags: [particionamento]
@@ -33,3 +39,9 @@
   tags: [pkgs]
   roles:
     - pkgs
+
+- name: Configure Services
+  hosts: localhost
+  tags: [services]
+  roles:
+    - services

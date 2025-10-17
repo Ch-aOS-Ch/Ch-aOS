@@ -1,2 +1,8 @@
 roles/sistema/vars/custom_meu_plugin.yml
 roles/sistema/vars/custom-meu-sistema-atual.yml
+plugins/packages
+plugins/repos
+plugins/services
+plugins/users
+plugins/custom-plug-dex.yml
+plugins/secrets_custom-plug-dex.yml

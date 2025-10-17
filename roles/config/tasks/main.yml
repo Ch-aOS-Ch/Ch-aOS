@@ -2,6 +2,12 @@
   ansible.builtin.hostname:
     name: "{{ hostname }}"
 
+- name: Load user secrets from file
+  ansible.builtin.include_vars:
+    file: "{{ secrets }}"
+    name: user_secrets
+  when: secrets is defined
+
 - name: Make sure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -11,7 +17,6 @@
     create_home: true
     password: "{{ user_secrets[item.name].password | default(omit) }}"
   loop: "{{ users }}"
-
 
 - name: Manage sudoers
   ansible.builtin.lineinfile:

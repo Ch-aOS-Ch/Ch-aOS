@@ -52,6 +52,8 @@ case "$LANGC" in
   MSG_INVALID_FILE="Arquivo inválido ou não encontrado. Por favor, escolha um da lista."
   MSG_USING_EXISTING="Usando o plugin existente:"
   MSG_CREATING_NEW="Criando novo plugin:"
+  MSG_WANT_HOME_PARTITION="Você deseja criar uma partição HOME? (S/n) "
+  MSG_WANT_SWAP_PARTITION="Você deseja criar uma partição SWAP? (S/n) "
   ;;
 "English")
   # General Messages
@@ -94,6 +96,8 @@ case "$LANGC" in
   MSG_INVALID_FILE="Invalid file or not found. Please choose one from the list."
   MSG_USING_EXISTING="Using existing plugin:"
   MSG_CREATING_NEW="Creating new plugin:"
+  MSG_WANT_HOME_PARTITION="Do you want to create a HOME partition? (Y/n) "
+  MSG_WANT_SWAP_PARTITION="Do you want to create a SWAP partition? (Y/n) "
   ;;
 *)
   echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'"
@@ -241,9 +245,19 @@ cfdisk "/dev/$disco"
 
 # Coleta das informações de partição
 root=$(prompt_for_partition "$MSG_ROOT_PROMPT")
-home=$(prompt_for_partition "$MSG_HOME_PROMPT")
 boot=$(prompt_for_partition "$MSG_BOOT_PROMPT")
-swap=$(prompt_for_partition "$MSG_SWAP_PROMPT")
+read -rp "$MSG_WANT_HOME_PARTITION" want_home
+if [[ "$want_home" == "Y" || "$want_home" == "y" || "$want_home" == "" ]]; then
+  home=$(prompt_for_partition "$MSG_HOME_PROMPT")
+else
+  home=""
+fi
+read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
+if [[ "$want_swap" == "Y" || "$want_swap" == "y" || "$want_swap" == "" ]]; then
+  swap=$(prompt_for_partition "$MSG_SWAP_PROMPT")
+else
+  swap=""
+fi
 
 read -p "$MSG_FORMAT_PROMPT" -r formato
 while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
