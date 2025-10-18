@@ -1,16 +1,16 @@
-- name: Importar e juntar configurações do plugin
+- name: Import and save imported configs
   hosts: localhost
   tags: [always]
   roles:
     - importer
 
-- name: Preparar partições
+- name: Prepare partitions
   hosts: localhost
   tags: [particionamento]
   roles:
     - particionamento
 
-- name: Instalar sistema operacional
+- name: Install base operating system
   hosts: localhost
   tags: [instalacao]
   roles:
@@ -22,7 +22,7 @@
   roles:
     - config
 
-- name: Instalar Dotfiles
+- name: Install dotfiles
   hosts: localhost
   tags: [dotfiles]
   roles:
