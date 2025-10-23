@@ -129,13 +129,31 @@ prompt_for_partition() {
   echo "$partition_var"
 }
 
+prompt_for_bootloader() {
+  local bootloader_var
+  while true; do
+    read -p "$MSG_BOOTLOADER_PROMPT" -r bootloader_var
+    bootloader_var=$(echo "$bootloader_var" | tr '[:upper:]' '[:lower:]')
+    if [[ "$bootloader_var" == "grub" ]]; then
+      break
+    elif [[ "$bootloader_var" == "refind" && "$firmware" == "UEFI" ]]; then
+      break
+    elif [[ "$bootloader_var" == "refind" && "$firmware" == "BIOS" ]]; then
+      echo "$MSG_INVALID_BOOTLOADER_BIOS"
+    else
+      echo "$MSG_INVALID_BOOTLOADER"
+    fi
+  done
+  echo "$bootloader_var"
+}
+
 prompt_for_label() {
   local prompt_message="$1"
   local label_var
   read -p "$prompt_message" -r label_var
   while [[ ! "$label_var" =~ ^[a-zA-Z0-9_]{1,16}$ ]]; do
-      echo "$MSG_INVALID_LABEL"
-      read -p "$prompt_message" -r label_var
+    echo "$MSG_INVALID_LABEL"
+    read -p "$prompt_message" -r label_var
   done
   echo "$label_var"
 }
@@ -180,7 +198,9 @@ select_or_create_plugin_file() {
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
 
-set -a; source respostas.env; set +a
+set -a
+source respostas.env
+set +a
 
 if [ "$LANGC" = "Portugues" ]; then loadkeys br-abnt2; else loadkeys us; fi
 timedatectl
@@ -198,9 +218,21 @@ else
   firmware="BIOS"
 fi
 
-echo "$MSG_PREPARING"; sleep 1; echo "3..."; sleep 1; echo "2..."; sleep 1; echo "1..."
-echo "$MSG_STARTING_PROMPT"; echo ""; echo "$MSG_LETS_PARTITION"; echo "$MSG_CFDISK_INFO"; echo ""
-echo "$MSG_RECOMMENDATION"; echo "$MSG_RECOMMENDATION_DETAILS"; echo "$MSG_FINALIZE"
+echo "$MSG_PREPARING"
+sleep 1
+echo "3..."
+sleep 1
+echo "2..."
+sleep 1
+echo "1..."
+echo "$MSG_STARTING_PROMPT"
+echo ""
+echo "$MSG_LETS_PARTITION"
+echo "$MSG_CFDISK_INFO"
+echo ""
+echo "$MSG_RECOMMENDATION"
+echo "$MSG_RECOMMENDATION_DETAILS"
+echo "$MSG_FINALIZE"
 echo "---------------------------------------------------"
 
 read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
@@ -209,12 +241,16 @@ while [[ "$resposta" == "Y" || "$resposta" == "y" || "$resposta" == "" ]]; do
   read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
 done
 
-echo "$MSG_CONTINUING"; sleep 1
-echo "---------------------------------------------------"; lsblk; echo "---------------------------------------------------"
+echo "$MSG_CONTINUING"
+sleep 1
+echo "---------------------------------------------------"
+lsblk
+echo "---------------------------------------------------"
 
 read -p "$MSG_DISK_PROMPT" -r disco
 while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
-  echo "$MSG_INVALID_DISK"; read -p "$MSG_DISK_PROMPT" -r disco
+  echo "$MSG_INVALID_DISK"
+  read -p "$MSG_DISK_PROMPT" -r disco
 done
 
 cfdisk "/dev/$disco"
@@ -230,7 +266,8 @@ if [[ "$want_home" == "Y" || "$want_home" == "y" || "$want_home" == "" ]]; then
   home_dev=$(prompt_for_partition "$MSG_HOME_PROMPT")
   home_label=$(prompt_for_label "$MSG_HOME_LABEL_PROMPT")
 else
-  home_dev=""; home_label=""
+  home_dev=""
+  home_label=""
 fi
 
 read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
@@ -238,23 +275,23 @@ if [[ "$want_swap" == "Y" || "$want_swap" == "y" || "$want_swap" == "" ]]; then
   swap_dev=$(prompt_for_partition "$MSG_SWAP_PROMPT")
   swap_label=$(prompt_for_label "$MSG_SWAP_LABEL_PROMPT")
 else
-  swap_dev=""; swap_label=""
+  swap_dev=""
+  swap_label=""
 fi
 
 read -p "$MSG_FORMAT_PROMPT" -r formato
 while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-  echo "$MSG_INVALID_FORMAT"; read -p "$MSG_FORMAT_PROMPT" -r formato
+  echo "$MSG_INVALID_FORMAT"
+  read -p "$MSG_FORMAT_PROMPT" -r formato
 done
 
-read -p "$MSG_BOOTLOADER_PROMPT" -r bootloader
-while [[ "$bootloader" != "grub" && "$bootloader" != "refind" ]]; do
-    echo "$MSG_INVALID_BOOTLOADER"; read -p "$MSG_BOOTLOADER_PROMPT" -r bootloader
-done
+bootloader=$(prompt_for_bootloader)
 
 # Loop de verificação e correção
 confirmacao="n"
 while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; do
-  echo ""; echo "---------------------------------------------------"
+  echo ""
+  echo "---------------------------------------------------"
   echo "$MSG_CHECK_VALUES"
   echo "  [DISCO]      => /dev/$disco"
   echo "  [ROOT]       => Device: /dev/$root_dev, Label: $root_label"
@@ -271,13 +308,37 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   if ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; then
     read -p "$MSG_CHANGE_PROMPT" -r var_to_change
     case $(echo "$var_to_change" | tr '[:upper:]' '[:lower:]') in
-    root) root_dev=$(prompt_for_partition "$MSG_ROOT_PROMPT"); root_label=$(prompt_for_label "$MSG_ROOT_LABEL_PROMPT") ;;
-    home) home_dev=$(prompt_for_partition "$MSG_HOME_PROMPT"); home_label=$(prompt_for_label "$MSG_HOME_LABEL_PROMPT") ;;
-    boot) boot_dev=$(prompt_for_partition "$MSG_BOOT_PROMPT"); boot_label=$(prompt_for_label "$MSG_BOOT_LABEL_PROMPT") ;;
-    swap) swap_dev=$(prompt_for_partition "$MSG_SWAP_PROMPT"); swap_label=$(prompt_for_label "$MSG_SWAP_LABEL_PROMPT") ;;
-    disco) read -p "$MSG_DISK_PROMPT" -r disco; while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do echo "$MSG_INVALID_DISK"; read -p "$MSG_DISK_PROMPT" -r disco; done ;;
-    formato) read -p "$MSG_FORMAT_PROMPT" -r formato; while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do echo "$MSG_INVALID_FORMAT"; read -p "$MSG_FORMAT_PROMPT" -r formato; done ;;
-    bootloader) read -p "$MSG_BOOTLOADER_PROMPT" -r bootloader; while [[ "$bootloader" != "grub" && "$bootloader" != "refind" ]]; do echo "$MSG_INVALID_BOOTLOADER"; read -p "$MSG_BOOTLOADER_PROMPT" -r bootloader; done ;;
+    root)
+      root_dev=$(prompt_for_partition "$MSG_ROOT_PROMPT")
+      root_label=$(prompt_for_label "$MSG_ROOT_LABEL_PROMPT")
+      ;;
+    home)
+      home_dev=$(prompt_for_partition "$MSG_HOME_PROMPT")
+      home_label=$(prompt_for_label "$MSG_HOME_LABEL_PROMPT")
+      ;;
+    boot)
+      boot_dev=$(prompt_for_partition "$MSG_BOOT_PROMPT")
+      boot_label=$(prompt_for_label "$MSG_BOOT_LABEL_PROMPT")
+      ;;
+    swap)
+      swap_dev=$(prompt_for_partition "$MSG_SWAP_PROMPT")
+      swap_label=$(prompt_for_label "$MSG_SWAP_LABEL_PROMPT")
+      ;;
+    disco)
+      read -p "$MSG_DISK_PROMPT" -r disco
+      while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
+        echo "$MSG_INVALID_DISK"
+        read -p "$MSG_DISK_PROMPT" -r disco
+      done
+      ;;
+    formato)
+      read -p "$MSG_FORMAT_PROMPT" -r formato
+      while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
+        echo "$MSG_INVALID_FORMAT"
+        read -p "$MSG_FORMAT_PROMPT" -r formato
+      done
+      ;;
+    bootloader) bootloader=$(prompt_for_bootloader) ;;
     *) echo "$MSG_INVALID_OPTION" ;;
     esac
   fi
@@ -295,7 +356,6 @@ yq -iy ".particoes.home.label = \"$home_label\"" "plugins/$PLUGIN"
 
 yq -iy ".particoes.boot.device = \"/dev/$boot_dev\"" "plugins/$PLUGIN"
 yq -iy ".particoes.boot.label = \"$boot_label\"" "plugins/$PLUGIN"
-
 
 yq -iy ".particoes.swap.device = \"/dev/$swap_dev\"" "plugins/$PLUGIN"
 yq -iy ".particoes.swap.label = \"$swap_label\"" "plugins/$PLUGIN"

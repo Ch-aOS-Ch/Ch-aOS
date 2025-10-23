@@ -1,10 +1,10 @@
 - name: "Clonando o repo: {{ dotfile_item.repo }}"
   ansible.builtin.git:
     repo: "{{ dotfile_item.repo }}"
-    dest: "/home/{{ nome_user }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
+    dest: "/home/{{ final_users[0].name }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
     version: main
   become: false
-  become_user: "{{ nome_user }}"
+  become_user: "{{ final_users[0].name }}"
   register: dotfiles_git_clone_result
 
 - name: "Executando comando de instalação custom"
@@ -14,13 +14,13 @@
   when: dotfile_item.install_command is defined and dotfile_item.install_command | length > 0
   become: true
   changed_when: false
-  become_user: "{{ nome_user }}"
+  become_user: "{{ final_users[0].name }}"
 
 - name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager | default('Nenhum') }}"
   ansible.builtin.command:
     cmd: |
       {% if dotfile_item.manager == 'stow' %}
-      stow --target=/home/{{ nome_user }} --dir=. *
+      stow --target=/home/{{ final_users[0].name }} --dir=. *
       {% elif dotfile_item.manager == 'yadm' %}
       echo "yadm not implemented yet, please use stow."
       {% endif %}
@@ -28,7 +28,7 @@
   when: dotfile_item.manager is defined and dotfile_item.manager | length > 0
   become: true
   changed_when: false
-  become_user: "{{ nome_user }}"
+  become_user: "{{ final_users[0].name }}"
 
 - name: "Verificar se 'install.sh' existe no repositório"
   ansible.builtin.stat:
@@ -38,7 +38,7 @@
     - dotfile_item.install_command is not defined
     - dotfile_item.manager is not defined
   become: true
-  become_user: "{{ nome_user }}"
+  become_user: "{{ final_users[0].name }}"
 
 - name: "Executar script de instalação padrão (install.sh) se encontrado"
   ansible.builtin.command:
@@ -47,4 +47,4 @@
   when: dotfiles_install_script_stat.stat.exists
   become: true
   changed_when: false
-  become_user: "{{ nome_user }}"
+  become_user: "{{ final_users[0].name }}"
