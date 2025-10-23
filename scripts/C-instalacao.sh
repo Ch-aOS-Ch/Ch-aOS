@@ -122,16 +122,12 @@ cp -r ./ /mnt/root/Ch-aronte/
 # Executa os playbooks em sequência, a maioria DENTRO do chroot
 ansible-playbook -vvv ./main.yaml --tags instalacao -e @plugins/"$PLUGIN"
 
-# Gera o fstab usando a nova role
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags fstab -e @/root/Ch-aronte/plugins/"$PLUGIN"
-
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader -e @/root/Ch-aronte/plugins/"$PLUGIN"
-
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags repos -e @/root/Ch-aronte/plugins/"$PLUGIN"
-
+# Executa as roles restantes de dentro do chroot com uma única chamada
+CHROOT_TAGS="fstab,bootloader,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
-  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags pkgs -e @/root/Ch-aronte/plugins/"$PLUGIN"
+  CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags "$CHROOT_TAGS" -e @/root/Ch-aronte/plugins/"$PLUGIN"
 
 # Limpa os arquivos de instalação
 rm -rf /mnt/root/Ch-aronte

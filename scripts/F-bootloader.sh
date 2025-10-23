@@ -36,19 +36,14 @@ esac
 echo "$MSG_START"
 sleep 1
 
-echo "$MSG_CONFIGURING"
-# Garante que o ambiente do chroot tenha o código mais recente
-cp -r . /mnt/root/Ch-aronte/
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader -e @/root/Ch-aronte/plugins/"$PLUGIN"
-rm -rf /mnt/root/Ch-aronte/
-
-# Garante que o NetworkManager está no plugin e executa a role de serviços
-echo "$MSG_ENABLE_SERVICES"
+# Garante que o NetworkManager está no plugin antes de executar as roles
+echo "$MSG_ENABLE_NETWORK"
 yq -iy '.services |= (select(.) // []) | . + [{"name": "NetworkManager", "state": "started", "enabled": true}] | unique_by(.name)' "plugins/$PLUGIN"
 
-# Sincroniza o estado do plugin e executa a role
+echo "$MSG_CONFIGURING"
+# Copia o projeto para o chroot e executa as roles de bootloader e serviços de uma só vez
 cp -r . /mnt/root/Ch-aronte/
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags services -e @/root/Ch-aronte/plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader,services -e @/root/Ch-aronte/plugins/"$PLUGIN"
 rm -rf /mnt/root/Ch-aronte/
 
 
