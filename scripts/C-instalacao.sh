@@ -6,7 +6,7 @@ set +a
 source scripts/resources.sh
 
 # Variáveis globais
-plugin_dir="./plugins/"
+plugin_dir="./Ch-obolos/"
 
 # --- SEÇÃO DE CONFIGURAÇÃO DE IDIOMA ---
 case "$LANGC" in
@@ -49,8 +49,8 @@ repos_update() {
   fi
 
   # Inicializa a estrutura no YAML para evitar erros
-  yq -iy '.repos.managed.extras |= (select(.) // false)' "plugins/$PLUGIN"
-  yq -iy '.repos.third_party |= (select(.) // [])' "plugins/$PLUGIN"
+  yq -iy '.repos.managed.extras |= (select(.) // false)' "Ch-obolos/$PLUGIN"
+  yq -iy '.repos.third_party |= (select(.) // [])' "Ch-obolos/$PLUGIN"
 
   want_repo="y"
   while [[ "$want_repo" =~ ^[Yy]?$ ]]; do
@@ -61,14 +61,14 @@ repos_update() {
     case $repo_name in
     "multilib" | "extra")
       echo "$MSG_ADDING $repo_name..."
-      yq -iy '.repos.managed.extras = true' "plugins/$PLUGIN"
+      yq -iy '.repos.managed.extras = true' "Ch-obolos/$PLUGIN"
       ;;
     "cachyos" | "cachy")
-      if yq -e '.repos.third_party[] | select(.name == "cachyOS")' "plugins/$PLUGIN" >/dev/null; then
+      if yq -e '.repos.third_party[] | select(.name == "cachyOS")' "Ch-obolos/$PLUGIN" >/dev/null; then
         echo "$MSG_ALREADY_SELECTED"
       else
         echo "$MSG_ADDING cachyos..."
-        yq -iy '.repos.third_party += [{"name": "cachyOS", "distribution": "arch", "url": "https://mirror.cachyos.org/cachyos-repo.tar.xz"}]' "plugins/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyOS", "distribution": "arch", "url": "https://mirror.cachyos.org/cachyos-repo.tar.xz"}]' "Ch-obolos/$PLUGIN"
       fi
       ;;
     *)
@@ -91,7 +91,7 @@ echo "---------------------------------------------------"
 sleep 1
 
 # Garante que a chave 'pacotes' exista como uma lista no plugin
-yq -iy '.pacotes |= (select(.) // [])' "plugins/$PLUGIN"
+yq -iy '.pacotes |= (select(.) // [])' "Ch-obolos/$PLUGIN"
 
 add_pkg="n"
 read -p "$MSG_WANT_MORE" -r add_pkg
@@ -103,13 +103,13 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
   done
 
   # Adiciona o pacote à lista 'pacotes' de forma segura, sem duplicatas
-  yq -iy ".pacotes += [\"$pacote\"] | .pacotes |= unique" "plugins/$PLUGIN"
+  yq -iy ".pacotes += [\"$pacote\"] | .pacotes |= unique" "Ch-obolos/$PLUGIN"
   echo "$MSG_ADDING $pacote..."
 
   read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
-yq -iy '.repos.managed.core = true' "plugins/$PLUGIN"
+yq -iy '.repos.managed.core = true' "Ch-obolos/$PLUGIN"
 repos_update
 
 set -a
@@ -120,14 +120,14 @@ set +a
 cp -r ./ /mnt/root/Ch-aronte/
 
 # Executa os playbooks em sequência, a maioria DENTRO do chroot
-ansible-playbook -vvv ./main.yaml --tags instalacao -e @plugins/"$PLUGIN"
+ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
 
 # Executa as roles restantes de dentro do chroot com uma única chamada
 CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
   CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags "$CHROOT_TAGS" -e @/root/Ch-aronte/plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags "$CHROOT_TAGS" -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
 
 # Limpa os arquivos de instalação
 rm -rf /mnt/root/Ch-aronte

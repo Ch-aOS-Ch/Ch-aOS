@@ -35,7 +35,7 @@ case "$LANGC" in
   ;;
 esac
 
-SECRETS_FILE="plugins/secrets_""$PLUGIN"
+SECRETS_FILE="Ch-obolos/secrets_""$PLUGIN"
 
 # ==============================================================================
 # FLUXO PRINCIPAL DO SCRIPT
@@ -45,7 +45,7 @@ read -p "$MSG_HOSTNAME_PROMPT" -r hostname
 while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
 done
-yq -iy ".hostname = \"$hostname\"" "plugins/$PLUGIN"
+yq -iy ".hostname = \"$hostname\"" "Ch-obolos/$PLUGIN"
 
 sleep 1
 
@@ -77,12 +77,12 @@ yq -iy '.users = [
     "shell": "/bin/bash",
     "groups": ["root"],
   }
-]' "plugins/$PLUGIN"
+]' "Ch-obolos/$PLUGIN"
 
 echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
 echo "{}" >"$SECRETS_FILE"
-yq -iy ".secrets.sec_file = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
-yq -iy ".secrets.sec_mode = \"charonte\"" "plugins/$PLUGIN"
+yq -iy ".secrets.sec_file = \"$SECRETS_FILE\"" "Ch-obolos/$PLUGIN"
+yq -iy ".secrets.sec_mode = \"charonte\"" "Ch-obolos/$PLUGIN"
 
 clear
 echo "Senha para o usuário: ${username}"
@@ -137,7 +137,7 @@ echo "$SECRETS_FILE" >>./.gitignore
 
 # --- Habilita o Sudo para o grupo 'wheel' ---
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
-yq -iy '.wheel_access = true' "plugins/$PLUGIN"
+yq -iy '.wheel_access = true' "Ch-obolos/$PLUGIN"
 
 read -rp "$MSG_WANT_DOTS" dot_accept
 if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
@@ -152,7 +152,7 @@ set +a
 rm -rf ./.git
 rm -rf /mnt/root/Ch-aronte/
 cp -r ../Ch-aronte /mnt/root/Ch-aronte
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @/root/Ch-aronte/plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."
