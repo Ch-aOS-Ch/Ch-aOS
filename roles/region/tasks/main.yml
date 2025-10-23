@@ -8,10 +8,11 @@
     path: /etc/locale.gen
     regexp: >
       ^{{ '#' | regex_escape() }}\s*({{ region.locale }}\s+UTF-8)
-    line: "{{ region.locale }} UTF-8"
-    backrefs: yes
+    line: "{{ item }} UTF-8"
+    backrefs: true
   register: locale_gen_change
   when: region.locale is defined
+  loop: "{{ region.locale }}"
 
 - name: Regenerate locale.gen if it was changed
   ansible.builtin.command:
@@ -20,7 +21,7 @@
 
 - name: Set default system locale
   ansible.builtin.copy:
-    content: "LANG={{ region.locale }}\n"
+    content: "LANG={{ region.locale[0] }}\n"
     dest: /etc/locale.conf
     mode: '0644'
   when: region.locale is defined
