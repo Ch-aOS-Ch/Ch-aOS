@@ -77,8 +77,10 @@ pacotes:
 dotfiles:
   - repo: https://github.com/your-user/your-dotfiles.git
     # To decide how the script will behave, you have 3 options as to how it will work.
-    install_command: "your_custom_dotfile_command.sh" # OPTION 1: install_command is an variable that you can set to decide how the script will install your dotfiles. It uses the root of your repo as a base point, so be aware of that.
-    manager: "stow" # OPTION 2: You set an manager and the script applies it to every folder in your repo.
+    install_command: "your_custom_dotfile_command.sh"
+    # OPTION 1: install_command is an variable that you can set to decide how the script will install your dotfiles. It uses the root of your repo as a base point, so be aware of that.
+    manager: "stow"
+    # OPTION 2: You set an manager and the script applies it to every folder in your repo.
     # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for a "install.sh" inside of the root of your repo, using it as a basis to install your dotfiles.
 ```
 > [!WARNING]
