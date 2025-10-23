@@ -47,7 +47,7 @@
         - repos.managed.unstable
 
 - name: Manage third-party repositories
-  include_tasks: process_repo.yml
+  ansible.builtin.include_tasks: process_repo.yml
   loop: "{{ repos.third_party }}"
   loop_control:
     loop_var: repo_item
