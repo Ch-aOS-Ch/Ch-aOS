@@ -7,7 +7,7 @@
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
     regexp: >
-      ^{{ '#' | regex_escape() }}\s*({{ region.locale }}\s+UTF-8)
+      ^{{ '#' | regex_escape() }}\s*({{ item }}\s+UTF-8)
     line: "{{ item }} UTF-8"
     backrefs: true
   register: locale_gen_change
