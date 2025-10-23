@@ -1,11 +1,6 @@
-- name: Load firmware mode
-  ansible.builtin.include_vars: "{{ item }}"
-  loop:
-    - "../vars/{{ firmware | default('UEFI') }}.yml"
-
 - name: Define base pkg list
   ansible.builtin.set_fact:
-    sistema_pacotes_base: "{{ (necessarios + sistema_bootloader) | unique | list }}"
+    sistema_pacotes_base: "{{ (necessarios + bootloader) | unique | list }}"
 
 - name: (Debug) Show base pkg list
   ansible.builtin.debug:

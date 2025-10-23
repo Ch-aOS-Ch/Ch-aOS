@@ -1,9 +1,60 @@
-- name: Configure repositories from plugin list
-  ansible.builtin.include_tasks:
-    file: process_repo.yml
-  loop: "{{ final_repos }}"
+- name: Manage standard Arch Linux repositories
+  when: repos.managed is defined and ansible_os_family == 'Archlinux'
+  block:
+    - name: Ensure 'core' repository is enabled if requested
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: '(?s)^#\s*(\[core\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+        replace: '\1'
+      when:
+        - repos.managed.core is defined
+        - repos.managed.core
+
+    - name: Ensure 'multilib' repository is enabled if requested
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: '(?s)^#\s*(\[multilib\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+        replace: '\1'
+      when:
+        - repos.managed.extras is defined
+        - repos.managed.extras
+
+    - name: Ensure 'extra' repository is enabled if requested
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: '(?s)^#\s*(\[extra\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+        replace: '\1'
+      when:
+        - repos.managed.extras is defined
+        - repos.managed.extras
+
+    - name: Ensure 'multilib-testing' repository is enabled if requested
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: '(?s)^#\s*(\[multilib-testing\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+        replace: '\1'
+      when:
+        - repos.managed.unstable is defined
+        - repos.managed.unstable
+
+    - name: Ensure 'extras-testing' repository is enabled if requested
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: '(?s)^#\s*(\[extra-testing\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
+        replace: '\1'
+      when:
+        - repos.managed.unstable is defined
+        - repos.managed.unstable
+
+- name: Manage third-party repositories
+  include_tasks: process_repo.yml
+  loop: "{{ repos.third_party }}"
   loop_control:
     loop_var: repo_item
+  when:
+    - repos.third_party is defined
+    - ansible_os_family == 'Archlinux'
+    - repos.third_party | length > 0
 
 - name: Ensure pacman cache is up to date
   community.general.pacman:

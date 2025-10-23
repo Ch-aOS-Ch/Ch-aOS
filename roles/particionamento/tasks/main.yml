@@ -1,67 +1,48 @@
-- name: Formatação de partição root
-  community.general.filesystem:
-    fstype: "{{ formato }}"
-    dev: "{{ root }}"
-  when: root | length > 0 and formato | length > 0
+# Esta role formata as partições E aplica as labels.
 
-- name: Formatação de partição home
+- name: Formatação da partição root
+  community.general.filesystem:
+    fstype: "{{ particoes.root.formato }}"
+    dev: "{{ particoes.root.device }}"
+    force: true
+  when: particoes.root.device is defined and particoes.root.device | length > 0
+
+- name: Formatação da partição home
   community.general.filesystem:
     fstype: ext4
-    dev: "{{ home }}"
-  when: home | length > 0
+    dev: "{{ particoes.home.device }}"
+    force: true
+  when: particoes.home.device is defined and particoes.home.device | length > 0
 
-- name: Formatação de partição swap
-  community.general.filesystem:
-    fstype: swap
-    dev: "{{ swap }}"
-  when: swap | length > 0
-
-- name: Formatação de partição boot
+- name: Formatação da partição boot
   community.general.filesystem:
     fstype: vfat
-    dev: "{{ boot }}"
-  when: boot | length > 0
+    dev: "{{ particoes.boot.device }}"
+    force: true
+  when: particoes.boot.device is defined and particoes.boot.device | length > 0
 
-- name: Ativar root
-  ansible.posix.mount:
-    path: /mnt
-    src: "{{ root }}"
-    fstype: "{{ formato }}"
-    state: mounted
-  when: root | length > 0 and formato | length > 0
-
-- name: Criar diretório da home
-  ansible.builtin.file:
-    path: /mnt/home/
-    state: directory
-    mode: '0755'
-  when: home | length > 0
-
-- name: Criar diretório da boot
-  ansible.builtin.file:
-    path: /mnt/boot/
-    state: directory
-    mode: '0755'
-  when: boot | length > 0
-
-- name: Ativar swap
+- name: Formatação e Label da partição swap
   ansible.builtin.command:
-    cmd: "swapon {{ swap }}"
-  when: swap | length > 0
+    cmd: "mkswap -L {{ particoes.swap.label }} {{ particoes.swap.device }}"
+  when:
+    - particoes.swap.device is defined and particoes.swap.device | length > 0
+    - particoes.swap.label is defined and particoes.swap.label | length > 0
   changed_when: false
 
-- name: Ativar home
+- name: Montar todas as partições (exceto swap)
   ansible.posix.mount:
-    path: /mnt/home
-    src: "{{ home }}"
-    fstype: ext4
+    path: "/mnt{{ item.mount_point | default('') }}"
+    src: "{{ item.device }}"
+    fstype: "{{ item.fstype }}"
     state: mounted
-  when: home | length > 0 and root | length > 0 and formato | length > 0
+  loop:
+    - { device: "{{ particoes.root.device }}", fstype: "{{ particoes.root.formato }}", mount_point: '' }
+    - { device: "{{ particoes.home.device }}", fstype: 'ext4', mount_point: '/home' }
+    - { device: "{{ particoes.boot.device }}", fstype: 'vfat', mount_point: '/boot' }
+  when: item.device is defined and item.device | length > 0
 
-- name: Ativar boot
-  ansible.posix.mount:
-    path: /mnt/boot
-    src: "{{ boot }}"
-    fstype: vfat
-    state: mounted
-  when: boot | length > 0 and root | length > 0 and formato | length > 0
+- name: Ativar swap por Label
+  ansible.builtin.command:
+    cmd: "swapon -L {{ particoes.swap.label }}"
+  when: particoes.swap.label is defined and particoes.swap.label | length > 0
+  changed_when: false
