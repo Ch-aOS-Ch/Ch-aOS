@@ -7,3 +7,11 @@ plugins/secrets_custom-plug-dex.yml
 log.txt
 plugins/particoes
 plugins/region/region.yml
+Ch-obolos/packages
+Ch-obolos/particoes
+Ch-obolos/region
+Ch-obolos/repos
+Ch-obolos/services
+Ch-obolos/users
+Ch-obolos/custom-plug-dex.yml
+Ch-obolos/secrets_custom-plug-dex.yml

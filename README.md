@@ -11,6 +11,8 @@
 
 Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an declarative experience.
 
+***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos) PROJECT SUITE***
+
 ## Why "Ch-aronte"?
 
 1. The name: Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Ch-aron's" name gets "portuguesified".

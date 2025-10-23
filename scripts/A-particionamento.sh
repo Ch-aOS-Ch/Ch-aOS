@@ -4,7 +4,7 @@ set -a
 source respostas.env
 set +a
 source scripts/resources.sh
-plugin_dir="./plugins/"
+plugin_dir="./Ch-obolos/"
 
 # ==============================================================================
 # SETUP DE IDIOMA E MENSAGENS
