@@ -102,20 +102,19 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [x] Plugin System for Custom Packages
 
 ### Modularity + Automation
-- [-] Dotfile Manager integrated with the Plugin System
-- [ ] Fully Automated Execution Mode with a Config File
+- [x] Dotfile Manager integrated with the Plugin System
 
 ### Declarativity + Rollback
-- [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
-- [-] Fully declarative post-install system configuration with only one custom*.yml file.
-- [-] Package manager akin to nixpkgs, with a declarative package list and versioning.
-- [-] Repo manager.
+- [-] Fully declarative installation mode, with it's only necessity being the custom*.yml file. (I just need to implement the checker on the start of the script and if the plugin file exists and is selected, run in declarative mode)
+- [-] Fully declarative post-install system configuration with only one custom*.yml file. (I just need to implement the B-coin helper for this one)
+- [x] Declarative package state manager (Install and uninstall declaratively).
+- [x] Repo manager.
 
 ### Quality + security
-- [-] ansible-lint and ansible-test tests.
+- [-] ansible-lint and ansible-test tests. (Currently being done manually)
 
 ### Ideas being studied
-- [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and so on and so forth).
+- [-] Secrets management (HIGHLY expansible, currently only used for user passwords).
 - [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 
 ## Contributing
