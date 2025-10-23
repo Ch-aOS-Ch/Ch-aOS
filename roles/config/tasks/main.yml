@@ -12,7 +12,7 @@
     - secrets.sec_mode == "charonte"
     - secrets.sec_file is defined and secrets.sec_file != ""
 
-- name: Make sure users exist
+- name: Make sure final_users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
     shell: "{{ item.shell }}"
@@ -20,7 +20,7 @@
     append: true
     create_home: true
     password: "{{ user_secrets[item.name][0].password | default(omit) if user_secrets is defined and user_secrets[item.name] is defined else omit }}"
-  loop: "{{ users }}"
+  loop: "{{ final_users }}"
 
 - name: Manage sudoers
   ansible.builtin.lineinfile:
@@ -31,17 +31,17 @@
 
 - name: Check if Ch-aronte destination folder already exists
   ansible.builtin.stat:
-    path: "/home/{{ users[0].name }}/Ch-aronte"
+    path: "/home/{{ final_users[0].name }}/Ch-aronte"
   register: config_charonte_dest_stat
-  when: users is defined and users | length > 0
+  when: final_users is defined and final_users | length > 0
 
 - name: "Copy Ch-aronte to first user's home directory"
   ansible.builtin.copy:
     src: "/root/Ch-aronte" # Assumindo que o playbook roda de dentro do chroot
-    dest: "/home/{{ users[0].name }}/Ch-aronte"
-    owner: "{{ users[0].name }}"
-    group: "{{ users[0].name }}"
+    dest: "/home/{{ final_users[0].name }}/Ch-aronte"
+    owner: "{{ final_users[0].name }}"
+    group: "{{ final_users[0].name }}"
     mode: '0755'
   when:
-    - users is defined and users | length > 0
+    - final_users is defined and final_users | length > 0
     - not config_charonte_dest_stat.exists
