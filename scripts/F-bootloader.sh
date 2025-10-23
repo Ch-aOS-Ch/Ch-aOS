@@ -44,8 +44,7 @@ echo "$MSG_CONFIGURING"
 # Copia o projeto para o chroot e executa as roles de bootloader e serviços de uma só vez
 cp -r . /mnt/root/Ch-aronte/
 arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader,services -e @/root/Ch-aronte/plugins/"$PLUGIN"
-rm -rf /mnt/root/Ch-aronte/
-
+rm -rf /mnt/root/Ch-aronte/.git
 
 echo "---------------------------------------------------"
 echo "$MSG_GOODBYE_1"

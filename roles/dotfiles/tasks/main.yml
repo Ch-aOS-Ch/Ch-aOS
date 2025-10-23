@@ -1,6 +1,3 @@
-- name: Loading vars
-  ansible.builtin.include_vars: "{{ plugin }}"
-
 - name: Making sure necessary packages are installed
   community.general.pacman:
     name:

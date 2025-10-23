@@ -123,7 +123,7 @@ cp -r ./ /mnt/root/Ch-aronte/
 ansible-playbook -vvv ./main.yaml --tags instalacao -e @plugins/"$PLUGIN"
 
 # Executa as roles restantes de dentro do chroot com uma única chamada
-CHROOT_TAGS="fstab,bootloader,repos"
+CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
   CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
