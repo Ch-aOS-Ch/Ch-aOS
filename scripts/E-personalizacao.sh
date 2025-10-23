@@ -97,7 +97,7 @@ case $choice in
 "1")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  user_hash=$(printf '%s' "$user_pass" | python -c "import crypt, sys; print(crypt.crypt(sys.stdin.read(), crypt.METHOD_SHA512))")
+  user_hash=$(printf '%s' "$user_pass" | openssl passwd -6 -stdin)
   yq -iy ".${username}.password = \"$user_hash\"" "$SECRETS_FILE"
   yq -iy ".root.password = \"$user_hash\"" "$SECRETS_FILE"
   ;;
