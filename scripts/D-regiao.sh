@@ -99,13 +99,13 @@ if [ -z "$keymap" ]; then
 fi
 
 # --- DECLARAR (Salvar no Plugin) ---
-yq -iy ".region.timezone = "$region"" "plugins/$PLUGIN"
-yq -iy ".region.keymap = "$keymap"" "plugins/$PLUGIN"
+yq -iy ".region.timezone = "$region"" "Ch-obolos/$PLUGIN"
+yq -iy ".region.keymap = "$keymap"" "Ch-obolos/$PLUGIN"
 
 # Cria a lista de locales no YAML
-yq -iy '.region.locale = []' "plugins/$PLUGIN"
+yq -iy '.region.locale = []' "Ch-obolos/$PLUGIN"
 for loc in "${locales[@]}"; do
-  yq -iy ".region.locale += ["${loc}.UTF-8"]" "plugins/$PLUGIN"
+  yq -iy ".region.locale += ["${loc}.UTF-8"]" "Ch-obolos/$PLUGIN"
 done
 
 echo ""
@@ -113,7 +113,8 @@ echo "$MSG_CONFIG_SAVED"
 
 # Executa a role do Ansible para aplicar as configurações de região
 cp -r ./ /mnt/root/Ch-aronte
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags region -e @/root/Ch-aronte/plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags region -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
 rm -rf /mnt/root/Ch-aronte
 
 sleep 2
+

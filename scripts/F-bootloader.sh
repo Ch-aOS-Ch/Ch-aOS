@@ -38,12 +38,12 @@ sleep 1
 
 # Garante que o NetworkManager está no plugin antes de executar as roles
 echo "$MSG_ENABLE_NETWORK"
-yq -iy '.services |= (select(.) // []) | . + [{"name": "NetworkManager", "state": "started", "enabled": true}] | unique_by(.name)' "plugins/$PLUGIN"
+yq -iy '.services |= (select(.) // []) | . + [{"name": "NetworkManager", "state": "started", "enabled": true}] | unique_by(.name)' "Ch-obolos/$PLUGIN"
 
 echo "$MSG_CONFIGURING"
 # Copia o projeto para o chroot e executa as roles de bootloader e serviços de uma só vez
 cp -r . /mnt/root/Ch-aronte/
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader,services -e @/root/Ch-aronte/plugins/"$PLUGIN"
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader,services -e @/root/Ch-aronte/Ch-Ch-obolos/"$PLUGIN"
 rm -rf /mnt/root/Ch-aronte/.git
 
 echo "---------------------------------------------------"
