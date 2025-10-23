@@ -1,42 +1,20 @@
-- name: "Method: Uncomment repo block for [{{ repo_item.name }}]"
-  when: repo_item.method == 'uncomment' and repo_item.state == 'present'
-  ansible.builtin.replace:
-    path: /etc/pacman.conf
-    regexp: '(?s)^#\s*(\[{{ repo_item.name }}\]\s*\n#\s*Include\s*=\s*/etc/pacman.d/mirrorlist)'
-    replace: '\1'
-
-- name: "Method: Install repo via custom command for [{{ repo_item.name }}]"
-  when: repo_item.method == 'script' and repo_item.state == 'present'
-  become: true
+- name: "Process third-party repo [{{ repo_item.name }}] for Arch Linux"
+  when: repo_item.distribution is defined and repo_item.distribution == 'arch'
   block:
-    - name: "Check if repo is already configured for [{{ repo_item.name }}]"
-      ansible.builtin.command: "grep -q '[{{ repo_item.name }}]' /etc/pacman.conf"
-      register: repos_repo_exists
-      failed_when: false
-      changed_when: false
+    - name: "Install CachyOS repository"
+      ansible.builtin.shell: "set -e && curl -L {{ repo_item.url }} | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
+      args:
+        creates: /etc/pacman.d/cachyos-mirrorlist
+      when:
+        - repo_item.name == 'cachyOS'
+        - repo_item.url is defined
+        - repo_item.url != ''
 
-    - name: "Run custom setup command"
-      ansible.builtin.shell: "{{ repo_item.command }}"  # noqa command-instead-of-shell
-      when: repos_repo_exists.rc != 0
-      changed_when: true
-
-- name: "Method: Add repo with declarative key for [{{ repo_item.name }}]"
-  when: repo_item.method == 'key' and repo_item.state == 'present'
-  become: true
-  block:
-    - name: "Receive GPG key {{ repo_item.key_id }}"
-      ansible.builtin.command:
-        cmd: "pacman-key --recv-keys {{ repo_item.key_id }} --keyserver {{ repo_item.keyserver | default('hkps://keyserver.ubuntu.com') }}"
-      changed_when: false
-
-    - name: "Locally sign the GPG key {{ repo_item.key_id }}"
-      ansible.builtin.command:
-        cmd: "pacman-key --lsign-key {{ repo_item.key_id }}"
-      changed_when: false
-
-    - name: "Ensure repository block is in pacman.conf"
-      ansible.builtin.blockinfile:
-        path: /etc/pacman.conf
-        block: "{{ repo_item.config_block }}"
-        marker: "# {mark} ANSIBLE MANAGED BLOCK {{ repo_item.name }}"
-        state: present
+    - name: "Install yay aur helper"
+      ansible.builtin.shell: "set -e && git clone {{ repo_item.url }}; cd yay; makepkg -si; cd ..; rm -rf yay/"
+      args:
+        creates: /usr/bin/yay
+      when:
+        - repo_item.name == 'yay'
+        - repo_item.url is defined
+        - repo_item.url != ''

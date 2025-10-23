@@ -81,7 +81,8 @@ yq -iy '.users = [
 
 echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
 echo "{}" >"$SECRETS_FILE"
-yq -iy ".secrets = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
+yq -iy ".secrets.sec_file = \"$SECRETS_FILE\"" "plugins/$PLUGIN"
+yq -iy ".secrets.sec_mode = \"charonte\"" "plugins/$PLUGIN"
 
 clear
 echo "Senha para o usuário: ${username}"

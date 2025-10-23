@@ -20,6 +20,12 @@
   ansible.builtin.set_fact:
     pkgs_pacotes_finais: "{{ pkgs_pacotes_base | union(pkgs_pacotes_desejados) }}"
 
+- name: Add bootloader to final package list
+  ansible.builtin.set_fact:
+    pkgs_pacotes_finais: "{{ pkgs_pacotes_finais | union([bootloader]) }}"
+  when: bootloader is defined and bootloader | length > 0
+
+
 - name: Get true pkg list
   ansible.builtin.command:
     cmd: pacman -Qqe

@@ -1,0 +1,36 @@
+# Passo 1: Aplicar as labels nas partições (exceto swap)
+- name: Aplicar label na partição root (ext4)
+  ansible.builtin.command:
+    cmd: "e2label {{ particoes.root.device }} {{ particoes.root.label }}"
+  when:
+    - particoes.root.label is defined and particoes.root.label | length > 0
+    - particoes.root.formato == 'ext4'
+  changed_when: false
+
+- name: Aplicar label na partição root (btrfs)
+  ansible.builtin.command:
+    cmd: "btrfs filesystem label {{ particoes.root.device }} {{ particoes.root.label }}"
+  when:
+    - particoes.root.label is defined and particoes.root.label | length > 0
+    - particoes.root.formato == 'btrfs'
+  changed_when: false
+
+- name: Aplicar label na partição home
+  ansible.builtin.command:
+    cmd: "e2label {{ particoes.home.device }} {{ particoes.home.label }}"
+  when:
+    - particoes.home.label is defined and particoes.home.label | length > 0
+  changed_when: false
+
+- name: Aplicar label na partição boot
+  ansible.builtin.command:
+    cmd: "fatlabel {{ particoes.boot.device }} {{ particoes.boot.label }}"
+  when:
+    - particoes.boot.label is defined and particoes.boot.label | length > 0
+  changed_when: false
+
+# Passo 2: Gerar o arquivo /etc/fstab usando o genfstab
+- name: Gerar /etc/fstab usando Labels
+  ansible.builtin.command:
+    cmd: genfstab -L /mnt > /etc/fstab
+  changed_when: false

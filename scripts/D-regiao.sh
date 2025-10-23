@@ -3,46 +3,37 @@ set -e
 set -a
 source respostas.env
 set +a
+source scripts/resources.sh
 
 # ==============================================================================
 # SETUP DE IDIOMA E VARIÁVEIS
 # ==============================================================================
 case "$LANGC" in
 "Portugues")
-  MSG_SYSTEM_INSTALLED="tá, teu sistema tá instalado, agora bora pra parte legal"
-  MSG_FIX_CLOCK="primeiro, vamos usar ln -sf /usr/share/zoneinfo/(sua região) pra consertar esse relógio..."
-  MSG_SEARCH_REGION="pesquisa aí a região de timedatectl mais próxima de você (ou não escreva nada pra deixar em SP)"
-  MSG_REGION_PROMPT="Região: "
+  MSG_START="Ok, vamos configurar a região e o idioma do seu sistema."
+  MSG_TIMEZONE_INFO="Primeiro, o fuso horário. Você pode ver uma lista com 'timedatectl list-timezones'."
+  MSG_TIMEZONE_PROMPT="Digite o seu fuso horário (ex: America/Sao_Paulo): "
   DEFAULT_REGION="America/Sao_Paulo"
-  MSG_INVALID_REGION="Região inválida! tente de novo "
-  MSG_SYNCING_CLOCK="syncando o relógio com hwclock --systohc..."
-  MSG_CLOCK_SYNCED="relógio sincronizado paizão/mãezona/patrono... eu tenho que parar de usar tanto pronome assim, vou enlouquecer"
-  MSG_LOCALE_INTRO="oooookay, bora pro teu locale (tua linguagem), vamo usar nano /etc/locale.gen e VOCÊ (sim, VOCÊ) vai descomentar a linha do locale que tu quiser"
-  MSG_LOCALE_GEN_INFO="ah, e deixa que eu rodo o locale-gen pra você"
-  MSG_ALL_SET_PROMPT="tudo certo? (Y/n) "
-  MSG_READ_AGAIN="Por favor, leia as instruções novamente."
-  MSG_TELL_ME_LOCALE="agora, me diga a linha que tu descomentou, só coloca a região, tipo 'pt_BR' ou 'en_US' e SIM, preciso das duas letras maíusculas no final. "
-  MSG_LOCALE_NOT_FOUND="Locale não encontrado no locale.gen"
-  MSG_TRY_AGAIN_LOCALE="Tenta de novo, com algo tipo pt_BR ou en_US: "
-  KEYMAP_VALUE="br-abnt2"
+  MSG_INVALID_REGION="Fuso horário inválido! O arquivo para essa região não existe em /usr/share/zoneinfo/. Tente novamente."
+  MSG_LOCALE_INFO="Agora, vamos configurar o idioma (locale) e o layout do teclado (keymap)."
+  MSG_LOCALE_PROMPT="Digite o locale que você deseja (ex: pt_BR): "
+  DEFAULT_LOCALE="pt_BR"
+  MSG_KEYMAP_PROMPT="Digite o layout do seu teclado (ex: br-abnt2): "
+  DEFAULT_KEYMAP="br-abnt2"
+  MSG_CONFIG_SAVED="Configurações de região salvas no seu plugin."
   ;;
 "English")
-  MSG_SYSTEM_INSTALLED="Alright, your system is installed, now let's get to the fun part"
-  MSG_FIX_CLOCK="First, we'll use ln -sf /usr/share/zoneinfo/(your region) to fix the clock..."
-  MSG_SEARCH_REGION="Search for the closest timedatectl region to you (or leave it blank to set it to NY)"
-  MSG_REGION_PROMPT="Region: "
+  MSG_START="Alright, let's configure your system's region and language."
+  MSG_TIMEZONE_INFO="First, the timezone. You can see a list with 'timedatectl list-timezones'."
+  MSG_TIMEZONE_PROMPT="Enter your timezone (e.g., America/New_York): "
   DEFAULT_REGION="America/New_York"
-  MSG_INVALID_REGION="Invalid region! Please try again."
-  MSG_SYNCING_CLOCK="Syncing the clock with hwclock --systohc..."
-  MSG_CLOCK_SYNCED="Clock synced, sir/miss/gentleperson... I really need to stop using so many pronouns, it's driving me crazy"
-  MSG_LOCALE_INTRO="Okay, let's set your locale (language), open nano /etc/locale.gen and YOU (yes, YOU) will uncomment the line for the locale you want"
-  MSG_LOCALE_GEN_INFO="Oh, and I'll run locale-gen for you"
-  MSG_ALL_SET_PROMPT="All set? (Y/n) "
-  MSG_READ_AGAIN="Please read the instructions again."
-  MSG_TELL_ME_LOCALE="Now, tell me the line you uncommented, just type the region, like 'en_US' or 'pt_BR', and YES, I need those two uppercase letters at the end. "
-  MSG_LOCALE_NOT_FOUND="Locale not found in locale.gen"
-  MSG_TRY_AGAIN_LOCALE="Try again, with something like en_US or pt_BR: "
-  KEYMAP_VALUE="us"
+  MSG_INVALID_REGION="Invalid timezone! The file for that region does not exist in /usr/share/zoneinfo/. Please try again."
+  MSG_LOCALE_INFO="Now, let's set up the locale and keyboard layout (keymap)."
+  MSG_LOCALE_PROMPT="Enter the locale you want (e.g., en_US): "
+  DEFAULT_LOCALE="en_US"
+  MSG_KEYMAP_PROMPT="Enter your keyboard layout (e.g., us): "
+  DEFAULT_KEYMAP="us"
+  MSG_CONFIG_SAVED="Region settings saved to your plugin."
   ;;
 *)
   echo "Unsupported language setting."
@@ -54,56 +45,50 @@ esac
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
 
-sleep 1
-echo "$MSG_SYSTEM_INSTALLED"
+echo "$MSG_START"
+echo ""
 
 # --- TIMEZONE ---
-echo "$MSG_FIX_CLOCK"
-sleep 1
-echo "$MSG_SEARCH_REGION"
-read -p "$MSG_REGION_PROMPT" -r region
+echo "$MSG_TIMEZONE_INFO"
+read -p "$MSG_TIMEZONE_PROMPT" -r region
 
 if [ -z "$region" ]; then
   region="$DEFAULT_REGION"
 fi
 
+# Validação robusta que verifica se o arquivo de fuso horário realmente existe.
 while [ ! -f "/usr/share/zoneinfo/$region" ]; do
   echo "$MSG_INVALID_REGION"
-  read -p "$MSG_REGION_PROMPT" -r region
+  read -p "$MSG_TIMEZONE_PROMPT" -r region
+  if [ -z "$region" ]; then
+    region="$DEFAULT_REGION" # Garante que o default seja testado se o usuário digitar enter
+  fi
 done
 
-ln -sf "/usr/share/zoneinfo/$region" "/mnt/etc/localtime"
-echo "$MSG_SYNCING_CLOCK"
-sleep 1
-arch-chroot /mnt hwclock --systohc
-echo "$MSG_CLOCK_SYNCED"
-sleep 1
+# --- LOCALE & KEYMAP ---
+echo ""
+echo "$MSG_LOCALE_INFO"
+read -p "$MSG_LOCALE_PROMPT" -r locale
+if [ -z "$locale" ]; then
+  locale="$DEFAULT_LOCALE"
+fi
 
-# --- LOCALE ---
-echo "$MSG_LOCALE_INTRO"
-sleep 1
-echo "$MSG_LOCALE_GEN_INFO"
+read -p "$MSG_KEYMAP_PROMPT" -r keymap
+if [ -z "$keymap" ]; then
+  keymap="$DEFAULT_KEYMAP"
+fi
 
-read -p "$MSG_ALL_SET_PROMPT" -r certo
-# Usando a lógica de confirmação corrigida
-while ! [[ "$certo" == "Y" || "$certo" == "y" || "$certo" == "" ]]; do
-  echo "$MSG_READ_AGAIN"
-  read -p "$MSG_ALL_SET_PROMPT" -r certo
-done
+# --- DECLARAR (Salvar no Plugin) ---
+yq -iy ".region.timezone = \"$region\"" "plugins/$PLUGIN"
+yq -iy ".region.locale = \"${locale}.UTF-8\"" "plugins/$PLUGIN"
+yq -iy ".region.keymap = \"$keymap\"" "plugins/$PLUGIN"
 
-sleep 1
-nano /mnt/etc/locale.gen
-sleep 1
-arch-chroot /mnt locale-gen
+echo ""
+echo "$MSG_CONFIG_SAVED"
 
-read -p "$MSG_TELL_ME_LOCALE" -r lingua
-while ! grep -q "^#\?$lingua.UTF-8" /mnt/etc/locale.gen; do
-  echo "$MSG_LOCALE_NOT_FOUND"
-  read -p "$MSG_TRY_AGAIN_LOCALE" -r lingua
-done
+# Executa a role do Ansible para aplicar as configurações de região
+cp -r ./ /mnt/root/Ch-aronte
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags region -e @/root/Ch-aronte/plugins/"$PLUGIN"
+rm -rf /mnt/root/Ch-aronte
 
-echo "LANG=$lingua.UTF-8" >/mnt/etc/locale.conf
-echo "KEYMAP=$KEYMAP_VALUE" >/mnt/etc/vconsole.conf
-
-echo "Locale e keymap configurados!"
-sleep 1
+sleep 2

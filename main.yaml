@@ -22,11 +22,29 @@
   roles:
     - config
 
-- name: Install dotfiles
+- name: Configura os dotfiles do sistema
+  tags: dotfiles
   hosts: localhost
-  tags: [dotfiles]
   roles:
-    - dotfiles
+    - role: dotfiles
+
+- name: Configura a região do sistema
+  tags: region
+  hosts: localhost
+  roles:
+    - role: region
+
+- name: Configura o bootloader do sistema
+  hosts: localhost
+  tags: bootloader
+  roles:
+    - role: bootloader
+
+- name: Gera o fstab do sistema
+  tags: fstab
+  hosts: localhost
+  roles:
+    - role: fstab
 
 - name: Setup Repos
   hosts: localhost

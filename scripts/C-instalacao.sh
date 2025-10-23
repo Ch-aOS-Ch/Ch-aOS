@@ -48,28 +48,28 @@ repos_update() {
     return
   fi
 
+  # Inicializa a estrutura no YAML para evitar erros
+  yq -iy '.repos.managed.extras |= (select(.) // false)' "plugins/$PLUGIN"
+  yq -iy '.repos.third_party |= (select(.) // [])' "plugins/$PLUGIN"
+
   want_repo="y"
   while [[ "$want_repo" =~ ^[Yy]?$ ]]; do
     read -p "$MSG_WHICH_REPO" -r repo
     local repo_name
     repo_name=$(echo "$repo" | tr '[:upper:]' '[:lower:]')
 
-    # Checa com yq se o repo já existe
-    if yq -e ".repos[] | select(.name == \"$repo_name\")" "plugins/$PLUGIN" >/dev/null; then
-      echo "$MSG_ALREADY_SELECTED"
-      read -p "$MSG_ANY_MORE" -r want_repo
-      continue
-    fi
-
     case $repo_name in
     "multilib" | "extra")
       echo "$MSG_ADDING $repo_name..."
-      yq -iy ".repos += [{\"name\": \"$repo_name\", \"state\": \"present\", \"method\": \"uncomment\"}]" "plugins/$PLUGIN"
+      yq -iy '.repos.managed.extras = true' "plugins/$PLUGIN"
       ;;
     "cachyos" | "cachy")
-      echo "$MSG_ADDING cachyos..."
-      local cachy_command="curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
-      yq -iy ".repos += [{\"name\": \"cachyos\", \"state\": \"present\", \"method\": \"script\", \"command\": \"$cachy_command\"}]" "plugins/$PLUGIN"
+      if yq -e '.repos.third_party[] | select(.name == "cachyOS")' "plugins/$PLUGIN" >/dev/null; then
+        echo "$MSG_ALREADY_SELECTED"
+      else
+        echo "$MSG_ADDING cachyos..."
+        yq -iy '.repos.third_party += [{"name": "cachyOS", "distribution": "arch", "url": "https://mirror.cachyos.org/cachyos-repo.tar.xz"}]' "plugins/$PLUGIN"
+      fi
       ;;
     *)
       echo "Repositório inválido. Tente novamente."
@@ -109,10 +109,7 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
   read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
-# Garante que a chave 'repos' exista como uma lista e adiciona 'core'
-yq -iy '.repos |= (select(.) // [])' "plugins/$PLUGIN"
-yq -iy '.repos += [{"name": "core", "state": "present", "method": "uncomment"}] | .repos |= unique_by(.name)' "plugins/$PLUGIN"
-
+yq -iy '.repos.managed.core = true' "plugins/$PLUGIN"
 repos_update
 
 set -a
@@ -124,6 +121,12 @@ cp -r ./ /mnt/root/Ch-aronte/
 
 # Executa os playbooks em sequência, a maioria DENTRO do chroot
 ansible-playbook -vvv ./main.yaml --tags instalacao -e @plugins/"$PLUGIN"
+
+# Gera o fstab usando a nova role
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags fstab -e @/root/Ch-aronte/plugins/"$PLUGIN"
+
+arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader -e @/root/Ch-aronte/plugins/"$PLUGIN"
+
 arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags repos -e @/root/Ch-aronte/plugins/"$PLUGIN"
 
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
@@ -132,6 +135,3 @@ fi
 
 # Limpa os arquivos de instalação
 rm -rf /mnt/root/Ch-aronte
-
-genfstab -U /mnt >/mnt/etc/fstab
-
