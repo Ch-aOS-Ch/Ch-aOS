@@ -1,41 +1,30 @@
 [versão pt br](./READMEpt_BR.md)
 # Ch-aronte
 
-**Your guide through the Arch Linux underworld.**
+**An declarative Arch linux installer and manager**
 
 [![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
 ---
 
-**Ch-aronte** is not just an installer. It's a guided, interactive journey into the heart of Arch Linux, designed for those who want to install with confidence and truly learn the process—no more blind copy-pasting.
-
-Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an declarative experience.
-
+***An guided arch-installer and declarative system manager***
 ***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos) PROJECT SUITE***
-
-## Why "Ch-aronte"?
-
-1. The name: Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Ch-aron's" name gets "portuguesified".
-2. The parts: Charon, the ferryman, also took 2 coins to guide the souls, and Arch takes 2 parts to configure (the install and pont-install), so this script will also have 2 parts, one to install arch and another one to manage your system (A-coin.sh and B-coin helper respectively), both declaratively.
-3. But why use Ch-aronte? Quite simple: it follows nix's philosophy, it's meant to add an declarative abstraction layer to your configuration, allowing you to, in the script's language, say "create these users with these groups" or "keep these packages installed, install the ones that aren't and delete all the rest (yes, dangerous, I know)" all from the comfort of your own Arch installation. Also, it doubles doen as a declarative installer, allowing for easy reproducibility of your system.
 
 ## Key Features
 
-* **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
-* **Automatic Firmware Detection**: Installation for **UEFI** or **BIOS**.
-* **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom preset, manage linux's system configurations (such as users, hostname and such), manage packsges declaratively and manage repos
-* **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
+- **An *guided* instalation process**: Instead of automating everything, the script displays a series of questions and explanations about what it's doing to the reader, they gather information about the _how_ the reader wants their system, it then writes an singular file in yaml –for easy readability– and uses _that_ file to install the system, it is not automated at all (Im working on an automated mode)
+- **The plugin –or better yey, Ch-obolos– system**: Akin to nix, the Ch-aOS plugin system is fully declarative, written exclusively in yaml, it helps the user manage their whole entire system with one singular file by using ansible + the (WIP) Ch-imera project will be able to take these plugins and compile them into nixlang, allowing for an easy transition.
 
 ## The Architecture: Orchestrator + Worker
 
-The project uses a powerful and flexible hybrid architecture:
+The project uses a hybrid architecture, delegating to different languages their do's and don't's:
 
-* **Shell Script (The Orchestrator)**: Acts as the interactive frontend, gathering user input, validating data, and orchestrating the installation sequence.
-* **Ansible (The Worker)**: Acts as the backend, executing the heavy-lifting tasks declaratively and reliably—partitioning, package installation, and system configuration.
+* **Shell Script (The Orchestrator)**: Used to gather user input, transform the input into an declarative file and call in–
+* **Ansible (The Worker)**: Used to make sure the system state is the same as the one declared in the Ch-obolo file.
 
 ## Getting Started
 
-Designed to be run directly from the Arch Linux Live ISO environment.
+Run directly from the Arch Linux Live ISO environment.
 
 ### Prerequisites:
 
@@ -67,9 +56,9 @@ chmod +x A-coin.sh
 
 ## Plugin System
 
-Customize your installation by creating your own package presets.
+Customize your installation by creating your own presets.
 1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
-2. While you can put everything in one file, we recommend separating concerns into multiple files and using a main file to import them. This makes your configuration cleaner and more reusable.
+2. While you can put everything in one file, I recommend separating concerns into multiple files and using a main file to import them. This makes your configuration cleaner and more reusable.
 
 For example, you could have the following structure in your `./Ch-obolos/` directory:
 ```
@@ -240,9 +229,6 @@ region:
 cd Ch-aronte
 DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
 ```
-> [!INFO]
-> Works directly from your terminal!
-
 
 ## Project Roadmap
 
@@ -254,8 +240,9 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ### Modularity + Automation
 - [x] Dotfile Manager integrated with the Plugin System
+- [x] Import system (hell)
 
-### Declarativity + Rollback
+### Declarativity
 - [-] Fully declarative installation mode, with it's only necessity being the custom*.yml file. (I just need to implement the checker on the start of the script and if the plugin file exists and is selected, run in declarative mode)
 - [-] Fully declarative post-install system configuration with only one custom*.yml file. (I just need to implement the B-coin helper for this one)
 - [x] Declarative package state manager (Install and uninstall declaratively).
@@ -275,8 +262,8 @@ Contributions are the lifeblood of open-source software. If you have ideas to im
 Areas of particular interest include:
 
 - Creative translations and improvements to the narrative style.
-- Automation of dotfile management.
 - Suggestions and implementations for post-install configurations.
+- Help to check if the Ch-obolos are truly declarative or not.
 - Creation of issues.
 
 ## Acknowledgements
