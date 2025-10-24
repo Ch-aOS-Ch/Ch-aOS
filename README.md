@@ -69,29 +69,176 @@ chmod +x A-coin.sh
 
 Customize your installation by creating your own package presets.
 1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
-2. Use the format below to list your desired packages:
+2. While you can put everything in one file, we recommend separating concerns into multiple files and using a main file to import them. This makes your configuration cleaner and more reusable.
+
+For example, you could have the following structure in your `./Ch-obolos/` directory:
+```
+.
+├── custom-main.yml
+├── dotfiles.yml
+├── packages.yml
+├── partitions.yml
+├── region.yml
+├── repos.yml
+├── services.yml
+└── users.yml
+```
+
+Your main file, `custom-main.yml`, would then use `imports` to combine the other files. The `strategy` key (`override`, `combine`, `merge`) determines how data is merged if keys conflict.
 ```YAML
+# ./Ch-obolos/custom-main.yml
+# This is the main entrypoint file for your plugin.
+plug_name: custom-main.yml # <- essential, this identifies the plugin
+
+imports:
+  - file: 'users.yml'
+    strategy: merge
+    merge_keys:
+      - users
+
+  - file: 'packages.yml'
+    strategy: override
+
+  - file: 'services.yml'
+    strategy: combine
+
+  - file: 'repos.yml'
+    strategy: combine
+
+  - file: 'dotfiles.yml'
+    strategy: merge
+    merge_keys:
+      - dotfiles
+
+  # Partitions and region are usually defined by the interactive script,
+  # but can also be imported if you are running in a fully declarative mode.
+  - file: 'particoes.yml'
+    strategy: override
+
+  - file: 'region.yml'
+    strategy: override
+```
+
+And the corresponding files would contain the specific configurations, for example:
+```YAML
+# ./Ch-obolos/packages.yml
 pacotes:
   - neovim
   - fish
   - starship
 
+bootloader: "grub"
+```
+
+Or:
+```YAML
+# ./Ch-obolos/users.yml
+users:
+  - name: "dexmachina"
+    shell: "/bin/zsh"
+    groups:
+      - wheel
+      - dexmachina
+
+  - name: "root"
+    shell: "/bin/bash"
+    groups:
+      - root
+hostname: "Dionysus"
+wheel_access: true
+secrets:
+  sec_mode: "charonte" #<- later I will add a "system" mode, which requires prior setup of ansible-vault or nix's sops
+  sec_file: "Ch-obolos/secrets.yml" #<- secrets file (passwords), must be secret and is REQUIRED for sec_mode "charonte"
+```
+
+### Example of a complete file with everything in one:
+```YAML
+# It's recommended to separate these configurations into different files
+# (e.g., users.yml, packages.yml) and use a main plugin file to import them,
+# but for this example, everything is in one place.
+
+# Defines system users, groups, and hostname
+users:
+  - name: "dexmachina"
+    shell: "/bin/zsh"
+    groups:
+      - wheel
+      - dexmachina
+  - name: "root"
+    shell: "/bin/bash"
+    groups:
+      - root
+hostname: "Dionysus"
+wheel_access: true # Grants sudo access to the 'wheel' group
+
+# Defines the list of packages to be declaratively managed
+pacotes:
+  - neovim
+  - fish
+  - starship
+  - btop
+bootloader: "grub" # or "refind"
+
+# Manages systemd services
+services:
+  - name: "NetworkManager"
+    state: "started"
+    enabled: true
+  - name: "bluetooth"
+    state: "started"
+    enabled: true
+
+# Manages pacman repositories
+repos:
+  managed:
+    extras: true      # Enables the [extras+multilib] repository
+    unstable: false   # Disables the [testing] repositories
+  third_party:
+    - name: "cachyOS"
+      distribution: "arch"
+      url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
+
+# Manages dotfiles from git repositories
 dotfiles:
   - repo: https://github.com/your-user/your-dotfiles.git
     # To decide how the script will behave, you have 3 options as to how it will work.
     install_command: "your_custom_dotfile_command.sh"
-    # OPTION 1: install_command is an variable that you can set to decide how the script will install your dotfiles. It uses the root of your repo as a base point, so be aware of that.
+    # OPTION 1: install_command is a variable that you can set to decide how the script will install your dotfiles.
+    # It uses the root of your repo as a base point, so be aware of that.
     manager: "stow"
-    # OPTION 2: You set an manager and the script applies it to every folder in your repo.
-    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for a "install.sh" inside of the root of your repo, using it as a basis to install your dotfiles.
+    # OPTION 2: You set a manager and the script applies it to every folder in your repo.
+    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for an "install.sh" file inside the root of your repo, using it as a basis to install your dotfiles.
+
+# Defines disk partitions (usually filled by the interactive script)
+particoes:
+  root:
+    device: "/dev/sda2"
+    label: "ARCH_ROOT"
+    formato: "ext4"
+  home:
+    device: "/dev/sda4"
+    label: "ARCH_HOME"
+  boot:
+    device: "/dev/sda1"
+    label: "ESP"
+  swap:
+    device: "/dev/sda3"
+    label: "SWAP"
+
+# Defines region, language, and keyboard settings
+region:
+  timezone: "America/Sao_Paulo"
+  locale:
+    - "pt_BR.UTF-8"
+    - "en_US.UTF-8"
+  keymap: "br-abnt2"
+
 ```
-> [!WARNING]
-> USE SPACES INSTEAD OF TABS, ANSIBLE IS VERY SENSITIVE.
 
 ### To generate your current system's plugin, run:
 ```bash
 cd Ch-aronte
-DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
+DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
 ```
 > [!INFO]
 > Works directly from your terminal!
