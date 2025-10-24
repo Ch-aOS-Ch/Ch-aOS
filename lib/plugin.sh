@@ -30,7 +30,7 @@ plugin_add_to_list() {
 select_or_create_plugin_file() {
   shopt -s nullglob
   mkdir -p "$PLUGIN_DIR"
-  local existing_plugins=(${PLUGIN_DIR}custom*.yml)
+  local existing_plugins=("${PLUGIN_DIR}"custom*.yml)
   local choice arquivo
   if [ ${#existing_plugins[@]} -gt 0 ]; then
     echo "$MSG_EXISTING_PLUGINS_FOUND" >&2
@@ -63,6 +63,7 @@ select_or_create_plugin_file() {
   echo "$arquivo"
 }
 
+# função para atualizar repositórios extras
 repos_update() {
   local want_repo
   read -p "Deseja configurar repositórios extras (multilib, cachy, etc)? (Y/n) " -r want_repo
