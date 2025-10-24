@@ -25,6 +25,7 @@
     final_users: "{{ final_config.users | default([]) }}"
     final_services: "{{ final_config.services | default([]) }}"
     final_dotfiles: "{{ final_config.dotfiles | default([]) }}"
+    final_aur_helpers: "{{ final_config.aur_helpers | default([]) }}"
     hostname: "{{ final_config.hostname | default(omit) }}"
     wheel_access: "{{ final_config.wheel_access | default(omit) }}"
     secrets: "{{ final_config.secrets | default(omit) }}"
