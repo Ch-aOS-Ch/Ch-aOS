@@ -173,7 +173,7 @@ pacotes:
   - btop
 bootloader: "grub" # or "refind"
 
-# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~cowsay~ etc)
+# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
 
 # Manages systemd services
 services:
@@ -191,7 +191,7 @@ repos:
     unstable: false   # Disables the [testing] repositories
   third_party:
     - name: "cachyOS"
-      distribution: "arch"
+      distribution: "arch" #<~ Allows for quick Ch-imera parsing, it tells it to not use it as an nix repo
       url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
 
 # Manages dotfiles from git repositories

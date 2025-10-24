@@ -18,9 +18,9 @@
 
 - name: Setup config
   hosts: localhost
-  tags: [config]
+  tags: [users]
   roles:
-    - config
+    - users
 
 - name: Configura os dotfiles do sistema
   tags: dotfiles
