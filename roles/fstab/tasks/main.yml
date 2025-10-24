@@ -1,33 +1,43 @@
-# Passo 1: Aplicar as labels nas partições (exceto swap)
-- name: Aplicar label na partição root (ext4)
-  ansible.builtin.command:
-    cmd: "e2label {{ particoes.root.device }} {{ particoes.root.label }}"
+- name: Formatação e Label da partição root
+  community.general.filesystem:
+    fstype: "{{ particoes.root.formato }}"
+    dev: "{{ particoes.root.device }}"
+    opts: "-L {{ particoes.root.label }}"
+    force: true
   when:
+    - particoes.root.device is defined and particoes.root.device | length > 0
     - particoes.root.label is defined and particoes.root.label | length > 0
-    - particoes.root.formato == 'ext4'
-  changed_when: false
+    - particoes.root.formato is defined
 
-- name: Aplicar label na partição root (btrfs)
-  ansible.builtin.command:
-    cmd: "btrfs filesystem label {{ particoes.root.device }} {{ particoes.root.label }}"
+- name: Formatação e Label da partição home
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ particoes.home.device }}"
+    opts: "-L {{ particoes.home.label }}"
+    force: true
   when:
-    - particoes.root.label is defined and particoes.root.label | length > 0
-    - particoes.root.formato == 'btrfs'
-  changed_when: false
-
-- name: Aplicar label na partição home
-  ansible.builtin.command:
-    cmd: "e2label {{ particoes.home.device }} {{ particoes.home.label }}"
-  when:
+    - particoes.home.device is defined and particoes.home.device | length > 0
     - particoes.home.label is defined and particoes.home.label | length > 0
-  changed_when: false
 
-- name: Aplicar label na partição boot
-  ansible.builtin.command:
-    cmd: "fatlabel {{ particoes.boot.device }} {{ particoes.boot.label }}"
+- name: Formatação e Label da partição boot
+  community.general.filesystem:
+    fstype: vfat
+    dev: "{{ particoes.boot.device }}"
+    opts: "-n {{ particoes.boot.label }}"
+    force: true
   when:
+    - particoes.boot.device is defined and particoes.boot.device | length > 0
     - particoes.boot.label is defined and particoes.boot.label | length > 0
-  changed_when: false
+
+- name: Formatação e Label da partição swap
+  community.general.filesystem:
+    fstype: swap
+    dev: "{{ particoes.swap.device }}"
+    opts: "-L {{ particoes.swap.label }}"
+    force: true
+  when:
+    - particoes.swap.device is defined and particoes.swap.device | length > 0
+    - particoes.swap.label is defined and particoes.swap.label | length > 0
 
 # Passo 2: Gerar o arquivo /etc/fstab usando o genfstab
 - name: Gerar fstab na memória
@@ -37,6 +47,7 @@
   changed_when: false
 
 - name: Escrever /etc/fstab a partir do conteúdo gerado
+  become: true
   ansible.builtin.copy:
     content: "{{ fstab_content.stdout }}"
     dest: /etc/fstab

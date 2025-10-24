@@ -1,33 +1,43 @@
-# Esta role formata as partições E aplica as labels.
-
-- name: Formatação da partição root
+- name: Formatação e Label da partição root
   community.general.filesystem:
     fstype: "{{ particoes.root.formato }}"
     dev: "{{ particoes.root.device }}"
+    opts: "-L {{ particoes.root.label }}"
     force: true
-  when: particoes.root.device is defined and particoes.root.device | length > 0
+  when:
+    - particoes.root.device is defined and particoes.root.device | length > 0
+    - particoes.root.label is defined and particoes.root.label | length > 0
+    - particoes.root.formato is defined
 
-- name: Formatação da partição home
+- name: Formatação e Label da partição home
   community.general.filesystem:
     fstype: ext4
     dev: "{{ particoes.home.device }}"
+    opts: "-L {{ particoes.home.label }}"
     force: true
-  when: particoes.home.device is defined and particoes.home.device | length > 0
+  when:
+    - particoes.home.device is defined and particoes.home.device | length > 0
+    - particoes.home.label is defined and particoes.home.label | length > 0
 
-- name: Formatação da partição boot
+- name: Formatação e Label da partição boot
   community.general.filesystem:
     fstype: vfat
     dev: "{{ particoes.boot.device }}"
+    opts: "-n {{ particoes.boot.label }}"
     force: true
-  when: particoes.boot.device is defined and particoes.boot.device | length > 0
+  when:
+    - particoes.boot.device is defined and particoes.boot.device | length > 0
+    - particoes.boot.label is defined and particoes.boot.label | length > 0
 
 - name: Formatação e Label da partição swap
-  ansible.builtin.command:
-    cmd: "mkswap -L {{ particoes.swap.label }} {{ particoes.swap.device }}"
+  community.general.filesystem:
+    fstype: swap
+    dev: "{{ particoes.swap.device }}"
+    opts: "-L {{ particoes.swap.label }}"
+    force: true
   when:
     - particoes.swap.device is defined and particoes.swap.device | length > 0
     - particoes.swap.label is defined and particoes.swap.label | length > 0
-  changed_when: false
 
 - name: Montar todas as partições (exceto swap)
   ansible.posix.mount:
@@ -46,3 +56,15 @@
     cmd: "swapon -L {{ particoes.swap.label }}"
   when: particoes.swap.label is defined and particoes.swap.label | length > 0
   changed_when: false
+  
+- name: Gerar fstab na memória
+  ansible.builtin.command:
+    cmd: genfstab -L /mnt
+  register: fstab_content
+  changed_when: false
+
+- name: Escrever /etc/fstab a partir do conteúdo gerado
+  become: true
+  ansible.builtin.copy:
+    content: "{{ fstab_content.stdout }}"
+    dest: /etc/fstab

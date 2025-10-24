@@ -22,6 +22,12 @@
   roles:
     - users
 
+- name: Setup AUR
+  hosts: localhost
+  tags: [aur]
+  roles:
+    - aur
+
 - name: Configura os dotfiles do sistema
   tags: dotfiles
   hosts: localhost
