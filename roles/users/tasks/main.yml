@@ -17,13 +17,19 @@
     database: passwd
   register: current_users
 
+- name: Initialize system_users list
+  ansible.builtin.set_fact:
+    system_users: []
+
 - name: Filter system users
   ansible.builtin.set_fact:
-    system_users: "{{ current_users.passwd | selectattr('uid', 'lt', 1000) | map(attribute='name') | list }}"
+    system_users: "{{ system_users + [item.key] }}"
+  loop: "{{ current_users.ansible_facts.getent_passwd | dict2items }}"
+  when: "item.value[1] | int < 1000 | int > 0 | int != 65534"
 
 - name: Determine users to remove
   ansible.builtin.set_fact:
-    users_to_remove: "{{ current_users.passwd | map(attribute='name') | difference(final_users | map(attribute='name') | list) | difference(system_users) }}"
+    users_to_remove: "{{ (current_users.ansible_facts.getent_passwd.keys() | list) | difference(final_users | map(attribute='name') | list) | difference(system_users) | difference(['nobody']) }}"
   when: final_users is defined
 
 - name: Remove users not in final_users
@@ -48,6 +54,7 @@
   loop: "{{ final_users }}"
 
 - name: Manage sudoers
+  become: true
   ansible.builtin.lineinfile:
     path: /etc/sudoers
     regexp: "{{ '^#\\s*%wheel ALL=\\(ALL:ALL\\) ALL' if wheel_access | bool else '^%wheel ALL=\\(ALL:ALL\\) ALL' }}"
