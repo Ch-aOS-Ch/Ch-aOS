@@ -1,39 +1,30 @@
 [versão pt br](./READMEpt_BR.md)
 # Ch-aronte
 
-**Your guide through the Arch Linux underworld.**
+**An declarative Arch linux installer and manager**
 
 [![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
 ---
 
-**Ch-aronte** is not just an installer. It's a guided, interactive journey into the heart of Arch Linux, designed for those who want to install with confidence and truly learn the process—no more blind copy-pasting.
-
-Built with the robustness of **Ansible** and the interactivity of **Shell Script**, it automates the tedious parts and gives you control where it matters, turning a complex installation into an declarative experience.
-
-## Why "Ch-aronte"?
-
-1. The name: Well, first of all, Charon is the underworld ferrymen in Greek mythology, guiding souls across the Styx. Ch-aronte is a play of words, combining "Charon" with "Chroot" + i'm Brazillian, so "Ch-aron's" name gets "portuguesified".
-2. The parts: Charon, the ferryman, also took 2 coins to guide the souls, and Arch takes 2 parts to configure (the install and pont-install), so this script will also have 2 parts, one to install arch and another one to manage your system (A-coin.sh and B-coin helper respectively), both declaratively.
-3. But why use Ch-aronte? Quite simple: it follows nix's philosophy, it's meant to add an declarative abstraction layer to your configuration, allowing you to, in the script's language, say "create these users with these groups" or "keep these packages installed, install the ones that aren't and delete all the rest (yes, dangerous, I know)" all from the comfort of your own Arch installation. Also, it doubles doen as a declarative installer, allowing for easy reproducibility of your system.
+***An guided arch-installer and declarative system manager***
+***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos) PROJECT SUITE***
 
 ## Key Features
 
-* **Interactive & Guided Installation**: A step-by-step process that explains what's happening.
-* **Automatic Firmware Detection**: Installation for **UEFI** or **BIOS**.
-* **Plugin System**: Add your own packages and, in the future, manage your dotfiles with custom preset, manage linux's system configurations (such as users, hostname and such), manage packsges declaratively and manage repos
-* **Open & Readable Code**: The codebase has been refactored to serve as a practical and clean example of automation.
+- **An *guided* instalation process**: Instead of automating everything, the script displays a series of questions and explanations about what it's doing to the reader, they gather information about the _how_ the reader wants their system, it then writes an singular file in yaml –for easy readability– and uses _that_ file to install the system, it is not automated at all (Im working on an automated mode)
+- **The plugin –or better yet, Ch-obolos– system**: Akin to nix, the Ch-aOS plugin system is fully declarative, written exclusively in yaml, it helps the user manage their whole entire system with one singular file by using ansible + the (WIP) Ch-imera project will be able to take these plugins and compile them into nixlang, allowing for an easy transition.
 
 ## The Architecture: Orchestrator + Worker
 
-The project uses a powerful and flexible hybrid architecture:
+The project uses a hybrid architecture, delegating to different languages their do's and don't's:
 
-* **Shell Script (The Orchestrator)**: Acts as the interactive frontend, gathering user input, validating data, and orchestrating the installation sequence.
-* **Ansible (The Worker)**: Acts as the backend, executing the heavy-lifting tasks declaratively and reliably—partitioning, package installation, and system configuration.
+* **Shell Script (The Orchestrator)**: Used to gather user input, transform the input into an declarative file and call in–
+* **Ansible (The Worker)**: Used to make sure the system state is the same as the one declared in the Ch-obolo file.
 
 ## Getting Started
 
-Designed to be run directly from the Arch Linux Live ISO environment.
+Run directly from the Arch Linux Live ISO environment.
 
 ### Prerequisites:
 
@@ -50,7 +41,7 @@ iwctl
 mount -o remount,size=2G /run/archiso/cowspace
 
 # 3. Install the dependencies
-pacman -Sy --noconfirm ansible git dialog
+pacman -Sy --noconfirm ansible git yq
 
 # 4. Clone the repository and start the installer
 git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
@@ -65,33 +56,179 @@ chmod +x A-coin.sh
 
 ## Plugin System
 
-Customize your installation by creating your own package presets.
-1. Create a file named custom-YOUR-PLUGIN.yml inside ./roles/sistema/vars/.
-2. Use the format below to list your desired packages:
+Customize your installation by creating your own presets.
+1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
+2. While you can put everything in one file, I recommend separating concerns into multiple files and using a main file to import them. This makes your configuration cleaner and more reusable.
+
+For example, you could have the following structure in your `./Ch-obolos/` directory:
+```
+.
+├── custom-main.yml
+├── dotfiles.yml
+├── packages.yml
+├── partitions.yml
+├── region.yml
+├── repos.yml
+├── services.yml
+└── users.yml
+```
+
+Your main file, `custom-main.yml`, would then use `imports` to combine the other files. The `strategy` key (`override`, `combine`, `merge`) determines how data is merged if keys conflict.
 ```YAML
+# ./Ch-obolos/custom-main.yml
+# This is the main entrypoint file for your plugin.
+plug_name: custom-main.yml # <- essential, this identifies the plugin
+
+imports:
+  - file: 'users.yml'
+    strategy: merge
+    merge_keys:
+      - users
+
+  - file: 'packages.yml'
+    strategy: override
+
+  - file: 'services.yml'
+    strategy: combine
+
+  - file: 'repos.yml'
+    strategy: combine
+
+  - file: 'dotfiles.yml'
+    strategy: merge
+    merge_keys:
+      - dotfiles
+
+  # Partitions and region are usually defined by the interactive script,
+  # but can also be imported if you are running in a fully declarative mode.
+  - file: 'particoes.yml'
+    strategy: override
+
+  - file: 'region.yml'
+    strategy: override
+```
+
+And the corresponding files would contain the specific configurations, for example:
+```YAML
+# ./Ch-obolos/packages.yml
 pacotes:
   - neovim
   - fish
   - starship
 
+bootloader: "grub"
+```
+
+Or:
+```YAML
+# ./Ch-obolos/users.yml
+users:
+  - name: "dexmachina"
+    shell: "/bin/zsh"
+    groups:
+      - wheel
+      - dexmachina
+
+  - name: "root"
+    shell: "/bin/bash"
+    groups:
+      - root
+hostname: "Dionysus"
+wheel_access: true
+secrets:
+  sec_mode: "charonte" #<- later I will add a "system" mode, which requires prior setup of ansible-vault or nix's sops
+  sec_file: "Ch-obolos/secrets.yml" #<- secrets file (passwords), must be secret and is REQUIRED for sec_mode "charonte"
+```
+
+### Example of a complete file with everything in one:
+```YAML
+# It's recommended to separate these configurations into different files
+# (e.g., users.yml, packages.yml) and use a main plugin file to import them,
+# but for this example, everything is in one place.
+
+# Defines system users, groups, and hostname
+users:
+  - name: "dexmachina"
+    shell: "/bin/zsh"
+    groups:
+      - wheel
+      - dexmachina
+  - name: "root"
+    shell: "/bin/bash"
+    groups:
+      - root
+hostname: "Dionysus"
+wheel_access: true # Grants sudo access to the 'wheel' group
+
+# Defines the list of packages to be declaratively managed
+pacotes:
+  - neovim
+  - fish
+  - starship
+  - btop
+bootloader: "grub" # or "refind"
+
+# Manages systemd services
+services:
+  - name: "NetworkManager"
+    state: "started"
+    enabled: true
+  - name: "bluetooth"
+    state: "started"
+    enabled: true
+
+# Manages pacman repositories
+repos:
+  managed:
+    extras: true      # Enables the [extras+multilib] repository
+    unstable: false   # Disables the [testing] repositories
+  third_party:
+    - name: "cachyOS"
+      distribution: "arch"
+      url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
+
+# Manages dotfiles from git repositories
 dotfiles:
   - repo: https://github.com/your-user/your-dotfiles.git
     # To decide how the script will behave, you have 3 options as to how it will work.
-    install_command: "your_custom_dotfile_command.sh" # OPTION 1: install_command is an variable that you can set to decide how the script will install your dotfiles. It uses the root of your repo as a base point, so be aware of that.
-    manager: "stow" # OPTION 2: You set an manager and the script applies it to every folder in your repo.
-    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for a "install.sh" inside of the root of your repo, using it as a basis to install your dotfiles.
+    install_command: "your_custom_dotfile_command.sh"
+    # OPTION 1: install_command is a variable that you can set to decide how the script will install your dotfiles.
+    # It uses the root of your repo as a base point, so be aware of that.
+    manager: "stow"
+    # OPTION 2: You set a manager and the script applies it to every folder in your repo.
+    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for an "install.sh" file inside the root of your repo, using it as a basis to install your dotfiles.
+
+# Defines disk partitions (usually filled by the interactive script)
+particoes:
+  root:
+    device: "/dev/sda2"
+    label: "ARCH_ROOT"
+    formato: "ext4"
+  home:
+    device: "/dev/sda4"
+    label: "ARCH_HOME"
+  boot:
+    device: "/dev/sda1"
+    label: "ESP"
+  swap:
+    device: "/dev/sda3"
+    label: "SWAP"
+
+# Defines region, language, and keyboard settings
+region:
+  timezone: "America/Sao_Paulo"
+  locale:
+    - "pt_BR.UTF-8"
+    - "en_US.UTF-8"
+  keymap: "br-abnt2"
+
 ```
-> [!WARNING]
-> USE SPACES INSTEAD OF TABS, ANSIBLE IS VERY SENSITIVE.
 
 ### To generate your current system's plugin, run:
 ```bash
 cd Ch-aronte
 DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
 ```
-> [!INFO]
-> Works directly from your terminal!
-
 
 ## Project Roadmap
 
@@ -102,20 +239,21 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 - [x] Plugin System for Custom Packages
 
 ### Modularity + Automation
-- [-] Dotfile Manager integrated with the Plugin System
-- [ ] Fully Automated Execution Mode with a Config File
+- [x] Dotfile Manager integrated with the Plugin System
+- [x] Import system (hell)
+- [ ] B-coin system manager CLI helper.
 
-### Declarativity + Rollback
-- [ ] Fully declarative installation mode, with it's only necessity being the custom*.yml file.
-- [-] Fully declarative post-install system configuration with only one custom*.yml file.
-- [-] Package manager akin to nixpkgs, with a declarative package list and versioning.
-- [-] Repo manager.
+### Declarativity
+- [-] Fully declarative installation mode, with it's only necessity being the custom*.yml file. (I just need to implement the checker on the start of the script and if the plugin file exists and is selected, run in declarative mode)
+- [-] Fully declarative post-install system configuration with only one custom*.yml file. (I just need to implement the B-coin helper for this one)
+- [x] Declarative package state manager (Install and uninstall declaratively).
+- [x] Repo manager.
 
 ### Quality + security
-- [-] ansible-lint and ansible-test tests.
+- [-] ansible-lint and ansible-test tests. (Currently being done manually)
 
 ### Ideas being studied
-- [ ] Secrets management (I'm already implementing this with ansible vault, hashing or even just plain text for user passwords {user's choice}, but maybe I can make smth for wifi passwords, git tokens, ssh keys and so on and so forth).
+- [-] Secrets management (HIGHLY expansible, currently only used for user passwords).
 - [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 
 ## Contributing
@@ -125,8 +263,8 @@ Contributions are the lifeblood of open-source software. If you have ideas to im
 Areas of particular interest include:
 
 - Creative translations and improvements to the narrative style.
-- Automation of dotfile management.
 - Suggestions and implementations for post-install configurations.
+- Help to check if the Ch-obolos are truly declarative or not.
 - Creation of issues.
 
 ## Acknowledgements
