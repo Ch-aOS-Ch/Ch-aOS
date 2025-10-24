@@ -56,7 +56,7 @@ chmod +x A-coin.sh
 ./A-coin.sh
 ```
 > [!WARNING]
-> The script is your guide. Follow the instructions in the terminal and let Ch-aronte lead you through the installation
+> The script is your guide. Follow the instructions in the terminal and answer the questions, the system will install the system based on t
 
 ## Plugin System
 
@@ -105,7 +105,7 @@ imports:
 
   # Partitions and region are usually defined by the interactive script,
   # but can also be imported if you are running in a fully declarative mode.
-  - file: 'particoes.yml'
+  - file: 'partitions.yml'
     strategy: override
 
   - file: 'region.yml'
@@ -264,7 +264,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 
 ## Contributing
 
-Contributions are the lifeblood of open-source software. If you have ideas to improve Ch-aronte, your help is very welcome! Check out CONTRIBUTING.md to get started.
+Contributions are higly welcomed. If you have ideas to improve Ch-aronte, your help is very welcome! Check out CONTRIBUTING.md to get started.
 
 Areas of particular interest include:
 
@@ -277,7 +277,3 @@ Areas of particular interest include:
 
 The primary inspiration for this project came from [archible](https://github.com/0xzer0x/archible) from [0xzer0x](https://github.com/0xzer0x).
 > If you're reading this (I doubt it but oh well), thank you very much for your amazing tool, I hope to achieve this level of creativity and expertise you've got to make it come true.
-
-<div align="center">
-⁂ Navigate with knowledge. Install with style. Master Arch with soul. ⁂
-</div>
