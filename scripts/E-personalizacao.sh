@@ -1,39 +1,12 @@
 #!/bin/bash
 set -e
-set -a
-source respostas.env
-set +a
-source scripts/resources.sh
 
-# ==============================================================================
-# SETUP DE IDIOMA E VARIÁVEIS
-# ==============================================================================
-case "$LANGC" in
-"Portugues")
-  MSG_HOSTNAME_PROMPT="ok, me dá um nome pro seu pc aí... e pelo amor de deus, me dá um nome bonito... "
-  MSG_INVALID_HOSTNAME="Nome inválido. Só letras, números, ponto ou hífen. Tenta de novo aí oh jegue: "
-  MSG_RUNNING_MKINITCPIO="rodando mkinitcpio -P..."
-  MSG_MKINITCPIO_DONE="aí sim porra, rodou. Agora vamo settar tua senha de root (sem 1234 seu jegue)"
-  MSG_SET_USER="agora me fala teu user, vamo criar e tacar ele lá no sudoers"
-  MSG_USERNAME_PROMPT="Nome do teu usuário: "
-  MSG_INVALID_USERNAME="Nome de usuário inválido. Deve começar com letra minúscula e conter apenas letras minúsculas, números, _ ou -. Mals aí "
-  MSG_WANT_DOTS="Você tem alguma dotfile ou nem? (S/n)"
-  ;;
-"English")
-  MSG_HOSTNAME_PROMPT="Alright, give your PC a name... and please, make it a nice one... "
-  MSG_INVALID_HOSTNAME="Invalid name. Only letters, numbers, dot or hyphen. Try again: "
-  MSG_RUNNING_MKINITCPIO="Running mkinitcpio -P..."
-  MSG_MKINITCPIO_DONE="ALRIGHT DAMMIT, it's done. Now let's set your root password (no 1234, you fool)."
-  MSG_SET_USER="Now tell me your username, let's create it and add it to the sudoers."
-  MSG_USERNAME_PROMPT="Your username: "
-  MSG_INVALID_USERNAME="Invalid username. Must start with a lowercase letter and contain only lowercase letters, numbers, _ or -. Try again: "
-  MSG_WANT_DOTS="Do you have any dotfiles or nah? (Y/n)"
-  ;;
-*)
-  echo "Language not recognized. Exiting."
-  exit 1
-  ;;
-esac
+source ./lib/ui.sh
+source ./lib/plugin.sh
+source ./scripts/resources.sh
+set -a
+source ./respostas.env
+set +a
 
 SECRETS_FILE="Ch-obolos/secrets_""$PLUGIN"
 
@@ -45,7 +18,7 @@ read -p "$MSG_HOSTNAME_PROMPT" -r hostname
 while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
 done
-yq -iy ".hostname = \"$hostname\"" "Ch-obolos/$PLUGIN"
+plugin_set_value "hostname" "$hostname"
 
 sleep 1
 
@@ -66,6 +39,7 @@ while [[ -z "$username" || ! "$username" =~ ^[a-z_][a-z0-9_-]*$ ]]; do
 done
 
 # Adiciona a lista de usuários com yq de forma estruturada
+# Nota: Esta estrutura complexa é mantida aqui por clareza, em vez de uma função de helper genérica.
 yq -iy '.users = [
   {
     "name": "'$username'",
@@ -81,8 +55,8 @@ yq -iy '.users = [
 
 echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
 echo "{}" >"$SECRETS_FILE"
-yq -iy ".secrets.sec_file = \"$SECRETS_FILE\"" "Ch-obolos/$PLUGIN"
-yq -iy ".secrets.sec_mode = \"charonte\"" "Ch-obolos/$PLUGIN"
+plugin_set_value "secrets.sec_file" "$SECRETS_FILE"
+plugin_set_value "secrets.sec_mode" "charonte"
 
 clear
 echo "Senha para o usuário: ${username}"
@@ -137,22 +111,12 @@ echo "$SECRETS_FILE" >>./.gitignore
 
 # --- Habilita o Sudo para o grupo 'wheel' ---
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
-yq -iy '.wheel_access = true' "Ch-obolos/$PLUGIN"
+plugin_set_value "wheel_access" "true"
 
 read -rp "$MSG_WANT_DOTS" dot_accept
 if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
-  chmod +x scripts/G-dotfiles.sh
-  bash scripts/G-dotfiles.sh
+  export DOTS_ACCEPT="yes"
 fi
-
-set -a
-source respostas.env
-set +a
-
-rm -rf ./.git
-rm -rf /mnt/root/Ch-aronte/
-cp -r ../Ch-aronte /mnt/root/Ch-aronte
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."
