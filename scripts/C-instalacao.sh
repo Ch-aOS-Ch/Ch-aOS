@@ -1,44 +1,12 @@
 #!/bin/bash
 set -e
+
+source ./lib/ui.sh
+source ./lib/plugin.sh
+source ./scripts/resources.sh
 set -a
-source respostas.env
+source ./respostas.env
 set +a
-source scripts/resources.sh
-
-# Variáveis globais
-plugin_dir="./Ch-obolos/"
-
-# --- SEÇÃO DE CONFIGURAÇÃO DE IDIOMA ---
-case "$LANGC" in
-"Portugues")
-  MSG_CONTINUE="Beleza, mirrors atualizados. Bora continuar..."
-  MSG_SHOW_PKGS="Ok, agora vou te mostrar os pacotes essenciais..."
-  MSG_WANT_MORE="Quer mais algum pacote? (Y/n) "
-  MSG_PKG_NAME="Digite o nome do pacote: "
-  MSG_NOT_FOUND="Pacote não encontrado."
-  MSG_ADDING="Adicionando"
-  MSG_ALREADY_SELECTED="Pacote já selecionado ou já presente no arquivo."
-  MSG_ANY_MORE="Mais algum? (Y/n) "
-  MSG_WHICH_REPO="Qual repositório você quer usar? (extra, multilib, cachy) "
-  MSG_TRY_AGAIN="Tente novamente: "
-  ;;
-"English")
-  MSG_CONTINUE="Alright, mirrors updated. Let's continue..."
-  MSG_SHOW_PKGS="Now I'll show you the essential packages..."
-  MSG_WANT_MORE="Do you want to add more packages? (Y/n) "
-  MSG_PKG_NAME="Enter the package name: "
-  MSG_NOT_FOUND="Package not found."
-  MSG_ADDING="Adding"
-  MSG_ALREADY_SELECTED="Package already selected or already in the file."
-  MSG_ANY_MORE="Any more? (Y/n) "
-  MSG_WHICH_REPO="Which repository do you want to use? (extra, multilib, cachy) "
-  MSG_TRY_AGAIN="Try again: "
-  ;;
-*)
-  echo "Unsupported language setting."
-  exit 1
-  ;;
-esac
 
 # --- FUNÇÕES ---
 repos_update() {
@@ -61,7 +29,7 @@ repos_update() {
     case $repo_name in
     "multilib" | "extra")
       echo "$MSG_ADDING $repo_name..."
-      yq -iy '.repos.managed.extras = true' "Ch-obolos/$PLUGIN"
+      plugin_set_value "repos.managed.extras" "true"
       ;;
     "cachyos" | "cachy")
       if yq -e '.repos.third_party[] | select(.name == "cachyOS")' "Ch-obolos/$PLUGIN" >/dev/null; then
@@ -102,32 +70,16 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
     read -p "$MSG_TRY_AGAIN" -r pacote
   done
 
-  # Adiciona o pacote à lista 'pacotes' de forma segura, sem duplicatas
-  yq -iy ".pacotes += [\"$pacote\"] | .pacotes |= unique" "Ch-obolos/$PLUGIN"
+  plugin_add_to_list_unique "pacotes" "$pacote"
   echo "$MSG_ADDING $pacote..."
 
   read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
-yq -iy '.repos.managed.core = true' "Ch-obolos/$PLUGIN"
+plugin_set_value "repos.managed.core" "true"
 repos_update
 
-set -a
-source respostas.env
-set +a
-
-# Copia o projeto para dentro do chroot para que o Ansible possa ser executado lá
-cp -r ./ /mnt/root/Ch-aronte/
-
-# Executa os playbooks em sequência, a maioria DENTRO do chroot
-ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
-
-# Executa as roles restantes de dentro do chroot com uma única chamada
 CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
-  CHROOT_TAGS="$CHROOT_TAGS,pkgs"
+  export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
-arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags "$CHROOT_TAGS" -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
-
-# Limpa os arquivos de instalação
-rm -rf /mnt/root/Ch-aronte

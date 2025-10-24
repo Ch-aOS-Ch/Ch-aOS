@@ -2,19 +2,52 @@
   when: repo_item.distribution is defined and repo_item.distribution == 'arch'
   block:
     - name: "Install CachyOS repository"
-      ansible.builtin.shell: "set -e && curl -L {{ repo_item.url }} | tar xJ -C /tmp && /tmp/cachyos-repo/cachyos-repo.sh"
-      args:
-        creates: /etc/pacman.d/cachyos-mirrorlist
       when:
         - repo_item.name == 'cachyOS'
         - repo_item.url is defined
         - repo_item.url != ''
+      block:
+        - name: Download CachyOS repo archive
+          ansible.builtin.get_url:
+            url: "{{ repo_item.url }}"
+            dest: /tmp/cachyos-repo.tar.xz
+
+        - name: Unarchive CachyOS repo
+          ansible.builtin.unarchive:
+            src: /tmp/cachyos-repo.tar.xz
+            dest: /tmp/
+            remote_src: true # Indicates the file is already on the remote machine
+
+        - name: Run CachyOS setup script
+          ansible.builtin.command:
+            cmd: /tmp/cachyos-repo/cachyos-repo.sh
+          args:
+            creates: /etc/pacman.d/cachyos-mirrorlist
 
     - name: "Install yay aur helper"
-      ansible.builtin.shell: "set -e && git clone {{ repo_item.url }}; cd yay; makepkg -si; cd ..; rm -rf yay/"
       args:
         creates: /usr/bin/yay
       when:
         - repo_item.name == 'yay'
         - repo_item.url is defined
         - repo_item.url != ''
+      block:
+        - name: Clone yay repo
+          ansible.builtin.git:
+            repo: 'https://aur.archlinux.org/yay.git'
+            dest: '/tmp/yay'
+            clone: true
+            update: true
+          become: true
+
+        - name: Build and install yay
+          ansible.builtin.command: makepkg-si --noconfirm
+          args:
+            chdir: '/tmp/yay'
+          become: true
+          become_user: "{{ final_users[0].name }}"
+
+        - name: clean up
+          ansible.builtin.file:
+            path: '/tmp/yay'
+            state: absent

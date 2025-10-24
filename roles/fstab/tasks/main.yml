@@ -30,7 +30,13 @@
   changed_when: false
 
 # Passo 2: Gerar o arquivo /etc/fstab usando o genfstab
-- name: Gerar /etc/fstab usando Labels
+- name: Gerar fstab na memória
   ansible.builtin.command:
-    cmd: genfstab -L /mnt > /etc/fstab
+    cmd: genfstab -L /mnt
+  register: fstab_content
   changed_when: false
+
+- name: Escrever /etc/fstab a partir do conteúdo gerado
+  ansible.builtin.copy:
+    content: "{{ fstab_content.stdout }}"
+    dest: /etc/fstab
