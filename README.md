@@ -172,7 +172,7 @@ pacotes:
   - btop
 bootloader: "grub" # or "refind"
 
-# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~cowsay~ etc
+# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~cowsay~ etc)
 
 # Manages systemd services
 services:
