@@ -120,5 +120,3 @@ fi
 
 # --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."
-chmod +x scripts/F-bootloader.sh
-bash scripts/F-bootloader.sh

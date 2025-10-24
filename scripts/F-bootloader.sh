@@ -19,9 +19,6 @@ echo "$MSG_ENABLE_NETWORK"
 yq -iy '.services |= (select(.) // []) | . + [{"name": "NetworkManager", "state": "started", "enabled": true}] | unique_by(.name)' "Ch-obolos/$PLUGIN"
 
 echo "$MSG_CONFIGURING"
-# Copia o projeto para o chroot e executa as roles de bootloader e serviços de uma só vez
-cp -r . /mnt/root/Ch-aronte/
-rm -rf /mnt/root/Ch-aronte/.git
 
 echo "---------------------------------------------------"
 echo "$MSG_GOODBYE_1"

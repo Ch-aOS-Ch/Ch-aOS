@@ -10,16 +10,17 @@ bash scripts/D-regiao.sh
 
 bash scripts/E-personalizacao.sh
 
+bash scripts/F-bootloader.sh
+
 if [ "$FULLCODERAN" == "yes" ]; then
+  PLAYBOOK_CHROOT_PATH="/mnt/root/Ch-aronte/main.yaml"
+  PLAYBOOK_CH_OBOLOS_PATH="/mnt/root/Ch-aronte/Ch-obolos/$PLUGIN"
   ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
   cp -r ./ /mnt/root/Ch-aronte/
   ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
-  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags "$CHROOT_TAGS" -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
-  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags region -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
-  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags config -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
-  arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags bootloader,services -e @/root/Ch-aronte/Ch-obolos/"$PLUGIN"
+  arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags "$CHROOT_TAGS",region,config,bootloader,services -e @"$PLAYBOOK_CH_OBOLOS_PATH"
   if [ "$DOTS_ACCEPT" == "yes" ]; then
     echo "$MSG_LOADING_DOTS"
-    arch-chroot /mnt ansible-playbook -vvv /root/Ch-aronte/main.yaml --tags dotfiles -e @Ch-obolos/"$PLUGIN"
+    arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags dotfiles -e @"$PLAYBOOK_CH_OBOLOS_PATH"
   fi
 fi

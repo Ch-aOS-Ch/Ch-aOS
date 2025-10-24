@@ -74,6 +74,4 @@ done
 echo ""
 echo "$MSG_CONFIG_SAVED"
 
-# Executa a role do Ansible para aplicar as configurações de região
-
 sleep 2
