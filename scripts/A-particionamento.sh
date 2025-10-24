@@ -50,7 +50,7 @@ case "$LANGC" in
   MSG_CONFIG_CONFIRMED="Ótimo! Configurações confirmadas."
 
   # Mensagens específicas da lógica de plugin
-  MSG_EXISTING_PLUGINS_FOUND="Plugins existentes foram encontrados:"
+  MSG_EXISTING_PLUGINS_FOUND="Ch-obolos existentes foram encontrados:"
   MSG_CHOICE_PROMPT="Deseja criar um NOVO plugin ou usar um EXISTENTE? (novo/usar): "
   MSG_PROMPT_WHICH_PLUGIN="Digite o nome do plugin que você quer usar (ex: custom1.yml): "
   MSG_INVALID_FILE="Arquivo inválido ou não encontrado. Por favor, escolha um da lista."
@@ -99,7 +99,7 @@ case "$LANGC" in
   MSG_CONFIG_CONFIRMED="Great! Settings confirmed."
 
   # Plugin-specific logic messages
-  MSG_EXISTING_PLUGINS_FOUND="Existing plugins were found:"
+  MSG_EXISTING_PLUGINS_FOUND="Existing Ch-obolos were found:"
   MSG_CHOICE_PROMPT="Do you want to create a NEW plugin or USE an existing one? (new/use): "
   MSG_PROMPT_WHICH_PLUGIN="Enter the name of the plugin you want to use (e.g., custom1.yml): "
   MSG_INVALID_FILE="Invalid file or not found. Please choose one from the list."
@@ -209,11 +209,11 @@ arquivo_plugin=$(select_or_create_plugin_file)
 set_env_var "PLUGIN" "$arquivo_plugin"
 
 if [ -d /sys/firmware/efi ]; then
-  yq -iy '.firmware = "UEFI"' "plugins/$PLUGIN"
+  yq -iy '.firmware = "UEFI"' "Ch-obolos/$PLUGIN"
   set_env_var "FIRMWARE" "UEFI"
   firmware="UEFI"
 else
-  yq -iy '.firmware = "BIOS"' "plugins/$PLUGIN"
+  yq -iy '.firmware = "BIOS"' "Ch-obolos/$PLUGIN"
   set_env_var "FIRMWARE" "BIOS"
   firmware="BIOS"
 fi
@@ -347,22 +347,22 @@ done
 echo "$MSG_CONFIG_CONFIRMED"
 
 # Salva tudo no plugin YAML
-yq -iy ".particoes.root.device = \"/dev/$root_dev\"" "plugins/$PLUGIN"
-yq -iy ".particoes.root.label = \"$root_label\"" "plugins/$PLUGIN"
-yq -iy ".particoes.root.formato = \"$formato\"" "plugins/$PLUGIN"
+yq -iy ".particoes.root.device = \"/dev/$root_dev\"" "Ch-obolos/$PLUGIN"
+yq -iy ".particoes.root.label = \"$root_label\"" "Ch-obolos/$PLUGIN"
+yq -iy ".particoes.root.formato = \"$formato\"" "Ch-obolos/$PLUGIN"
 
-yq -iy ".particoes.home.device = \"/dev/$home_dev\"" "plugins/$PLUGIN"
-yq -iy ".particoes.home.label = \"$home_label\"" "plugins/$PLUGIN"
+yq -iy ".particoes.home.device = \"/dev/$home_dev\"" "Ch-obolos/$PLUGIN"
+yq -iy ".particoes.home.label = \"$home_label\"" "Ch-obolos/$PLUGIN"
 
-yq -iy ".particoes.boot.device = \"/dev/$boot_dev\"" "plugins/$PLUGIN"
-yq -iy ".particoes.boot.label = \"$boot_label\"" "plugins/$PLUGIN"
+yq -iy ".particoes.boot.device = \"/dev/$boot_dev\"" "Ch-obolos/$PLUGIN"
+yq -iy ".particoes.boot.label = \"$boot_label\"" "Ch-obolos/$PLUGIN"
 
-yq -iy ".particoes.swap.device = \"/dev/$swap_dev\"" "plugins/$PLUGIN"
-yq -iy ".particoes.swap.label = \"$swap_label\"" "plugins/$PLUGIN"
+yq -iy ".particoes.swap.device = \"/dev/$swap_dev\"" "Ch-obolos/$PLUGIN"
+yq -iy ".particoes.swap.label = \"$swap_label\"" "Ch-obolos/$PLUGIN"
 
-yq -iy ".bootloader = \"$bootloader\"" "plugins/$PLUGIN"
+yq -iy ".bootloader = \"$bootloader\"" "Ch-obolos/$PLUGIN"
 
 # Salva variáveis de ambiente para scripts subsequentes, se necessário
 set_env_var "DISCO" "$disco"
 
-ansible-playbook -vvv ./main.yaml --tags particionamento -e @plugins/"$PLUGIN"
+ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
