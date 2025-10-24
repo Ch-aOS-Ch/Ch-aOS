@@ -1,3 +1,7 @@
+> [!WARNING]
+>
+> Some of the features located here are in an beta branch.
+
 [versão pt br](./READMEpt_BR.md)
 # Ch-aronte
 
@@ -167,6 +171,8 @@ pacotes:
   - starship
   - btop
 bootloader: "grub" # or "refind"
+
+# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~cowsay~ etc
 
 # Manages systemd services
 services:
