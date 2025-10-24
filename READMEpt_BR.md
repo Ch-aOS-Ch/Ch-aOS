@@ -1,41 +1,34 @@
+> [!WARNING]
+>
+> Algumas das funcionalidades aqui localizadas estão em um branch beta.
+
 [english version](./README.md)
 # Ch-aronte
 
-**Seu guia pelo submundo do Arch Linux.**
+**Um instalador e gerenciador declarativo para Arch Linux**
 
 [![Status do Projeto: Ativo](https://img.shields.io/badge/status-ativo-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
 ---
 
-**Ch-aronte** não é apenas um instalador. É uma jornada guiada e interativa pelo coração do Arch Linux, projetada para quem deseja instalar com confiança e aprender o processo de verdade — sem mais copiar e colar comandos cegamente.
-
-Construído com a robustez do **Ansible** e a interatividade do **Shell Script**, ele automatiza as partes tediosas e te entrega o controle onde importa, transformando uma instalação complexa em uma experiência declarativa.
-
-***PARTE DA SUÍTE DE PROJETOS Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos)***
-
-## Por que "Ch-aronte"?
-
-1. O nome: Bem, primeiro de tudo, Charon (Caronte) é o barqueiro do submundo na mitologia grega, guiando as almas através do rio Estige. Ch-aronte é um trocadilho, combinando "Charon" com "Chroot" + eu sou brasileiro, então o nome "Charon" foi "aportuguesado".
-2. As partes: Caronte, o barqueiro, também recebia 2 moedas para guiar as almas, e o Arch tem 2 partes para configurar (a instalação e a pós-instalação), então este script também terá 2 partes, uma para instalar o Arch e outra para gerenciar seu sistema (A-coin.sh e o helper B-coin, respectivamente), ambas de forma declarativa.
-3. Mas por que usar o Ch-aronte? Simples: ele segue a filosofia do Nix, ou seja, ele adiciona uma camada de abstração declarativa à sua configuração, permitindo que você, na linguagem do script, diga "crie estes usuários com estes grupos" ou "mantenha estes pacotes instalados, instale os que não estão e apague todo o resto (sim, perigoso, eu sei)", tudo do conforto da sua própria instalação Arch. Além disso, ele também funciona como um instalador declarativo, permitindo uma fácil reprodutibilidade do seu sistema.
+***Um instalador arch guiado e gerenciador de sistema declarativo***
+***PARTE DA SUÍTE DE PROJETOS Ch-aOS (Ch-aronte + Ch-imera para nix + Ch-obolos)***
 
 ## Funcionalidades Principais
 
-* **Instalação Interativa e Guiada**: Um processo passo a passo que explica o que está acontecendo.
-* **Detecção Automática de Firmware**: Instalação para **UEFI** ou **BIOS**.
-* **Sistema de Plugins**: Adicione seus próprios pacotes e, no futuro, gerencie seus dotfiles com presets customizados, gerencie as configurações de sistema do Linux (como usuários, hostname, etc.), gerencie pacotes de forma declarativa e gerencie repositórios.
-* **Código Aberto e Legível**: A base de código foi refatorada para servir como um exemplo prático e limpo de automação.
+- **Um processo de instalação *guiado***: Em vez de automatizar tudo, o script exibe uma série de perguntas e explicações sobre o que está fazendo para o leitor, eles coletam informações sobre _como_ o leitor quer seu sistema, ele então escreve um arquivo singular em yaml –para fácil legibilidade– e usa _esse_ arquivo para instalar o sistema, não é totalmente automatizado (estou trabalhando em um modo automatizado)
+- **O sistema de plugins –ou melhor, Ch-obolos–**: Semelhante ao nix, o sistema de plugins Ch-aOS é totalmente declarativo, escrito exclusivamente em yaml, ele ajuda o usuário a gerenciar todo o seu sistema com um único arquivo usando ansible + o projeto (WIP) Ch-imera será capaz de pegar esses plugins e compilá-los em nixlang, permitindo uma transição fácil.
 
 ## A Arquitetura: Orquestrador + Executor
 
-O projeto utiliza uma arquitetura híbrida poderosa e flexível:
+O projeto utiliza uma arquitetura híbrida, delegando a diferentes linguagens seus prós e contras:
 
-* **Shell Script (O Orquestrador)**: Atua como a interface interativa, coletando a entrada do usuário, validando dados e orquestrando a sequência de instalação.
-* **Ansible (O Executor)**: Atua no backend, executando as tarefas pesadas de forma declarativa e confiável — particionamento, instalação de pacotes e configuração do sistema.
+* **Shell Script (O Orquestrador)**: Usado para coletar a entrada do usuário, transformar a entrada em um arquivo declarativo e chamar o–
+* **Ansible (O Executor)**: Usado para garantir que o estado do sistema seja o mesmo que o declarado no arquivo Ch-obolo.
 
 ## Começando
 
-Projetado para ser executado diretamente do ambiente Live ISO do Arch Linux.
+Execute diretamente do ambiente Live ISO do Arch Linux.
 
 ### Pré-requisitos:
 
@@ -63,13 +56,14 @@ chmod +x A-coin.sh
 ./A-coin.sh
 ```
 > [!WARNING]
-> O script é seu guia. Siga as instruções no terminal e deixe que o Ch-aronte te conduza pela instalação.
+>
+> O script é seu guia. Siga as instruções no terminal e responda às perguntas, o sistema será instalado com base nisso
 
 ## Sistema de Plugins
 
-Personalize sua instalação criando seus próprios presets de pacotes.
+Personalize sua instalação criando seus próprios presets.
 1. Crie um arquivo chamado custom-SEU-PLUGIN.yml dentro de ./Ch-obolos/.
-2. Embora você possa colocar tudo em um único arquivo, recomendo separar as configurações em múltiplos arquivos e usar um arquivo principal para importá-los. Isso torna sua configuração mais limpa e reutilizável.
+2. Embora você possa colocar tudo em um único arquivo, recomendo separar as responsabilidades em múltiplos arquivos e usar um arquivo principal para importá-los. Isso torna sua configuração mais limpa e reutilizável.
 
 Por exemplo, você poderia ter a seguinte estrutura em seu diretório `./Ch-obolos/`:
 ```
@@ -88,7 +82,7 @@ Seu arquivo principal, `custom-main.yml`, usaria então `imports` para combinar 
 ```YAML
 # ./Ch-obolos/custom-main.yml
 # Este é o arquivo de ponto de entrada principal para o seu plugin.
-plug_name: custom-main.yml # <- essêncial, isso identifica o plugin
+plug_name: custom-main.yml # <- essencial, isso identifica o plugin
 
 imports:
   - file: 'users.yml'
@@ -126,7 +120,6 @@ pacotes:
   - neovim
   - fish
   - starship
-  - btop
 
 bootloader: "grub"
 ```
@@ -152,7 +145,7 @@ secrets:
   sec_file: "Ch-obolos/secrets.yml" #<- arquivo de segredos (senhas), deve ser secreto e é NECESSÁRIO para sec_mode "charonte"
 ```
 
-### Exemplo de arquivo completo com tudo em um só:
+### Exemplo de um arquivo completo com tudo em um:
 ```YAML
 # É recomendado separar essas configurações em arquivos diferentes
 # (ex: users.yml, packages.yml) e usar um arquivo de plugin principal para importá-los,
@@ -179,6 +172,8 @@ pacotes:
   - starship
   - btop
 bootloader: "grub" # ou "refind"
+
+# pacotes_base_override: <~ muito perigoso, permite que você altere os pacotes base do núcleo (ex: linux linux-firmware ansible ~cowsay~ etc)
 
 # Gerencia os serviços do systemd
 services:
@@ -234,17 +229,12 @@ region:
   keymap: "br-abnt2"
 
 ```
-> [!WARNING]
-> USE ESPAÇOS EM VEZ DE TABS, O ANSIBLE É MUITO SENSÍVEL.
 
-### Para gerar o plugin do seu sistema atual, rode:
+### Para gerar o plugin do seu sistema atual, execute:
 ```bash
 cd Ch-aronte
 DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
 ```
-> [!INFO]
-> Funciona diretamente do seu terminal!
-
 
 ## Roadmap do Projeto
 
@@ -256,8 +246,10 @@ DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR"
 
 ### Modularidade + Automação
 - [x] Gerenciador de Dotfiles integrado ao Sistema de Plugins
+- [x] Sistema de importação (inferno)
+- [ ] Helper de linha de comando para gerenciador de sistema B-coin.
 
-### Declaratividade + Rollback
+### Declaratividade
 - [-] Modo de instalação totalmente declarativo, com sua única necessidade sendo o arquivo custom*.yml. (Eu só preciso implementar o verificador no início do script e, se o arquivo de plugin existir e for selecionado, rodar em modo declarativo)
 - [-] Configuração de sistema pós-instalação totalmente declarativa com apenas um arquivo custom*.yml. (Eu só preciso implementar o helper B-coin para este)
 - [x] Gerenciador de estado de pacotes declarativo (Instala e desinstala declarativamente).
@@ -272,20 +264,16 @@ DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR"
 
 ## Contribuindo
 
-Contribuições são a força vital do software de código aberto. Se você tem ideias para melhorar o Ch-aronte, sua ajuda é muito bem-vinda! Confira o `CONTRIBUTING.md` para começar.
+Contribuições são muito bem-vindas. Se você tem ideias para melhorar o Ch-aronte, sua ajuda é muito bem-vinda! Confira o `CONTRIBUTING.md` para começar.
 
 Áreas de interesse particular incluem:
 
 - Traduções criativas e melhorias no estilo narrativo.
-- Automação do gerenciamento de dotfiles.
 - Sugestões e implementações para configurações pós-instalação.
+- Ajuda para verificar se os Ch-obolos são verdadeiramente declarativos ou não.
 - Criação de issues.
 
 ## Agradecimentos
 
 A inspiração principal para este projeto veio do [archible](https://github.com/0xzer0x/archible) do [0xzer0x](https://github.com/0xzer0x).
 > Se você está lendo isso (duvido, mas vai que), muito obrigado por sua ferramenta incrível, espero alcançar o nível de criatividade e expertise que você teve para torná-la realidade.
-
-<div align="center">
-⁂ Navegue com conhecimento. Instale com estilo. Domine o Arch com alma. ⁂
-</div>
