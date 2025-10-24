@@ -171,6 +171,7 @@ plugin_set_value "particoes.boot.label" "$boot_label"
 
 plugin_set_value "particoes.swap.device" "/dev/$swap_dev"
 plugin_set_value "particoes.swap.label" "$swap_label"
+plugin_set_value "particoes.device" "/dev/$disco"
 
 plugin_set_value "bootloader" "$bootloader"
 

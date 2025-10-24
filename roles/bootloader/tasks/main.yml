@@ -1,7 +1,7 @@
 # --- GRUB Configuration ---
 - name: Install GRUB for BIOS
   ansible.builtin.command:
-    cmd: "grub-install --target=i386-pc /dev/{{ disco }}"
+    cmd: "grub-install --target=i386-pc {{ particoes.device }}"
   args:
     creates: /boot/grub/grub.cfg
   when:
