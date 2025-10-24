@@ -12,6 +12,31 @@
     - secrets.sec_mode == "charonte"
     - secrets.sec_file is defined and secrets.sec_file != ""
 
+- name: Get current list of users in the system
+  ansible.builtin.getent:
+    database: passwd
+  register: current_users
+
+- name: Filter system users
+  ansible.builtin.set_fact:
+    system_users: "{{ current_users.passwd | selectattr('uid', 'lt', 1000) | map(attribute='name') | list }}"
+
+- name: Determine users to remove
+  ansible.builtin.set_fact:
+    users_to_remove: "{{ current_users.passwd | map(attribute='name') | difference(final_users | map(attribute='name') | list) | difference(system_users) }}"
+  when: final_users is defined
+
+- name: Remove users not in final_users
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+    remove: true
+  loop: "{{ users_to_remove }}"
+  when:
+    - final_users is defined
+    - users_to_remove is defined
+    - users_to_remove | length > 0
+
 - name: Make sure final_users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -28,20 +53,3 @@
     regexp: "{{ '^#\\s*%wheel ALL=\\(ALL:ALL\\) ALL' if wheel_access | bool else '^%wheel ALL=\\(ALL:ALL\\) ALL' }}"
     line: "{{ '%wheel ALL=(ALL:ALL) ALL' if wheel_access | bool else '#%wheel ALL=(ALL:ALL) ALL' }}"
     validate: '/usr/sbin/visudo -cf %s'
-
-- name: Check if Ch-aronte destination folder already exists
-  ansible.builtin.stat:
-    path: "/home/{{ final_users[0].name }}/Ch-aronte"
-  register: config_charonte_dest_stat
-  when: final_users is defined and final_users | length > 0
-
-- name: "Copy Ch-aronte to first user's home directory"
-  ansible.builtin.copy:
-    src: "/root/Ch-aronte" # Assumindo que o playbook roda de dentro do chroot
-    dest: "/home/{{ final_users[0].name }}/Ch-aronte"
-    owner: "{{ final_users[0].name }}"
-    group: "{{ final_users[0].name }}"
-    mode: '0755'
-  when:
-    - final_users is defined and final_users | length > 0
-    - not config_charonte_dest_stat.exists

@@ -18,7 +18,7 @@ if [ "$FULLCODERAN" == "yes" ]; then
   ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
   cp -r ./ /mnt/root/Ch-aronte/
   ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
-  arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags "$CHROOT_TAGS",region,config,bootloader,services -e @"$PLAYBOOK_CH_OBOLOS_PATH"
+  arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags "$CHROOT_TAGS",region,users,bootloader,services -e @"$PLAYBOOK_CH_OBOLOS_PATH"
   if [ "$DOTS_ACCEPT" == "yes" ]; then
     echo "$MSG_LOADING_DOTS"
     arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags dotfiles -e @"$PLAYBOOK_CH_OBOLOS_PATH"
