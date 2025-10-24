@@ -241,6 +241,7 @@ DIR="./roles/sistema/vars/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir 
 ### Modularity + Automation
 - [x] Dotfile Manager integrated with the Plugin System
 - [x] Import system (hell)
+- [ ] B-coin system manager CLI helper.
 
 ### Declarativity
 - [-] Fully declarative installation mode, with it's only necessity being the custom*.yml file. (I just need to implement the checker on the start of the script and if the plugin file exists and is selected, run in declarative mode)
