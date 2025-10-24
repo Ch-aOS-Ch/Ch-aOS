@@ -25,7 +25,7 @@
   ansible.builtin.set_fact:
     system_users: "{{ system_users + [item.key] }}"
   loop: "{{ current_users.ansible_facts.getent_passwd | dict2items }}"
-  when: "item.value[1] | int < 1000 | int > 0 | int != 65534"
+  when: "item.value[1] | int < 1000 and item.value[1] | int > 0 and item.value[1] | int != 65534"
 
 - name: Determine users to remove
   ansible.builtin.set_fact:
