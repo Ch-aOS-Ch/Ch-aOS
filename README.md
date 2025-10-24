@@ -13,7 +13,7 @@
 ## Key Features
 
 - **An *guided* instalation process**: Instead of automating everything, the script displays a series of questions and explanations about what it's doing to the reader, they gather information about the _how_ the reader wants their system, it then writes an singular file in yaml –for easy readability– and uses _that_ file to install the system, it is not automated at all (Im working on an automated mode)
-- **The plugin –or better yey, Ch-obolos– system**: Akin to nix, the Ch-aOS plugin system is fully declarative, written exclusively in yaml, it helps the user manage their whole entire system with one singular file by using ansible + the (WIP) Ch-imera project will be able to take these plugins and compile them into nixlang, allowing for an easy transition.
+- **The plugin –or better yet, Ch-obolos– system**: Akin to nix, the Ch-aOS plugin system is fully declarative, written exclusively in yaml, it helps the user manage their whole entire system with one singular file by using ansible + the (WIP) Ch-imera project will be able to take these plugins and compile them into nixlang, allowing for an easy transition.
 
 ## The Architecture: Orchestrator + Worker
 
