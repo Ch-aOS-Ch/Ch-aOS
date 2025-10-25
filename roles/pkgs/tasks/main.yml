@@ -2,6 +2,13 @@
   ansible.builtin.set_fact:
     pkgs_pacotes_base: "{{ (pacotes_base_override | default(necessarios)) }}"
 
+- name: Pkgs aur list exists
+  ansible.builtin.set_fact:
+    pkgs_pacotes_desejados_aur: "{{ aur_pkgs | default([]) }}"
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
 - name: Pkgs list exists
   ansible.builtin.set_fact:
     pkgs_pacotes_desejados: "{{ final_pacotes | default([]) }}"
@@ -10,15 +17,30 @@
   ansible.builtin.set_fact:
     pkgs_pacotes_finais: "{{ pkgs_pacotes_base | union(pkgs_pacotes_desejados) }}"
 
+- name: Unite base pkg and desired aur pkgs
+  ansible.builtin.set_fact:
+    pkgs_pacotes_finais_aur: "{{ pkgs_pacotes_base | union(pkgs_pacotes_desejados_aur) }}"
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
 - name: Add bootloader to final package list
   ansible.builtin.set_fact:
     pkgs_pacotes_finais: "{{ pkgs_pacotes_finais | union([bootloader]) }}"
   when: bootloader is defined and bootloader | length > 0
 
+- name: Add bootloader to final aur pkg list
+  ansible.builtin.set_fact:
+    pkgs_pacotes_finais_aur: "{{ pkgs_pacotes_finais_aur | union([bootloader]) }}"
+  when:
+    - bootloader is defined
+    - bootloader | length > 0
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
 
 - name: Get true pkg list
   ansible.builtin.command:
-    cmd: pacman -Qqe
+    cmd: pacman -Qqen
   register: pkgs_pacotes_instalados_raw
   changed_when: false
   check_mode: false
@@ -27,10 +49,26 @@
   ansible.builtin.set_fact:
     pkgs_pacotes_a_remover: "{{ pkgs_pacotes_instalados_raw.stdout_lines | difference(pkgs_pacotes_finais) }}"
 
+- name: Get true pkg list aur
+  ansible.builtin.command:
+    cmd: pacman -Qqem
+  register: pkgs_pacotes_instalados_raw_aur
+  changed_when: false
+  check_mode: false
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Get removal pkgs
+  ansible.builtin.set_fact:
+    pkgs_pacotes_a_remover_aur: "{{ pkgs_pacotes_instalados_raw_aur.stdout_lines | difference(pkgs_pacotes_finais_aur) }}"
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
 - name: (Debug) Show removal pkgs
   ansible.builtin.debug:
     var: pkgs_pacotes_a_remover
-  when: pkgs_pacotes_a_remover | length > 0
 
 - name: Confirm removal pkgs
   ansible.builtin.pause:
@@ -41,7 +79,7 @@
       Do you want to follow through? (Type 'yes' or 'sim' to continue.):
   when: pkgs_pacotes_a_remover | length > 0
   register: pause_result
-  failed_when: "'sim' not in pause_result.user_input or 'yes' not in pause_result.user_input"
+  failed_when: "pause_result.user_input not in ['yes', 'sim']"
 
 - name: Remove removal pkgs
   community.general.pacman:
@@ -50,9 +88,60 @@
   become: true
   when: pkgs_pacotes_a_remover | length > 0
 
+- name: Get instalation pkgs
+  ansible.builtin.set_fact:
+    pkgs_pacotes_a_instalar: "{{ pkgs_pacotes_finais | difference(pkgs_pacotes_instalados_raw.stdout_lines) }}"
+
 - name: Install wanted pkgs
   community.general.pacman:
-    name: "{{ pkgs_pacotes_finais }}"
+    name: "{{ pkgs_pacotes_a_instalar }}"
     state: present
   become: true
   when: pkgs_pacotes_desejados | length > 0
+
+- name: (Debug) Show removal pkgs aur
+  ansible.builtin.debug:
+    var: pkgs_pacotes_a_remover_aur
+  when:
+    - pkgs_pacotes_a_remover_aur | length > 0
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Confirm removal pkgs aur
+  ansible.builtin.pause:
+    prompt: |
+      WARNING: Ch-aronte WILL REMOVE these last {{ pkgs_pacotes_a_remover_aur | length }} AUR packages.
+      This action CANNOT be undone (unless you reinstall everything).
+      Do you want to follow through? (Type 'yes' or 'sim' to continue.):
+  when: pkgs_pacotes_a_remover_aur | length > 0
+  register: pause_result_aur
+  failed_when: "pause_result_aur['user_input'] not in ['yes', 'sim']"
+
+- name: Remove removal pkgs aur
+  community.general.pacman:
+    name: "{{ pkgs_pacotes_a_remover_aur }}"
+    state: absent
+    executable: "{{ final_aur_helpers[0] | default('yay') }}"
+  become: true
+  when:
+    - pkgs_pacotes_a_remover_aur | length > 0
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Get instalation pkgs aur
+  ansible.builtin.set_fact:
+    pkgs_pacotes_a_instalar_aur: "{{ pkgs_pacotes_finais_aur | difference(pkgs_pacotes_instalados_raw_aur.stdout_lines) }}"
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Install wanted pkgs aur
+  community.general.pacman:
+    name: "{{ pkgs_pacotes_finais_aur }}"
+    state: present
+    executable: "{{ final_aur_helpers[0] | default('yay') }}"
+  become: true
+  when:
+    - pkgs_pacotes_desejados_aur | length > 0
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
