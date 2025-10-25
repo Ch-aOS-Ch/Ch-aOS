@@ -1,7 +1,3 @@
-- name: Set base bootloader
-  ansible.builtin.set_fact:
-    pkgs_pacotes_firmware_especificos: "{{ ['efibootmgr', 'refind'] if firmware == 'UEFI' else ['grub'] }}"
-
 - name: Unite base pkgs and firmware pkgs
   ansible.builtin.set_fact:
     pkgs_pacotes_base: "{{ (pacotes_base_override | default(necessarios)) | union(pkgs_pacotes_firmware_especificos) }}"
