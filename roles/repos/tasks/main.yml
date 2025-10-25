@@ -58,10 +58,13 @@
     block: |
       [{{ item.name }}]
       Server = {{ item.url }}
+      {% elif item.include is defined %}
+      Include = {{ item.include }}
+      {% endif %}
   loop: "{{ final_repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
   loop_control:
     loop_var: item
-  when: item.url is defined
+  when: item.url is defined or item.include is defined
   become: true
 
 - name: Remove unwanted third-party repos from pacman.conf
