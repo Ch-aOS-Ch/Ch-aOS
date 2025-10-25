@@ -1,12 +1,6 @@
 - name: Unite base pkgs and firmware pkgs
   ansible.builtin.set_fact:
-    pkgs_pacotes_base: "{{ (pacotes_base_override | default(necessarios)) | union(pkgs_pacotes_firmware_especificos) }}"
-
-- name: (Debug) Show base pkg list
-  ansible.builtin.debug:
-    msg: "Firmware detected: {{ firmware }}. base pkg list: {{ pkgs_pacotes_base }}"
-  vars:
-    firmware: "{{ lookup('env', 'FIRMWARE') }}"
+    pkgs_pacotes_base: "{{ (pacotes_base_override | default(necessarios)) }}"
 
 - name: Pkgs list exists
   ansible.builtin.set_fact:
