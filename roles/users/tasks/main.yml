@@ -46,7 +46,7 @@
 - name: Make sure final_users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
-    shell: "{{ item.shell }}"
+    shell: "/bin/{{ item.shell }}"
     groups: "{{ item.groups | join(',') }}"
     append: true
     create_home: true
