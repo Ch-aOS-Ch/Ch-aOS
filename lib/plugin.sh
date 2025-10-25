@@ -87,11 +87,38 @@ repos_update() {
       plugin_set_value "repos.managed.extras" "true"
       ;;
     "cachyos" | "cachy")
-      if yq -e '.repos.third_party[] | select(.name == "cachyOS")' "Ch-obolos/$PLUGIN" >/dev/null; then
+      if yq -e '.repos.third_party[] | select(.name == "cachyos")' "Ch-obolos/$PLUGIN" >/dev/null; then
         echo "$MSG_ALREADY_SELECTED"
       else
-        echo "$MSG_ADDING cachyos..."
-        yq -iy '.repos.third_party += [{"name": "cachyOS", "distribution": "arch", "url": "https://mirror.cachyos.org/cachyos-repo.tar.xz"}]' "Ch-obolos/$PLUGIN"
+        echo "Iniciando bootstrap dos repositórios CachyOS no sistema de destino..."
+        
+        local tmp_dir
+        tmp_dir=$(mktemp -d)
+        
+        echo "Baixando o script de instalação..."
+        curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz -o "$tmp_dir/cachyos-repo.tar.xz"
+        tar xvf "$tmp_dir/cachyos-repo.tar.xz" -C "$tmp_dir"
+        
+        echo "Copiando script para o chroot e executando..."
+        arch-chroot /mnt mkdir -p /tmp
+        cp -r "$tmp_dir/cachyos-repo" "/mnt/tmp/"
+        arch-chroot /mnt /tmp/cachyos-repo/cachyos-repo.sh
+        
+        echo "Limpando arquivos temporários..."
+        rm -rf "$tmp_dir"
+        arch-chroot /mnt rm -rf /tmp/cachyos-repo
+        
+        echo "Bootstrap do CachyOS concluído. Sincronizando pacman dentro do chroot..."
+        arch-chroot /mnt pacman -Sy
+        
+        echo "Adicionando configuração declarativa do CachyOS ao plugin..."
+        plugin_add_to_list_unique "pacotes" "cachyos-keyring"
+        plugin_add_to_list_unique "pacotes" "cachyos-mirrorlist"
+        plugin_add_to_list_unique "pacotes" "cachyos-v3-mirrorlist"
+        yq -iy '.repos.third_party += [{"name": "cachyos", "include": "/etc/pacman.d/cachyos-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-core-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-extra-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
       fi
       ;;
     *)

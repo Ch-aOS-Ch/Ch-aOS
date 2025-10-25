@@ -37,6 +37,7 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
   read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
+ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
 plugin_set_value "repos.managed.core" "true"
 repos_update
 

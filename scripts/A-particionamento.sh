@@ -177,3 +177,4 @@ plugin_set_value "bootloader" "$bootloader"
 
 # Salva variáveis de ambiente para scripts subsequentes, se necessário
 set_env_var "DISCO" "$disco"
+ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
