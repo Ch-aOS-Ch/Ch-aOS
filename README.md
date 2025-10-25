@@ -12,7 +12,7 @@
 ---
 
 ***An guided arch-installer and declarative system manager***
-***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos) PROJECT SUITE***
+***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos [studying the ideas of an Ch-iron for fedora and an Ch-ronos for debian]) PROJECT SUITE***
 
 ## Key Features
 
