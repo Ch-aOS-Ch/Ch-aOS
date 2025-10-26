@@ -99,7 +99,7 @@ repos_update() {
       else
         echo "Iniciando bootstrap dos repositórios CachyOS no sistema de destino..."
 
-        local tmp_dir="/root"
+        local tmp_dir="/root/tmp"
 
         echo "Baixando o script de instalação..."
         curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz -o "$tmp_dir/cachyos-repo.tar.xz"
@@ -121,7 +121,6 @@ repos_update() {
         plugin_add_to_list_unique "pacotes" "cachyos-keyring"
         plugin_add_to_list_unique "pacotes" "cachyos-mirrorlist"
         plugin_add_to_list_unique "pacotes" "cachyos-v3-mirrorlist"
-        echo "THIS IS A LOG ------------------------------"
         yq -iy '.repos.third_party += [{"name": "cachyos", "include": "/etc/pacman.d/cachyos-mirrorlist"}]' "Ch-obolos/$PLUGIN"
         yq -iy '.repos.third_party += [{"name": "cachyos-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
         yq -iy '.repos.third_party += [{"name": "cachyos-core-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
