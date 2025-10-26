@@ -56,7 +56,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   echo "$MSG_LETS_PARTITION"
   sleep 1
   lsblk
-  echo "---------------------------------------------------"
+  echo "$MSG_SEPARATOR"
 
   read -p "$MSG_DISK_PROMPT" -r disco
   while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
@@ -67,51 +67,50 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   yq -iy '.particoes.partitions = []' "Ch-obolos/$PLUGIN"
 
   # --- Partições Obrigatórias ---
-  echo "--- Configurando partição BOOT (Obrigatória) ---"
-  read -p "Número da partição para BOOT (ex: 1): " boot_part
-  read -p "Tamanho da partição BOOT (ex: 1G): " boot_size
-  read -p "Nome/Label para BOOT (ex: ESP): " boot_name
+  echo "$MSG_CONFIGURING_BOOT_PARTITION"
+  read -p "$MSG_PROMPT_BOOT_PART_NUMBER" boot_part
+  read -p "$MSG_PROMPT_BOOT_PART_SIZE" boot_size
+  read -p "$MSG_PROMPT_BOOT_PART_LABEL" boot_name
   add_partition_to_plugin "$boot_name" "$boot_size" "vfat" "$boot_part" "/boot" "boot"
 
-  echo "--- Configurando partição ROOT (Obrigatória) ---"
-  read -p "Número da partição para ROOT (ex: 2): " root_part
-  read -p "Tamanho da partição ROOT (ex: 50G): " root_size
-  read -p "Nome/Label para ROOT (ex: ARCH_ROOT): " root_name
-  read -p "Formato para ROOT (ext4/btrfs): " root_type
+  echo "$MSG_CONFIGURING_ROOT_PARTITION"
+  read -p "$MSG_PROMPT_ROOT_PART_NUMBER" root_part
+  read -p "$MSG_PROMPT_ROOT_PART_SIZE" root_size
+  read -p "$MSG_PROMPT_ROOT_PART_LABEL" root_name
+  read -p "$MSG_PROMPT_ROOT_PART_FORMAT" root_type
   add_partition_to_plugin "$root_name" "$root_size" "$root_type" "$root_part" "/" "root"
 
   # --- Partições Opcionais ---
-  read -rp "$MSG_WANT_HOME_PARTITION" want_home
-  if [[ "$want_home" != "n" && "$want_home" != "N" ]]; then
-    echo "--- Configurando partição HOME ---"
-    read -p "Número da partição para HOME (ex: 3): " home_part
-    read -p "Tamanho da partição HOME (ex: 100% para usar o resto): " home_size
-    read -p "Nome/Label para HOME (ex: ARCH_HOME): " home_name
-    add_partition_to_plugin "$home_name" "$home_size" "ext4" "$home_part" "/home" "home"
-  fi
-
   read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
   if [[ "$want_swap" != "n" && "$want_swap" != "N" ]]; then
-    echo "--- Configurando partição SWAP ---"
-    read -p "Número da partição para SWAP (ex: 4): " swap_part
-    read -p "Tamanho da partição SWAP (ex: 8G): " swap_size
-    read -p "Nome/Label para SWAP (ex: SWAP): " swap_name
+    echo "$MSG_CONFIGURING_SWAP_PARTITION"
+    read -p "$MSG_PROMPT_SWAP_PART_NUMBER" swap_part
+    read -p "$MSG_PROMPT_SWAP_PART_SIZE" swap_size
+    read -p "$MSG_PROMPT_SWAP_PART_LABEL" swap_name
     add_partition_to_plugin "$swap_name" "$swap_size" "linux-swap" "$swap_part" "none" "swap"
   fi
 
+  read -rp "$MSG_WANT_HOME_PARTITION" want_home
+  if [[ "$want_home" != "n" && "$want_home" != "N" ]]; then
+    echo "$MSG_CONFIGURING_HOME_PARTITION"
+    read -p "$MSG_PROMPT_HOME_PART_NUMBER" home_part
+    read -p "$MSG_PROMPT_HOME_PART_SIZE" home_size
+    read -p "$MSG_PROMPT_HOME_PART_LABEL" home_name
+    add_partition_to_plugin "$home_name" "$home_size" "ext4" "$home_part" "/home" "home"
+  fi
+
   # --- Loop de Verificação e Correção ---
-  echo "---------------------------------------------------"
-  echo "Configuração de partição gerada:"
+  echo "$MSG_SEPARATOR"
+  echo "$MSG_GENERATED_PARTITION_CONFIG"
   yq -o=json '.particoes' "Ch-obolos/$PLUGIN" | jq '.'
-  echo "---------------------------------------------------"
+  echo "$MSG_SEPARATOR"
   read -p "$MSG_CONFIRM_PROMPT" -r confirmacao
 
 done
 
-read -p "Qual bootloader você deseja usar? (grub/refind): " bootloader
+read -p "$MSG_BOOTLOADER_PROMPT" bootloader
 plugin_set_value "bootloader" "$bootloader"
 
 echo "$MSG_CONFIG_CONFIRMED"
-echo "Executando Ansible para aplicar as mudanças..."
+echo "$MSG_ANSIBLE_APPLYING_CHANGES"
 ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
-
