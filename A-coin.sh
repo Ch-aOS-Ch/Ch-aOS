@@ -1,15 +1,24 @@
+#!/bin/bash
+
 bash scripts/ZA-Lang.sh
 
+set -a
+source ./respostas.env
+set +a
+
+source ./lib/ui.sh
+source ./lib/plugin.sh
+source ./scripts/resources.sh
+
+arquivo_plugin=$(select_or_create_plugin_file)
+set_env_var "PLUGIN" "$arquivo_plugin"
+export PLUGIN="$arquivo_plugin"
+
 bash scripts/A-particionamento.sh
-
 bash scripts/B-reflector.sh
-
 bash scripts/C-instalacao.sh
-
 bash scripts/D-regiao.sh
-
 bash scripts/E-personalizacao.sh
-
 bash scripts/F-bootloader.sh
 
 if [ "$FULLCODERAN" == "yes" ]; then

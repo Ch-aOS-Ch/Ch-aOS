@@ -14,3 +14,11 @@
   poll: 15
   changed_when: false
   when: sistema_pacotes_base is defined and sistema_pacotes_base | length > 0
+
+- name: Generate initramfs
+  ansible.builtin.command:
+    cmd: >
+      arch-chroot /mnt mkinitcpio -P
+  async: 1800
+  poll: 15
+  changed_when: false
