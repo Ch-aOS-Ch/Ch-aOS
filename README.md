@@ -73,7 +73,7 @@ For example, you could have the following structure in your `./Ch-obolos/` direc
 ├── packages.yml
 ├── partitions.yml
 ├── region.yml
-├── repos.yml
+├── repos/repos.yml
 ├── services.yml
 └── users.yml
 ```
@@ -96,7 +96,7 @@ imports:
   - file: 'services.yml'
     strategy: combine
 
-  - file: 'repos.yml'
+  - file: 'repos/repos.yml' # note that repos/ should still be inside your Ch-obolos directory path.
     strategy: combine
 
   - file: 'dotfiles.yml'
@@ -104,8 +104,6 @@ imports:
     merge_keys:
       - dotfiles
 
-  # Partitions and region are usually defined by the interactive script,
-  # but can also be imported if you are running in a fully declarative mode.
   - file: 'partitions.yml'
     strategy: override
 
@@ -138,6 +136,7 @@ users:
     shell: "bash"
     groups:
       - root
+
 hostname: "Dionysus"
 wheel_access: true
 secrets:
@@ -171,17 +170,52 @@ pacotes:
   - fish
   - starship
   - btop
+
+aur_pkgs: # <~ yeah, I sepparated them, this is a safety net for when you DON'T have an damn aur helper (how could you?)
+  - 1password-cli
+  - aurroamer # <~ Highly recommend, very good package
+  - aurutils
+  - bibata-cursor-theme-bin
+ 
 bootloader: "grub" # or "refind"
 
-# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
+# pacotes_base_override:  <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
+#   - linux-cachyos-headers
+#   - linux-cachyos
+#   - linux-firmware
+
+aur_helpers: # <~ Only yay and paru are available right now, the script will _install_ any aur_helpers you want, but it'll only declaratively manage these 2
+  - yay
+  - paru
+
+mirrors:
+  countries:
+    - "br"
+    - "us"
+  count: 25
 
 # Manages systemd services
 services:
-  - name: "NetworkManager"
-    state: "started"
+  - name: NetworkManager
+    state: started
     enabled: true
-  - name: "bluetooth"
-    state: "started"
+    dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
+
+  - name: bluetooth.service # <~ ".service" _is_ required when there's an .service in the service name (do NOT use dense for these types.)
+    state: started
+    enabled: true
+
+  - name: sshd
+    state: started
+    enabled: true
+
+  - name: nvidia
+    state: started
+    enabled: true
+    dense_service: true
+
+  - name: sddm.service
+    state: started
     enabled: true
 
 # Manages pacman repositories
@@ -206,20 +240,36 @@ dotfiles:
     # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for an "install.sh" file inside the root of your repo, using it as a basis to install your dotfiles.
 
 # Defines disk partitions (usually filled by the interactive script)
+firmware: UEFI
 particoes:
-  root:
-    device: "/dev/sda2"
-    label: "ARCH_ROOT"
-    formato: "ext4"
-  home:
-    device: "/dev/sda4"
-    label: "ARCH_HOME"
-  boot:
-    device: "/dev/sda1"
-    label: "ESP"
-  swap:
-    device: "/dev/sda3"
-    label: "SWAP"
+  disk: "/dev/sdb" # <~ what disk you want to partition into
+  partitions:
+    - name: chronos # <~ Ch-aronte uses label for fstab andother things, this changes nothing to your overall experience, but it is an commodity for me
+      important: boot # <~ Only 4 of these, boot, root, swap and home, it uses this to define how the role should be treated (mainly boot and swap)
+      size: 1GB # <~ IT IS GB, NOT G, and it is also any of the part_end's from https://docs.ansible.com/ansible/latest/collections/community/general/parted_module.html#ansible-collections-community-general-parted-module-parameter-device
+      mount_point: "/boot" # <~ required (duh)
+      part: 1 # <~ this tells what partition it is (sdb1,2,3,4...)
+      type: vfat # <~ or ext4, btrfs, well, you get the idea
+
+    - name: Moira
+      important: swap
+      size: 4GB
+      part: 2
+      type: linux-swap
+
+    - name: dionysus_root
+      important: root
+      size: 46GB
+      mount_point: "/"
+      part: 3
+      type: ext4
+
+    - name: dionysus_home
+      important: home
+      size: 100%
+      mount_point: "/home"
+      part: 4
+      type: ext4
 
 # Defines region, language, and keyboard settings
 region:
