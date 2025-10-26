@@ -43,7 +43,7 @@ plugin_set_value "repos.managed.core" "true"
 repos_update
 echo "" >>Ch-obolos/$PLUGIN
 
-CHROOT_TAGS="repos"
+CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
   export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
