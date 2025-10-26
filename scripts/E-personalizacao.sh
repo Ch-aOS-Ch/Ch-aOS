@@ -22,12 +22,6 @@ plugin_set_value "hostname" "$hostname"
 
 sleep 1
 
-echo "$MSG_RUNNING_MKINITCPIO"
-arch-chroot /mnt mkinitcpio -P
-echo ""
-sleep 1
-echo "$MSG_MKINITCPIO_DONE"
-
 sleep 1
 
 echo "$MSG_SET_USER"

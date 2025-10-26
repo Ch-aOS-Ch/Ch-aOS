@@ -1,0 +1,15 @@
+- name: Make sure that reflector is, in fact, installed
+  community.general.pacman:
+    name: reflector
+    state: present
+
+- name: Run reflector to update mirrorlist
+  ansible.builtin.command: >-
+    reflector
+    --verbose
+    --latest {{ mirrors.count | default(25) }}
+    --sort rate
+    --save /etc/pacman.d/mirrorlist
+    -c {{ mirrors.countries | join(' -c ') }}
+  changed_when: true
+  become: true

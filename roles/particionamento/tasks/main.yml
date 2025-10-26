@@ -56,7 +56,7 @@
     cmd: "swapon -L {{ particoes.swap.label }}"
   when: particoes.swap.label is defined and particoes.swap.label | length > 0
   changed_when: false
-  
+
 - name: Gerar fstab na memória
   ansible.builtin.command:
     cmd: genfstab -L /mnt

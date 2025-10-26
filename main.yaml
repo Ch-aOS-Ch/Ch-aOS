@@ -69,3 +69,9 @@
   tags: [services]
   roles:
     - services
+
+- name: Run reflector
+  hosts: localhost
+  tags: [reflector]
+  roles:
+    - reflector

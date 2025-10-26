@@ -16,10 +16,6 @@ set +a
 if [ "$LANGC" = "Portugues" ]; then loadkeys br-abnt2; else loadkeys us; fi
 timedatectl
 
-arquivo_plugin=$(select_or_create_plugin_file)
-set_env_var "PLUGIN" "$arquivo_plugin"
-export PLUGIN="$arquivo_plugin"
-
 if [ -d /sys/firmware/efi ]; then
   plugin_set_value "firmware" "UEFI"
   set_env_var "FIRMWARE" "UEFI"
