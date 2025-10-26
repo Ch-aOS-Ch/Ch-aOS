@@ -102,7 +102,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   # --- Loop de Verificação e Correção ---
   echo "$MSG_SEPARATOR"
   echo "$MSG_GENERATED_PARTITION_CONFIG"
-  yq -o=json '.particoes' "Ch-obolos/$PLUGIN" | jq '.'
+  yq . "Ch-obolos/$PLUGIN" | jq '.particoes'
   echo "$MSG_SEPARATOR"
   read -p "$MSG_CONFIRM_PROMPT" -r confirmacao
 

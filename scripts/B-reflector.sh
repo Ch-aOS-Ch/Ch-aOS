@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 set -a
+source lib/ui.sh
+source lib/plugin.sh
 source respostas.env
 set +a
 source lib/ui.sh
