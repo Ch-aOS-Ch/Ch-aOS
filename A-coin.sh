@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-
-source scripts/ZA-Lang.sh
+if [ ! "$LANGC" ]; then
+  source scripts/ZA-Lang.sh
+fi
 
 set -a
 source ./respostas.env
@@ -15,9 +16,35 @@ arquivo_plugin=$(select_or_create_plugin_file)
 set_env_var "PLUGIN" "$arquivo_plugin"
 export PLUGIN="$arquivo_plugin"
 
-bash scripts/A-particionamento.sh
-bash scripts/B-reflector.sh
-bash scripts/C-instalacao.sh
+# --- Particionamento ---
+if [ "$PARTITIONED" == "true" ]; then
+  read -p "$MSG_PROMPT_RUN_AGAIN_PARTITION" -r choice
+  if [[ "$choice" =~ ^[YySs]$ ]]; then
+    bash scripts/A-particionamento.sh
+  fi
+else
+  bash scripts/A-particionamento.sh
+fi
+
+# --- Reflector ---
+if [ "$REFLECTORED" == "true" ]; then
+  read -p "$MSG_PROMPT_RUN_AGAIN_REFLECTOR" -r choice
+  if [[ "$choice" =~ ^[YySs]$ ]]; then
+    bash scripts/B-reflector.sh
+  fi
+else
+  bash scripts/B-reflector.sh
+fi
+
+# --- Instalação Base ---
+if [ "$INSTALLED" == "true" ]; then
+  read -p "$MSG_PROMPT_RUN_AGAIN_INSTALL" -r choice
+  if [[ "$choice" =~ ^[YySs]$ ]]; then
+    bash scripts/C-instalacao.sh
+  fi
+else
+  bash scripts/C-instalacao.sh
+fi
 bash scripts/D-regiao.sh
 bash scripts/E-personalizacao.sh
 bash scripts/F-bootloader.sh

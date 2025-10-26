@@ -45,3 +45,4 @@ CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
   export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
+set_env_var "INSTALLED" "true"
