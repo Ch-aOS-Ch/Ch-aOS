@@ -1,6 +1,13 @@
 #!/bin/bash
 
 PLUGIN_DIR="./Ch-obolos/"
+touch respostas.env
+
+set_env_var() {
+  local envvar="$1"
+  local value="$2"
+  echo "$1=$2" >>respostas.env
+}
 
 # Função para definir um valor em um arquivo de plugin usando yq
 # Uso: plugin_set_value "caminho.para.chave" "valor"
