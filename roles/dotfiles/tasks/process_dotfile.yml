@@ -6,12 +6,17 @@
   become: false
   become_user: "{{ final_users[0].name }}"
   register: dotfiles_git_clone_result
+  when: final_users is defined and final_users | length > 0
 
 - name: "Executando comando de instalação custom"
   ansible.builtin.command:
     cmd: "{{ dotfile_item.install_command }}"
     chdir: "{{ dotfiles_git_clone_result.dest }}"
-  when: dotfile_item.install_command is defined and dotfile_item.install_command | length > 0
+  when:
+    - dotfile_item.install_command is defined
+    - dotfile_item.install_command | length > 0
+    - final_users is defined
+    - final_users | length > 0
   become: true
   changed_when: false
   become_user: "{{ final_users[0].name }}"
@@ -25,7 +30,11 @@
       echo "yadm not implemented yet, please use stow."
       {% endif %}
     chdir: "{{ dotfiles_git_clone_result.dest }}"
-  when: dotfile_item.manager is defined and dotfile_item.manager | length > 0
+  when:
+    - dotfile_item.manager is defined
+    - dotfile_item.manager | length > 0
+    - final_users is defined
+    - final_users | length > 0
   become: true
   changed_when: false
   become_user: "{{ final_users[0].name }}"
@@ -37,6 +46,8 @@
   when:
     - dotfile_item.install_command is not defined
     - dotfile_item.manager is not defined
+    - final_users is defined
+    - final_users | length > 0
   become: true
   become_user: "{{ final_users[0].name }}"
 
@@ -44,7 +55,10 @@
   ansible.builtin.command:
     cmd: "bash install.sh"
     chdir: "{{ dotfiles_git_clone_result.dest }}"
-  when: dotfiles_install_script_stat.stat.exists
+  when:
+    - dotfiles_install_script_stat.stat.exists
+    - final_users is defined
+    - final_users | length > 0
   become: true
   changed_when: false
   become_user: "{{ final_users[0].name }}"
