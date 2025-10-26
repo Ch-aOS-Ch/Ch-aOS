@@ -36,10 +36,12 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
 
   read -p "$MSG_ANY_MORE" -r add_pkg
 done
+echo "" >>Ch-obolos/$PLUGIN
 
 ansible-playbook -vvv ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
 plugin_set_value "repos.managed.core" "true"
 repos_update
+echo "" >>Ch-obolos/$PLUGIN
 
 CHROOT_TAGS="fstab,repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then

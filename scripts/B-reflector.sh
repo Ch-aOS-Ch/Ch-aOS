@@ -19,6 +19,7 @@ case $LANGC in
   ;;
 esac
 plugin_set_value "mirrors.count" "25"
+echo "" >>Ch-obolos/$PLUGIN
 
 sleep 1
 echo "///...///"

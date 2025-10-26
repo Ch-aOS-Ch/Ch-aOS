@@ -72,6 +72,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   read -p "$MSG_PROMPT_BOOT_PART_SIZE" boot_size
   read -p "$MSG_PROMPT_BOOT_PART_LABEL" boot_name
   add_partition_to_plugin "$boot_name" "$boot_size" "vfat" "$boot_part" "/boot" "boot"
+  echo "" >>Ch-obolos/$PLUGIN
 
   echo "$MSG_CONFIGURING_ROOT_PARTITION"
   read -p "$MSG_PROMPT_ROOT_PART_NUMBER" root_part
@@ -79,6 +80,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
   read -p "$MSG_PROMPT_ROOT_PART_LABEL" root_name
   read -p "$MSG_PROMPT_ROOT_PART_FORMAT" root_type
   add_partition_to_plugin "$root_name" "$root_size" "$root_type" "$root_part" "/" "root"
+  echo "" >>Ch-obolos/$PLUGIN
 
   # --- Partições Opcionais ---
   read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
@@ -88,6 +90,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
     read -p "$MSG_PROMPT_SWAP_PART_SIZE" swap_size
     read -p "$MSG_PROMPT_SWAP_PART_LABEL" swap_name
     add_partition_to_plugin "$swap_name" "$swap_size" "linux-swap" "$swap_part" "none" "swap"
+    echo "" >>Ch-obolos/$PLUGIN
   fi
 
   read -rp "$MSG_WANT_HOME_PARTITION" want_home
@@ -97,6 +100,7 @@ while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "
     read -p "$MSG_PROMPT_HOME_PART_SIZE" home_size
     read -p "$MSG_PROMPT_HOME_PART_LABEL" home_name
     add_partition_to_plugin "$home_name" "$home_size" "ext4" "$home_part" "/home" "home"
+    echo "" >>Ch-obolos/$PLUGIN
   fi
 
   # --- Loop de Verificação e Correção ---
@@ -110,6 +114,7 @@ done
 
 read -p "$MSG_BOOTLOADER_PROMPT" bootloader
 plugin_set_value "bootloader" "$bootloader"
+echo "" >>Ch-obolos/$PLUGIN
 
 echo "$MSG_CONFIG_CONFIRMED"
 echo "$MSG_ANSIBLE_APPLYING_CHANGES"
