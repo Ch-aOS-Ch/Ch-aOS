@@ -8,7 +8,7 @@ Here are the steps to follow:
 
 2.  **Write Ansible Tasks:** In `main.yml`, write your Ansible tasks. Focus on making them **declarative** (describe the desired state) and **idempotent** (can be run multiple times without issues). Always prefer Ansible modules over raw shell commands. Use variables for dynamic values.
 like so:
-![task](../imagens/2025-10-26T11-19-29Z_code.png)
+![task](../imagens/2025-07-25T01-15-34Z_code.png)
 
 > [!WARNING]
 >
@@ -17,7 +17,7 @@ like so:
 
 3.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
 like so:
-![main](../imagens/2025-07-25T01-15-20Z_code.png)
+![main](../imagens/2025-10-26T11-19-29Z_code.png)
 
 > [!WARNING]
 >
