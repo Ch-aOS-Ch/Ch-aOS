@@ -17,6 +17,7 @@ sleep 1
 # Garante que o NetworkManager está no plugin antes de executar as roles
 echo "$MSG_ENABLE_NETWORK"
 yq -iy '(.services |= (. // [])) | .services += [{"name": "NetworkManager", "state": "started", "enabled": true}] | .services |= unique_by(.name)' "Ch-obolos/$PLUGIN"
+echo "" >>Ch-obolos/$PLUGIN
 
 echo "$MSG_CONFIGURING"
 

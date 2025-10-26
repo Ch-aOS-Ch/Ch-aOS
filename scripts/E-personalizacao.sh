@@ -19,6 +19,7 @@ while [[ -z "$hostname" || "$hostname" =~ [^a-zA-Z0-9.-] ]]; do
   read -p "$MSG_INVALID_HOSTNAME" -r hostname
 done
 plugin_set_value "hostname" "$hostname"
+echo "" >>Ch-obolos/$PLUGIN
 
 sleep 1
 
@@ -51,6 +52,7 @@ echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
 echo "{}" >"$SECRETS_FILE"
 plugin_set_value "secrets.sec_file" "$SECRETS_FILE"
 plugin_set_value "secrets.sec_mode" "charonte"
+echo "" >>Ch-obolos/$PLUGIN
 
 clear
 echo "Senha para o usuário: ${username}"
@@ -67,6 +69,7 @@ case $choice in
   echo ""
   user_hash=$(printf '%s' "$user_pass" | openssl passwd -6 -stdin)
   yq -iy ".${username}.password = \"$user_hash\"" "$SECRETS_FILE"
+  echo "" >>Ch-obolos/$PLUGIN
   yq -iy ".root.password = \"$user_hash\"" "$SECRETS_FILE"
   ;;
 "2")
@@ -106,6 +109,7 @@ echo "$SECRETS_FILE" >>./.gitignore
 # --- Habilita o Sudo para o grupo 'wheel' ---
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
 plugin_set_value "wheel_access" "true"
+echo "" >>Ch-obolos/$PLUGIN
 
 if [[ $CHOICE = "usar" || $CHOICE = "use" ]]; then
   read -rp "$MSG_WANT_DOTS" dot_accept
