@@ -4,24 +4,19 @@
     state: present
   become: true
 
-- name: "Criar tabela de partição (GPT p/ UEFI, MBR p/ BIOS)"
-  community.general.parted:
-    device: "{{ particoes.disk }}"
-    label: "{{ 'gpt' if firmware == 'UEFI' else 'msdos' }}"
-    state: present
-  become: true
-
 - name: "Criar tabela de partição (GPT p/ UEFI, MBR p/ BIOS) e criar cada partição"
   community.general.parted:
     device: "{{ particoes.disk }}"
     number: "{{ item.part }}"
     name: "{{ item.name }}"
     state: present
+    label: "{{ 'gpt' if firmware == 'UEFI' else 'msdos' }}"
     part_end: "{{ item.size }}"
     flags: "{{ ['boot', 'esp'] if item.important == 'boot' and firmware == 'UEFI' else [] }}"
   loop: "{{ particoes.partitions }}"
   loop_control:
     loop_var: item
+  become: true
 
 - name: "Formatar partições de dados (ext4, btrfs, etc) com label"
   community.general.filesystem:
@@ -32,6 +27,7 @@
   loop_control:
     loop_var: item
   when: item.type in ['ext4', 'btrfs', 'xfs', 'ext3', 'ext2'] and item.important not in ["boot", "swap"]
+  become: true
 
 - name: "Formatar partição de BOOT (fat32) com label"
   community.general.filesystem:
@@ -42,6 +38,7 @@
   loop_control:
     loop_var: item
   when: item.type in ['fat32', 'fat16', 'vfat']
+  become: true
 
 - name: "Criar e formatar partição SWAP com label"
   community.general.filesystem:
@@ -49,6 +46,7 @@
     dev: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
     opts: "-L {{ item.name }}"
   loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
+  become: true
 
 - name: "Montar sistemas de arquivos via LABEL"
   ansible.posix.mount:
@@ -59,18 +57,21 @@
   loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') }}"
   loop_control:
     loop_var: item
+  become: true
 
 - name: "Ativar SWAP via LABEL"
   ansible.builtin.command:
     cmd: "swapon LABEL={{ item.name }}"
   loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
   changed_when: true
+  become: true
 
 - name: "Gerar fstab usando labels (-L)"
   ansible.builtin.command:
     cmd: genfstab -L /mnt
   register: fstab_content
   changed_when: false
+  become: true
 
 - name: "Escrever /etc/fstab no sistema de destino"
   ansible.builtin.copy:
