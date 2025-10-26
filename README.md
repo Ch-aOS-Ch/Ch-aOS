@@ -59,7 +59,7 @@ chmod +x A-coin.sh
 >
 > The script is your guide. Follow the instructions in the terminal and answer the questions, the system will install the system based on it
 
-## Plugin System
+## Ch-obolos System
 
 Customize your installation by creating your own presets.
 1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
