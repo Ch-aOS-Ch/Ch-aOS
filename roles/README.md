@@ -28,8 +28,8 @@ like so:
 **Key Principles for Role Development:**
 
 *   **Declarativity:** Describe the *what*, not the *how*.
-Notice this services Ch-obolo:
-![Services Ch-obolo](../imagens/2025-10-26T11-15-05Z_code.png)
+Notice this partitions Ch-obolo:
+![Services Ch-obolo](../imagens/2025-10-26T11-21-50Z_code.png)
 *   **Idempotency:** Safe to run repeatedly.
 *   **Modularity:** Keep roles focused on a single purpose.
 *   **Adherence to `CONTRIBUTING.md`:** Follow all general project guidelines.
