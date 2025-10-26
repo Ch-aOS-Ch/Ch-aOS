@@ -15,7 +15,7 @@ like so:
 > Notice how, even in portuguese, the task is _self explained_, "you'll format root partition in root to the format in formato when formato exists and root exists", try to adhere to this method
 ---
 
-4.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
+3.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
 like so:
 ![main](../imagens/2025-07-25T01-15-20Z_code.png)
 
@@ -23,11 +23,13 @@ like so:
 >
 > This is to facilitate the usage of the ansible module, allowing for an easier CLI down the road
 
-6.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
+4.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
 
 **Key Principles for Role Development:**
 
 *   **Declarativity:** Describe the *what*, not the *how*.
+Notice this services Ch-obolo:
+![Services Ch-obolo](../imagens/2025-10-26T11-15-05Z_code.png)
 *   **Idempotency:** Safe to run repeatedly.
 *   **Modularity:** Keep roles focused on a single purpose.
 *   **Adherence to `CONTRIBUTING.md`:** Follow all general project guidelines.
