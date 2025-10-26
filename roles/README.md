@@ -10,11 +10,16 @@ Here are the steps to follow:
 like so:
 ![task](../imagens/2025-07-25T01-15-34Z_code.png)
 
-3.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
+> [!WARNING]
+>
+> Notice how, even in portuguese, the task is _self explained_, "you'll format root partition in root to the format in formato when formato exists and root exists", try to adhere to this method
+---
+
+4.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
 like so:
 ![main](../imagens/2025-07-25T01-15-20Z_code.png)
 
-4.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
+5.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
 
 **Key Principles for Role Development:**
 
