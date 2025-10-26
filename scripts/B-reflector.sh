@@ -32,6 +32,7 @@ echo "$MSG_COMMAND_IS"
 sleep 0.4
 echo "$REFLECTOR_CMD"
 
-ansible-playbook -vvv main.yaml --tags reflector -e @Ch-obolos/"$PLUGIN"
+ansible-playbook main.yaml --tags reflector -e @Ch-obolos/"$PLUGIN"
 
 echo "$FINALIZESC"
+set_env_var "REFLECTORED" "true"

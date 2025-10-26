@@ -65,6 +65,9 @@ case "$LANGC" in
   MSG_PROMPT_SWAP_PART_LABEL="Nome/Label para SWAP (ex: SWAP): "
   MSG_GENERATED_PARTITION_CONFIG="Configuração de partição gerada:"
   MSG_ANSIBLE_APPLYING_CHANGES="Executando Ansible para aplicar as mudanças..."
+  MSG_PROMPT_RUN_AGAIN_PARTITION="Particionamento já foi feito. Deseja executar novamente? (s/N) "
+  MSG_PROMPT_RUN_AGAIN_REFLECTOR="Reflector já foi executado. Deseja executar novamente? (s/N) "
+  MSG_PROMPT_RUN_AGAIN_INSTALL="Instalação base já foi feita. Deseja executar novamente? (s/N) "
 
   # B-reflector.sh
   MSG_ALMOST_FORGOT="Opa, quase que eu me esqueci de rodar o reflector, pera ae, vai ser 2 tempo"
@@ -182,6 +185,9 @@ case "$LANGC" in
   MSG_PROMPT_SWAP_PART_LABEL="Name/Label for SWAP (e.g., SWAP): "
   MSG_GENERATED_PARTITION_CONFIG="Generated partition configuration:"
   MSG_ANSIBLE_APPLYING_CHANGES="Executing Ansible to apply changes..."
+  MSG_PROMPT_RUN_AGAIN_PARTITION="Partitioning is already done. Do you want to run it again? (y/N) "
+  MSG_PROMPT_RUN_AGAIN_REFLECTOR="Reflector has already been run. Do you want to run it again? (y/N) "
+  MSG_PROMPT_RUN_AGAIN_INSTALL="Base installation is already done. Do you want to run it again? (y/N) "
 
   # B-reflector.sh
   MSG_ALMOST_FORGOT="Oh, I almost forgot to run reflector, hold on, it will be quick"
