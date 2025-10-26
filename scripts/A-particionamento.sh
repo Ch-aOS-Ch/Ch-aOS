@@ -10,6 +10,33 @@ source ./respostas.env
 set +a
 
 # ==============================================================================
+# FUNÇÃO HELPER PARA ESTE SCRIPT
+# ==============================================================================
+
+add_partition_to_plugin() {
+  local part_name="$1"
+  local part_size="$2"
+  local part_type="$3"
+  local part_num="$4"
+  local part_mountpoint="$5"
+  local part_important="$6"
+
+  # Sempre type e name são strings. Part é número.
+  local partition_yaml="{\"name\": \"$part_name\", \"size\": \"$part_size\", \"type\": \"$part_type\", \"part\": $part_num"
+
+  if [[ -n "$part_mountpoint" && "$part_mountpoint" != "none" ]]; then
+    partition_yaml="$partition_yaml, \"mountpoint\": \"$part_mountpoint\""
+  fi
+  if [[ -n "$part_important" ]]; then
+    partition_yaml="$partition_yaml, \"important\": \"$part_important\""
+  fi
+
+  partition_yaml="$partition_yaml }"
+
+  yq -iy ".particoes.partitions += [$partition_yaml]" "Ch-obolos/$PLUGIN"
+}
+
+# ==============================================================================
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
 
@@ -19,158 +46,72 @@ timedatectl
 if [ -d /sys/firmware/efi ]; then
   plugin_set_value "firmware" "UEFI"
   set_env_var "FIRMWARE" "UEFI"
-  firmware="UEFI"
 else
   plugin_set_value "firmware" "BIOS"
   set_env_var "FIRMWARE" "BIOS"
-  firmware="BIOS"
 fi
 
-echo "$MSG_PREPARING"
-sleep 1
-echo "3..."
-sleep 1
-echo "2..."
-sleep 1
-echo "1..."
-echo "$MSG_STARTING_PROMPT"
-echo ""
-echo "$MSG_LETS_PARTITION"
-echo "$MSG_CFDISK_INFO"
-echo ""
-echo "$MSG_RECOMMENDATION"
-echo "$MSG_RECOMMENDATION_DETAILS"
-echo "$MSG_FINALIZE"
-echo "---------------------------------------------------"
-
-read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
-while [[ "$resposta" == "Y" || "$resposta" == "y" || "$resposta" == "" ]]; do
-  echo "$MSG_READ_AGAIN"
-  read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
-done
-
-echo "$MSG_CONTINUING"
-sleep 1
-echo "---------------------------------------------------"
-lsblk
-echo "---------------------------------------------------"
-
-read -p "$MSG_DISK_PROMPT" -r disco
-while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
-  echo "$MSG_INVALID_DISK"
-  read -p "$MSG_DISK_PROMPT" -r disco
-done
-
-cfdisk "/dev/$disco"
-
-# Coleta das informações de partição
-root_dev=$(prompt_for_partition "$MSG_ROOT_PROMPT")
-root_label=$(prompt_for_label "$MSG_ROOT_LABEL_PROMPT")
-boot_dev=$(prompt_for_partition "$MSG_BOOT_PROMPT")
-boot_label=$(prompt_for_label "$MSG_BOOT_LABEL_PROMPT")
-
-read -rp "$MSG_WANT_HOME_PARTITION" want_home
-if [[ "$want_home" == "Y" || "$want_home" == "y" || "$want_home" == "" ]]; then
-  home_dev=$(prompt_for_partition "$MSG_HOME_PROMPT")
-  home_label=$(prompt_for_label "$MSG_HOME_LABEL_PROMPT")
-else
-  home_dev=""
-  home_label=""
-fi
-
-read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
-if [[ "$want_swap" == "Y" || "$want_swap" == "y" || "$want_swap" == "" ]]; then
-  swap_dev=$(prompt_for_partition "$MSG_SWAP_PROMPT")
-  swap_label=$(prompt_for_label "$MSG_SWAP_LABEL_PROMPT")
-else
-  swap_dev=""
-  swap_label=""
-fi
-
-read -p "$MSG_FORMAT_PROMPT" -r formato
-while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-  echo "$MSG_INVALID_FORMAT"
-  read -p "$MSG_FORMAT_PROMPT" -r formato
-done
-
-bootloader=$(prompt_for_bootloader)
-
-# Loop de verificação e correção
 confirmacao="n"
 while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; do
-  echo ""
-  echo "---------------------------------------------------"
-  echo "$MSG_CHECK_VALUES"
-  echo "  [DISCO]      => /dev/$disco"
-  echo "  [ROOT]       => Device: /dev/$root_dev, Label: $root_label"
-  echo "  [HOME]       => Device: /dev/$home_dev, Label: $home_label"
-  echo "  [BOOT]       => Device: /dev/$boot_dev, Label: $boot_label"
-  echo "  [SWAP]       => Device: /dev/$swap_dev, Label: $swap_label"
-  echo "  [FORMATO]    => $formato"
-  echo "  [FIRMWARE]   => $firmware"
-  echo "  [BOOTLOADER] => $bootloader"
+  echo "$MSG_LETS_PARTITION"
+  sleep 1
+  lsblk
   echo "---------------------------------------------------"
 
+  read -p "$MSG_DISK_PROMPT" -r disco
+  while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
+    echo "$MSG_INVALID_DISK"
+    read -p "$MSG_DISK_PROMPT" -r disco
+  done
+  plugin_set_value "particoes.disk" "/dev/$disco"
+  yq -iy '.particoes.partitions = []' "Ch-obolos/$PLUGIN"
+
+  # --- Partições Obrigatórias ---
+  echo "--- Configurando partição BOOT (Obrigatória) ---"
+  read -p "Número da partição para BOOT (ex: 1): " boot_part
+  read -p "Tamanho da partição BOOT (ex: 1G): " boot_size
+  read -p "Nome/Label para BOOT (ex: ESP): " boot_name
+  add_partition_to_plugin "$boot_name" "$boot_size" "vfat" "$boot_part" "/boot" "boot"
+
+  echo "--- Configurando partição ROOT (Obrigatória) ---"
+  read -p "Número da partição para ROOT (ex: 2): " root_part
+  read -p "Tamanho da partição ROOT (ex: 50G): " root_size
+  read -p "Nome/Label para ROOT (ex: ARCH_ROOT): " root_name
+  read -p "Formato para ROOT (ext4/btrfs): " root_type
+  add_partition_to_plugin "$root_name" "$root_size" "$root_type" "$root_part" "/" "root"
+
+  # --- Partições Opcionais ---
+  read -rp "$MSG_WANT_HOME_PARTITION" want_home
+  if [[ "$want_home" != "n" && "$want_home" != "N" ]]; then
+    echo "--- Configurando partição HOME ---"
+    read -p "Número da partição para HOME (ex: 3): " home_part
+    read -p "Tamanho da partição HOME (ex: 100% para usar o resto): " home_size
+    read -p "Nome/Label para HOME (ex: ARCH_HOME): " home_name
+    add_partition_to_plugin "$home_name" "$home_size" "ext4" "$home_part" "/home" "home"
+  fi
+
+  read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
+  if [[ "$want_swap" != "n" && "$want_swap" != "N" ]]; then
+    echo "--- Configurando partição SWAP ---"
+    read -p "Número da partição para SWAP (ex: 4): " swap_part
+    read -p "Tamanho da partição SWAP (ex: 8G): " swap_size
+    read -p "Nome/Label para SWAP (ex: SWAP): " swap_name
+    add_partition_to_plugin "$swap_name" "$swap_size" "linux-swap" "$swap_part" "none" "swap"
+  fi
+
+  # --- Loop de Verificação e Correção ---
+  echo "---------------------------------------------------"
+  echo "Configuração de partição gerada:"
+  yq -o=json '.particoes' "Ch-obolos/$PLUGIN" | jq '.'
+  echo "---------------------------------------------------"
   read -p "$MSG_CONFIRM_PROMPT" -r confirmacao
 
-  if ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; then
-    read -p "$MSG_CHANGE_PROMPT" -r var_to_change
-    case $(echo "$var_to_change" | tr '[:upper:]' '[:lower:]') in
-    root)
-      root_dev=$(prompt_for_partition "$MSG_ROOT_PROMPT")
-      root_label=$(prompt_for_label "$MSG_ROOT_LABEL_PROMPT")
-      ;;
-    home)
-      home_dev=$(prompt_for_partition "$MSG_HOME_PROMPT")
-      home_label=$(prompt_for_label "$MSG_HOME_LABEL_PROMPT")
-      ;;
-    boot)
-      boot_dev=$(prompt_for_partition "$MSG_BOOT_PROMPT")
-      boot_label=$(prompt_for_label "$MSG_BOOT_LABEL_PROMPT")
-      ;;
-    swap)
-      swap_dev=$(prompt_for_partition "$MSG_SWAP_PROMPT")
-      swap_label=$(prompt_for_label "$MSG_SWAP_LABEL_PROMPT")
-      ;;
-    disco)
-      read -p "$MSG_DISK_PROMPT" -r disco
-      while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
-        echo "$MSG_INVALID_DISK"
-        read -p "$MSG_DISK_PROMPT" -r disco
-      done
-      ;;
-    formato)
-      read -p "$MSG_FORMAT_PROMPT" -r formato
-      while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-        echo "$MSG_INVALID_FORMAT"
-        read -p "$MSG_FORMAT_PROMPT" -r formato
-      done
-      ;;
-    bootloader) bootloader=$(prompt_for_bootloader) ;;
-    *) echo "$MSG_INVALID_OPTION" ;;
-    esac
-  fi
 done
 
-echo "$MSG_CONFIG_CONFIRMED"
-
-# Salva tudo no plugin YAML
-plugin_set_value "particoes.root.device" "/dev/$root_dev"
-plugin_set_value "particoes.root.label" "$root_label"
-plugin_set_value "particoes.root.formato" "$formato"
-
-plugin_set_value "particoes.home.device" "/dev/$home_dev"
-plugin_set_value "particoes.home.label" "$home_label"
-
-plugin_set_value "particoes.boot.device" "/dev/$boot_dev"
-plugin_set_value "particoes.boot.label" "$boot_label"
-
-plugin_set_value "particoes.swap.device" "/dev/$swap_dev"
-plugin_set_value "particoes.swap.label" "$swap_label"
-plugin_set_value "particoes.device" "/dev/$disco"
-
+read -p "Qual bootloader você deseja usar? (grub/refind): " bootloader
 plugin_set_value "bootloader" "$bootloader"
 
-# Salva variáveis de ambiente para scripts subsequentes, se necessário
-set_env_var "DISCO" "$disco"
+echo "$MSG_CONFIG_CONFIRMED"
+echo "Executando Ansible para aplicar as mudanças..."
 ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
+

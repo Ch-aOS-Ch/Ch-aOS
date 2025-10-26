@@ -1,70 +1,79 @@
-- name: Formatação e Label da partição root
-  community.general.filesystem:
-    fstype: "{{ particoes.root.formato }}"
-    dev: "{{ particoes.root.device }}"
-    opts: "-L {{ particoes.root.label }}"
-    force: true
-  when:
-    - particoes.root.device is defined and particoes.root.device | length > 0
-    - particoes.root.label is defined and particoes.root.label | length > 0
-    - particoes.root.formato is defined
+- name: "Garantir que as dependências (parted) estejam instaladas"
+  community.general.pacman:
+    name: parted
+    state: present
+  become: true
 
-- name: Formatação e Label da partição home
-  community.general.filesystem:
-    fstype: ext4
-    dev: "{{ particoes.home.device }}"
-    opts: "-L {{ particoes.home.label }}"
-    force: true
-  when:
-    - particoes.home.device is defined and particoes.home.device | length > 0
-    - particoes.home.label is defined and particoes.home.label | length > 0
+- name: "Criar tabela de partição (GPT p/ UEFI, MBR p/ BIOS)"
+  community.general.parted:
+    device: "{{ particoes.disk }}"
+    label: "{{ 'gpt' if firmware == 'UEFI' else 'msdos' }}"
+    state: present
+  become: true
 
-- name: Formatação e Label da partição boot
-  community.general.filesystem:
-    fstype: vfat
-    dev: "{{ particoes.boot.device }}"
-    opts: "-n {{ particoes.boot.label }}"
-    force: true
-  when:
-    - particoes.boot.device is defined and particoes.boot.device | length > 0
-    - particoes.boot.label is defined and particoes.boot.label | length > 0
+- name: "Criar tabela de partição (GPT p/ UEFI, MBR p/ BIOS) e criar cada partição"
+  community.general.parted:
+    device: "{{ particoes.disk }}"
+    number: "{{ item.part }}"
+    name: "{{ item.name }}"
+    state: present
+    part_end: "{{ item.size }}"
+    flags: "{{ ['boot', 'esp'] if item.important == 'boot' and firmware == 'UEFI' else [] }}"
+  loop: "{{ particoes.partitions }}"
+  loop_control:
+    loop_var: item
 
-- name: Formatação e Label da partição swap
+- name: "Formatar partições de dados (ext4, btrfs, etc) com label"
   community.general.filesystem:
-    fstype: swap
-    dev: "{{ particoes.swap.device }}"
-    opts: "-L {{ particoes.swap.label }}"
-    force: true
-  when:
-    - particoes.swap.device is defined and particoes.swap.device | length > 0
-    - particoes.swap.label is defined and particoes.swap.label | length > 0
+    fstype: "{{ item.type }}"
+    dev: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
+    opts: "-L {{ item.name }}"
+  loop: "{{ particoes.partitions }}"
+  loop_control:
+    loop_var: item
+  when: item.type in ['ext4', 'btrfs', 'xfs', 'ext3', 'ext2'] and item.important not in ["boot", "swap"]
 
-- name: Montar todas as partições (exceto swap)
+- name: "Formatar partição de BOOT (fat32) com label"
+  community.general.filesystem:
+    fstype: "{{ 'vfat' if item.type in ['fat32', 'fat16', 'vfat'] else item.type }}"
+    dev: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
+    opts: "-n {{ item.name }}"
+  loop: "{{ particoes.partitions }}"
+  loop_control:
+    loop_var: item
+  when: item.type in ['fat32', 'fat16', 'vfat']
+
+- name: "Criar e formatar partição SWAP com label"
+  community.general.filesystem:
+    fstype: "swap"
+    dev: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
+    opts: "-L {{ item.name }}"
+  loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
+
+- name: "Montar sistemas de arquivos via LABEL"
   ansible.posix.mount:
-    path: "/mnt{{ item.mount_point | default('') }}"
-    src: "{{ item.device }}"
-    fstype: "{{ item.fstype }}"
+    path: "/mnt{{ item.mountpoint }}"
+    src: "LABEL={{ item.name }}"
+    fstype: "{{ 'vfat' if item.type in ['fat32', 'fat16', 'vfat'] else item.type }}"
     state: mounted
-  loop:
-    - { device: "{{ particoes.root.device }}", fstype: "{{ particoes.root.formato }}", mount_point: '' }
-    - { device: "{{ particoes.home.device }}", fstype: 'ext4', mount_point: '/home' }
-    - { device: "{{ particoes.boot.device }}", fstype: 'vfat', mount_point: '/boot' }
-  when: item.device is defined and item.device | length > 0
+  loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') }}"
+  loop_control:
+    loop_var: item
 
-- name: Ativar swap por Label
+- name: "Ativar SWAP via LABEL"
   ansible.builtin.command:
-    cmd: "swapon -L {{ particoes.swap.label }}"
-  when: particoes.swap.label is defined and particoes.swap.label | length > 0
-  changed_when: false
+    cmd: "swapon LABEL={{ item.name }}"
+  loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
+  changed_when: true
 
-- name: Gerar fstab na memória
+- name: "Gerar fstab usando labels (-L)"
   ansible.builtin.command:
     cmd: genfstab -L /mnt
   register: fstab_content
   changed_when: false
 
-- name: Escrever /etc/fstab a partir do conteúdo gerado
-  become: true
+- name: "Escrever /etc/fstab no sistema de destino"
   ansible.builtin.copy:
     content: "{{ fstab_content.stdout }}"
-    dest: /etc/fstab
+    dest: /mnt/etc/fstab
+  become: true
