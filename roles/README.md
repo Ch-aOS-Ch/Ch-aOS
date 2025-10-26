@@ -19,7 +19,11 @@ like so:
 like so:
 ![main](../imagens/2025-07-25T01-15-20Z_code.png)
 
-5.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
+> [!WARNING]
+>
+> This is to facilitate the usage of the ansible module, allowing for an easier CLI down the road
+
+6.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
 
 **Key Principles for Role Development:**
 
