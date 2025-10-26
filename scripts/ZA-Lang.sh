@@ -1,6 +1,4 @@
-source ./lib/ui.sh
-source ./lib/plugin.sh
-source ./scripts/resources.sh
+#!/bin/bash
 
 echo "respostas.env" >>.gitignore && touch respostas.env
 echo -en "\e]P0152212" # black (background)
