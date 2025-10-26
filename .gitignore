@@ -1,2 +1,13 @@
 roles/sistema/vars/custom_meu_plugin.yml
 roles/sistema/vars/custom-meu-sistema-atual.yml
+Ch-obolos/packages
+Ch-obolos/particoes
+Ch-obolos/region
+Ch-obolos/repos
+Ch-obolos/services
+Ch-obolos/users
+Ch-obolos/custom-plug-dex.yml
+log.txt
+logg.txt
+ch-aronte.md
+personal_roadmap.md
