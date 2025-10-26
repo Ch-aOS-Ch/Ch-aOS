@@ -29,4 +29,3 @@
   ansible.builtin.copy:
     content: "{{ fstab_content.stdout }}"
     dest: /etc/fstab
-

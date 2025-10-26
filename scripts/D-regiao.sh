@@ -70,7 +70,6 @@ yq -iy '.region.locale = []' "Ch-obolos/$PLUGIN"
 for loc in "${locales[@]}"; do
   plugin_add_to_list "region.locale" "${loc}.UTF-8"
 done
-echo "" >>Ch-obolos/$PLUGIN
 
 echo ""
 echo "$MSG_CONFIG_SAVED"
