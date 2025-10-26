@@ -1,236 +1,121 @@
 #!/bin/bash
+set -e
+
+# Carrega as bibliotecas e o ambiente
+source ./lib/ui.sh
+source ./lib/plugin.sh
+source ./scripts/resources.sh
 set -a
-source respostas.env
+source ./respostas.env
 set +a
-source scripts/resources.sh
 
 # ==============================================================================
-# SETUP DE IDIOMA E MENSAGENS
-# Todas as strings visíveis para o usuário são definidas aqui.
-# ==============================================================================
-case "$LANGC" in
-"Portugues")
-  # Mensagens Gerais
-  MSG_PREPARING="Preparando particionamento..."
-  MSG_STARTING_PROMPT="Alô alô??? alguém aí????? beleza, tamo começando aqui, se prepara pra iniciar"
-  MSG_LETS_PARTITION="Vamos começar a particionar o disco"
-  MSG_CFDISK_INFO="vamos usar o comando cfdisk, então se certifique de se preparar."
-  MSG_RECOMMENDATION="recomendo usar 4 partições: root, home, swap e boot."
-  MSG_RECOMMENDATION_DETAILS="boot = 1G com tipo EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ / linux swap | home = resto / linux home"
-  MSG_FINALIZE="Finalize com 'write' ou 'gravar' no cfdisk pra aplicar as alterações."
-  MSG_UNDERSTOOD_PROMPT="Você entendeu tudo (digite N para confirmar)? (y/N) "
-  MSG_READ_AGAIN="Por favor, leia as instruções novamente e PARA DE FICAR SÓ DANDO ENTER!"
-  MSG_CONTINUING="Continuando..."
-
-  # Prompts de Entrada
-  MSG_DISK_PROMPT="Digite o disco que vai ser particionado (ex: sda): "
-  MSG_ROOT_PROMPT="qual a tua Partição ROOT? (ex: sda2): "
-  MSG_HOME_PROMPT="qual a tua Partição HOME? (ex: sda4): "
-  MSG_BOOT_PROMPT="qual a tua Partição BOOT? (ex: sda1): "
-  MSG_SWAP_PROMPT="qual a tua Partição SWAP? (ex: sda3): "
-  MSG_FORMAT_PROMPT="qual formato você quer sua particao root?(btrfs/ext4) "
-
-  # Mensagens de Validação e Erro
-  MSG_INVALID_DISK="Por favor, digite um disco válido."
-  MSG_INVALID_PARTITION="Por favor, digite uma partição válida."
-  MSG_INVALID_FORMAT="Formato inválido. Por favor, escolha btrfs ou ext4."
-
-  # Loop de Confirmação
-  MSG_CHECK_VALUES="Por favor, verifique os valores inseridos:"
-  MSG_CONFIRM_PROMPT="As informações estão corretas? (Y/n) "
-  MSG_CHANGE_PROMPT="Qual valor você deseja alterar? (ROOT, HOME, BOOT, SWAP, DISCO, FORMATO): "
-  MSG_UPDATED_VALUES="Valores atualizados:"
-  MSG_INVALID_OPTION="Opção inválida. Por favor, escolha uma das opções listadas."
-  MSG_CONFIG_CONFIRMED="Ótimo! Configurações confirmadas."
-  ;;
-"English")
-  # General Messages
-  MSG_PREPARING="Preparing partitioning..."
-  MSG_STARTING_PROMPT="Hello? Is anyone there????? Alright, we're starting here, get ready to begin"
-  MSG_LETS_PARTITION="Let's start partitioning the disk"
-  MSG_CFDISK_INFO="we will use the cfdisk command, so make sure you are prepared."
-  MSG_RECOMMENDATION="I recommend using 4 partitions: root, home, swap, and boot."
-  MSG_RECOMMENDATION_DETAILS="boot = 1G with type EFI system | root = 40G+ / Linux root(x86_64) | swap = 4G+ / linux swap | home = remaining space / linux home"
-  MSG_FINALIZE="Finalize with 'write' in cfdisk to apply the changes."
-  MSG_UNDERSTOOD_PROMPT="Did you understand everything (type N to confirm)? (y/N) "
-  MSG_READ_AGAIN="Please, read the instructions again and STOP JUST HITTING ENTER!"
-  MSG_CONTINUING="Continuing..."
-
-  # Input Prompts
-  MSG_DISK_PROMPT="Enter the disk to be partitioned (e.g., sda): "
-  MSG_ROOT_PROMPT="What is your ROOT partition? (e.g., sda2): "
-  MSG_HOME_PROMPT="What is your HOME partition? (e.g., sda4): "
-  MSG_BOOT_PROMPT="What is your BOOT partition? (e.g., sda1): "
-  MSG_SWAP_PROMPT="What is your SWAP partition? (e.g., sda3): "
-  MSG_FORMAT_PROMPT="What format do you want for your root partition? (btrfs/ext4) "
-
-  # Validation and Error Messages
-  MSG_INVALID_DISK="Please, enter a valid disk."
-  MSG_INVALID_PARTITION="Please, enter a valid partition."
-  MSG_INVALID_FORMAT="Invalid format. Please choose btrfs or ext4."
-
-  # Confirmation Loop
-  MSG_CHECK_VALUES="Please verify the entered values:"
-  MSG_CONFIRM_PROMPT="Are the details correct? (Y/n) "
-  MSG_CHANGE_PROMPT="Which value do you want to change? (ROOT, HOME, BOOT, SWAP, DISK, FORMAT): "
-  MSG_UPDATED_VALUES="Updated values:"
-  MSG_INVALID_OPTION="Invalid option. Please choose one of the listed options."
-  MSG_CONFIG_CONFIRMED="Great! Settings confirmed."
-  ;;
-*)
-  echo "Language not recognized. Please set LANGC to either 'Portugues' or 'English'"
-  exit 1
-  ;;
-esac
-
-# ==============================================================================
-# FUNÇÕES HELPERS
+# FUNÇÃO HELPER PARA ESTE SCRIPT
 # ==============================================================================
 
-# Função para pedir e validar uma partição.
-# Argumento $1: A mensagem de prompt a ser exibida.
-prompt_for_partition() {
-  local prompt_message="$1"
-  local partition_var
+add_partition_to_plugin() {
+  local part_name="$1"
+  local part_size="$2"
+  local part_type="$3"
+  local part_num="$4"
+  local part_mountpoint="$5"
+  local part_important="$6"
 
-  read -p "$prompt_message" -r partition_var
-  while [[ -z "$partition_var" || ! -b "/dev/$partition_var" ]]; do
-    echo "$MSG_INVALID_PARTITION"
-    read -p "$prompt_message" -r partition_var
-  done
+  # Sempre type e name são strings. Part é número.
+  local partition_yaml="{\"name\": \"$part_name\", \"size\": \"$part_size\", \"type\": \"$part_type\", \"part\": $part_num"
 
-  echo "$partition_var"
+  if [[ -n "$part_mountpoint" && "$part_mountpoint" != "none" ]]; then
+    partition_yaml="$partition_yaml, \"mountpoint\": \"$part_mountpoint\""
+  fi
+  if [[ -n "$part_important" ]]; then
+    partition_yaml="$partition_yaml, \"important\": \"$part_important\""
+  fi
+
+  partition_yaml="$partition_yaml }"
+
+  yq -iy ".particoes.partitions += [$partition_yaml]" "Ch-obolos/$PLUGIN"
 }
 
 # ==============================================================================
 # FLUXO PRINCIPAL DO SCRIPT
 # ==============================================================================
 
-# Configuração inicial do sistema
-if [ "$LANGC" = "Portugues" ]; then
-  loadkeys br-abnt2
-else
-  loadkeys us
-fi
+if [ "$LANGC" = "Portugues" ]; then loadkeys br-abnt2; else loadkeys us; fi
 timedatectl
 
-# Preparação e instruções
 if [ -d /sys/firmware/efi ]; then
-  firmware="UEFI"
+  plugin_set_value "firmware" "UEFI"
+  set_env_var "FIRMWARE" "UEFI"
 else
-  firmware="BIOS"
+  plugin_set_value "firmware" "BIOS"
+  set_env_var "FIRMWARE" "BIOS"
 fi
 
-echo "$MSG_PREPARING"
-sleep 1
-echo "3..."
-sleep 1
-echo "2..."
-sleep 1
-echo "1..."
-
-echo "$MSG_STARTING_PROMPT"
-echo ""
-echo "$MSG_LETS_PARTITION"
-echo "$MSG_CFDISK_INFO"
-echo ""
-echo "$MSG_RECOMMENDATION"
-echo "$MSG_RECOMMENDATION_DETAILS"
-echo "$MSG_FINALIZE"
-echo "---------------------------------------------------"
-
-read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
-while [[ "$resposta" == "Y" || "$resposta" == "y" || "$resposta" == "" ]]; do
-  echo "$MSG_READ_AGAIN"
-  read -p "$MSG_UNDERSTOOD_PROMPT" -r resposta
-done
-
-echo "$MSG_CONTINUING"
-sleep 1
-
-# Seleção do disco e particionamento
-echo "---------------------------------------------------"
-lsblk
-echo "---------------------------------------------------"
-
-read -p "$MSG_DISK_PROMPT" -r disco
-while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
-  echo "$MSG_INVALID_DISK"
-  read -p "$MSG_DISK_PROMPT" -r disco
-done
-
-cfdisk "/dev/$disco"
-
-# Coleta das informações de partição
-root=$(prompt_for_partition "$MSG_ROOT_PROMPT")
-home=$(prompt_for_partition "$MSG_HOME_PROMPT")
-boot=$(prompt_for_partition "$MSG_BOOT_PROMPT")
-swap=$(prompt_for_partition "$MSG_SWAP_PROMPT")
-
-read -p "$MSG_FORMAT_PROMPT" -r formato
-while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-  echo "$MSG_INVALID_FORMAT"
-  read -p "$MSG_FORMAT_PROMPT" -r formato
-done
-
-# Loop de verificação e correção
-confirmacao="n" # Força a entrada no loop na primeira vez
+confirmacao="n"
 while ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; do
-  # Exibe o resumo
-  echo ""
-  echo "---------------------------------------------------"
-  echo "$MSG_CHECK_VALUES"
-  echo "  [ROOT]    => /dev/$root"
-  echo "  [HOME]    => /dev/$home"
-  echo "  [BOOT]    => /dev/$boot"
-  echo "  [SWAP]    => /dev/$swap"
-  echo "  [DISCO]   => /dev/$disco"
-  echo "  [FORMATO] => $formato"
-  echo "  [FIRMWARE]=> $firmware"
-  echo "---------------------------------------------------"
+  echo "$MSG_LETS_PARTITION"
+  sleep 1
+  lsblk
+  echo "$MSG_SEPARATOR"
 
+  read -p "$MSG_DISK_PROMPT" -r disco
+  while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
+    echo "$MSG_INVALID_DISK"
+    read -p "$MSG_DISK_PROMPT" -r disco
+  done
+  plugin_set_value "particoes.disk" "/dev/$disco"
+  yq -iy '.particoes.partitions = []' "Ch-obolos/$PLUGIN"
+
+  # --- Partições Obrigatórias ---
+  echo "$MSG_CONFIGURING_BOOT_PARTITION"
+  read -p "$MSG_PROMPT_BOOT_PART_NUMBER" boot_part
+  read -p "$MSG_PROMPT_BOOT_PART_SIZE" boot_size
+  read -p "$MSG_PROMPT_BOOT_PART_LABEL" boot_name
+  add_partition_to_plugin "$boot_name" "$boot_size" "vfat" "$boot_part" "/boot" "boot"
+  echo "" >>Ch-obolos/$PLUGIN
+
+  echo "$MSG_CONFIGURING_ROOT_PARTITION"
+  read -p "$MSG_PROMPT_ROOT_PART_NUMBER" root_part
+  read -p "$MSG_PROMPT_ROOT_PART_SIZE" root_size
+  read -p "$MSG_PROMPT_ROOT_PART_LABEL" root_name
+  read -p "$MSG_PROMPT_ROOT_PART_FORMAT" root_type
+  add_partition_to_plugin "$root_name" "$root_size" "$root_type" "$root_part" "/" "root"
+  echo "" >>Ch-obolos/$PLUGIN
+
+  # --- Partições Opcionais ---
+  read -rp "$MSG_WANT_SWAP_PARTITION" want_swap
+  if [[ "$want_swap" != "n" && "$want_swap" != "N" ]]; then
+    echo "$MSG_CONFIGURING_SWAP_PARTITION"
+    read -p "$MSG_PROMPT_SWAP_PART_NUMBER" swap_part
+    read -p "$MSG_PROMPT_SWAP_PART_SIZE" swap_size
+    read -p "$MSG_PROMPT_SWAP_PART_LABEL" swap_name
+    add_partition_to_plugin "$swap_name" "$swap_size" "linux-swap" "$swap_part" "none" "swap"
+    echo "" >>Ch-obolos/$PLUGIN
+  fi
+
+  read -rp "$MSG_WANT_HOME_PARTITION" want_home
+  if [[ "$want_home" != "n" && "$want_home" != "N" ]]; then
+    echo "$MSG_CONFIGURING_HOME_PARTITION"
+    read -p "$MSG_PROMPT_HOME_PART_NUMBER" home_part
+    read -p "$MSG_PROMPT_HOME_PART_SIZE" home_size
+    read -p "$MSG_PROMPT_HOME_PART_LABEL" home_name
+    add_partition_to_plugin "$home_name" "$home_size" "ext4" "$home_part" "/home" "home"
+    echo "" >>Ch-obolos/$PLUGIN
+  fi
+
+  # --- Loop de Verificação e Correção ---
+  echo "$MSG_SEPARATOR"
+  echo "$MSG_GENERATED_PARTITION_CONFIG"
+  yq . "Ch-obolos/$PLUGIN" | jq '.particoes'
+  echo "$MSG_SEPARATOR"
   read -p "$MSG_CONFIRM_PROMPT" -r confirmacao
 
-  # Se a confirmação não for positiva, entra no modo de alteração
-  if ! [[ "$confirmacao" == "Y" || "$confirmacao" == "y" || "$confirmacao" == "" ]]; then
-    read -p "$MSG_CHANGE_PROMPT" -r var_to_change
-    case $var_to_change in
-    ROOT | root) root=$(prompt_for_partition "$MSG_ROOT_PROMPT") ;;
-    HOME | home) home=$(prompt_for_partition "$MSG_HOME_PROMPT") ;;
-    BOOT | boot) boot=$(prompt_for_partition "$MSG_BOOT_PROMPT") ;;
-    SWAP | swap) swap=$(prompt_for_partition "$MSG_SWAP_PROMPT") ;;
-    DISCO | disco)
-      read -p "$MSG_DISK_PROMPT" -r disco
-      while [[ -z "$disco" || ! -b "/dev/$disco" ]]; do
-        echo "$MSG_INVALID_DISK"
-        read -p "$MSG_DISK_PROMPT" -r disco
-      done
-      ;;
-    FORMATO | formato)
-      read -p "$MSG_FORMAT_PROMPT" -r formato
-      while [[ "$formato" != "btrfs" && "$formato" != "ext4" ]]; do
-        echo "$MSG_INVALID_FORMAT"
-        read -p "$MSG_FORMAT_PROMPT" -r formato
-      done
-      ;;
-    *) echo "$MSG_INVALID_OPTION" ;;
-    esac
-  fi
 done
 
+read -p "$MSG_BOOTLOADER_PROMPT" bootloader
+plugin_set_value "bootloader" "$bootloader"
+echo "" >>Ch-obolos/$PLUGIN
+
 echo "$MSG_CONFIG_CONFIRMED"
-
-# Salva as variáveis finais no arquivo de respostas
-set_env_var "DISCO" "$disco"
-set_env_var "ROOTP" "/dev/$root"
-set_env_var "HOMEP" "/dev/$home"
-set_env_var "BOOTP" "/dev/$boot"
-set_env_var "SWAPP" "/dev/$swap"
-set_env_var "FORMATO_ROOT" "$formato"
-set_env_var "FIRMWARE" "$firmware"
-
-# Chamada para o playbook Ansible
-set -a
-source respostas.env
-set +a
-ansible-playbook -vvv ./main.yaml --tags particionamento
+echo "$MSG_ANSIBLE_APPLYING_CHANGES"
+ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
