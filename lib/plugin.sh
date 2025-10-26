@@ -6,7 +6,7 @@ touch respostas.env
 set_env_var() {
   local envvar="$1"
   local value="$2"
-  echo "$1=$2" >>respostas.env
+  echo "$envvar=$value" >>respostas.env
 }
 
 # Função para definir um valor em um arquivo de plugin usando yq
