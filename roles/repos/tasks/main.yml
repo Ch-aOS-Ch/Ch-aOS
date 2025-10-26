@@ -58,7 +58,7 @@
     block: |
       [{{ item.name }}]
       Server = {{ item.url }}
-      {% elif item.include is defined %}
+      {% if item.include is defined %}
       Include = {{ item.include }}
       {% endif %}
   loop: "{{ final_repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
