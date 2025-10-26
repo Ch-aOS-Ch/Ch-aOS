@@ -65,16 +65,3 @@
   loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
   changed_when: true
   become: true
-
-- name: "Gerar fstab usando labels (-L)"
-  ansible.builtin.command:
-    cmd: genfstab -L /mnt
-  register: fstab_content
-  changed_when: false
-  become: true
-
-- name: "Escrever /etc/fstab no sistema de destino"
-  ansible.builtin.copy:
-    content: "{{ fstab_content.stdout }}"
-    dest: /mnt/etc/fstab
-  become: true
