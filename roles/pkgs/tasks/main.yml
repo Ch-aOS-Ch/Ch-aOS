@@ -1,0 +1,98 @@
+- name: Define final base pkg list (official repos)
+  ansible.builtin.set_fact:
+    pkgs_pacotes_finais: >-
+      {{ (pacotes_base_override | default(necessarios))
+         | union(final_pacotes | default([]))
+         | union(final_users | map(attribute='shell') | list)
+         | union(["btrfs-progs"] if particoes.root.formato == "btrfs" else [])
+         | union(["dosfstools"] if particoes.boot.device is defined and particoes.boot.device | length > 0 else [])
+         | union([bootloader] if (bootloader is defined and bootloader|length > 0) else []) }}
+
+- name: Define final AUR pkg list (if helpers exist)
+  ansible.builtin.set_fact:
+    pkgs_pacotes_finais_aur: >-
+      {{ (pacotes_base_override | default(necessarios))
+         | union(aur_pkgs | default([]))
+         | union([bootloader] if (bootloader is defined and bootloader|length > 0) else []) }}
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+
+- name: Get currently installed official packages
+  command: pacman -Qqen
+  register: pkgs_pacotes_instalados_raw
+  changed_when: false
+
+- name: Compute official pkgs to remove/install
+  ansible.builtin.set_fact:
+    pkgs_remover: "{{ pkgs_pacotes_instalados_raw.stdout_lines | difference(pkgs_pacotes_finais) }}"
+    pkgs_instalar: "{{ pkgs_pacotes_finais | difference(pkgs_pacotes_instalados_raw.stdout_lines) }}"
+
+- name: Confirm removal (official)
+  ansible.builtin.pause:
+    prompt: |
+      The following {{ pkgs_remover|length }} official packages will be **removed**:
+      {{ pkgs_remover }}
+      Type yes/sim to continue:
+  when: pkgs_remover | length > 0
+  register: confirm_official
+  failed_when: confirm_official.user_input not in ['yes', 'sim']
+
+- name: Remove packages (official)
+  community.general.pacman:
+    name: "{{ pkgs_remover }}"
+    state: absent
+  become: true
+  when: pkgs_remover | length > 0
+
+- name: Install packages (official)
+  community.general.pacman:
+    name: "{{ pkgs_instalar }}"
+    state: present
+  become: true
+  when: pkgs_instalar | length > 0
+
+
+- name: Get currently installed AUR packages
+  command: pacman -Qqem
+  register: pkgs_aur_instalados_raw
+  changed_when: false
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Compute AUR pkgs to remove/install
+  ansible.builtin.set_fact:
+    pkgs_remover_aur: "{{ pkgs_aur_instalados_raw.stdout_lines | difference(pkgs_pacotes_finais_aur) }}"
+    pkgs_instalar_aur: "{{ pkgs_pacotes_finais_aur | difference(pkgs_aur_instalados_raw.stdout_lines) }}"
+  when:
+    - final_aur_helpers is defined
+    - final_aur_helpers | length > 0
+
+- name: Confirm removal (AUR)
+  ansible.builtin.pause:
+    prompt: |
+      The following {{ pkgs_remover_aur|length }} **AUR** packages will be removed:
+      {{ pkgs_remover_aur }}
+      Type yes/sim to continue:
+  when: pkgs_remover_aur | length > 0
+  register: confirm_aur
+  failed_when: confirm_aur.user_input not in ['yes', 'sim']
+
+- name: Remove AUR packages
+  community.general.pacman:
+    name: "{{ pkgs_remover_aur }}"
+    state: absent
+    executable: "{{ final_aur_helpers[0] }}"
+  become: true
+  when: pkgs_remover_aur | length > 0
+
+- name: Install AUR packages
+  community.general.pacman:
+    name: "{{ pkgs_instalar_aur }}"
+    state: present
+    executable: "{{ final_aur_helpers[0] }}"
+  become: true
+  when: pkgs_instalar_aur | length > 0
+

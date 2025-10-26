@@ -1,32 +1,77 @@
-- name: Preparar partições
+- name: Import and save imported configs
+  hosts: localhost
+  tags: [always]
+  roles:
+    - importer
+
+- name: Prepare partitions
   hosts: localhost
   tags: [particionamento]
-  vars:
-    disco: "{{ lookup('env', 'DISCO') }}"
-    root: "{{ lookup('env', 'ROOTP') }}"
-    home: "{{ lookup('env', 'HOMEP') }}"
-    swap: "{{ lookup('env', 'SWAPP') }}"
-    boot: "{{ lookup('env', 'BOOTP') }}"
-    formato: "{{ lookup('env', 'FORMATO_ROOT') }}"
   roles:
     - particionamento
 
-- name: Instalar sistema operacional
+- name: Install base operating system
   hosts: localhost
   tags: [instalacao]
-  vars:
-    accept: "{{ lookup('env', 'PLUGIN_ACCEPT') }}"
-    plugin: "{{ lookup('env', 'PLUGIN') }}"
-    firmware: "{{ lookup('env', 'FIRMWARE') }}"
   roles:
     - sistema
 
-- name: Instalar Dotfiles
+- name: Setup config
   hosts: localhost
-  tags: [dotfiles]
-  vars:
-    plugin: "{{ lookup('env', 'PLUGIN') }}"
-    nome_user: "{{ lookup('env', 'USER') }}"
+  tags: [users]
   roles:
-    - dotfiles
+    - users
 
+- name: Setup AUR
+  hosts: localhost
+  tags: [aur]
+  roles:
+    - aur
+
+- name: Configura os dotfiles do sistema
+  tags: dotfiles
+  hosts: localhost
+  roles:
+    - role: dotfiles
+
+- name: Configura a região do sistema
+  tags: region
+  hosts: localhost
+  roles:
+    - role: region
+
+- name: Configura o bootloader do sistema
+  hosts: localhost
+  tags: bootloader
+  roles:
+    - role: bootloader
+
+- name: Gera o fstab do sistema
+  tags: fstab
+  hosts: localhost
+  roles:
+    - role: fstab
+
+- name: Setup Repos
+  hosts: localhost
+  tags: [repos]
+  roles:
+    - repos
+
+- name: Install plugin pkgs
+  hosts: localhost
+  tags: [pkgs]
+  roles:
+    - pkgs
+
+- name: Configure Services
+  hosts: localhost
+  tags: [services]
+  roles:
+    - services
+
+- name: Run reflector
+  hosts: localhost
+  tags: [reflector]
+  roles:
+    - reflector

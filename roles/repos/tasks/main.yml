@@ -1,0 +1,82 @@
+- name: Manage standard Arch Linux repositories
+  when: final_repos.managed is defined and ansible_os_family == 'Archlinux'
+  block:
+    - name: "Manage 'core' repository state"
+      ansible.builtin.blockinfile:
+        path: /etc/pacman.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR core"
+        block: |
+          [core]
+          Include = /etc/pacman.d/mirrorlist
+        state: "{{ 'present' if final_repos.managed.core | default(true) else 'absent' }}"
+
+    - name: "Manage 'extra' repository state"
+      ansible.builtin.blockinfile:
+        path: /etc/pacman.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR extra"
+        block: |
+          [extra]
+          Include = /etc/pacman.d/mirrorlist
+        state: "{{ 'present' if final_repos.managed.extras | default(false) else 'absent' }}"
+
+    - name: "Manage 'multilib' repository state"
+      ansible.builtin.blockinfile:
+        path: /etc/pacman.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR multilib"
+        block: |
+          [multilib]
+          Include = /etc/pacman.d/mirrorlist
+        state: "{{ 'present' if final_repos.managed.extras | default(false) else 'absent' }}"
+
+# --- Declarative management of third-party repos ---
+- name: Get list of currently enabled repositories
+  ansible.builtin.command: "pacman-conf --repo-list"
+  register: enabled_repos_raw
+  changed_when: false
+  check_mode: false
+
+- name: Create list of enabled repo names
+  ansible.builtin.set_fact:
+    enabled_repos: "{{ enabled_repos_raw.stdout_lines }}"
+
+- name: Create list of desired repo names from plugin
+  ansible.builtin.set_fact:
+    desired_repos: "{{ (final_repos.third_party | default([])) | map(attribute='name') | list }}"
+
+- name: Determine which repos to add
+  ansible.builtin.set_fact:
+    repos_to_add: "{{ desired_repos | difference(enabled_repos) }}"
+
+- name: Determine which repos to remove
+  ansible.builtin.set_fact:
+    repos_to_remove: "{{ enabled_repos | difference(desired_repos) | difference(['core', 'extra', 'multilib']) }}"
+
+- name: Add desired third-party repos to pacman.conf
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK FOR {{ item.name }}"
+    block: |
+      [{{ item.name }}]
+      Server = {{ item.url }}
+      {% elif item.include is defined %}
+      Include = {{ item.include }}
+      {% endif %}
+  loop: "{{ final_repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
+  loop_control:
+    loop_var: item
+  when: item.url is defined or item.include is defined
+  become: true
+
+- name: Remove unwanted third-party repos from pacman.conf
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK FOR {{ item }}"
+    state: absent
+  loop: "{{ repos_to_remove }}"
+  become: true
+
+- name: Ensure pacman cache is up to date after repo changes
+  community.general.pacman:
+    update_cache: true
+  when: repos_to_add | length > 0 or repos_to_remove | length > 0
+  become: true

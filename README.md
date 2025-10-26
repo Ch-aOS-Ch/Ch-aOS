@@ -12,7 +12,7 @@
 ---
 
 ***An guided arch-installer and declarative system manager***
-***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos) PROJECT SUITE***
+***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos [studying the ideas of an Ch-iron for fedora and an Ch-ronos for debian]) PROJECT SUITE***
 
 ## Key Features
 
@@ -56,7 +56,8 @@ chmod +x A-coin.sh
 ./A-coin.sh
 ```
 > [!WARNING]
-> The script is your guide. Follow the instructions in the terminal and answer the questions, the system will install the system based on t
+>
+> The script is your guide. Follow the instructions in the terminal and answer the questions, the system will install the system based on it
 
 ## Plugin System
 
@@ -128,13 +129,13 @@ Or:
 # ./Ch-obolos/users.yml
 users:
   - name: "dexmachina"
-    shell: "/bin/zsh"
+    shell: "zsh"
     groups:
       - wheel
       - dexmachina
 
   - name: "root"
-    shell: "/bin/bash"
+    shell: "bash"
     groups:
       - root
 hostname: "Dionysus"
@@ -153,12 +154,12 @@ secrets:
 # Defines system users, groups, and hostname
 users:
   - name: "dexmachina"
-    shell: "/bin/zsh"
+    shell: "zsh"
     groups:
       - wheel
       - dexmachina
   - name: "root"
-    shell: "/bin/bash"
+    shell: "bash"
     groups:
       - root
 hostname: "Dionysus"
@@ -172,7 +173,7 @@ pacotes:
   - btop
 bootloader: "grub" # or "refind"
 
-# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~cowsay~ etc)
+# pacotes_base_override: <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
 
 # Manages systemd services
 services:
@@ -190,7 +191,7 @@ repos:
     unstable: false   # Disables the [testing] repositories
   third_party:
     - name: "cachyOS"
-      distribution: "arch"
+      distribution: "arch" #<~ Allows for quick Ch-imera parsing, it tells it to not use it as an nix repo
       url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
 
 # Manages dotfiles from git repositories

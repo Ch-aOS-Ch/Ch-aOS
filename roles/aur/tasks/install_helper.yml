@@ -1,0 +1,22 @@
+- name: Clone {{ aur_helper_item.name }} repo
+  ansible.builtin.git:
+    repo: "https://aur.archlinux.org/{{ aur_helper_item.name }}.git"
+    dest: "/tmp/{{ aur_helper_item.name }}"
+    clone: true
+    update: true
+  become: true
+  become_user: "{{ final_users[0].name }}"
+
+- name: Build and install {{ aur_helper_item.name }}
+  ansible.builtin.command:
+    cmd: "makepkg -si --noconfirm"
+  args:
+    chdir: "/tmp/{{ aur_helper_item.name }}"
+    creates: "{{ aur_helper_item.check_file }}"
+  become: true
+  become_user: "{{ final_users[0].name }}"
+
+- name: Clean up {{ aur_helper_item.name }} build files
+  ansible.builtin.file:
+    path: "/tmp/{{ aur_helper_item.name }}"
+    state: absent
