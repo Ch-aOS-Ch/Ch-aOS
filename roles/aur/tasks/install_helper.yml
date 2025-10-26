@@ -6,6 +6,7 @@
     update: true
   become: true
   become_user: "{{ final_users[0].name }}"
+  when: final_users is defined and final_users | length > 0
 
 - name: Build and install {{ aur_helper_item.name }}
   ansible.builtin.command:
@@ -15,6 +16,7 @@
     creates: "{{ aur_helper_item.check_file }}"
   become: true
   become_user: "{{ final_users[0].name }}"
+  when: final_users is defined and final_users | length > 0
 
 - name: Clean up {{ aur_helper_item.name }} build files
   ansible.builtin.file:
