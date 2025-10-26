@@ -107,9 +107,11 @@ echo "$SECRETS_FILE" >>./.gitignore
 echo "Habilitando privilégios de superusuário (sudo) para o novo usuário..."
 plugin_set_value "wheel_access" "true"
 
-read -rp "$MSG_WANT_DOTS" dot_accept
-if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
-  export DOTS_ACCEPT="yes"
+if [[ $CHOICE = "usar" || $CHOICE = "use" ]]; then
+  read -rp "$MSG_WANT_DOTS" dot_accept
+  if [[ $dot_accept != "N" && $dot_accept != "n" ]]; then
+    export DOTS_ACCEPT="yes"
+  fi
 fi
 
 # --- Encadeia o próximo script ---
