@@ -188,7 +188,7 @@ aur_helpers: # <~ Only yay and paru are available right now, the script will _in
   - yay
   - paru
 
-mirrors:
+mirrors: # <~ this was made to translate to reflector, I'll probably be able to translate it with overlays, but it'll be very hard ://
   countries:
     - "br"
     - "us"
@@ -229,7 +229,7 @@ repos:
       url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
 
 # Manages dotfiles from git repositories
-dotfiles:
+dotfiles: # Translatable with Ch-imera with the manager: tag, it will only use the nix manager tho
   - repo: https://github.com/your-user/your-dotfiles.git
     # To decide how the script will behave, you have 3 options as to how it will work.
     install_command: "your_custom_dotfile_command.sh"
@@ -241,7 +241,7 @@ dotfiles:
 
 # Defines disk partitions (usually filled by the interactive script)
 firmware: UEFI
-particoes:
+particoes: # <~ is not and never will be translatable to an configurations.nix :( but it is translatable to an disko.nix :)
   disk: "/dev/sdb" # <~ what disk you want to partition into
   partitions:
     - name: chronos # <~ Ch-aronte uses label for fstab andother things, this changes nothing to your overall experience, but it is an commodity for me
