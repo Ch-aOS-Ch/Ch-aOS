@@ -1,21 +1,52 @@
-- name: "Garantir que as dependências (parted) estejam instaladas"
+- name: "Garantir que as dependências (parted, util-linux) estejam instaladas"
   community.general.pacman:
-    name: parted
+    name:
+      - parted
+      - util-linux # Contém sfdisk
     state: present
   become: true
 
-- name: "Criar tabela de partição (GPT p/ UEFI, MBR p/ BIOS) e criar cada partição"
-  community.general.parted:
-    device: "{{ particoes.disk }}"
-    number: "{{ item.part }}"
-    name: "{{ item.name }}"
-    state: present
-    label: "{{ 'gpt' if firmware == 'UEFI' else 'msdos' }}"
-    part_end: "{{ item.size }}"
-    flags: "{{ ['boot', 'esp'] if item.important == 'boot' and firmware == 'UEFI' else [] }}"
-  loop: "{{ particoes.partitions }}"
-  loop_control:
-    loop_var: item
+- name: "Gerar script de particionamento para sfdisk"
+  ansible.builtin.copy:
+    dest: /tmp/particionamento.sfdisk
+    mode: '0600'
+    content: |
+      label: {{ 'gpt' if firmware == 'UEFI' else 'dos' }}
+      unit: sectors
+
+      {% for item in particoes.partitions %}
+      {% set part_num = item.part | default(loop.index) %}
+      {% set device_name = particoes.disk ~ ('p' if 'nvme' in particoes.disk else '') ~ part_num %}
+
+      {# Define o tipo de partição: uefi (EFI), swap ou linux (padrão) #}
+      {% set type_alias = 'uefi' if item.important == 'boot' and firmware == 'UEFI' else 'swap' if item.type == 'linux-swap' else 'linux' %}
+ 
+      {# Define o tamanho: usa o valor ou '+' (resto do disco) se for '100%' #}
+      {% set size_str = "size=" + (item.size if item.size != '100%' else "+") %}
+ 
+      {# Define o início: 'start=1MiB' apenas para a primeira partição para garantir alinhamento #}
+      {% set start_str = "start=1MiB, " if loop.first else "" %}
+ 
+      {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}, name="{{ item.name }}"
+      {% endfor %}
+  become: true
+
+- name: "Executar script de particionamento com sfdisk"
+  ansible.builtin.shell:
+    cmd: "sfdisk --force --no-reread {{ particoes.disk }} < /tmp/particionamento.sfdisk"
+  become: true
+  changed_when: true
+
+- name: "Forçar o kernel a reler a tabela de partições"
+  ansible.builtin.command:
+    cmd: "partprobe {{ particoes.disk }}"
+  become: true
+  changed_when: true
+
+- name: "Limpar script de particionamento"
+  ansible.builtin.file:
+    path: /tmp/particionamento.sfdisk
+    state: absent
   become: true
 
 - name: "Formatar partições de dados (ext4, btrfs, etc) com label"
