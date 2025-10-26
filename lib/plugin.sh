@@ -99,27 +99,24 @@ repos_update() {
       else
         echo "Iniciando bootstrap dos repositórios CachyOS no sistema de destino..."
 
-        local tmp_dir=/
+        local tmp_dir="/root"
 
         echo "Baixando o script de instalação..."
-        curl -L "https://mirror.cachyos.org/cachyos-repo.tar.xz" -o "$tmp_dir/cachyos-repo.tar.xz"
+        curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz -o "$tmp_dir/cachyos-repo.tar.xz"
         tar xvf "$tmp_dir/cachyos-repo.tar.xz" -C "$tmp_dir"
 
-        echo "Copiando script para o chroot (em /root) e executando..."
-        # 1. Copie para /mnt/root/ em vez de /mnt/tmp/
+        echo "Copiando script para o chroot e executando..."
+        arch-chroot /mnt mkdir -p /tmp
         cp -r "$tmp_dir/cachyos-repo" "/mnt/root/"
-
-        # 2. Execute a partir de /root/
         arch-chroot /mnt /root/cachyos-repo/cachyos-repo.sh
 
         echo "Limpando arquivos temporários..."
         rm -rf "$tmp_dir"
-
-        # 3. Limpe o script de dentro do chroot
-        rm -rf "/mnt/root/cachyos-repo" # Pode ser feito do host, é mais simples
+        arch-chroot /mnt rm -rf /root/cachyos-repo
 
         echo "Bootstrap do CachyOS concluído. Sincronizando pacman dentro do chroot..."
         arch-chroot /mnt pacman -Sy
+
         echo "Adicionando configuração declarativa do CachyOS ao plugin..."
         plugin_add_to_list_unique "pacotes" "cachyos-keyring"
         plugin_add_to_list_unique "pacotes" "cachyos-mirrorlist"
