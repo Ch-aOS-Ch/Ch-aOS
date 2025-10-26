@@ -118,4 +118,4 @@ echo "" >>Ch-obolos/$PLUGIN
 
 echo "$MSG_CONFIG_CONFIRMED"
 echo "$MSG_ANSIBLE_APPLYING_CHANGES"
-ansible-playbook -vvv ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"
+ansible-playbook ./main.yaml --tags particionamento -e @Ch-obolos/"$PLUGIN"

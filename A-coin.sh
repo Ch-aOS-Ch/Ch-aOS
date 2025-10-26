@@ -25,10 +25,10 @@ bash scripts/F-bootloader.sh
 if [ "$FULLCODERAN" == "yes" ]; then
   PLAYBOOK_CHROOT_PATH="/mnt/root/Ch-aronte/main.yaml"
   PLAYBOOK_CH_OBOLOS_PATH="/mnt/root/Ch-aronte/Ch-obolos/$PLUGIN"
-  #  cp -r ./ /mnt/root/Ch-aronte/
-  #  arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags "$CHROOT_TAGS",region,users,bootloader,services -e @"$PLAYBOOK_CH_OBOLOS_PATH"
+  cp -r ./ /mnt/root/Ch-aronte/
+  arch-chroot /mnt ansible-playbook $PLAYBOOK_CHROOT_PATH --tags "$CHROOT_TAGS",region,users,bootloader,services -e @"$PLAYBOOK_CH_OBOLOS_PATH"
   if [ "$DOTS_ACCEPT" == "yes" ]; then
     echo "$MSG_LOADING_DOTS"
-    #    arch-chroot /mnt ansible-playbook -vvv $PLAYBOOK_CHROOT_PATH --tags dotfiles -e @"$PLAYBOOK_CH_OBOLOS_PATH"
+    arch-chroot /mnt ansible-playbook $PLAYBOOK_CHROOT_PATH --tags dotfiles -e @"$PLAYBOOK_CH_OBOLOS_PATH"
   fi
 fi
