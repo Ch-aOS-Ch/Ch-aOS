@@ -12,7 +12,7 @@ like so:
 
 3.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
 like so:
-![main](../imagens/2025-07-25T01-16-20Z_code.png)
+![main](../imagens/2025-07-25T01-15-20Z_code.png)
 
 4.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
 
