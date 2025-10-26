@@ -8,7 +8,7 @@ Here are the steps to follow:
 
 2.  **Write Ansible Tasks:** In `main.yml`, write your Ansible tasks. Focus on making them **declarative** (describe the desired state) and **idempotent** (can be run multiple times without issues). Always prefer Ansible modules over raw shell commands. Use variables for dynamic values.
 like so:
-![task](../imagens/2025-07-25T01-15-34Z_code.png)
+![task](../imagens/2025-10-26T11-19-29Z_code.png)
 
 > [!WARNING]
 >
