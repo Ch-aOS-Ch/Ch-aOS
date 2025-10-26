@@ -38,12 +38,12 @@ done
 yq -iy '.users = [
   {
     "name": "'$username'",
-    "shell": "/bin/bash",
+    "shell": "bash",
     "groups": ["wheel", "'$username'"],
   },
   {
     "name": "root",
-    "shell": "/bin/bash",
+    "shell": "bash",
     "groups": ["root"],
   }
 ]' "Ch-obolos/$PLUGIN"
