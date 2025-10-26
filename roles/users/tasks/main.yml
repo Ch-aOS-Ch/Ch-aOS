@@ -50,7 +50,7 @@
     groups: "{{ item.groups | join(',') }}"
     append: true
     create_home: true
-    password: "{{ user_secrets[item.name][0].password | default(omit) if user_secrets is defined and user_secrets[item.name] is defined else omit }}"
+    password: "{{ user_secrets[item.name].password | default(omit) if user_secrets is defined and user_secrets[item.name] is defined else omit }}"
   loop: "{{ final_users }}"
 
 - name: Manage sudoers
