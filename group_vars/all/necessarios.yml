@@ -9,4 +9,3 @@ necessarios:
   - openssh
   - git
   - ansible
-  - cowsay

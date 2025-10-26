@@ -1,7 +1,12 @@
+- name: Get root partition from partitions list
+  ansible.builtin.set_fact:
+    ch_root_partition: "{{ (particoes.partitions | selectattr('important', 'equalto', 'root') | first) | default({}) }}"
+  when: particoes is defined and particoes.partitions is defined and particoes.partitions | length > 0
+
 # --- GRUB Configuration ---
 - name: Install GRUB for BIOS
   ansible.builtin.command:
-    cmd: "grub-install --target=i386-pc {{ particoes.device }}"
+    cmd: "grub-install --target=i386-pc {{ particoes.disk }}"
   args:
     creates: /boot/grub/grub.cfg
   when:
@@ -39,10 +44,10 @@
     block: |
       menuentry "{{ hostname }}" {
           icon /EFI/refind/icons/os_arch.png
-          volume "{{ particoes.root.label }}"
+          volume "{{ ch_root_partition.name }}"
           loader /vmlinuz-linux
           initrd /initramfs-linux.img
-          options "root=LABEL={{ particoes.root.label }} rw add_efi_memmap"
+          options "root=LABEL={{ ch_root_partition.name }} rw add_efi_memmap"
           submenuentry "Fallback" {
               initrd /initramfs-linux-fallback.img
           }
@@ -54,3 +59,4 @@
   when:
     - bootloader is defined and bootloader == 'refind'
     - firmware == 'UEFI'
+    - ch_root_partition.name is defined

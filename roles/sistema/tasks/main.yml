@@ -1,6 +1,6 @@
 - name: Define base pkg list
   ansible.builtin.set_fact:
-    sistema_pacotes_base: "{{ (necessarios + bootloader) | unique | list }}"
+    sistema_pacotes_base: "{{ (necessarios + ([bootloader] if bootloader is defined and bootloader | length > 0 else [])) | unique | list }}"
 
 - name: (Debug) Show base pkg list
   ansible.builtin.debug:
