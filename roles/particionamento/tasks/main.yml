@@ -2,7 +2,7 @@
   community.general.pacman:
     name:
       - parted
-      - util-linux # Contém sfdisk
+      - util-linux
     state: present
   become: true
 
