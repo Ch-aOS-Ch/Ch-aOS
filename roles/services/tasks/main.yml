@@ -80,7 +80,7 @@
 
 - name: 3.3. Add normal services to the list
   ansible.builtin.set_fact:
-    expanded_desired_services: "{{ expanded_desired_services + [item.name] }}"
+    expanded_desired_services: "{{ expanded_desired_services + [item.name if item.name.endswith('.service') else item.name ~ '.service'] }}"
   loop: "{{ final_services | default([]) }}"
   when: item.dense_service is not defined or not item.dense_service
   loop_control:
