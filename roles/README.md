@@ -6,6 +6,8 @@ Here are the steps to follow:
 
 1.  **Create Role Structure:** Inside the `roles/` directory, create a new folder for your role (e.g., `your_role_name`). Inside this, create a `tasks/` folder, and then a `main.yml` (IT SHOULD BE USING .YML, NOT .YAML, THIS IS TO FACILITATE REGEX SEARCHING) file (e.g., `roles/your_role_name/tasks/main.yml`).
 
+---
+
 2.  **Write Ansible Tasks:** In `main.yml`, write your Ansible tasks. Focus on making them **declarative** (describe the desired state) and **idempotent** (can be run multiple times without issues). Always prefer Ansible modules over raw shell commands. Use variables for dynamic values.
 like so:
 ![task](../imagens/2025-07-25T01-15-34Z_code.png)
@@ -13,6 +15,7 @@ like so:
 > [!WARNING]
 >
 > Notice how, even in portuguese, the task is _self explained_, "you'll format root partition in root to the format in formato when formato exists and root exists", try to adhere to this method
+
 ---
 
 3.  **Integrate with `main.yaml`:** Add your new role to the `roles` section of the `main.yaml` file in the project root. Make sure to assign a `tag` to your role matching its name. This tag is used for selective execution, which is an requirement.
@@ -23,7 +26,13 @@ like so:
 >
 > This is to facilitate the usage of the ansible module, allowing for an easier CLI down the road
 
+---
+
 4.  **Test Your Role:** Thoroughly test your new role to ensure it works as expected, is idempotent, and handles different scenarios correctly.
+
+---
+
+5. **Way of calling the Role** (yeah, ik this should be taken as granted, but it is kinda important to talk about) ***ALL*** roles should be called like so: `ansible-playbook /path/to/Ch-aronte/main.yaml --tags your-tag -e @/path/to/Ch-obolo -K`. Since the CLI is still to be created, this allows for easy role calling in a dev environment, also, when I start the CLI building, I'll do a shell script that will call the tag exactly like that.
 
 **Key Principles for Role Development:**
 
