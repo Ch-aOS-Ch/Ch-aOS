@@ -129,13 +129,13 @@ Or:
 # ./Ch-obolos/users.yml
 users:
   - name: "dexmachina"
-    shell: "/bin/zsh"
+    shell: "zsh"
     groups:
       - wheel
       - dexmachina
 
   - name: "root"
-    shell: "/bin/bash"
+    shell: "bash"
     groups:
       - root
 hostname: "Dionysus"
@@ -154,12 +154,12 @@ secrets:
 # Defines system users, groups, and hostname
 users:
   - name: "dexmachina"
-    shell: "/bin/zsh"
+    shell: "zsh"
     groups:
       - wheel
       - dexmachina
   - name: "root"
-    shell: "/bin/bash"
+    shell: "bash"
     groups:
       - root
 hostname: "Dionysus"
