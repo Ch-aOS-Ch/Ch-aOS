@@ -4,7 +4,7 @@
     - name: "CRITICAL: Wiping /etc/pacman.conf to build declaratively, DO NOT TURN OFF YOUR PC, please"
       ansible.builtin.copy:
         content: ""
-        path: /etc/pacman.conf
+        dest: /etc/pacman.conf
         force: true
       become: true
 
