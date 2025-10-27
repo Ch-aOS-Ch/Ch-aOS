@@ -98,7 +98,7 @@
       The following {{ pkgs_remover_aur|length }} **AUR** packages will be removed:
       {{ pkgs_remover_aur }}
       Type yes/sim to continue:
-    register: confirm_aur
+  register: confirm_aur
   failed_when: confirm_aur.user_input not in ['yes', 'sim']
 
 - name: Remove AUR packages
