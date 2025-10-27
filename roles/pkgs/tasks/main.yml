@@ -36,11 +36,6 @@
     msg: "{{ pkgs_remover }}"
   when: pkgs_remover | length > 0
 
-- name: Show packages to be removed (official)
-  ansible.builtin.debug:
-    msg: "{{ pkgs_pacotes_finais }}"
-  when: pkgs_remover | length > 0
-
 - name: Confirm removal (official)
   ansible.builtin.pause:
     prompt: |
