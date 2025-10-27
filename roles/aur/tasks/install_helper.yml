@@ -8,6 +8,23 @@
   become_user: "{{ users[0].name }}"
   when: users is defined and users | length > 0
 
+# - name: DEBUG | Quem eu penso que sou?
+#   ansible.builtin.debug:
+#     msg: "Tentando construir o pacote como o usuário: '{{ users[0].name }}'"
+#   when: users is defined and users | length > 0
+#
+
+- name: Allow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    state: present
+    create: true
+    mode: '0640' # Permissões seguras
+    validate: 'visudo -csf %s' # VITAL: Valida o arquivo antes de salvar
+  when: users is defined and users | length > 0
+  become: true
+
 - name: Build and install {{ aur_helper_item.name }}
   ansible.builtin.command:
     cmd: "makepkg -si --noconfirm"
