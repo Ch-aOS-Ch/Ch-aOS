@@ -35,6 +35,17 @@
   become_user: "{{ users[0].name }}"
   when: users is defined and users | length > 0
 
+- name: Disallow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    state: absent
+    create: true
+    mode: '0640'
+    validate: 'visudo -csf %s'
+  when: users is defined and users | length > 0
+  become: true
+
 - name: Clean up {{ aur_helper_item.name }} build files
   ansible.builtin.file:
     path: "/tmp/{{ aur_helper_item.name }}"
