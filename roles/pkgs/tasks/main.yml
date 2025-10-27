@@ -111,6 +111,17 @@
     - aur_helpers is defined
     - aur_helpers | length > 0
 
+- name: Allow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/{{ aur_helpers[0] }}"
+    state: present
+    create: true
+    mode: '0640' # Permissões seguras
+    validate: 'visudo -csf %s' # VITAL: Valida o arquivo antes de salvar
+  when: users is defined and users | length > 0
+  become: true
+
 - name: Install AUR packages
   ansible.builtin.command:
     argv: "{{ [aur_helpers[0], '-S', '--noconfirm', '--noprogressbar', '--needed'] + pkgs_instalar_aur }}"
@@ -121,3 +132,14 @@
     - aur_helpers | length > 0
     - pkgs_instalar_aur is defined
     - pkgs_instalar_aur | length > 0
+
+- name: Disallow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/{{ aur_helpers[0] }}"
+    state: absent
+    create: true
+    mode: '0640'
+    validate: 'visudo -csf %s'
+  when: users is defined and users | length > 0
+  become: true
