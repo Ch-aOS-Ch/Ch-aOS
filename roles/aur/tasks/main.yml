@@ -21,22 +21,25 @@
 - name: Create list of desired AUR helper names
   ansible.builtin.set_fact:
     desired_helpers: "{{ aur_helpers | default([]) }}"
+  when: aur_helpers is defined
 
 # 3. Calculate difference
 - name: Determine which helpers to install
   ansible.builtin.set_fact:
-    helpers_to_install: "{{ desired_helpers | difference(installed_helpers) }}"
-  when: (desired_helpers | default([]))
-  
+    helpers_to_install: "{{ desired_helpers | difference(installed_helpers) | default([]) }}"
+  when: desired_helpers is defined else
+
 - name: Determine which helpers to remove
   ansible.builtin.set_fact:
     helpers_to_remove: "{{ installed_helpers | difference(desired_helpers) | default(['yay', 'paru']) }}"
+  when: desired_helpers is defined
 
 - name: debug helpers to install and remove
   ansible.builtin.debug:
     msg:
       - "Helpers to install: {{ helpers_to_install }}"
       - "Helpers to remove: {{ helpers_to_remove }}"
+  when: desired_helpers is defined
 
 # 4. Execute actions
 - name: Install missing AUR helpers
@@ -54,3 +57,12 @@
     state: absent
   loop: "{{ helpers_to_remove }}"
   become: true
+  when: desired_helpers is defined
+
+- name: remove all aur helpers
+  community.general.pacman:
+    name: "{{ item }}"
+    state: absent
+  loop: {{ known_aur_helpers.name }}
+  become: true
+  when: aur_helpers is not defined
