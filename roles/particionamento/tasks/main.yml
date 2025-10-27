@@ -13,20 +13,15 @@
       label: {{ 'gpt' if firmware == 'UEFI' else 'dos' }}
       unit: sectors
 
-      {% for item in particoes.partitions %}
-      {% set part_num = item.part | default(loop.index) %}
-      {% set device_name = particoes.disk ~ ('p' if 'nvme' in particoes.disk else '') ~ part_num %}
-
-      {% set type_alias = 'uefi' if item.important == 'boot' and firmware == 'UEFI' else 'swap' if item.type == 'linux-swap' else 'linux' %}
-
-      {% set size_str = "size=" + (item.size if item.size != '100%' else "+") %}
-
-      {% set start_str = "start=1MiB, " if loop.first else "" %}
-
-      {% set attrs = ", attributes=esp" if item.important == 'boot' and firmware == 'UEFI' else "" %}
-
+      {% for item in particoes.partitions -%}
+      {%- set part_num = item.part | default(loop.index) -%}
+      {%- set device_name = particoes.disk ~ ('p' if 'nvme' in particoes.disk else '') ~ part_num -%}
+      {%- set type_alias = 'uefi' if item.important == 'boot' and firmware == 'UEFI' else 'swap' if item.type == 'linux-swap' else 'linux' -%}
+      {%- set size_str = "size=" + (item.size if item.size != '100%' else "+") -%}
+      {%- set start_str = "start=1MiB, " if loop.first else "" -%}
+      {%- set attrs = ", attributes=esp" if item.important == 'boot' and firmware == 'UEFI' else "" -%}
       {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}{{ attrs }}, name="{{ item.name }}"
-      {% endfor %}
+      {%- endfor %}  become: true
   become: true
 
 - name: "Executar script de particionamento com sfdisk"
