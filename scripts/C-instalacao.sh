@@ -38,6 +38,7 @@ while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
 done
 
 ansible-playbook ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
+systemctl daemon-reload
 plugin_set_value "repos.managed.core" "true"
 repos_update
 

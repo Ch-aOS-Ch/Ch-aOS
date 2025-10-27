@@ -99,32 +99,29 @@ repos_update() {
       else
         echo "Iniciando bootstrap dos repositórios CachyOS no sistema de destino..."
 
-        local tmp_dir="/root/tmp"
+        local tmp_dir
+        tmp_dir=$(mktemp -d)
 
-        echo "Baixando o script de instalação..."
+        echo "Baixando o script de instalação para $tmp_dir..."
         curl -L https://mirror.cachyos.org/cachyos-repo.tar.xz -o "$tmp_dir/cachyos-repo.tar.xz"
         tar xvf "$tmp_dir/cachyos-repo.tar.xz" -C "$tmp_dir"
 
-        echo "Copiando script para o chroot e executando..."
-        arch-chroot /mnt mkdir -p /tmp
+        echo "Copiando script para o chroot (em /root) e executando..."
+        # 2. Copia os arquivos do host para /mnt/root/
         cp -r "$tmp_dir/cachyos-repo" "/mnt/root/"
+
+        # 3. Executa o script de dentro do /root/ do chroot
         arch-chroot /mnt /root/cachyos-repo/cachyos-repo.sh
 
         echo "Limpando arquivos temporários..."
+        # 4. Limpa o diretório temporário do HOST
         rm -rf "$tmp_dir"
+
+        # 5. Limpa os arquivos de dentro do CHROOT
         arch-chroot /mnt rm -rf /root/cachyos-repo
 
         echo "Bootstrap do CachyOS concluído. Sincronizando pacman dentro do chroot..."
         arch-chroot /mnt pacman -Sy
-
-        echo "Adicionando configuração declarativa do CachyOS ao plugin..."
-        plugin_add_to_list_unique "pacotes" "cachyos-keyring"
-        plugin_add_to_list_unique "pacotes" "cachyos-mirrorlist"
-        plugin_add_to_list_unique "pacotes" "cachyos-v3-mirrorlist"
-        yq -iy '.repos.third_party += [{"name": "cachyos", "include": "/etc/pacman.d/cachyos-mirrorlist"}]' "Ch-obolos/$PLUGIN"
-        yq -iy '.repos.third_party += [{"name": "cachyos-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
-        yq -iy '.repos.third_party += [{"name": "cachyos-core-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
-        yq -iy '.repos.third_party += [{"name": "cachyos-extra-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
       fi
       ;;
     *)
