@@ -6,9 +6,9 @@
 - name: Ensure locale is present and uncommented in /etc/locale.gen
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
-    regexp: >
-      ^{{ '#' | regex_escape() }}\s*({{ item }}\s+UTF-8)
-    line: "{{ item }} UTF-8"
+    regexp: '^\s*#?\s*({{ item }}\s+UTF-8)'
+    line: '{{ item }} UTF-8'
+    state: present
     backrefs: true
   register: locale_gen_change
   when: region.locale is defined
