@@ -10,7 +10,7 @@
 
     - name: "Add declarative [options] block"
       ansible.builtin.blockinfile:
-        path: /etc/pacman.conf
+        dest: /etc/pacman.conf
         marker: "# {mark} ANSIBLE MANAGED BLOCK FOR options"
         block: |
           # The following paths are commented out with their default values listed.
@@ -149,7 +149,6 @@
   loop: "{{ repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
   loop_control:
     loop_var: item
-  when: item.url is defined or item.include is defined
   become: true
 
 - name: Remove unwanted third-party repos from pacman.conf
