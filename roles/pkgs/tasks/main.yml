@@ -25,7 +25,6 @@
   shell: pacman -Qqen
   register: pkgs_pacotes_instalados_raw
   changed_when: false
-  failed_when: pkgs_instalados_raw.rc != 0 and pkgs_aur_instalados_raw.stderr != ""
   check_mode: false
 
 - name: Compute official pkgs to remove/install
