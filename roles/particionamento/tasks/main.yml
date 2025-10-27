@@ -11,14 +11,9 @@
     mode: '0600'
     content: |
       label: {{ 'gpt' if firmware == 'UEFI' else 'dos' }}
-
       unit: sectors
-
-
       {% for item in particoes.partitions %}
-
       {% set part_num = item.part | default(loop.index) %}
-
       {% set device_name = particoes.disk ~ ('p' if 'nvme' in particoes.disk else '') ~ part_num %}
 
 
@@ -39,7 +34,7 @@
 
       {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}, name="{{ item.name }}"
 
-      {% endfor %}   become: true
+      {% endfor %}
   become: true
 
 - name: "Executar script de particionamento com sfdisk"
