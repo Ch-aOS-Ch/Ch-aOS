@@ -91,7 +91,7 @@
     src: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
     fstype: "{{ item.type }}"
     state: mounted
-  loop: "{{ particoes.partitions | selectattr('mountpoint', 'equalto', '/') }}"
+  loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') | selectattr('mountpoint', 'equalto', '/') }}"
   loop_control:
     loop_var: item
   become: true
@@ -102,7 +102,7 @@
     src: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
     fstype: "{{ 'vfat' if item.type in ['fat32', 'fat16', 'vfat'] else item.type }}"
     state: mounted
-  loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') }}"
+  loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') | selectattr('mountpoint', 'defined') }}"
   loop_control:
     loop_var: item
   become: true
