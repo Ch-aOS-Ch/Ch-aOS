@@ -1,24 +1,23 @@
-#- name: Garantir labels das partições
-#  vars:
-#    device_path: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
-#  ansible.builtin.command: >-
-#    {% if item.type == 'btrfs' %}
-#    btrfs filesystem label {{ device_path }} {{ item.name }}
-#    {% elif item.type in ['ext4', 'ext3', 'ext2'] %}
-#    e2label {{ device_path }} {{ item.name }}
-#    {% elif item.type in ['vfat', 'fat32'] %}
-#    fatlabel {{ device_path }} {{ item.name }}
-#    {% elif item.type == 'linux-swap' %}
-#    swaplabel -L {{ item.name }} {{ device_path }}
-#    {% endif %}
-#  loop: "{{ particoes.partitions }}"
-#  when: item.type in ['btrfs', 'ext4', 'ext3', 'ext2', 'vfat', 'fat32', 'linux-swap'] and item.name is defined
-#  changed_when: false
-#  become: true
+# - name: Garantir labels das partições
+#   vars:
+#     device_path: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
+#   ansible.builtin.command: >-
+#     {% if item.type == 'btrfs' %}
+#     btrfs filesystem label {{ device_path }} {{ item.name }}
+#     {% elif item.type in ['ext4', 'ext3', 'ext2'] %}
+#     e2label {{ device_path }} {{ item.name }}
+#     {% elif item.type in ['vfat', 'fat32'] %}
+#     fatlabel {{ device_path }} {{ item.name }}
+#     {% elif item.type == 'linux-swap' %}
+#     swaplabel -L {{ item.name }} {{ device_path }}
+#     {% endif %}
+#   loop: "{{ particoes.partitions }}"
+#   when: item.type in ['btrfs', 'ext4', 'ext3', 'ext2', 'vfat', 'fat32', 'linux-swap'] and item.name is defined
+#   changed_when: false
+#   become: true
 #
 - name: Gerar fstab
   ansible.builtin.command:
-    # Executado dentro do chroot, então o ponto de montagem é /
     cmd: genfstab -L /
   register: fstab_content
   changed_when: false
