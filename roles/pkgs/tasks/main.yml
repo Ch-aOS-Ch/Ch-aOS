@@ -102,15 +102,6 @@
   register: confirm_aur
   failed_when: confirm_aur.user_input not in ['yes', 'sim']
 
-- name: Remove AUR packages
-  community.general.pacman:
-    name: "{{ pkgs_remover_aur }}"
-    state: absent
-    executable: "{{ aur_helpers[0] }}"
-  when:
-    - aur_helpers is defined
-    - aur_helpers | length > 0
-
 - name: Allow managed user to run pacman without a password
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
@@ -118,9 +109,20 @@
     state: present
     create: true
     mode: '0640' # Permissões seguras
-    validate: 'visudo -csf %s' # VITAL: Valida o arquivo antes de salvar
+    validate: 'visudo -csf %s'
   when: users is defined and users | length > 0
   become: true
+
+- name: Remove AUR packages
+  ansible.builtin.command:
+    argv: "{{ [aur_helpers[0], '-Rns', '--noconfirm', '--noprogressbar'] + pkgs_remover_aur }}"
+  register: aur_remove_result
+  changed_when: "'removing' in aur_remove_result.stdout"
+  when:
+    - aur_helpers is defined
+    - aur_helpers | length > 0
+    - pkgs_remover_aur is defined
+    - pkgs_remover_aur | length > 0
 
 - name: Install AUR packages
   ansible.builtin.command:
