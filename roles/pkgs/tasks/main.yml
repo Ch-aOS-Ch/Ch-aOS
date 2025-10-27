@@ -24,6 +24,7 @@
   shell: pacman -Qqen
   register: pkgs_pacotes_instalados_raw
   changed_when: false
+  failed_when: pkgs_aur_instalados_raw.rc != 0 and pkgs_aur_instalados_raw.stderr != ""
   check_mode: false
 
 - name: Compute official pkgs to remove/install
@@ -60,12 +61,12 @@
   become: true
   when: pkgs_instalar | length > 0
 
-
 - name: Get currently installed AUR packages
   command: pacman -Qqem
   register: pkgs_aur_instalados_raw
   changed_when: false
   check_mode: false
+  failed_when: pkgs_aur_instalados_raw.rc != 0 and pkgs_aur_instalados_raw.stderr != ""
   when:
     - aur_helpers is defined
     - aur_helpers | length > 0
@@ -118,4 +119,3 @@
   when:
     - aur_helpers is defined
     - aur_helpers | length > 0
-
