@@ -13,8 +13,7 @@
         path: /etc/pacman.conf
         marker: "# {mark} ANSIBLE MANAGED BLOCK FOR options"
         block: |
-          # The following paths are commented out with their default values listed.
-          # If you wish to use different paths, uncomment and update the paths.
+          [options]
           #RootDir     = /
           #DBPath      = /var/lib/pacman/
           #CacheDir    = /var/cache/pacman/pkg/
