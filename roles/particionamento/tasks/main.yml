@@ -17,16 +17,15 @@
       {% set part_num = item.part | default(loop.index) %}
       {% set device_name = particoes.disk ~ ('p' if 'nvme' in particoes.disk else '') ~ part_num %}
 
-      {# Define o tipo de partição: uefi (EFI), swap ou linux (padrão) #}
       {% set type_alias = 'uefi' if item.important == 'boot' and firmware == 'UEFI' else 'swap' if item.type == 'linux-swap' else 'linux' %}
 
-      {# Define o tamanho: usa o valor ou '+' (resto do disco) se for '100%' #}
       {% set size_str = "size=" + (item.size if item.size != '100%' else "+") %}
 
-      {# Define o início: 'start=1MiB' apenas para a primeira partição para garantir alinhamento #}
       {% set start_str = "start=1MiB, " if loop.first else "" %}
 
-      {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}, name="{{ item.name }}"
+      {% set attrs = ", attributes=esp" if item.important == 'boot' and firmware == 'UEFI' else "" %}
+      
+      {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}{{ attrs }}, name="{{ item.name }}"
       {% endfor %}
   become: true
 
