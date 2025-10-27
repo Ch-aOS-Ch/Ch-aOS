@@ -107,6 +107,12 @@
     loop_var: item
   become: true
 
+- name: "Esperar o udev processar as mudanças de disco"
+  ansible.builtin.command:
+    cmd: "udevadm settle"
+  become: true
+  changed_when: false
+
 - name: "Ativar SWAP via LABEL"
   ansible.builtin.command:
     cmd: "swapon LABEL={{ item.name }}"
