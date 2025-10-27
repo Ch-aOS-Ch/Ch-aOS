@@ -113,9 +113,7 @@
 
 - name: Install AUR packages
   ansible.builtin.command:
-    # Builds the full command, e.g.:
-    # ["/usr/bin/yay", "-S", "--noconfirm", "--noprogressbar", "--needed", "cbonsai", "another-pkg"]
-    argv: ["{{ aur_helpers[0] }}", "-S", "--noconfirm", "--noprogressbar", "--needed"] + pkgs_instalar_aur
+    argv: "{{ [aur_helpers[0], '-S', '--noconfirm', '--noprogressbar', '--needed'] + pkgs_instalar_aur }}"
   register: aur_install_result
   changed_when: "'(Re)installing' in aur_install_result.stdout or 'Installing' in aur_install_result.stdout"
   when:
