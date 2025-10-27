@@ -85,6 +85,17 @@
   loop: "{{ particoes.partitions | selectattr('type', 'equalto', 'linux-swap') }}"
   become: true
 
+- name: "Montar partição RAIZ (/)"
+  ansible.posix.mount:
+    path: "/mnt"
+    src: "{{ particoes.disk }}{{ 'p' if 'nvme' in particoes.disk else '' }}{{ item.part }}"
+    fstype: "{{ item.type }}"
+    state: mounted
+  loop: "{{ particoes.partitions | selectattr('mountpoint', 'equalto', '/') }}"
+  loop_control:
+    loop_var: item
+  become: true
+
 - name: "Montar sistemas de arquivos via LABEL"
   ansible.posix.mount:
     path: "/mnt{{ item.mountpoint }}"
