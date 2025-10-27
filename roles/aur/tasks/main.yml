@@ -27,7 +27,7 @@
 - name: Determine which helpers to install
   ansible.builtin.set_fact:
     helpers_to_install: "{{ desired_helpers | difference(installed_helpers) | default([]) }}"
-  when: desired_helpers is defined else
+  when: desired_helpers is defined
 
 - name: Determine which helpers to remove
   ansible.builtin.set_fact:
