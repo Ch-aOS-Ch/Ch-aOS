@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+set -a
+source ./respostas.env
+set +a
 if [ ! "$LANGC" ]; then
   source scripts/ZA-Lang.sh
 fi
@@ -17,6 +20,9 @@ set_env_var "PLUGIN" "$arquivo_plugin"
 export PLUGIN="$arquivo_plugin"
 
 # --- Particionamento ---
+set -a
+source ./respostas.env
+set +a
 if [ "$PARTITIONED" == "true" ]; then
   read -p "$MSG_PROMPT_RUN_AGAIN_PARTITION" -r choice
   if [[ "$choice" =~ ^[YySs]$ ]]; then
@@ -27,6 +33,9 @@ else
 fi
 
 # --- Reflector ---
+set -a
+source ./respostas.env
+set +a
 if [ "$REFLECTORED" == "true" ]; then
   read -p "$MSG_PROMPT_RUN_AGAIN_REFLECTOR" -r choice
   if [[ "$choice" =~ ^[YySs]$ ]]; then
@@ -37,6 +46,9 @@ else
 fi
 
 # --- Instalação Base ---
+set -a
+source ./respostas.env
+set +a
 if [ "$INSTALLED" == "true" ]; then
   read -p "$MSG_PROMPT_RUN_AGAIN_INSTALL" -r choice
   if [[ "$choice" =~ ^[YySs]$ ]]; then
@@ -49,7 +61,11 @@ bash scripts/D-regiao.sh
 bash scripts/E-personalizacao.sh
 bash scripts/F-bootloader.sh
 
-if [ "$FULLCODERAN" == "yes" ]; then
+set -a
+source ./respostas.env
+set +a
+
+if [ "$FULLCODERAN" == "true" ]; then
   PLAYBOOK_CHROOT_PATH="/mnt/root/Ch-aronte/main.yaml"
   PLAYBOOK_CH_OBOLOS_PATH="/mnt/root/Ch-aronte/Ch-obolos/$PLUGIN"
   cp -r ./ /mnt/root/Ch-aronte/
