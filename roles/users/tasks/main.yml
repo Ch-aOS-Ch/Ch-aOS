@@ -1,8 +1,4 @@
 - name: Define Hostname
-  ansible.builtin.hostname:
-    name: "{{ hostname }}"
-
-- name: Define Hostname
   ansible.builtin.copy:
     content: "{{ hostname}}\n"
     dest: "/etc/hostname"
