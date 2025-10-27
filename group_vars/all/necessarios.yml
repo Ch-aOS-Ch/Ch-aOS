@@ -10,3 +10,4 @@ necessarios:
   - git
   - ansible
   - arch-install-scripts
+  - efibootmgr
