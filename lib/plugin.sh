@@ -122,6 +122,15 @@ repos_update() {
 
         echo "Bootstrap do CachyOS concluído. Sincronizando pacman dentro do chroot..."
         arch-chroot /mnt pacman -Sy
+
+        echo "Adicionando configuração declarativa do CachyOS ao plugin..."
+        plugin_add_to_list_unique "pacotes" "cachyos-keyring"
+        plugin_add_to_list_unique "pacotes" "cachyos-mirrorlist"
+        plugin_add_to_list_unique "pacotes" "cachyos-v3-mirrorlist"
+        yq -iy '.repos.third_party += [{"name": "cachyos", "include": "/etc/pacman.d/cachyos-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-core-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
+        yq -iy '.repos.third_party += [{"name": "cachyos-extra-v3", "include": "/etc/pacman.d/cachyos-v3-mirrorlist"}]' "Ch-obolos/$PLUGIN"
       fi
       ;;
     *)

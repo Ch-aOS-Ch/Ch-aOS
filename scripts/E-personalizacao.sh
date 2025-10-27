@@ -38,7 +38,7 @@ yq -iy '.users = [
   {
     "name": "'$username'",
     "shell": "bash",
-    "groups": ["wheel", "'$username'"],
+    "groups": ["wheel"],
   },
   {
     "name": "root",
