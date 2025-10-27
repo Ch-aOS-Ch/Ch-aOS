@@ -114,7 +114,7 @@
 - name: Allow managed user to run pacman without a password
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
-    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/{{ aur_helpers[0] }}"
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
     state: present
     create: true
     mode: '0640' # Permissões seguras
@@ -136,7 +136,7 @@
 - name: Disallow managed user to run pacman without a password
   ansible.builtin.lineinfile:
     path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
-    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/{{ aur_helpers[0] }}"
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
     state: absent
     create: true
     mode: '0640'
