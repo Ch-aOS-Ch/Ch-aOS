@@ -10,7 +10,7 @@
 
     - name: "Add declarative [options] block"
       ansible.builtin.blockinfile:
-        dest: /etc/pacman.conf
+        path: /etc/pacman.conf
         marker: "# {mark} ANSIBLE MANAGED BLOCK FOR options"
         block: |
           # The following paths are commented out with their default values listed.
