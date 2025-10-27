@@ -5,6 +5,12 @@
     mode: "0644"
   become: true
 
+# btw, this fucking thing is bullshit
+# THERE IS A GODDAMN ansible.builtin.hostname
+# BUT IT DOESNT WORK INSIDE OF AN CHROOT FOR SOME REASON
+# It's literally the only case where this happens
+# this copy: is ugly as fuck, but it works wonders
+
 - name: Load user secrets from file
   ansible.builtin.include_vars:
     file: "{{ secrets.sec_file }}"
