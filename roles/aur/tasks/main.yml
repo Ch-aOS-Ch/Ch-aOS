@@ -63,6 +63,6 @@
   community.general.pacman:
     name: "{{ item }}"
     state: absent
-  loop: "{{ known_aur_helpers.name }}"
+  loop: "{{ known_aur_helpers | map(attribute='name') | list }}"
   become: true
   when: aur_helpers | length == 0
