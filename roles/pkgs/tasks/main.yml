@@ -7,7 +7,8 @@
          | union(["btrfs-progs"] if (particoes.partitions | selectattr('type', 'equalto', 'btrfs') | list | length > 0) else [])
          | union(["dosfstools"] if (particoes.partitions | selectattr('important', 'equalto', 'boot') | list | length > 0) else [])
          | union(["efibootmgr"] if (firmware == "UEFI" and bootloader == "grub"))
-         | union([bootloader] if (bootloader is defined and bootloader|length > 0) else []) }}
+         | union([bootloader] if (bootloader is defined and bootloader|length > 0) else [])
+         | union([aur_helpers[0]] if (aur_helpers is defined and aur_helpers | length > 0) else []) }}
 
 - name: Define final AUR pkg list (if helpers exist)
   ansible.builtin.set_fact:
