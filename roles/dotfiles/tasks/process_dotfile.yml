@@ -1,12 +1,12 @@
 - name: "Clonando o repo: {{ dotfile_item.repo }}"
   ansible.builtin.git:
     repo: "{{ dotfile_item.repo }}"
-    dest: "/home/{{ final_users[0].name }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
+    dest: "/home/{{ users[0].name }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
     version: main
   become: false
-  become_user: "{{ final_users[0].name }}"
+  become_user: "{{ users[0].name }}"
   register: dotfiles_git_clone_result
-  when: final_users is defined and final_users | length > 0
+  when: users is defined and users | length > 0
 
 - name: "Executando comando de instalação custom"
   ansible.builtin.command:
@@ -15,17 +15,17 @@
   when:
     - dotfile_item.install_command is defined
     - dotfile_item.install_command | length > 0
-    - final_users is defined
-    - final_users | length > 0
+    - users is defined
+    - users | length > 0
   become: true
   changed_when: false
-  become_user: "{{ final_users[0].name }}"
+  become_user: "{{ users[0].name }}"
 
 - name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager | default('Nenhum') }}"
   ansible.builtin.command:
     cmd: |
       {% if dotfile_item.manager == 'stow' %}
-      stow --target=/home/{{ final_users[0].name }} --dir=. *
+      stow --target=/home/{{ users[0].name }} --dir=. *
       {% elif dotfile_item.manager == 'yadm' %}
       echo "yadm not implemented yet, please use stow."
       {% endif %}
@@ -33,11 +33,11 @@
   when:
     - dotfile_item.manager is defined
     - dotfile_item.manager | length > 0
-    - final_users is defined
-    - final_users | length > 0
+    - users is defined
+    - users | length > 0
   become: true
   changed_when: false
-  become_user: "{{ final_users[0].name }}"
+  become_user: "{{ users[0].name }}"
 
 - name: "Verificar se 'install.sh' existe no repositório"
   ansible.builtin.stat:
@@ -46,10 +46,10 @@
   when:
     - dotfile_item.install_command is not defined
     - dotfile_item.manager is not defined
-    - final_users is defined
-    - final_users | length > 0
+    - users is defined
+    - users | length > 0
   become: true
-  become_user: "{{ final_users[0].name }}"
+  become_user: "{{ users[0].name }}"
 
 - name: "Executar script de instalação padrão (install.sh) se encontrado"
   ansible.builtin.command:
@@ -57,8 +57,8 @@
     chdir: "{{ dotfiles_git_clone_result.dest }}"
   when:
     - dotfiles_install_script_stat.stat.exists
-    - final_users is defined
-    - final_users | length > 0
+    - users is defined
+    - users | length > 0
   become: true
   changed_when: false
-  become_user: "{{ final_users[0].name }}"
+  become_user: "{{ users[0].name }}"

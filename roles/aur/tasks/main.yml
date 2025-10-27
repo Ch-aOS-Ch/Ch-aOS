@@ -20,7 +20,7 @@
 # 2. Get desired state
 - name: Create list of desired AUR helper names
   ansible.builtin.set_fact:
-    desired_helpers: "{{ final_aur_helpers | default([]) }}"
+    desired_helpers: "{{ aur_helpers | default([]) }}"
 
 # 3. Calculate difference
 - name: Determine which helpers to install

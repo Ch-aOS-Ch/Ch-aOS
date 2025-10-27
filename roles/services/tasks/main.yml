@@ -73,7 +73,7 @@
 - name: 3.2. Add expanded dense services to the list
   ansible.builtin.set_fact:
     expanded_desired_services: "{{ expanded_desired_services + (all_system_services_raw.stdout_lines | select('match', '^(' + item.name + ')') | list) }}"
-  loop: "{{ final_services | default([]) }}"
+  loop: "{{ services | default([]) }}"
   when: item.dense_service is defined and item.dense_service
   loop_control:
     loop_var: item
@@ -81,7 +81,7 @@
 - name: 3.3. Add normal services to the list
   ansible.builtin.set_fact:
     expanded_desired_services: "{{ expanded_desired_services + [item.name if item.name.endswith('.service') else item.name ~ '.service'] }}"
-  loop: "{{ final_services | default([]) }}"
+  loop: "{{ services | default([]) }}"
   when: item.dense_service is not defined or not item.dense_service
   loop_control:
     loop_var: item
@@ -100,7 +100,7 @@
 
 - name: 5. Manage services based on plugin configuration
   ansible.builtin.include_tasks: manage_service.yml
-  loop: "{{ final_services | default([]) }}"
+  loop: "{{ services | default([]) }}"
   loop_control:
     loop_var: service_item
   vars:

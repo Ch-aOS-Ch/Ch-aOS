@@ -1,5 +1,5 @@
 - name: Manage standard Arch Linux repositories
-  when: final_repos.managed is defined and ansible_os_family == 'Archlinux'
+  when: repos.managed is defined and ansible_os_family == 'Archlinux'
   block:
     - name: "Manage 'core' repository state"
       ansible.builtin.blockinfile:
@@ -8,7 +8,7 @@
         block: |
           [core]
           Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if final_repos.managed.core | default(true) else 'absent' }}"
+        state: "{{ 'present' if repos.managed.core | default(true) else 'absent' }}"
 
     - name: "Manage 'extra' repository state"
       ansible.builtin.blockinfile:
@@ -17,7 +17,7 @@
         block: |
           [extra]
           Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if final_repos.managed.extras | default(false) else 'absent' }}"
+        state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
 
     - name: "Manage 'multilib' repository state"
       ansible.builtin.blockinfile:
@@ -26,7 +26,7 @@
         block: |
           [multilib]
           Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if final_repos.managed.extras | default(false) else 'absent' }}"
+        state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
 
 # --- Declarative management of third-party repos ---
 - name: Get list of currently enabled repositories
@@ -41,7 +41,7 @@
 
 - name: Create list of desired repo names from plugin
   ansible.builtin.set_fact:
-    desired_repos: "{{ (final_repos.third_party | default([])) | map(attribute='name') | list }}"
+    desired_repos: "{{ (repos.third_party | default([])) | map(attribute='name') | list }}"
 
 - name: Determine which repos to add
   ansible.builtin.set_fact:
@@ -62,7 +62,7 @@
       {% endif %}
       {% if item.include is defined %}
       Include = {{ item.include }}
-      {% endif %}  loop: "{{ final_repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
+      {% endif %}  loop: "{{ repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
   loop_control:
     loop_var: item
   when: item.url is defined or item.include is defined
