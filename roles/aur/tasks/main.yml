@@ -26,10 +26,11 @@
 - name: Determine which helpers to install
   ansible.builtin.set_fact:
     helpers_to_install: "{{ desired_helpers | difference(installed_helpers) }}"
+  when: desired_helpers | length > 0
 
 - name: Determine which helpers to remove
   ansible.builtin.set_fact:
-    helpers_to_remove: "{{ installed_helpers | difference(desired_helpers) }}"
+    helpers_to_remove: "{{ installed_helpers | difference(desired_helpers) | default(['yay', 'paru']) }}"
 
 - name: debug helpers to install and remove
   ansible.builtin.debug:
@@ -45,6 +46,7 @@
     loop_var: aur_helper_item_name
   vars:
     aur_helper_item: "{{ known_aur_helpers | selectattr('name', 'equalto', aur_helper_item_name) | first }}"
+  when: desired_helpers | length > 0
 
 - name: Remove unwanted AUR helpers
   community.general.pacman:
