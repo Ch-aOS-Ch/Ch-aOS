@@ -24,7 +24,7 @@
       {% set start_str = "start=1MiB, " if loop.first else "" %}
 
       {% set attrs = ", attributes=esp" if item.important == 'boot' and firmware == 'UEFI' else "" %}
-      
+
       {{ device_name }} : {{ start_str }}{{ size_str }}, type={{ type_alias }}{{ attrs }}, name="{{ item.name }}"
       {% endfor %}
   become: true
@@ -80,7 +80,7 @@
 - name: "Montar sistemas de arquivos via LABEL"
   ansible.posix.mount:
     path: "/mnt{{ item.mountpoint }}"
-    src: "LABEL={{ item.name }}"
+#    src: "LABEL={{ item.name }}"
     fstype: "{{ 'vfat' if item.type in ['fat32', 'fat16', 'vfat'] else item.type }}"
     state: mounted
   loop: "{{ particoes.partitions | selectattr('mountpoint', 'defined') }}"

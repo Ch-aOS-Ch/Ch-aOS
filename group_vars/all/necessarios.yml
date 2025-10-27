@@ -9,3 +9,4 @@ necessarios:
   - openssh
   - git
   - ansible
+  - arch-install-scripts
