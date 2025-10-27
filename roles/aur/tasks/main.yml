@@ -63,6 +63,6 @@
   community.general.pacman:
     name: "{{ item }}"
     state: absent
-  loop: {{ known_aur_helpers.name }}
+  loop: "{{ known_aur_helpers.name }}"
   become: true
   when: aur_helpers is not defined
