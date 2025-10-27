@@ -42,7 +42,7 @@ systemctl daemon-reload
 plugin_set_value "repos.managed.core" "true"
 repos_update
 
-CHROOT_TAGS="fstab,repos"
+CHROOT_TAGS="repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
   export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
