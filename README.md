@@ -246,7 +246,7 @@ particoes: # <~ is not and never will be translatable to an configurations.nix :
   partitions:
     - name: chronos # <~ Ch-aronte uses label for fstab andother things, this changes nothing to your overall experience, but it is an commodity for me
       important: boot # <~ Only 4 of these, boot, root, swap and home, it uses this to define how the role should be treated (mainly boot and swap)
-      size: 1GB # <~ IT IS GB, NOT G, and it is also any of the part_end's from https://docs.ansible.com/ansible/latest/collections/community/general/parted_module.html#ansible-collections-community-general-parted-module-parameter-device
+      size: 1GB # <~ Use G, MiB might work, but it might not, it's still not well stabilized
       mount_point: "/boot" # <~ required (duh)
       part: 1 # <~ this tells what partition it is (sdb1,2,3,4...)
       type: vfat # <~ or ext4, btrfs, well, you get the idea
