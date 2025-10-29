@@ -23,9 +23,7 @@
 - name: Define final AUR pkg list (if helpers exist)
   ansible.builtin.set_fact:
     pkgs_pacotes_finais_aur: >-
-      {{ (pacotes_base_override | default(necessarios))
-         | union(aur_pkgs | default([]))
-         | union([bootloader] if (bootloader is defined and bootloader|length > 0) else []) }}
+      {{ (aur_pkgs | default([])) }}
   when:
     - aur_helpers is defined
     - aur_helpers | length > 0
