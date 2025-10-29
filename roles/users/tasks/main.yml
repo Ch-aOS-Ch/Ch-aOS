@@ -38,21 +38,21 @@
 
 - name: Determine users to remove
   ansible.builtin.set_fact:
-    users_to_remove: "{{ (current_users.ansible_facts.getent_passwd.keys() | list) | difference(final_users | map(attribute='name') | list) | difference(system_users) | difference(['nobody']) }}"
-  when: final_users is defined
+    users_to_remove: "{{ (current_users.ansible_facts.getent_passwd.keys() | list) | difference(users | map(attribute='name') | list) | difference(system_users) | difference(['nobody']) }}"
+  when: users is defined
 
-- name: Remove users not in final_users
+- name: Remove users not in users
   ansible.builtin.user:
     name: "{{ item }}"
     state: absent
     remove: true
   loop: "{{ users_to_remove }}"
   when:
-    - final_users is defined
+    - users is defined
     - users_to_remove is defined
     - users_to_remove | length > 0
 
-- name: Make sure final_users exist
+- name: Make sure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
     shell: "/bin/{{ item.shell }}"
@@ -60,7 +60,7 @@
     append: true
     create_home: true
     password: "{{ user_secrets[item.name].password | default(omit) if user_secrets is defined and user_secrets[item.name] is defined else omit }}"
-  loop: "{{ final_users }}"
+  loop: "{{ users }}"
 
 - name: Manage sudoers
   become: true
