@@ -48,54 +48,112 @@ yq -iy '.users = [
 ]' "Ch-obolos/$PLUGIN"
 
 echo "$SECRETS_FILE" >>.gitignore && touch "$SECRETS_FILE"
-echo "{}" >"$SECRETS_FILE"
+echo '{"user_secrets": {}}' >"$SECRETS_FILE"
 plugin_set_value "secrets.sec_file" "$SECRETS_FILE"
 plugin_set_value "secrets.sec_mode" "charonte"
 
 clear
 echo "Senha para o usuário: ${username}"
 echo "Como deseja configurar a senha?"
-echo "1" "Digitar agora e salvar como HASH (Recomendado, Nix-like)"
-echo "2" "Digitar agora e salvar em COFRE (Vault com texto puro)"
+echo "1" "Digitar agora e salvar em COFRE (SOPS com texto hasheado, nix like)"
+echo "2" "Digitar agora e salvar como HASH plain text"
 echo "3" "Digitar agora e não salvar em cofre (Plain Text, Extremamente inseguro, mas fácil de ler)"
 echo "4" "Não definir senha agora (configuração manual pós-reboot)"
 read -r choice
 
+plugin_set_value "secrets.sec_mode" "charonte"
+
 case $choice in
+"2")
+  read -srp "Digite a senha para '${username}': " user_pass
+  echo ""
+  user_hash=$(printf '%s' "$user_pass" | openssl passwd -6 -stdin)
+  yq -iy ".user_secrets.${username}.password = \"$user_hash\"" "$SECRETS_FILE"
+  yq -iy ".user_secrets.root.password = \"$user_hash\"" "$SECRETS_FILE"
+  ;;
 "1")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
   user_hash=$(printf '%s' "$user_pass" | openssl passwd -6 -stdin)
-  yq -iy ".${username}.password = \"$user_hash\"" "$SECRETS_FILE"
-  yq -iy ".root.password = \"$user_hash\"" "$SECRETS_FILE"
-  ;;
-"2")
-  read -srp "Digite a senha para '${username}': " user_pass
-  echo ""
-  yq -iy ".${username}.password = \"$user_pass\"" "$SECRETS_FILE"
-  yq -iy ".root.password = \"$user_pass\"" "$SECRETS_FILE"
-  USE_VAULT=true
+  yq -iy ".user_secrets.${username}.password = \"$user_hash\"" "$SECRETS_FILE"
+  yq -iy ".user_secrets.root.password = \"$user_hash\"" "$SECRETS_FILE"
+  USE_SOPS=true
+  plugin_set_value "secrets.sec_mode" "sops"
   ;;
 "3")
   read -srp "Digite a senha para '${username}': " user_pass
   echo ""
-  yq -iy ".${username}.password = \"$user_pass\"" "$SECRETS_FILE"
-  yq -iy ".root.password = \"$user_pass\"" "$SECRETS_FILE"
+  yq -iy ".user_secrets.${username}.password = \"$user_pass\"" "$SECRETS_FILE"
+  yq -iy ".user_secrets.root.password = \"$user_pass\"" "$SECRETS_FILE"
 
   ;;
 "4")
-  yq -iy ".${username} = {}" "$SECRETS_FILE"
-  yq -iy ".root = {}" "$SECRETS_FILE"
+  yq -iy ".user_secrets.${username} = {}" "$SECRETS_FILE"
+  yq -iy ".user_secrets.root = {}" "$SECRETS_FILE"
   echo "Lembre-se de definir a senha para '${username}' manualmente após o reboot." >&2
   ;;
 esac
 
-if [ "$USE_VAULT" = true ]; then
-  echo "Uma ou mais senhas foram salvas em texto puro." >&2
-  echo "Vamos criptografar o arquivo 'segredos.yml' com o Ansible Vault." >&2
-  echo "Por favor, crie uma senha para o seu cofre (vault)." >&2
-  ansible-vault encrypt "$SECRETS_FILE"
+if [ "$USE_SOPS" = true ]; then
+  echo "Configurando SOPS. Primeiro, vamos gerar uma chave PGP para você." >&2
+
+  read -rp "Digite seu nome completo (para a chave PGP): " pgp_name
+  read -rp "Digite seu email (para a chave PGP): " pgp_email
+  while [[ -z "$pgp_name" || -z "$pgp_email" ]]; do
+    echo "Nome e email não podem ser vazios." >&2
+    read -rp "Digite seu nome completo: " pgp_name
+    read -rp "Digite seu email: " pgp_email
+  done
+
+  echo "Gerando uma chave PGP de 4096 bits para '${pgp_name} <${pgp_email}>'..." >&2
+  echo "Você será solicitado a criar uma SENHA para esta chave. Guarde-a bem." >&2
+
+  # Batch file for GPG
+  gpg_batch_input=$(
+    cat <<EOF
+Key-Type: RSA
+Key-Length: 4096
+Subkey-Type: RSA
+Subkey-Length: 4096
+Name-Real: ${pgp_name}
+Name-Email: ${pgp_email}
+Expire-Date: 0
+%commit
+EOF
+  )
+
+  # Generate key - this will prompt for a passphrase
+  echo "$gpg_batch_input" | gpg --batch --generate-key
+
+  # Get fingerprint
+  fingerprint=$(gpg --list-secret-keys --with-colons "${pgp_email}" | grep '^fpr' | cut -d: -f10)
+
+  if [ -z "$fingerprint" ]; then
+    echo "ERRO: Não foi possível obter o fingerprint da chave PGP gerada. Abortando." >&2
+    exit 1
+  fi
+
+  echo "Chave PGP gerada com sucesso. Fingerprint: ${fingerprint}" >&2
+
+  # Create sops-config.yml
+  SOPS_CONFIG_FILE="Ch-obolos/sops-config.yml"
+  cat <<EOF >"$SOPS_CONFIG_FILE"
+creation_rules:
+- path_regex: (.*)?/secrets_.*\\.yml$
+    pgp: '${fingerprint}'
+EOF
+  echo "Arquivo de configuração SOPS criado em '$SOPS_CONFIG_FILE'." >&2
+
+  # Encrypt the secrets file
+  echo "Criptografando o arquivo de segredos '$SECRETS_FILE' com SOPS..." >&2
+  echo "Você precisará digitar a senha da sua chave PGP agora." >&2
+  sops --config "$SOPS_CONFIG_FILE" --encrypt --in-place "$SECRETS_FILE"
   echo "Arquivo '$SECRETS_FILE' criptografado com sucesso." >&2
+
+  echo "Copiando seu keyring para seu novo sistema" >&2
+  mkdir -p /mnt/root/.gnupg/
+  cp -a /root/.gnupg/* /mnt/root/.gnupg/
+  echo "Cópia concluida" >&2
 fi
 
 echo "$SECRETS_FILE" >>./.gitignore
@@ -114,5 +172,4 @@ if [[ $CHOICE = "usar" || $CHOICE = "use" ]]; then
   fi
 fi
 
-# --- Encadeia o próximo script ---
 echo "Configuração finalizada. Passando para a instalação do bootloader..."

@@ -11,7 +11,9 @@
   block:
     - name: "Find services matching regex for {{ service_item.name }}"
       ansible.builtin.set_fact:
-        matched_services: "{{ all_system_services | select('match', '^(' + service_item.name + ')(\\.service)?$') | list }}"
+        matched_services: "{{ all_system_services
+                              | select('match', '^(' + service_item.name + ')(\\.service)?$')
+                              | list }}"
     - name: "Apply state to matched services for {{ service_item.name }}"
       ansible.builtin.service:
         name: "{{ item }}"

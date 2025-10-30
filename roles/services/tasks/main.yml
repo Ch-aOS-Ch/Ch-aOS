@@ -46,22 +46,23 @@
 
 - name: 1. Get all enabled services
   ansible.builtin.shell:
-    cmd: "systemctl list-unit-files --type=service --no-pager --no-legend | grep enabled | awk '{print $1}'"
+    cmd: "set -euo pipefail && systemctl list-unit-files --type=service --no-pager --no-legend | grep enabled | awk '{print $1}'"
   register: enabled_services_raw
   changed_when: false
   check_mode: false
 
 - name: 2. Apply blacklist
   ansible.builtin.set_fact:
-    potentially_disablable: "{{ enabled_services_raw.stdout_lines | difference(services_blacklist) }}"
+    potentially_disablable: "{{ enabled_services_raw.stdout_lines
+                                | difference(services_blacklist) }}"
 
-#- name: "(DEBUG) Potentially disablable services"
-#  ansible.builtin.debug:
-#    var: potentially_disablable
+# - name: "(DEBUG) Potentially disablable services"
+#   ansible.builtin.debug:
+#     var: potentially_disablable
 
 - name: 3. Get all available service names for dense expansion
   ansible.builtin.shell:
-    cmd: "systemctl list-unit-files --type=service --no-pager --no-legend | awk '{print $1}'"
+    cmd: "set -euo pipefail && systemctl list-unit-files --type=service --no-pager --no-legend | awk '{print $1}'"
   register: all_system_services_raw
   changed_when: false
   check_mode: false
@@ -72,7 +73,10 @@
 
 - name: 3.2. Add expanded dense services to the list
   ansible.builtin.set_fact:
-    expanded_desired_services: "{{ expanded_desired_services + (all_system_services_raw.stdout_lines | select('match', '^(' + item.name + ')') | list) }}"
+    expanded_desired_services: "{{ expanded_desired_services +
+                                    (all_system_services_raw.stdout_lines
+                                    | select('match', '^(' + item.name + ')')
+                                    | list) }}"
   loop: "{{ services | default([]) }}"
   when: item.dense_service is defined and item.dense_service
   loop_control:
@@ -80,23 +84,27 @@
 
 - name: 3.3. Add normal services to the list
   ansible.builtin.set_fact:
-    expanded_desired_services: "{{ expanded_desired_services + [item.name if item.name.endswith('.service') else item.name ~ '.service'] }}"
+    expanded_desired_services: "{{ expanded_desired_services +
+                                  [item.name
+                                  if item.name.endswith('.service')
+                                  else item.name ~ '.service'] }}"
   loop: "{{ services | default([]) }}"
   when: item.dense_service is not defined or not item.dense_service
   loop_control:
     loop_var: item
 
-#- name: "(DEBUG) Expanded desired services"
-#  ansible.builtin.debug:
-#    var: expanded_desired_services
+# - name: "(DEBUG) Expanded desired services"
+#   ansible.builtin.debug:
+#     var: expanded_desired_services
 
 - name: 4. Calculate final list of services to disable
   ansible.builtin.set_fact:
-    services_to_disable: "{{ potentially_disablable | difference(expanded_desired_services) }}"
+    services_to_disable: "{{ potentially_disablable
+                             | difference(expanded_desired_services) }}"
 
-#- name: "(DEBUG) Final list of services to disable"
-#  ansible.builtin.debug:
-#    var: services_to_disable
+# - name: "(DEBUG) Final list of services to disable"
+#   ansible.builtin.debug:
+#     var: services_to_disable
 
 - name: 5. Manage services based on plugin configuration
   ansible.builtin.include_tasks: manage_service.yml

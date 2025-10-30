@@ -107,7 +107,10 @@
         block: |
           [multilib]
           Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
+        state: "{{ 'present'
+                    if repos.managed.extras
+                    | default(false)
+                    else 'absent' }}"
       become: true
 
 # --- Declarative management of third-party repos ---
@@ -123,15 +126,20 @@
 
 - name: Create list of desired repo names from plugin
   ansible.builtin.set_fact:
-    desired_repos: "{{ (repos.third_party | default([])) | map(attribute='name') | list }}"
+    desired_repos: "{{ (repos.third_party | default([]))
+                        | map(attribute='name')
+                        | list }}"
 
 - name: Determine which repos to add
   ansible.builtin.set_fact:
-    repos_to_add: "{{ desired_repos | difference(enabled_repos) }}"
+    repos_to_add: "{{ desired_repos
+                      | difference(enabled_repos) }}"
 
 - name: Determine which repos to remove
   ansible.builtin.set_fact:
-    repos_to_remove: "{{ enabled_repos | difference(desired_repos) | difference(['core', 'extra', 'multilib']) }}"
+    repos_to_remove: "{{ enabled_repos
+                          | difference(desired_repos)
+                          | difference(['core']) }}"
 
 - name: Add desired third-party repos to pacman.conf
   ansible.builtin.blockinfile:
@@ -145,7 +153,9 @@
       {% if item.include is defined %}
       Include = {{ item.include }}
       {% endif %}
-  loop: "{{ repos.third_party | selectattr('name', 'in', repos_to_add) | list }}"
+  loop: "{{ repos.third_party
+            | selectattr('name', 'in', repos_to_add)
+            | list }}"
   loop_control:
     loop_var: item
   become: true
