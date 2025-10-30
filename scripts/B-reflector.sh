@@ -10,13 +10,13 @@ source lib/ui.sh
 yq -iy '.mirrors.countries = []' "Ch-obolos/$PLUGIN"
 case $LANGC in
 "Portugues")
-  plugin_add_to_list "mirrors.countries" "br"
-  plugin_add_to_list "mirrors.countries" "us"
-  ;;
+	plugin_add_to_list "mirrors.countries" "br"
+	plugin_add_to_list "mirrors.countries" "us"
+	;;
 "English")
-  plugin_add_to_list "mirrors.countries" "us"
-  plugin_add_to_list "mirrors.countries" "eu"
-  ;;
+	plugin_add_to_list "mirrors.countries" "us"
+	plugin_add_to_list "mirrors.countries" "eu"
+	;;
 esac
 plugin_set_value "mirrors.count" "25"
 

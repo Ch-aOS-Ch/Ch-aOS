@@ -26,18 +26,18 @@ clear
 echo "Choose your language / Escolha sua linguagem:"
 
 while true; do
-  read -p "1- English / 2- Português: " -r lang
-  if [[ "$lang" == "1" ]]; then
-    echo "You chose English"
-    export LANGC="English"
-    break
-  elif [[ "$lang" == "2" ]]; then
-    echo "Você escolheu Português"
-    export LANGC="Portugues"
-    break
-  else
-    echo "Por favor, escolha uma opção válida / Please choose a valid option."
-  fi
+	read -p "1- English / 2- Português: " -r lang
+	if [[ "$lang" == "1" ]]; then
+		echo "You chose English"
+		export LANGC="English"
+		break
+	elif [[ "$lang" == "2" ]]; then
+		echo "Você escolheu Português"
+		export LANGC="Portugues"
+		break
+	else
+		echo "Por favor, escolha uma opção válida / Please choose a valid option."
+	fi
 done
 
 echo "LANGC=$LANGC" >respostas.env

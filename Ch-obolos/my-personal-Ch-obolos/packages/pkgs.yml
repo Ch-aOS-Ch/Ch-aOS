@@ -168,6 +168,8 @@ pacotes:
   - rust
   - ryujinx
   - sddm
+  - shellcheck
+  - shfmt
   - silicon
   - slurp
   - smartmontools
@@ -270,6 +272,7 @@ aur_pkgs:
   - sudachi-bin
   - tdf
   - ttc-monocraft
+  - tuios-bin
   - velero-bin
   - vencord
   - wallust
