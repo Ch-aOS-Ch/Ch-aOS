@@ -18,3 +18,21 @@ imports:
 
   - file: 'my-personal-Ch-obolos/region/region.yml'
     strategy: override
+
+dotfiles:
+  - repo: "https://github.com/Dexmachi/dotfiles.git"
+    manager: charonte
+    managed:
+      - source: bash
+        open: true
+
+      - source: bookmarks
+
+      - source: walls
+        path: .
+        open: true
+
+      - source: zsh
+        open: true
+
+      - source: .config

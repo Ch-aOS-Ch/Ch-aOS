@@ -1,0 +1,55 @@
+- name: "Manage dotfile based on 'open' flag"
+  block:
+    # This block handles the case where we symlink the contents of a directory
+    - name: "Handle 'open: true' - symlink contents of directory"
+      when: item.open | default(false)
+      block:
+        - name: "Find files in source directory for 'open: true'"
+          ansible.builtin.find:
+            paths: "{{ dotfiles_repo_path }}/{{ item.source }}"
+            hidden: yes
+          register: source_contents
+
+        - name: "Ensure target directory exists for 'open: true'"
+          ansible.builtin.file:
+            path: "/home/{{ users[0].name }}/{{ item.path | default('.') }}"
+            state: directory
+            mode: '0755'
+          become: true
+          become_user: "{{ users[0].name }}"
+
+        - name: "Include task to manage symlinks for contents of '{{ item.source }}'"
+          ansible.builtin.include_tasks: process_charonte_item_open.yml
+          loop: "{{ source_contents.files }}"
+          loop_control:
+            loop_var: sub_item
+
+    # This block handles the original behavior: symlinking the directory itself
+    - name: "Handle 'open: false' - symlink directory"
+      when: not (item.open | default(false))
+      block:
+        - name: "Check status of destination path"
+          ansible.builtin.stat:
+            path: "/home/{{ users[0].name }}/{{ item.path | default(item.source) }}"
+          become: true
+          become_user: "{{ users[0].name }}"
+          register: dest_path_stat
+
+        - name: "Backup existing directory before creating symlink"
+          ansible.builtin.command:
+            cmd: "mv /home/{{ users[0].name }}/{{ item.path | default(item.source) }} /home/{{ users[0].name }}/{{ item.path | default(item.source) }}.bak_{{ ansible_date_time.epoch }}"
+          when:
+            - dest_path_stat.stat.exists
+            - not (dest_path_stat.stat.islnk and dest_path_stat.stat.lnk_target == dotfiles_repo_path + '/' + item.source)
+          changed_when: true
+          become: true
+          become_user: "{{ users[0].name }}"
+
+        - name: "Create dotfile symlink"
+          ansible.builtin.file:
+            src: "{{ dotfiles_repo_path }}/{{ item.source }}"
+            path: "/home/{{ users[0].name }}/{{ item.path | default(item.source) }}"
+            state: link
+            force: true
+          become: true
+          become_user: "{{ users[0].name }}"

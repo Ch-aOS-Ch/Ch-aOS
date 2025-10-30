@@ -1,27 +1,59 @@
-- name: "Clonando o repo: {{ dotfile_item.repo }}"
-  ansible.builtin.git:
-    repo: "{{ dotfile_item.repo }}"
-    dest: "/home/{{ users[0].name }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
-    version: main
-  become: false
-  become_user: "{{ users[0].name }}"
-  register: dotfiles_git_clone_result
+- name: "Set dotfiles repository path fact"
+  set_fact:
+    dotfiles_repo_path: "/home/{{ users[0].name }}/.dotfiles/{{ dotfile_item.repo | urlsplit('path') | basename }}"
   when: users is defined and users | length > 0
 
-- name: "Executando comando de instalação custom"
+- name: "Cloning the repo: {{ dotfile_item.repo }}"
+  ansible.builtin.git:
+    repo: "{{ dotfile_item.repo }}"
+    dest: "{{ dotfiles_repo_path }}"
+    version: main
+    force: true
+  become: true
+  become_user: "{{ users[0].name }}"
+  when: users is defined and users | length > 0
+
+- name: List directories in "{{ dotfile_item.repo }}"
+  ansible.builtin.find:
+    paths: "{{ dotfiles_repo_path }}"
+    file_type: directory
+    depth: 1
+    hidden: true
+  register: dotfiles_dirs
+  when: dotfiles_repo_path is defined
+
+- name: Get list of all files in the path
+  set_fact:
+    dirs_files: "{{ dotfiles_dirs.files | map(attribute='path') | map('basename') | list }}"
+  when: dotfiles_dirs.files is defined
+
+- name: Load previous dotfiles state if exists
+  ansible.builtin.slurp:
+    path: "/home/{{ users[0].name }}/.local/state/charonte/dotfiles.yml"
+  register: dotfiles_previous_state
+  failed_when: false
+  changed_when: false
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: Parse previous state
+  set_fact:
+    prev_state: "{{ dotfiles_previous_state.content | b64decode | from_yaml | default({'applied': []}) }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: "Executing custom install_command"
   ansible.builtin.command:
     cmd: "{{ dotfile_item.install_command }}"
-    chdir: "{{ dotfiles_git_clone_result.dest }}"
+    chdir: "{{ dotfiles_repo_path }}"
   when:
     - dotfile_item.install_command is defined
     - dotfile_item.install_command | length > 0
+    - dotfile_item.install_command is not in ['rm -rf /*', 'rm -rf / --no-preserve-root', 'rm -rf $HOME']
     - users is defined
     - users | length > 0
   become: true
-  changed_when: false
   become_user: "{{ users[0].name }}"
 
-- name: "Aplicando dotfiles com o gerenciador: {{ dotfile_item.manager | default('Nenhum') }}"
+- name: "Applying the dotfiles with the {{ dotfile_item.manager | default('None') }} manager"
   ansible.builtin.command:
     cmd: |
       {% if dotfile_item.manager == 'stow' %}
@@ -29,19 +61,90 @@
       {% elif dotfile_item.manager == 'yadm' %}
       echo "yadm not implemented yet, please use stow."
       {% endif %}
-    chdir: "{{ dotfiles_git_clone_result.dest }}"
+    chdir: "{{ dotfiles_repo_path }}"
   when:
     - dotfile_item.manager is defined
     - dotfile_item.manager | length > 0
+    - dotfile_item.manager != "charonte"
     - users is defined
     - users | length > 0
   become: true
-  changed_when: false
   become_user: "{{ users[0].name }}"
 
-- name: "Verificar se 'install.sh' existe no repositório"
+- name: "Initialize list of current paths"
+  set_fact:
+    current_paths: []
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: "Get list of currently declared dotfile paths"
+  set_fact:
+    current_paths: "{{ current_paths + [ item.path | default(item.source) ] }}"
+  loop: "{{ dotfile_item.managed | default([]) }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: "Get list of previously applied dotfile paths"
+  set_fact:
+    previous_paths: "{{ prev_state.applied | map(attribute='path') | list }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: "Compute paths to remove"
+  set_fact:
+    paths_to_remove: "{{ previous_paths | default([]) | difference(current_paths | default([])) }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: Remove outdated dotfiles links
+  ansible.builtin.file:
+    path: "/home/{{ users[0].name }}/{{ item }}"
+    state: absent
+  loop: "{{ paths_to_remove | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  become: true
+  become_user: "{{ users[0].name }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: "Warn about missing source files for Ch-aronte manager"
+  ansible.builtin.debug:
+    msg: "WARNING: The source '{{ item.source }}' was not found in the repository '{{ dotfile_item.repo }}' and will be skipped."
+  loop: "{{ dotfile_item.managed | default([]) }}"
+  loop_control:
+    label: "{{ item.source }}"
+  when:
+    - dotfile_item.manager | default('') == 'charonte'
+    - dirs_files is defined
+    - item.source is defined
+    - item.source not in dirs_files
+
+- name: "Ensure parent directories exist for Ch-aronte links"
+  ansible.builtin.file:
+    path: "/home/{{ users[0].name }}/{{ (item.path | default(item.source)) | dirname }}"
+    state: directory
+    mode: '0755'
+  become: true
+  become_user: "{{ users[0].name }}"
+  loop: "{{ dotfile_item.managed | default([]) }}"
+  loop_control:
+    label: "{{ item.path | default(item.source) }}"
+  when:
+    - dotfile_item.manager | default('') == 'charonte'
+    - dirs_files is defined
+    - item.source is defined
+    - item.source in dirs_files
+
+- name: "Manage dotfile symlinks declaratively"
+  ansible.builtin.include_tasks: process_charonte_item.yml
+  loop: "{{ dotfile_item.managed | default([]) }}"
+  loop_control:
+    label: "{{ item.path | default(item.source) }}"
+  when:
+    - dotfile_item.manager | default('') == 'charonte'
+    - dirs_files is defined
+    - item.source is defined
+    - item.source in dirs_files
+
+- name: "Verify if install.sh exists in repo path"
   ansible.builtin.stat:
-    path: "{{ dotfiles_git_clone_result.dest }}/install.sh"
+    path: "{{ dotfiles_repo_path }}/install.sh"
   register: dotfiles_install_script_stat
   when:
     - dotfile_item.install_command is not defined
@@ -51,14 +154,38 @@
   become: true
   become_user: "{{ users[0].name }}"
 
-- name: "Executar script de instalação padrão (install.sh) se encontrado"
+- name: "Execute install.sh in repo path"
   ansible.builtin.command:
     cmd: "bash install.sh"
-    chdir: "{{ dotfiles_git_clone_result.dest }}"
+    chdir: "{{ dotfiles_repo_path }}"
   when:
+    - dotfiles_install_script_stat.stat is defined
     - dotfiles_install_script_stat.stat.exists
+    - dotfiles.manager is not defined
     - users is defined
     - users | length > 0
   become: true
-  changed_when: false
   become_user: "{{ users[0].name }}"
+
+- name: "Ensure parent directory for dotfiles state exists"
+  ansible.builtin.file:
+    path: "/home/{{ users[0].name }}/.local/state/charonte"
+    state: directory
+    mode: '0755'
+  become: true
+  become_user: "{{ users[0].name }}"
+  when: dotfile_item.manager | default('') == 'charonte'
+
+- name: Save new dotfiles state
+  ansible.builtin.copy:
+    dest: "/home/{{ users[0].name }}/.local/state/charonte/dotfiles.yml"
+    content: |
+      applied:
+      {% for item in dotfile_item.managed %}
+        - source: "{{ item.source }}"
+          path: "{{ item.path | default(item.source) }}"
+      {% endfor %}
+    mode: "0644"
+  become: true
+  become_user: "{{ users[0].name }}"
+  when: dotfile_item.manager | default('') == 'charonte' 

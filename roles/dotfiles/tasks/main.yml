@@ -6,7 +6,7 @@
     state: present
   become: true
 
-- name: Iterar e processar cada dotfile da lista
+- name: Iterate through dotfiles list
   ansible.builtin.include_tasks: tasks/process_dotfile.yml
   loop: "{{ dotfiles }}"
   loop_control:

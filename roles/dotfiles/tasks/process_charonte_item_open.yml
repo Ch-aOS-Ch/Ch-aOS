@@ -1,0 +1,32 @@
+# This task file is called from process_charonte_item.yml for each file inside an 'open: true' dotfile source directory.
+# It expects 'sub_item' (from the loop) and 'item' (from the parent context) to be defined.
+
+- name: "Set target path for {{ sub_item.path | basename }}"
+  set_fact:
+    target_path: "/home/{{ users[0].name }}/{{ item.path | default('.') }}/{{ sub_item.path | basename }}"
+
+- name: "Check status of target path for content symlink"
+  ansible.builtin.stat:
+    path: "{{ target_path }}"
+  become: true
+  become_user: "{{ users[0].name }}"
+  register: target_path_stat
+
+- name: "Backup existing file/dir before creating content symlink"
+  ansible.builtin.command:
+    cmd: "mv {{ target_path }} {{ target_path }}.bak_{{ ansible_date_time.epoch }}"
+  when:
+    - target_path_stat.stat.exists
+    - not (target_path_stat.stat.islnk and target_path_stat.stat.lnk_target == sub_item.path)
+  changed_when: true
+  become: true
+  become_user: "{{ users[0].name }}"
+
+- name: "Create content symlink for {{ sub_item.path | basename }}"
+  ansible.builtin.file:
+    src: "{{ sub_item.path }}"
+    path: "{{ target_path }}"
+    state: link
+    force: true
+  become: true
+  become_user: "{{ users[0].name }}"

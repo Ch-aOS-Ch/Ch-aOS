@@ -232,14 +232,20 @@ repos:
 
 # Manages dotfiles from git repositories
 dotfiles: # Translatable with Ch-imera with the manager: tag, it will only use the nix manager tho
-  - repo: https://github.com/your-user/your-dotfiles.git
-    # To decide how the script will behave, you have 3 options as to how it will work.
-    install_command: "your_custom_dotfile_command.sh"
-    # OPTION 1: install_command is a variable that you can set to decide how the script will install your dotfiles.
-    # It uses the root of your repo as a base point, so be aware of that.
-    manager: "stow"
-    # OPTION 2: You set a manager and the script applies it to every folder in your repo.
-    # OPTION 3: leaving this blank (neither install_command nor manager) makes it so the script searches for an "install.sh" file inside the root of your repo, using it as a basis to install your dotfiles.
+  - repo: https://github.com/your-user/your-dotfiles.git #<~ To decide how the script will behave, you have 3 options as to how it will work.
+    install_command: "your_custom_dotfile_command.sh" # <~ It uses the root of your repo as a base point, so be aware of that.
+    manager: "charonte" # <~ MUTUALLY EXCLUSIVE FROM INSTALL_COMMAND. Options are charonte OR stow (as of now), this allows for using an proper manager, I personally recommend that you use "charonte" since it is modular AND it is declarative.
+    # btw, I'm actively using this dotfile manager rn, it is not dangerous.
+    managed: # <~ this is only available with the charonte manager.
+      - source: "zsh" # <~ this is an _folder_ inside of my dotfiles folder
+        path: . # <~ this is . by default, it takes the home of the first user on the list of users to define which home to go to
+        open: true # <~ defines if the script should symlink the files _inside_ the folder _or_ the folder itself.
+      - source: "bash"
+        open: true
+      - source: ".config"
+# ATTENTION: _ALL_ THE FILES YOU PUT HERE _AND_ ALREADY EXIST ARE BACKED UP BESIDE THE NEW ONES. IF YOU _REMOVE_ A FILE FROM THE LIST, IT WILL BE REMOVED FROM THE PATH YOU SET AS WELL. (duh, it's declarative)
+
+        # Your third option is leaving this blank, it will simply search for an install.sh inside your root folder, it'll do nothing if it doesn't find one.
 
 # Defines disk partitions (usually filled by the interactive script)
 firmware: UEFI
@@ -282,6 +288,9 @@ region:
   keymap: "br-abnt2"
 
 ```
+> [!WARNING]
+>
+> You can find a more complete example in [My-Ch-obolos](Ch-obolos/my-personal-Ch-obolos/custom-plug-dex.yml), these are the Ch-obolos I am actively using to manage my own system!
 
 ### To generate your current system's plugin, run:
 ```bash
