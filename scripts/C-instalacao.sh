@@ -25,16 +25,16 @@ yq -iy '.pacotes |= (select(.) // [])' "Ch-obolos/$PLUGIN"
 add_pkg="n"
 read -p "$MSG_WANT_MORE" -r add_pkg
 while [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; do
-  read -p "$MSG_PKG_NAME" -r pacote
-  while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
-    echo "$MSG_NOT_FOUND"
-    read -p "$MSG_TRY_AGAIN" -r pacote
-  done
+	read -p "$MSG_PKG_NAME" -r pacote
+	while ! pacman -Ss "$pacote" >/dev/null 2>&1; do
+		echo "$MSG_NOT_FOUND"
+		read -p "$MSG_TRY_AGAIN" -r pacote
+	done
 
-  plugin_add_to_list_unique "pacotes" "$pacote"
-  echo "$MSG_ADDING $pacote..."
+	plugin_add_to_list_unique "pacotes" "$pacote"
+	echo "$MSG_ADDING $pacote..."
 
-  read -p "$MSG_ANY_MORE" -r add_pkg
+	read -p "$MSG_ANY_MORE" -r add_pkg
 done
 
 ansible-playbook ./main.yaml --tags instalacao -e @Ch-obolos/"$PLUGIN"
@@ -44,6 +44,6 @@ repos_update
 
 CHROOT_TAGS="repos"
 if [[ "$add_pkg" != "n" && "$add_pkg" != "N" ]]; then
-  export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
+	export CHROOT_TAGS="$CHROOT_TAGS,pkgs"
 fi
 set_env_var "INSTALLED" "true"
