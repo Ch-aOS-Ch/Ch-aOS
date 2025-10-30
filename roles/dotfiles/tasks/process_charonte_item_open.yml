@@ -30,3 +30,7 @@
     force: true
   become: true
   become_user: "{{ users[0].name }}"
+
+- name: "Collect managed file path for open:true item"
+  set_fact:
+    open_true_managed_files: "{{ open_true_managed_files + [target_path] }}"
