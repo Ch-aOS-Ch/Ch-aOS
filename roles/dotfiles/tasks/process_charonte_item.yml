@@ -4,10 +4,11 @@
     - name: "Handle 'open: true' - symlink contents of directory"
       when: item.open | default(false)
       block:
-        - name: "Find files in source directory for 'open: true'"
+        - name: "Find files and directories in source for 'open: true'"
           ansible.builtin.find:
             paths: "{{ dotfiles_repo_path }}/{{ item.source }}"
-            hidden: yes
+            hidden: true
+            file_type: any
           register: source_contents
 
         - name: "Ensure target directory exists for 'open: true'"
@@ -18,11 +19,21 @@
           become: true
           become_user: "{{ users[0].name }}"
 
+        - name: "Initialize list for managed files in open:true item"
+          set_fact:
+            open_true_managed_files: []
+
         - name: "Include task to manage symlinks for contents of '{{ item.source }}'"
           ansible.builtin.include_tasks: process_charonte_item_open.yml
           loop: "{{ source_contents.files }}"
           loop_control:
             loop_var: sub_item
+
+        - name: "Add open:true item to new repo state"
+          set_fact:
+            new_repo_state: "{{ new_repo_state +
+                                [{'source': item.source, 'path': item.path
+                                | default('.'), 'open': true, 'managed_files': open_true_managed_files }] }}"
 
     # This block handles the original behavior: symlinking the directory itself
     - name: "Handle 'open: false' - symlink directory"
@@ -53,3 +64,7 @@
             force: true
           become: true
           become_user: "{{ users[0].name }}"
+
+        - name: "Add open:false item to new repo state"
+          set_fact:
+            new_repo_state: "{{ new_repo_state + [{'source': item.source, 'path': item.path | default(item.source), 'open': false}] }}"
