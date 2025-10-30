@@ -46,7 +46,7 @@ mount -o remount,size=2G /run/archiso/cowspace
 
 # 3. Install the dependencies
 pacman -Sy --noconfirm ansible git yq sops # this last one is only if you
-                                           # want to encript and commit your passwords
+                                           # want to encript and commit your passwords (recommended)
 
 # 4. Clone the repository and start the installer
 git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
@@ -141,8 +141,9 @@ users:
 hostname: "Dionysus"
 wheel_access: true
 secrets:
-  sec_mode: "charonte" #<- later I will add a "system" mode, which requires prior setup of ansible-vault or nix's sops
+  sec_mode: "sops" # <~ charonte sec_mode is provably going to be deprecated, since sops does what the system needs with no drawbacks
   sec_file: "Ch-obolos/secrets.yml" #<- secrets file (passwords), must be secret and is REQUIRED for sec_mode "charonte"
+  sec_sops: "Ch-obolos/secrets-sops.yml" # <~ fully integrated with sops, your secrets are safe as long as you have tour gpg key
 ```
 
 ### Example of a complete file with everything in one:
@@ -312,6 +313,8 @@ DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR"
 
 ### Ideas being studied
 - [-] Secrets management (HIGHLY expansible, currently only used for user passwords).
+  - Now that I finally integrated [sops](https://github.com/getsops/sops) to the system,
+    I can easily do secrets management with encryption and safe commiting.
 - [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
 
 ## Contributing
