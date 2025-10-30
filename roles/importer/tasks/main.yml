@@ -35,3 +35,5 @@
     firmware: "{{ final_config.firmware | default(omit) }}"
     aur_pkgs: "{{ final_config.aur_pkgs | default(omit) }}"
     pacotes_base_override: "{{ final_config.pacotes_base_override | default(omit) }}"
+    mirrors: "{{ final_config.mirrors | default(omit) }}"
+

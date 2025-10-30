@@ -11,3 +11,4 @@ necessarios:
   - ansible
   - arch-install-scripts
   - efibootmgr
+  - sops

@@ -1,0 +1,20 @@
+plug_name: custom-plug-dex.yml
+
+imports:
+  - file: 'my-personal-Ch-obolos/repos/repos.yml'
+    strategy: combine
+
+  - file: 'my-personal-Ch-obolos/users/users.yml'
+    strategy: override
+
+  - file: 'my-personal-Ch-obolos/packages/pkgs.yml'
+    strategy: override
+
+  - file: 'my-personal-Ch-obolos/services/srvc.yml'
+    strategy: combine
+
+  - file: 'my-personal-Ch-obolos/particoes/parts.yml'
+    strategy: override
+
+  - file: 'my-personal-Ch-obolos/region/region.yml'
+    strategy: override

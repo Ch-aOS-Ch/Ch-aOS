@@ -1,6 +1,9 @@
 - name: Get root partition from partitions list
   ansible.builtin.set_fact:
-    ch_root_partition: "{{ (particoes.partitions | selectattr('important', 'equalto', 'root') | first) | default({}) }}"
+    ch_root_partition: "{{ (particoes.partitions
+                            | selectattr('important', 'equalto', 'root')
+                            | first)
+                            | default({}) }}"
   when: particoes is defined and particoes.partitions is defined and particoes.partitions | length > 0
 
 # --- GRUB Configuration ---

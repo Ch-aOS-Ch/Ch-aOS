@@ -15,7 +15,11 @@
 
 - name: Create list of installed AUR helper names
   ansible.builtin.set_fact:
-    installed_helpers: "{{ installed_helpers_stat.results | selectattr('stat.exists') | map(attribute='item') | map(attribute='name') | list }}"
+    installed_helpers: "{{ installed_helpers_stat.results
+                            | selectattr('stat.exists')
+                            | map(attribute='item')
+                            | map(attribute='name')
+                            | list }}"
 
 # 2. Get desired state
 - name: Create list of desired AUR helper names
@@ -26,12 +30,16 @@
 # 3. Calculate difference
 - name: Determine which helpers to install
   ansible.builtin.set_fact:
-    helpers_to_install: "{{ desired_helpers | difference(installed_helpers) | default([]) }}"
+    helpers_to_install: "{{ desired_helpers
+                            | difference(installed_helpers)
+                            | default([]) }}"
   when: aur_helpers | length > 0
 
 - name: Determine which helpers to remove
   ansible.builtin.set_fact:
-    helpers_to_remove: "{{ installed_helpers | difference(desired_helpers) | default(['yay', 'paru']) }}"
+    helpers_to_remove: "{{ installed_helpers
+                            | difference(desired_helpers)
+                            | default(['yay', 'paru']) }}"
   when: aur_helpers | length > 0
 
 - name: debug helpers to install and remove
@@ -48,7 +56,9 @@
   loop_control:
     loop_var: aur_helper_item_name
   vars:
-    aur_helper_item: "{{ known_aur_helpers | selectattr('name', 'equalto', aur_helper_item_name) | first }}"
+    aur_helper_item: "{{ known_aur_helpers
+                          | selectattr('name', 'equalto', aur_helper_item_name)
+                          | first }}"
   when: aur_helpers | length > 0
 
 - name: Remove unwanted AUR helpers
@@ -63,6 +73,8 @@
   community.general.pacman:
     name: "{{ item }}"
     state: absent
-  loop: "{{ known_aur_helpers | map(attribute='name') | list }}"
+  loop: "{{ known_aur_helpers
+            | map(attribute='name')
+            | list }}"
   become: true
   when: aur_helpers | length == 0
