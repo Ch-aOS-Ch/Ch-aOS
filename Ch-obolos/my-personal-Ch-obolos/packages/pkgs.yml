@@ -25,6 +25,8 @@ pacotes:
   - cronie
   - cython
   - deno
+  - dotnet-sdk
+  - dotnet-runtime-bin
   - discover
   - docker
   - downgrade
@@ -170,6 +172,8 @@ pacotes:
   - sddm
   - shellcheck
   - shfmt
+  - sudo
+  - sops
   - silicon
   - slurp
   - smartmontools
@@ -278,8 +282,6 @@ aur_pkgs:
   - wallust
   - wlr-layout-ui
   - yaru-icon-theme
-  - yay-git
-  - yay-git-debug
   - zsh-abbr
 
 pacotes_base_override:

@@ -1,12 +1,12 @@
 # - name: Check for running package managers
-  ansible.builtin.shell: set -euo pipefail && pgrep -f '(pacman|yay|paru)' || true
-  register: pkg_running
-  changed_when: false
-
-- name: Fail if package manager is running
-  ansible.builtin.fail:
-    msg: "Package manager is running: {{ pkg_running.stdout_lines }}"
-  when: pkg_running.stdout != ""
+#   ansible.builtin.shell: set -euo pipefail && pgrep -f '(pacman|yay|paru)' || true
+#   register: pkg_running
+#   changed_when: false
+# 
+# - name: Fail if package manager is running
+#   ansible.builtin.fail:
+#     msg: "Package manager is running: {{ pkg_running.stdout_lines }}"
+#   when: pkg_running.stdout != ""
 
 - name: Define final base pkg list (official repos)
   ansible.builtin.set_fact:
@@ -114,21 +114,43 @@
   register: confirm_aur
   failed_when: confirm_aur.user_input not in ['yes', 'sim']
 
+- name: Allow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    state: present
+    create: true
+    mode: '0640' # Permissões seguras
+    validate: 'visudo -csf %s' # VITAL: Valida o arquivo antes de salvar
+  when: users is defined and users | length > 0
+  become: true
+
 - name: Remove AUR packages
   ansible.builtin.command:
     argv: "{{ [aur_helpers[0], '-Rns', '--noconfirm', '--noprogressbar'] + pkgs_remover_aur }}"
   register: aur_remove_result
   become: true
+  become_user: "{{ users[0].name }}"
+  changed_when: "'removing' in aur_remove_result.stdout"
   environment:
     HOME: "/home/{{ users[0].name }}"
     XDG_CACHE_HOME: "/home/{{ users[0].name }}/.cache"
-  become_user: "{{ users[0].name }}"
-  changed_when: "'removing' in aur_remove_result.stdout"
   when:
     - aur_helpers is defined
     - aur_helpers | length > 0
     - pkgs_remover_aur is defined
     - pkgs_remover_aur | length > 0
+
+- name: Disallow managed user to run pacman without a password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/11-managed-user-nopasswd-pacman
+    line: "{{ users[0].name }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    state: absent
+    create: true
+    mode: '0640'
+    validate: 'visudo -csf %s'
+  when: users is defined and users | length > 0
+  become: true
 
 - name: Install AUR packages
   ansible.builtin.command:
