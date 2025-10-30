@@ -1,4 +1,4 @@
-- name: Check for running package managers
+# - name: Check for running package managers
   ansible.builtin.shell: set -euo pipefail && pgrep -f '(pacman|yay|paru)' || true
   register: pkg_running
   changed_when: false
