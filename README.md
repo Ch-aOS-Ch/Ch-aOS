@@ -290,7 +290,7 @@ region:
 ```
 > [!WARNING]
 >
-> You can find a more complete example in [My-Ch-obolos](Ch-obolos/my-personal-Ch-obolos/custom-plug-dex.yml), these are the Ch-obolos I am actively using to manage my own system!
+> You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/custom-plug-dex.yml), these are the Ch-obolos I am actively using to manage my own system!
 
 ### To generate your current system's plugin, run:
 ```bash
