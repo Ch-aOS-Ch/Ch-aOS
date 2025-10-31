@@ -143,7 +143,10 @@ wheel_access: true
 secrets:
   sec_mode: "sops" # <~ charonte sec_mode is provably going to be deprecated, since sops does what the system needs with no drawbacks
   sec_file: "Ch-obolos/secrets.yml" #<- secrets file (passwords), must be secret and is REQUIRED for sec_mode "charonte"
+                                    # btw, you can commit your secrets file if they are in sec_mode sops
   sec_sops: "Ch-obolos/secrets-sops.yml" # <~ fully integrated with sops, your secrets are safe as long as you have tour gpg key
+                                         # this means that, if you use sec_mode sops, you need to backup
+                                         # your .gnupg and copy it to the live boot manually, since these are fully secret.
 ```
 
 ### Example of a complete file with everything in one:
@@ -165,6 +168,11 @@ users:
       - root
 hostname: "Dionysus"
 wheel_access: true # Grants sudo access to the 'wheel' group
+
+secrets:
+  sec_mode: sops
+  sec_file: Ch-obolos/secrets-here.yml
+  sec_sops: Ch-obolos/sops-secs.yml
 
 # Defines the list of packages to be declaratively managed
 pacotes:
