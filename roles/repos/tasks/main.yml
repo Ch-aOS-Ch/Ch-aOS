@@ -125,6 +125,7 @@
   loop_control:
     loop_var: item
   become: true
+  when: repos.third_party is defined and repos.third_party | length > 0
 
 - name: "Manage 'core' repository state"
   ansible.builtin.blockinfile:
