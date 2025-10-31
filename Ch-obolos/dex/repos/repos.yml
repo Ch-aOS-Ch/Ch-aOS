@@ -1,5 +1,6 @@
 repos:
   managed:
+    core: true
     extras: true
     unstable: false
 
