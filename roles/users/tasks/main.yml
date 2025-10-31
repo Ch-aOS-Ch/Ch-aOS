@@ -85,6 +85,7 @@
 #     - shadow_entries.ansible_facts.getent_shadow is defined
 
 - name: Make sure users exist
+  become: true
   ansible.builtin.user:
     name: "{{ (item.name | default('Ch-obold')) }}"
     shell: "/bin/{{ (item.shell | default('bash')) }}"
