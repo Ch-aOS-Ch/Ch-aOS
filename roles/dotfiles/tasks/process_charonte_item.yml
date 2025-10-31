@@ -35,7 +35,7 @@
                                 [{'source': item.source, 'path': item.path
                                 | default('.'), 'open': true, 'managed_files': open_true_managed_files }] }}"
 
-    # This block handles the original behavior: symlinking the directory itself
+    # This block handles symlinking the directory itself
     - name: "Handle 'open: false' - symlink directory"
       when: not (item.open | default(false))
       block:
@@ -48,9 +48,13 @@
 
         - name: "Backup existing directory before creating symlink"
           ansible.builtin.command:
-            cmd: "mv /home/{{ users[0].name }}/{{ item.path | default(item.source) }} /home/{{ users[0].name }}/{{ item.path | default(item.source) }}.bak_{{ ansible_date_time.epoch }}"
+            cmd: "mv /home/{{ users[0].name }}/{{ item.path
+                                                | default(item.source) }} /home/{{ users[0].name }}/{{ item.path
+                                                | default(item.source) }}.bak_{{ ansible_date_time.epoch }}"
           when:
             - dest_path_stat.stat.exists
+            # Again, another very weird flag. This means the same as the other one,
+            # "if either the destination isnt a link OR the link is pointing to the actual dotfiles_repo_path, then its fine to run"
             - not (dest_path_stat.stat.islnk and dest_path_stat.stat.lnk_target == dotfiles_repo_path + '/' + item.source)
           changed_when: true
           become: true
