@@ -5,20 +5,20 @@ repos:
     unstable: false
 
   third_party:
-    - name: cachyos
-      include: /etc/pacman.d/cachyos-mirrorlist
-      distribution: "arch"
-
-    - name: cachyos-v3
-      include: /etc/pacman.d/cachyos-v3-mirrorlist
-      distribution: "arch"
-
     - name: cachyos-core-v3
       include: /etc/pacman.d/cachyos-v3-mirrorlist
       distribution: "arch"
 
     - name: cachyos-extra-v3
       include: /etc/pacman.d/cachyos-v3-mirrorlist
+      distribution: "arch"
+
+    - name: cachyos-v3
+      include: /etc/pacman.d/cachyos-v3-mirrorlist
+      distribution: "arch"
+
+    - name: cachyos
+      include: /etc/pacman.d/cachyos-mirrorlist
       distribution: "arch"
 
 aur_helpers:
