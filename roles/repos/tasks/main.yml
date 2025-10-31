@@ -79,39 +79,7 @@
         state: present
       become: true
 
-    # --- ETAPA 3: Adicionar repositórios padrão com base nas variáveis ---
-    - name: "Manage 'core' repository state"
-      ansible.builtin.blockinfile:
-        path: /etc/pacman.conf
-        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR core"
-        block: |
-          [core]
-          Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if repos.managed.core | default(true) else 'absent' }}"
-      become: true
 
-    - name: "Manage 'extra' repository state"
-      ansible.builtin.blockinfile:
-        path: /etc/pacman.conf
-        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR extra"
-        block: |
-          [extra]
-          Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
-      become: true
-
-    - name: "Manage 'multilib' repository state"
-      ansible.builtin.blockinfile:
-        path: /etc/pacman.conf
-        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR multilib"
-        block: |
-          [multilib]
-          Include = /etc/pacman.d/mirrorlist
-        state: "{{ 'present'
-                    if repos.managed.extras
-                    | default(false)
-                    else 'absent' }}"
-      become: true
 
 # --- Declarative management of third-party repos ---
 - name: Get list of currently enabled repositories
@@ -124,22 +92,20 @@
   ansible.builtin.set_fact:
     enabled_repos: "{{ enabled_repos_raw.stdout_lines }}"
 
-- name: Create list of desired repo names from plugin
+- name: Create list of all desired repo names
   ansible.builtin.set_fact:
-    desired_repos: "{{ (repos.third_party | default([]))
-                        | map(attribute='name')
-                        | list }}"
+    desired_repos: "{{ ( (repos.third_party | default([])) | map(attribute='name') | list ) +
+        ( ['core'] if repos.managed.core | default(true) else [] ) +
+        ( ['extra'] if repos.managed.extras | default(false) else [] ) +
+        ( ['multilib'] if repos.managed.extras | default(false) else [] ) }}"
 
 - name: Determine which repos to add
   ansible.builtin.set_fact:
-    repos_to_add: "{{ desired_repos
-                      | difference(enabled_repos) }}"
+    repos_to_add: "{{ desired_repos | difference(enabled_repos) }}"
 
 - name: Determine which repos to remove
   ansible.builtin.set_fact:
-    repos_to_remove: "{{ enabled_repos
-                          | difference(desired_repos)
-                          | difference(['core']) }}"
+    repos_to_remove: "{{ enabled_repos | difference(desired_repos) }}"
 
 - name: Add desired third-party repos to pacman.conf
   ansible.builtin.blockinfile:
@@ -158,6 +124,39 @@
             | list }}"
   loop_control:
     loop_var: item
+  become: true
+
+- name: "Manage 'core' repository state"
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK FOR core"
+    block: |
+      [core]
+      Include = /etc/pacman.d/mirrorlist
+    state: "{{ 'present' if repos.managed.core | default(true) else 'absent' }}"
+  when: repos.managed is defined and ansible_os_family == 'Archlinux'
+  become: true
+
+- name: "Manage 'extra' repository state"
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK FOR extra"
+    block: |
+      [extra]
+      Include = /etc/pacman.d/mirrorlist
+    state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
+  when: repos.managed is defined and ansible_os_family == 'Archlinux'
+  become: true
+
+- name: "Manage 'multilib' repository state"
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK FOR multilib"
+    block: |
+      [multilib]
+      Include = /etc/pacman.d/mirrorlist
+    state: "{{ 'present' if repos.managed.extras | default(false) else 'absent' }}"
+  when: repos.managed is defined and ansible_os_family == 'Archlinux'
   become: true
 
 - name: Remove unwanted third-party repos from pacman.conf
