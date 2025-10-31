@@ -180,7 +180,7 @@
 - name: Save new dotfiles state
   ansible.builtin.copy:
     dest: "/home/{{ users[0].name }}/.local/state/charonte/dotfiles_{{ dotfile_item.repo | urlsplit('path') | basename }}.yml"
-    content: "{{ {'applied': new_repo_state} | to_nice_yaml }}"
+    content: "{{ {'applied': new_repo_state} | to_nice_yaml }}" # <~ I'll kill myself if someone sets this to to_yaml
     mode: "0644"
   become: true
   become_user: "{{ users[0].name }}"

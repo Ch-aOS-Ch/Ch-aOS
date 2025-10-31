@@ -17,6 +17,8 @@
     cmd: "mv {{ target_path }} {{ target_path }}.bak_{{ ansible_date_time.epoch }}"
   when:
     - target_path_stat.stat.exists
+    # This is an weird af flag IK, it means "when either the target path isn't an symlink OR the lnk_target isnt the same as the sub_item path"
+    # (sub_item.path is the same as to say "symlink to the specific file inside your dotfiles folder")
     - not (target_path_stat.stat.islnk and target_path_stat.stat.lnk_target == sub_item.path)
   changed_when: true
   become: true
