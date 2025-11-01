@@ -1,0 +1,4 @@
+[dependency-groups]
+dev = [
+    "pyinfra>=3.5.1",
+]
