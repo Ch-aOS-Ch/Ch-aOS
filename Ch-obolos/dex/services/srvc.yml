@@ -1,22 +1,12 @@
 services:
   - name: NetworkManager
-    state: started
-    enabled: true
     dense_service: true
 
   - name: bluetooth.service
-    state: started
-    enabled: true
 
   - name: sshd
-    state: started
-    enabled: true
 
   - name: nvidia
-    state: started
-    enabled: true
     dense_service: true
 
   - name: sddm.service
-    state: started
-    enabled: true
