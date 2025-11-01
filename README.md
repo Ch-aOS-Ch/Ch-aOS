@@ -9,7 +9,7 @@
 
 > [!WARNING]
 >
-> This is the Legacy code, I am currently working on switching both the bash scripts with OmegaConf and ansible playbooks with pyinfra.
+> This is the Legacy code, I am currently working on switching both the bash scripts with OmegaConf and ansible playbooks with pyinfra OR pulumi (considering both).
 
 ***An guided arch-installer and declarative system manager***
 
