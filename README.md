@@ -15,13 +15,17 @@
 >
 > Findings:
 >
-> Pyinfra is about 3 times faster than ansible for the simple task of getting all pacman native and all pacman non native packages, putting them in a list and printing them.
+> Pyinfra (in API mode) is about 3 times faster than ansible for the simple task of getting all pacman native and all pacman non native packages, putting them in a list and printing them
+>
+> Pyinfra in binary mode, however, is slow as balls, taking about 2 seconds for basically the same reason as ansible.
 >
 > this, along with the fact that it will enable easier logic down the line shows that i really should just use pyinfra (even if it's install method is shitty on arch)
 ```bash
 time ansible-playbook Ch-obolos/dex/playbook_test.yaml # <~ time got: 2,67s user 0,45s system 94% cpu 3,294 total
 
 time uv run Ch-obolos/dex/example_pyinfra.py # time got: 0,95s user 0,13s system 92% cpu 1,175 total
+
+pyinfra inventory.py Ch-obolos/dex/example_pyinfra.py -vvv -y # time got: 1,11s user 0,17s system 54% cpu 2,337 total
 ```
 
 ***An guided arch-installer and declarative system manager***
