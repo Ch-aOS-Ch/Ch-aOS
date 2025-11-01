@@ -213,21 +213,13 @@ services:
     dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
 
   - name: bluetooth.service # <~ ".service" _is_ required when there's an .service in the service name (do NOT use dense for these types.)
-    state: started
-    enabled: true
 
   - name: sshd
-    state: started
-    enabled: true
 
   - name: nvidia
-    state: started
-    enabled: true
     dense_service: true
 
   - name: sddm.service
-    state: started
-    enabled: true
 
 # Manages pacman repositories
 repos:
@@ -245,13 +237,13 @@ dotfiles: # Translatable with Ch-imera with the manager: tag, it will only use t
     install_command: "your_custom_dotfile_command.sh" # <~ It uses the root of your repo as a base point, so be aware of that.
     manager: "charonte" # <~ MUTUALLY EXCLUSIVE FROM INSTALL_COMMAND. Options are charonte OR stow (as of now), this allows for using an proper manager, I personally recommend that you use "charonte" since it is modular AND it is declarative.
     # btw, I'm actively using this dotfile manager rn, it is not dangerous.
-    managed: # <~ this is only available with the charonte manager.
-      - source: "zsh" # <~ this is an _folder_ inside of my dotfiles folder
-        path: . # <~ this is . by default, it takes the home of the first user on the list of users to define which home to go to
+    links: # <~ this is only available with the charonte manager.
+      - from: "zsh" # <~ this is an _folder_ inside of my dotfiles folder
+        to: . # <~ this is . by default, it takes the home of the first user on the list of users to define which home to go to
         open: true # <~ defines if the script should symlink the files _inside_ the folder _or_ the folder itself.
-      - source: "bash"
+      - from: "bash"
         open: true
-      - source: ".config"
+      - from: ".config"
 # ATTENTION: _ALL_ THE FILES YOU PUT HERE _AND_ ALREADY EXIST ARE BACKED UP BESIDE THE NEW ONES. IF YOU _REMOVE_ A FILE FROM THE LIST, IT WILL BE REMOVED FROM THE PATH YOU SET AS WELL. (duh, it's declarative)
 
         # Your third option is leaving this blank, it will simply search for an install.sh inside your root folder, it'll do nothing if it doesn't find one.
