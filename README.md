@@ -209,6 +209,7 @@ services:
   - name: NetworkManager
     state: started # <~ You are able to not define this, since it defaults to started
     enabled: true # <~ You are able to not define this, since it defaults to enabled
+                  # I like to keep these for granularity
     dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
 
   - name: bluetooth.service # <~ ".service" _is_ required when there's an .service in the service name (do NOT use dense for these types.)
