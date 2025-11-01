@@ -1,7 +1,3 @@
-> [!WARNING]
->
-> Some of the features located here are in an beta branch.
-
 [versão pt br](./READMEpt_BR.md)
 # Ch-aronte
 
@@ -11,7 +7,12 @@
 
 ---
 
+> [!WARNING]
+>
+> JUST LEARNED ABOUT OMEGACONF, IT'D ALLOW FOR NIX-LIKE FUNCTIONAL CONFIGURATION. Check [example](Ch-obolos/dex/example.py)
+
 ***An guided arch-installer and declarative system manager***
+
 ***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos [studying the ideas of an Ch-iron for fedora and an Ch-ronos for debian]) PROJECT SUITE***
 
 ## Key Features

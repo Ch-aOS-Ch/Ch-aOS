@@ -235,6 +235,8 @@ pacotes:
   - xdg-desktop-portal-hyprland
   - gtk-vnc
   - python-regex
+  - inetutils
+  - python-omegaconf
   - remmina
 
 aur_pkgs:
