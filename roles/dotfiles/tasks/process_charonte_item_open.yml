@@ -3,7 +3,7 @@
 
 - name: "Set target path for {{ sub_item.path | basename }}"
   set_fact:
-    target_path: "/home/{{ users[0].name }}/{{ item.path | default('.') }}/{{ sub_item.path | basename }}"
+    target_path: "/home/{{ users[0].name }}/{{ item.to | default('.') }}/{{ sub_item.path | basename }}"
 
 - name: "Check status of target path for content symlink"
   ansible.builtin.stat:
@@ -17,7 +17,7 @@
     cmd: "mv {{ target_path }} {{ target_path }}.bak_{{ ansible_date_time.epoch }}"
   when:
     - target_path_stat.stat.exists
-    # This is an weird af flag IK, it means "when either the target path isn't an symlink OR the lnk_target isnt the same as the sub_item path"
+    # This is an weird af flag IK, it means "when either the target path isn't an symlink OR the lnk_target isnt the same as the sub_item to"
     # (sub_item.path is the same as to say "symlink to the specific file inside your dotfiles folder")
     - not (target_path_stat.stat.islnk and target_path_stat.stat.lnk_target == sub_item.path)
   changed_when: true

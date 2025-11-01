@@ -85,13 +85,13 @@
 
     - name: "Iterate previous state to find all items to remove"
       vars:
-        current_sources: "{{ dotfile_item.managed | map(attribute='source') | list }}"
-      when: item_to_remove.source not in current_sources
+        current_sources: "{{ dotfile_item.links | map(attribute='from') | list }}"
+      when: item_to_remove.from not in current_sources
       loop: "{{ prev_state.applied | default([]) }}"
       loop_control:
         loop_var: item_to_remove
       set_fact:
-        paths_to_remove: "{{ paths_to_remove + (item_to_remove.open | default(false) | ternary(item_to_remove.managed_files, [item_to_remove.path])) }}"
+        paths_to_remove: "{{ paths_to_remove + (item_to_remove.open | default(false) | ternary(item_to_remove.links, [item_to_remove.path])) }}"
 
 - name: Remove outdated dotfiles links
   ansible.builtin.file:
@@ -106,42 +106,42 @@
 
 - name: "Warn about missing source files for Ch-aronte manager"
   ansible.builtin.debug:
-    msg: "WARNING: The source '{{ item.source }}' was not found in the repository '{{ dotfile_item.repo }}' and will be skipped."
-  loop: "{{ dotfile_item.managed | default([]) }}"
+    msg: "WARNING: The source '{{ item.from }}' was not found in the repository '{{ dotfile_item.repo }}' and will be skipped."
+  loop: "{{ dotfile_item.links | default([]) }}"
   loop_control:
-    label: "{{ item.source }}"
+    label: "{{ item.from }}"
   when:
     - dotfile_item.manager | default('') == 'charonte'
     - dirs_files is defined
-    - item.source is defined
-    - item.source not in dirs_files
+    - item.from is defined
+    - item.from not in dirs_files
 
 - name: "Ensure parent directories exist for Ch-aronte links"
   ansible.builtin.file:
-    path: "/home/{{ users[0].name }}/{{ (item.path | default(item.source)) | dirname }}"
+    path: "/home/{{ users[0].name }}/{{ (item.to | default(item.from)) | dirname }}"
     state: directory
     mode: '0755'
   become: true
   become_user: "{{ users[0].name }}"
-  loop: "{{ dotfile_item.managed | default([]) }}"
+  loop: "{{ dotfile_item.links | default([]) }}"
   loop_control:
-    label: "{{ item.path | default(item.source) }}"
+    label: "{{ item.to | default(item.from) }}"
   when:
     - dotfile_item.manager | default('') == 'charonte'
     - dirs_files is defined
-    - item.source is defined
-    - item.source in dirs_files
+    - item.from is defined
+    - item.from in dirs_files
 
 - name: "Manage dotfile symlinks declaratively"
   ansible.builtin.include_tasks: process_charonte_item.yml
-  loop: "{{ dotfile_item.managed | default([]) }}"
+  loop: "{{ dotfile_item.links | default([]) }}"
   loop_control:
-    label: "{{ item.path | default(item.source) }}"
+    label: "{{ item.to | default(item.from) }}"
   when:
     - dotfile_item.manager | default('') == 'charonte'
     - dirs_files is defined
-    - item.source is defined
-    - item.source in dirs_files
+    - item.from is defined
+    - item.from in dirs_files
 
 - name: "Verify if install.sh exists in repo path"
   ansible.builtin.stat:

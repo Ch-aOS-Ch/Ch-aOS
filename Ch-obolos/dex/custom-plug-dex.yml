@@ -22,17 +22,17 @@ imports:
 dotfiles:
   - repo: "https://github.com/Dexmachi/dotfiles.git"
     manager: charonte
-    managed:
-      - source: bash
+    links:
+      - from: bash
         open: true
 
-      - source: bookmarks
+      - from: bookmarks
 
-      - source: walls
-        path: .
+      - from: walls
+        to: .
         open: true
 
-      - source: zsh
+      - from: zsh
         open: true
 
-      - source: .config
+      - from: .config
