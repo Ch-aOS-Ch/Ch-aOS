@@ -9,7 +9,7 @@
 
 > [!WARNING]
 >
-> JUST LEARNED ABOUT OMEGACONF, IT'D ALLOW FOR NIX-LIKE FUNCTIONAL CONFIGURATION. Check [example](Ch-obolos/dex/example.py)
+> This is the Legacy code, I am currently working on switching both the bash scripts with OmegaConf and ansible playbooks with pyinfra.
 
 ***An guided arch-installer and declarative system manager***
 
