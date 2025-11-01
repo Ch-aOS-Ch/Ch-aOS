@@ -207,8 +207,8 @@ mirrors: # <~ this was made to translate to reflector, I'll probably be able to 
 # Manages systemd services
 services:
   - name: NetworkManager
-    state: started
-    enabled: true
+    state: started # <~ You are able to not define this, since it defaults to started
+    enabled: true # <~ You are able to not define this, since it defaults to enabled
     dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
 
   - name: bluetooth.service # <~ ".service" _is_ required when there's an .service in the service name (do NOT use dense for these types.)
