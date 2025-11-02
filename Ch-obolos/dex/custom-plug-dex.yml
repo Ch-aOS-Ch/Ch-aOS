@@ -1,23 +1,376 @@
 plug_name: custom-plug-dex.yml
 
-imports:
-  - file: 'dex/repos/repos.yml'
-    strategy: combine
+# imports:
+#   - file: 'dex/repos/repos.yml'
+#     strategy: combine
+# 
+#   - file: 'dex/users/users.yml'
+#     strategy: override
+# 
+#   - file: 'dex/packages/pkgs.yml'
+#     strategy: override
+# 
+#   - file: 'dex/services/srvc.yml'
+#     strategy: combine
+# 
+#   - file: 'dex/particoes/parts.yml'
+#     strategy: override
+# 
+#   - file: 'dex/region/region.yml'
+#     strategy: override
 
-  - file: 'dex/users/users.yml'
-    strategy: override
+pacotes:
+  - ansible-lint
+  - argocd
+  - atuin
+  - baobab
+  - bat
+  - bc
+  - blueman
+  - bluez-utils
+  - bottom
+  - breeze
+  - brightnessctl
+  - btop
+  - cachyos-keyring
+  - cachyos-mirrorlist
+  - cachyos-v3-mirrorlist
+  - cachyos-v4-mirrorlist
+  - calcurse
+  - cava
+  - chafa
+  - claude-code
+  - cliphist
+  - cmake
+  - cpio
+  - cronie
+  - cython
+  - deno
+  - dotnet-sdk
+  - dotnet-runtime-bin
+  - discover
+  - docker
+  - downgrade
+  - duf
+  - dunst
+  - efibootmgr
+  - evtest
+  - exfat-utils
+  - eza
+  - fastfetch
+  - fd
+  - ffmpegthumbnailer
+  - figlet
+  - fish
+  - flatpak
+  - fuse2
+  - fzf
+  - gamescope
+  - gdb
+  - gimp
+  - git-filter-repo
+  - github-cli
+  - gitui
+  - glab
+  - glim
+  - gnome-calculator
+  - gnome-keyring
+  - gnome-online-accounts
+  - gnome-text-editor
+  - go
+  - grim
+  - grimblast-git
+  - grub
+  - gtk4
+  - gum
+  - gvfs
+  - helm
+  - heroic-games-launcher-bin
+  - htop
+  - hyfetch
+  - hypridle
+  - hyprland-protocols
+  - hyprlock
+  - hyprpicker
+  - imagemagick
+  - imv
+  - innoextract
+  - jdk8-openjdk
+  - jq
+  - k9s
+  - kdeconnect
+  - kdenlive
+  - khal
+  - kitty
+  - kitty-shell-integration
+  - kitty-terminfo
+  - krew
+  - kubectl
+  - kubetui
+  - kustomize
+  - lazygit
+  - lib32-libffi
+  - lib32-libpulse
+  - lib32-nvidia-utils
+  - lib32-openal
+  - libadwaita
+  - libffi
+  - libfm-qt
+  - librsync
+  - libvdpau-va-gl
+  - lldb
+  - loupe
+  - luarocks
+  - man-db
+  - man-pages
+  - marksman
+  - mesa-utils
+  - mission-center
+  - mkdocs
+  - mkdocs-material
+  - mpv
+  - nautilus
+  - ncdu
+  - network-manager-applet
+  - nm-connection-editor
+  - noto-fonts-cjk
+  - noto-fonts-emoji
+  - noto-fonts-extra
+  - npm
+  - ntp
+  - nushell
+  - nvidia-dkms
+  - nvidia-settings
+  - nwg-dock-hyprland
+  - nwg-look
+  - obs-studio
+  - obsidian
+  - onefetch
+  - onlyoffice-bin
+  - openssl-1.1
+  - openvpn
+  - os-prober
+  - otf-font-awesome
+  - packagekit-qt6
+  - papirus-icon-theme
+  - paru
+  - pavucontrol
+  - pipewire
+  - pipewire-pulse
+  - pokemon-colorscripts-git
+  - poketex
+  - polkit-gnome
+  - power-profiles-daemon
+  - protonplus
+  - python-aiohttp-oauthlib
+  - python-beautifulsoup4
+  - python-debugpy
+  - python-evdev
+  - python-flask
+  - python-flask-cors
+  - python-gobject
+  - python-httplib2
+  - python-linkify-it-py
+  - python-matplotlib
+  - python-oauth2client
+  - python-pandas
+  - python-pip
+  - python-screeninfo
+  - python-seaborn
+  - qbittorrent
+  - qt5-graphicaleffects
+  - qt5-quickcontrols2
+  - qt5-svg
+  - qt6-virtualkeyboard
+  - qt6ct
+  - rclone
+  - reflector
+  - restic
+  - ripgrep
+  - rofi
+  - rust
+  - ryujinx
+  - sddm
+  - shellcheck
+  - shfmt
+  - sudo
+  - sops
+  - silicon
+  - slurp
+  - smartmontools
+  - socat
+  - sshs
+  - starship
+  - steam
+  - stow
+  - strace
+  - superfile
+  - swaync
+  - swww
+  - tealdeer
+  - tectonic
+  - telegram-desktop
+  - testdisk
+  - thefuck
+  - tree
+  - tree-sitter-cli
+  - ttf-dejavu
+  - ttf-fira-code
+  - ttf-fira-sans
+  - ttf-firacode-nerd
+  - ttf-mononoki-nerd
+  - tty-clock
+  - tumbler
+  - unrar
+  - uv
+  - uwsm
+  - vdirsyncer
+  - ventoy-bin
+  - virtualbox
+  - vlc
+  - vulkan-radeon
+  - vulkan-tools
+  - waybar
+  - waypaper
+  - wget
+  - wine
+  - wine-mono
+  - winetricks
+  - wlogout
+  - wlr-randr
+  - xclip
+  - xdg-desktop-portal-gtk
+  - xf86-video-ati
+  - yazi
+  - zen-browser-bin
+  - zk
+  - zoxide
+  - yq
+  - rio
+  - kde-gtk-config
+  - tcpdump
+  - python-passlib
+  - gemini-cli
+  - qt5ct
+  - wireguard-tools
+  - xdg-desktop-portal-hyprland
+  - gtk-vnc
+  - python-regex
+  - inetutils
+  - python-omegaconf
+  - remmina
 
-  - file: 'dex/packages/pkgs.yml'
-    strategy: override
+aur_pkgs:
+  - 1password-cli
+  - aurroamer
+  - aurutils
+  - bibata-cursor-theme-bin
+  - catppuccin-gtk-theme-mocha
+  - cbonsai
+  - citra-appimage
+  - cmatrix-git
+  - evince-no-gnome
+  - gnu-netcat
+  - gruvbox-gtk-theme-git
+  - hunspell-pt-br
+  - hyprshade
+  - icat
+  - kind
+  - localsend-bin
+  - maplemono-nf-cn-unhinted
+  - matugen-bin
+  - millennium
+  - minecraft-launcher
+  - modrinth-app
+  - nautilus-open-any-terminal
+  - olympus
+  - pacseek
+  - paru-debug
+  - peazip
+  - polymc-git
+  - posting
+  - python-ansibug
+  - python-folium
+  - rarsm
+  - remmina-plugin-ultravnc
+  - shell-color-scripts-git
+  - spicetify-cli
+  - spotify
+  - sudachi-bin
+  - tdf
+  - ttc-monocraft
+  - tuios-bin
+  - velero-bin
+  - auror
+  - vencord
+  - wallust
+  - wlr-layout-ui
+  - yaru-icon-theme
+  - zsh-abbr
 
-  - file: 'dex/services/srvc.yml'
-    strategy: combine
+pacotes_base_override:
+  - linux-cachyos-headers
+  - linux-cachyos
+  - linux-firmware
+  - base
+  - base-devel
+  - networkmanager
+  - openssh
+  - git
+  - ansible
+  - neovim
+  - vim
+  - vi
+  - nano
 
-  - file: 'dex/particoes/parts.yml'
-    strategy: override
+bootloader: grub
 
-  - file: 'dex/region/region.yml'
-    strategy: override
+aur_helpers:
+  - yay
+  - paru
+
+users:
+  - name: "dexmachina"
+    shell: "zsh"
+    groups:
+      - wheel
+      - input
+
+  - name: "root"
+    shell: "bash"
+    groups:
+      - root
+
+firmware: UEFI
+particoes:
+  disk: "/dev/sdb"
+  partitions:
+    - name: chronos
+      important: boot
+      size: 1GB
+      mount_point: "/boot"
+      part: 1
+      type: vfat
+
+    - name: Moira
+      important: swap
+      size: 4GB
+      part: 2
+      type: linux-swap
+
+    - name: dionysus_root
+      important: root
+      size: 46GB
+      mount_point: "/"
+      part: 3
+      type: ext4
+
+    - name: dionysus_home
+      important: home
+      size: 100%
+      mount_point: "/home"
+      part: 4
+      type: ext4
 
 dotfiles:
   - repo: "https://github.com/Dexmachi/dotfiles.git"
