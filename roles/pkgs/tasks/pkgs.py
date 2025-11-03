@@ -46,7 +46,7 @@ def pkgLogic(host, chobolo_path):
 
     return toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper
 
-def nativeLogic(state, toAddNative, toRemoveNative):
+def nativeLogic(state, toAddNative, toRemoveNative, skip, dry):
     """Applies changes to Native packages""" # <~ Btw, I'm using """ here cause it get's a better highlighting on my screen than #
     if toAddNative or toRemoveNative:
         print("--- Native packages to be removed: ---")
@@ -57,7 +57,7 @@ def nativeLogic(state, toAddNative, toRemoveNative):
         for pkg in toAddNative:
             print(pkg)
 
-        confirm = input("Is This correct (Y/n)? ")
+        confirm = "y" if skip else input("Is This correct (Y/n)? ")
         if confirm.lower() in ["y", "yes", "", "s", "sim"]:
             print("\nInitiating Native package management...")
             if toAddNative:
@@ -80,11 +80,14 @@ def nativeLogic(state, toAddNative, toRemoveNative):
                     update=True,
                     _sudo=True
                 )
-            run_ops(state)
+            if not dry:
+                run_ops(state)
+            else:
+                print(f"dry mode active, skipping.")
     else:
         print("No native packages to be managed.")
 
-def aurLogic(state, toAddAur, toRemoveAur, aur_helper):
+def aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip, dry):
     """Applies AUR changes"""
     aur_work_to_do = toAddAur or toRemoveAur
 
@@ -98,9 +101,8 @@ def aurLogic(state, toAddAur, toRemoveAur, aur_helper):
         for pkg in toAddAur:
             print(pkg)
 
-        confirmAur = input("Is This correct (Y/n)? ")
+        confirmAur = "y" if skip else input("Is This correct (Y/n)? ")
         if confirmAur.lower() in ["y", "yes", "", "s", "sim"]:
-
             if toAddAur:
                 packagesStr = " ".join(toAddAur)
                 fullCommand = f"{aur_helper} -S --noconfirm --answerdiff None --answerclean All --removemake {packagesStr}"
@@ -119,14 +121,17 @@ def aurLogic(state, toAddAur, toRemoveAur, aur_helper):
                     commands=[fullRemoveCommand],
                     name="Uninstalling AUR packages.",
                 )
-            run_ops(state)
+            if not dry:
+                run_ops(state)
+            else:
+                print(f"\ndry mode active, skipping")
     elif aur_work_to_do and not aur_helper:
         print("\nThere ARE aur packages to be managed, but you still don't have an AUR helper.\n run python3 main.py aur -e path/to/ch-obolo to manage your aur helpers.")
     else:
         print("\nNo AUR packages to be managed.")
 
-def run_all_pkg_logic(state, host, chobolo_path):
+def run_all_pkg_logic(state, host, chobolo_path, skip, dry):
     """Point of entry for this role"""
     toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper = pkgLogic(host, chobolo_path)
-    nativeLogic(state, toAddNative, toRemoveNative)
-    aurLogic(state, toAddAur, toRemoveAur, aur_helper)
+    nativeLogic(state, toAddNative, toRemoveNative, skip, dry)
+    aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip, dry)
