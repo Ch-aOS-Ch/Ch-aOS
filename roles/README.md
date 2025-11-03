@@ -300,10 +300,6 @@ def nativeLogic(state, toAddNative, toRemoveNative, skip, dry):
                     update=True,
                     _sudo=True
                 )
-            if not dry:
-                run_ops(state)
-            else:
-                print(f"dry mode active, skipping.")
     else:
         print("No native packages to be managed.")
 
@@ -341,10 +337,6 @@ def aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip, dry):
                     commands=[fullRemoveCommand],
                     name="Uninstalling AUR packages.",
                 )
-            if not dry:
-                run_ops(state)
-            else:
-                print(f"\ndry mode active, skipping")
     elif aur_work_to_do and not aur_helper:
         print("\nThere ARE aur packages to be managed, but you still don't have an AUR helper.\n run python3 main.py aur -e path/to/ch-obolo to manage your aur helpers.")
     else:
@@ -355,4 +347,8 @@ def run_all_pkg_logic(state, host, chobolo_path, skip, dry):
     toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper = pkgLogic(host, chobolo_path)
     nativeLogic(state, toAddNative, toRemoveNative, skip, dry)
     aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip, dry)
+    if not dry:
+        run_ops(state) # <~ Crucial, if your config does more than 1 thing, dry should be ran after _all_ of the code
+    else:
+        print(f"dry mode active, skipping.")
 ```
