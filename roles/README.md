@@ -352,3 +352,12 @@ def run_all_pkg_logic(state, host, chobolo_path, skip, dry):
     else:
         print(f"dry mode active, skipping.")
 ```
+
+> [!NOTE] to: self
+>
+> use `systemctl list-unit-files --type=service --state=enabled | grep -v "/lib/systemd/system"` + removal of "systemd-timesyncd" and "getty" from this list to manage services in a non hardcoded way
+>
+> use
+```bash
+awk -F: '(($3>=1000)||($3==0))&&($1!="nobody"){print $1}' /etc/passwd to manage users faster
+```
