@@ -97,7 +97,6 @@ def aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip):
     """Applies AUR changes"""
     aur_work_to_do = toAddAur or toRemoveAur
 
-    print("\nInitiating AUR package management...")
     if aur_work_to_do and aur_helper:
         print("\n--- AUR packages to Remove: ---")
         for pkg in toRemoveAur:
@@ -109,6 +108,7 @@ def aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip):
 
         confirmAur = "y" if skip else input("\nIs This correct (Y/n)? ")
         if confirmAur.lower() in ["y", "yes", "", "s", "sim"]:
+            print("\nInitiating AUR package management...")
             if toAddAur:
                 packagesStr = " ".join(toAddAur)
                 fullCommand = f"{aur_helper} -S --noconfirm --answerdiff None --answerclean All --removemake {packagesStr}"

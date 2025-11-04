@@ -99,9 +99,7 @@ pacotes:
   - jdk8-openjdk
   - jq
   - k9s
-  - kdeconnect
   - kdenlive
-  - khal
   - kitty
   - kitty-shell-integration
   - kitty-terminfo
@@ -236,7 +234,6 @@ pacotes:
   - wget
   - wine
   - wine-mono
-  - winetricks
   - wlogout
   - wlr-randr
   - xclip
@@ -284,11 +281,8 @@ aur_pkgs:
   - minecraft-launcher
   - modrinth-app
   - nautilus-open-any-terminal
-  - olympus
-  - pacseek
   - paru-debug
   - peazip
-  - polymc-git
   - posting
   - python-ansibug
   - python-folium
