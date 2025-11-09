@@ -1,24 +1,3 @@
-plug_name: custom-plug-dex.yml
-
-# imports:
-#   - file: 'dex/repos/repos.yml'
-#     strategy: combine
-# 
-#   - file: 'dex/users/users.yml'
-#     strategy: override
-# 
-#   - file: 'dex/packages/pkgs.yml'
-#     strategy: override
-# 
-#   - file: 'dex/services/srvc.yml'
-#     strategy: combine
-# 
-#   - file: 'dex/particoes/parts.yml'
-#     strategy: override
-# 
-#   - file: 'dex/region/region.yml'
-#     strategy: override
-
 packages:
   - ansible-lint
   - hyprtoolkit
@@ -261,6 +240,25 @@ packages:
   - python-omegaconf
   - remmina
 
+baseOverride:
+  - linux-cachyos-headers
+  - linux-cachyos
+  - linux-firmware
+  - base
+  - base-devel
+  - networkmanager
+  - openssh
+  - git
+  - ansible
+  - neovim
+  - vim
+  - vi
+  - nano
+
+aurHelpers:
+  - yay
+  - paru
+
 aurPackages:
   - 1password-cli
   - aurroamer
@@ -305,56 +303,6 @@ aurPackages:
   - yaru-icon-theme
   - zsh-abbr
 
-baseOverride:
-  - linux-cachyos-headers
-  - linux-cachyos
-  - linux-firmware
-  - base
-  - base-devel
-  - networkmanager
-  - openssh
-  - git
-  - ansible
-  - neovim
-  - vim
-  - vi
-  - nano
-
-aurHelpers:
-  - yay
-  - paru
-
-bootloader: grub
-repos:
-  managed:
-    core: true
-    extras: true
-    unstable: false
-
-  third_party:
-    - name: cachyos-core-v3
-      include: /etc/pacman.d/cachyos-v3-mirrorlist
-      distribution: "arch"
-
-    - name: cachyos-extra-v3
-      include: /etc/pacman.d/cachyos-v3-mirrorlist
-      distribution: "arch"
-
-    - name: cachyos-v3
-      include: /etc/pacman.d/cachyos-v3-mirrorlist
-      distribution: "arch"
-
-    - name: cachyos
-      include: /etc/pacman.d/cachyos-mirrorlist
-      distribution: "arch"
-
-
-mirrors:
-  countries:
-    - "br"
-    - "us"
-  count: 25
-
 users:
   - name: "dexmachina"
     shell: "zsh"
@@ -366,57 +314,3 @@ users:
     shell: "bash"
     groups:
       - root
-
-firmware: UEFI
-particoes:
-  disk: "/dev/sdb"
-  partitions:
-    - name: chronos
-      important: boot
-      size: 1GB
-      mount_point: "/boot"
-      part: 1
-      type: vfat
-
-    - name: Moira
-      important: swap
-      size: 4GB
-      part: 2
-      type: linux-swap
-
-    - name: dionysus_root
-      important: root
-      size: 46GB
-      mount_point: "/"
-      part: 3
-      type: ext4
-
-    - name: dionysus_home
-      important: home
-      size: 100%
-      mount_point: "/home"
-      part: 4
-      type: ext4
-
-dotfiles:
-  - repo: "https://github.com/Dexmachi/dotfiles.git"
-    manager: charonte
-    user: dexmachina
-    links:
-      - from: bookmarks
-        to: .
-
-      - from: .config
-        to: .
-
-      - from: bash
-        to: .
-        open: true
-
-      - from: walls
-        to: .
-        open: true
-
-      - from: zsh
-        to: .
-        open: true
