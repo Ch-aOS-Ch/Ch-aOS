@@ -29,13 +29,14 @@ def pkgLogic(host, chobolo_path):
 
     Parts = ChObolo.get('particoes', [])
 
-    root_partition = next((p for p in Parts.partitions if Parts and p.get('important') == 'root'), None)
-    if root_partition and root_partition.type=="btrfs":
-        basePkgs.append("btrfs-progs")
+    if hasattr(Parts, 'partitions'):
+        root_partition = next((p for p in Parts.partitions if p.get('important') == 'root'), None)
+        if root_partition and root_partition.get("type") == "btrfs":
+            basePkgs.append("btrfs-progs")
 
-    boot_partition = next((p for p in Parts.partitions if Parts and p.get('important') == 'boot'), None)
-    if boot_partition:
-        basePkgs.append("dosfstools")
+        boot_partition = next((p for p in Parts.partitions if p.get('important') == 'boot'), None)
+        if boot_partition:
+            basePkgs.append("dosfstools")
 
     Firm = ChObolo.get('firmware', [])
     Boot = ChObolo.get('bootloader', [])
@@ -48,8 +49,6 @@ def pkgLogic(host, chobolo_path):
     else:
         basePkgs.append("grub")
 
-    aurPkgs = ChObolo.get('aurPackages', [])
-
     native = host.get_fact(Command, "pacman -Qqen").strip().splitlines()
     dependencies = host.get_fact(Command, "pacman -Qqdn").strip().splitlines()
     aur = host.get_fact(Command, "pacman -Qqem").strip().splitlines()
@@ -60,16 +59,18 @@ def pkgLogic(host, chobolo_path):
             aur_helper = None
 
     toRemoveNative = sorted(set(native) - set(basePkgs))
-    if aurPkgs:
-        toRemoveAur = sorted(set(aur) - set(aurPkgs))
-    else:
-        toRemoveAur = None
-
     toAddNative = sorted(set(basePkgs) - set(native) - set(dependencies))
-    if aurPkgs:
+
+    if 'aurPackages' in ChObolo:
+        aurPkgs = ChObolo.get('aurPackages') # Key is present, get value
+        if aurPkgs is None: # Handles `aurPackages:` or `aurPackages: null`
+            aurPkgs = []
+        toRemoveAur = sorted(set(aur) - set(aurPkgs))
         toAddAur = sorted(set(aurPkgs) - set(aur) - set(aurDependencies))
     else:
-        toAddAur = None
+        # Key is not in ChObolo, remove all installed AUR packages.
+        toRemoveAur = sorted(aur)
+        toAddAur = []
 
     return toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper
 
