@@ -65,90 +65,6 @@ chmod +x A-coin.sh
 
 Customize your installation by creating your own presets.
 1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
-2. While you can put everything in one file, I recommend separating concerns into multiple files and using a main file to import them. This makes your configuration cleaner and more reusable.
-
-For example, you could have the following structure in your `./Ch-obolos/` directory:
-```
-.
-├── custom-main.yml
-├── dotfiles.yml
-├── packages.yml
-├── partitions.yml
-├── region.yml
-├── repos/repos.yml
-├── services.yml
-└── users.yml
-```
-
-Your main file, `custom-main.yml`, would then use `imports` to combine the other files. The `strategy` key (`override`, `combine`, `merge`) determines how data is merged if keys conflict.
-```YAML
-# ./Ch-obolos/custom-main.yml
-# This is the main entrypoint file for your plugin.
-plug_name: custom-main.yml # <- essential, this identifies the plugin
-
-imports:
-  - file: 'users.yml'
-    strategy: merge
-    merge_keys:
-      - users
-
-  - file: 'packages.yml'
-    strategy: override
-
-  - file: 'services.yml'
-    strategy: combine
-
-  - file: 'repos/repos.yml' # note that repos/ should still be inside your Ch-obolos directory path.
-    strategy: combine
-
-  - file: 'dotfiles.yml'
-    strategy: merge
-    merge_keys:
-      - dotfiles
-
-  - file: 'partitions.yml'
-    strategy: override
-
-  - file: 'region.yml'
-    strategy: override
-```
-
-And the corresponding files would contain the specific configurations, for example:
-```YAML
-# ./Ch-obolos/packages.yml
-pacotes:
-  - neovim
-  - fish
-  - starship
-
-bootloader: "grub"
-```
-
-Or:
-```YAML
-# ./Ch-obolos/users.yml
-users:
-  - name: "dexmachina"
-    shell: "zsh"
-    groups:
-      - wheel
-      - dexmachina
-
-  - name: "root"
-    shell: "bash"
-    groups:
-      - root
-
-hostname: "Dionysus"
-wheel_access: true
-secrets:
-  sec_mode: "sops" # <~ charonte sec_mode is provably going to be deprecated, since sops does what the system needs with no drawbacks
-  sec_file: "Ch-obolos/secrets.yml" #<- secrets file (passwords), must be secret and is REQUIRED for sec_mode "charonte"
-                                    # btw, you can commit your secrets file if they are in sec_mode sops
-  sec_sops: "Ch-obolos/secrets-sops.yml" # <~ fully integrated with sops, your secrets are safe as long as you have tour gpg key
-                                         # this means that, if you use sec_mode sops, you need to backup
-                                         # your .gnupg and copy it to the live boot manually, since these are fully secret.
-```
 
 ### Example of a complete file with everything in one:
 ```YAML
@@ -294,11 +210,8 @@ region:
 >
 > You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/custom-plug-dex.yml), these are the Ch-obolos I am actively using to manage my own system!
 
-### To generate your current system's plugin, run:
-```bash
-cd Ch-aronte
-DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
-```
+# Example of usage:
+![B-coin usage](./imagens/B-coin-test.gif)
 
 ## Project Roadmap
 
