@@ -41,7 +41,7 @@ def main():
     )
     parser.add_argument(
         '--sops-file',
-        '-ss'
+        '-ss',
         dest='sops_file_override',
         help="Path to the .sops.yaml config file (overrides secrets.sec_sops value in ch-obolo)."
     )
@@ -89,11 +89,11 @@ def main():
     # ----- args -----
     commonArgs = (state, host, chobolo_path, skip)
     secArgs = (
-        state, 
-        host, 
-        chobolo_path, 
-        skip, 
-        args.secrets_file_override, 
+        state,
+        host,
+        chobolo_path,
+        skip,
+        args.secrets_file_override,
         args.sops_file_override
     )
     SEC_HAVING_ROLES={'users','secrets'}
