@@ -26,8 +26,8 @@ ROLES_DISPATCHER = {
 }
 
 def main():
-    parser = argparse.ArgumentParser(description="Pyinfra Ch-aronte orquestrator.")
-    parser.add_argument('tags', nargs='+', help="The tag(s) for the role(s) to be executed(ex: pkgs, users).")
+    parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
+    parser.add_argument('tags', nargs='+', help=f"The tag(s) for the role(s) to be executed(usable: users, packages, repositories).\nAvailable aliases: usr, pkgs, repos ")
     parser.add_argument('-e', '--chobolo', required=True, help="Path to Ch-obolo to be used.")
     parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="I Know What I'm Doing mode, basically skips confirmations, only leaving sudo calls")
     parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
