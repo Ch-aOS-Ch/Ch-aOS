@@ -14,10 +14,18 @@ from pyinfra.api.state import StateStage, State
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_state
 
-from charonte.roles.pkgs.tasks import pkgs as pkgs_role
-from charonte.roles.users.tasks import users as users_role
-from charonte.roles.repos.tasks import repos as repos_role
-from charonte.roles.bootloader.tasks import bootloader as boot_role
+if sys.version_info < (3, 10):
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
+
+def discover_roles():
+    """Discovers and loads all roles registered via entry points."""
+    discovered_roles = {}
+    eps = entry_points(group='charonte.roles')
+    for ep in eps:
+        discovered_roles[ep.name] = ep.load()
+    return discovered_roles
 
 ROLE_ALIASES = {
   "pkgs": "packages",
@@ -26,20 +34,15 @@ ROLE_ALIASES = {
   "boot": "bootloader",
 }
 
-ROLES_DISPATCHER = {
-  "packages": pkgs_role.run_all_pkg_logic,
-  "users": users_role.run_user_logic,
-  "repositories": repos_role.run_repo_logic,
-  "bootloader": boot_role.run_bootloader,
-}
-
 CONFIG_DIR = os.path.expanduser("~/.config/charonte")
 CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
 def main():
+  ROLES_DISPATCHER = discover_roles()
   parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
-  parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed(usable: users, packages, repositories).\nAvailable aliases: usr, pkgs, repos")
+  parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed. Discovered: {', '.join(ROLES_DISPATCHER.keys())}\nAvailable aliases: {', '.join(ROLE_ALIASES.keys())}")
   parser.add_argument('-e', dest='chobolo', help="Path to Ch-obolo to be used (overrides config file).")
+  parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
   parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="I Know What I'm Doing mode, basically skips confirmations, only leaving sudo calls")
   parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
   parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. -v for WARNING, -vvv for DEBUG.")
@@ -72,7 +75,12 @@ def main():
     help="Set and save the default sops config file path."
   )
   args = parser.parse_args()
- 
+
+  if args.roles:
+        print("Discovered Roles:")
+        for p in ROLES_DISPATCHER:
+            print(f"  -{p}")
+
   is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
 
   if is_setter_mode:
