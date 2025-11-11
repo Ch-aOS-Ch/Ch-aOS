@@ -195,7 +195,7 @@ def run_user_logic(state, host, chobolo_path, skip, secrets_file_override, sops_
     toAdd=[]
     if ChObolo.get('users'):
         for user in ChObolo.get('users'):
-            if user.get('name') not in sysUsers:
+            if user.name not in sysUsers:
                 toAdd.append(user.name)
             else:
                 print(f"cannot manage {user.name}, it is a system user.")
