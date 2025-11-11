@@ -309,8 +309,3 @@ users:
     groups:
       - wheel
       - input
-
-  - name: "root"
-    shell: "bash"
-    groups:
-      - root

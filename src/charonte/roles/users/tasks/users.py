@@ -2,6 +2,7 @@
 from omegaconf import OmegaConf
 import yaml
 import subprocess
+import crypt
 
 from io import StringIO
 
@@ -14,14 +15,16 @@ def userDelta(host, ChObolo):
     """Get the users to remove"""
     # This gets all non system users
     if not ChObolo.get('users'):
-        return []
-    sysUsers_raw = host.get_fact(Command, "awk -F: '($3>=1000){print $1}' /etc/passwd").strip().splitlines()
-    sysUsers = set(sysUsers_raw) - {'nobody'}
+        return [], []
+    users_raw = host.get_fact(Command, "awk -F: '($3>=1000 && $7 ~ /(bash|zsh|fish|sh)$/){print $1}' /etc/passwd").strip().splitlines()
+    users = set(users_raw) - {'nobody'}
+
+    sysUsers = host.get_fact(Command, "awk -F: '($3<1000){print $1}' /etc/passwd").strip().splitlines()
 
     userList = {user.name for user in ChObolo.users}
 
-    toRemove = sorted(sysUsers - userList)
-    return toRemove
+    toRemove = sorted(users - userList)
+    return toRemove, sysUsers
 
 def getUserPass(ChObolo):
     secCfg=ChObolo.get('secrets')
@@ -101,6 +104,12 @@ def userLogic(state, toRemove, toAdd, skip, ChObolo, userPass):
                     password=userPass.get(user_details.name, {}).get("password")
                     if not password:
                         print(f"IF YOU'RE SEEING THIS MESSAGE, IT MEANS {user_details.name}'S PASSWORD FAILED.\nPLEASE READ THE DOCUMENTATION AS TO HOW TO MANAGE YOUR PASSWORDS.")
+                    if password and not password.startswith("$"):
+                        print(f"WARNING! {user_details.name}'s password is not hashed, hashing the password for security...")
+                        try:
+                            password = crypt.crypt(password, crypt.mksalt(crypt.METHOD_SHA512))
+                        except:
+                            password = crypt.crypt(password)
                     add_op(
                         state,
                         server.user,
@@ -182,9 +191,15 @@ def manageSudoAccess(state, host, ChObolo):
 def run_user_logic(state, host, chobolo_path, skip):
     ChObolo = OmegaConf.load(chobolo_path)
 
-    toRemove = userDelta(host, ChObolo)
+    toRemove, sysUsers = userDelta(host, ChObolo)
     # We manage all users defined in the config, not just new ones.
-    toAdd = [user.name for user in ChObolo.users] if ChObolo.get('users') else []
+    toAdd=[]
+    if ChObolo.users:
+        for user in ChObolo.users:
+            if user.name not in sysUsers:
+                toAdd.append(user.name)
+            else:
+                print(f"cannot manage {user.name}, it is a system user.")
     userPass = getUserPass(ChObolo)
 
     manageHostname(state, ChObolo)
