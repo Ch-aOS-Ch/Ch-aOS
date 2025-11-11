@@ -78,8 +78,12 @@ def main():
 
   if args.roles:
         print("Discovered Roles:")
-        for p in ROLES_DISPATCHER:
-            print(f"  -{p}")
+        if not ROLES_DISPATCHER:
+            print("No roles found.")
+        else:
+            for p in ROLES_DISPATCHER:
+                print(f"  -{p}")
+        sys.exit(0)
 
   is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
 
