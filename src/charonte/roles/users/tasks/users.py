@@ -22,7 +22,7 @@ def userDelta(host, ChObolo):
 
     sysUsers_raw = host.get_fact(Command, "awk -F: '($3<1000){print $1}' /etc/passwd")
     sysUsers = sysUsers_raw.strip().splitlines() if sysUsers_raw else []
-        
+
     userList = {user.name for user in ChObolo.users}
 
     toRemove = sorted(users - userList)
