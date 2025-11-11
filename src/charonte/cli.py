@@ -21,13 +21,9 @@ else:
 
 def discover_roles():
     """Discovers and loads all roles registered via entry points."""
-    print("Discovering roles...")
     discovered_roles = {}
-    # Select the entry points group we defined in pyproject.toml
     eps = entry_points(group='charonte.roles')
     for ep in eps:
-        print(f"- Found role: '{ep.name}'")
-        # ep.load() imports and returns the registered function
         discovered_roles[ep.name] = ep.load()
     return discovered_roles
 
@@ -43,10 +39,10 @@ CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
 def main():
   ROLES_DISPATCHER = discover_roles()
-
   parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
   parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed. Discovered: {', '.join(ROLES_DISPATCHER.keys())}\nAvailable aliases: {', '.join(ROLE_ALIASES.keys())}")
   parser.add_argument('-e', dest='chobolo', help="Path to Ch-obolo to be used (overrides config file).")
+  parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
   parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="I Know What I'm Doing mode, basically skips confirmations, only leaving sudo calls")
   parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
   parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. -v for WARNING, -vvv for DEBUG.")
@@ -79,7 +75,12 @@ def main():
     help="Set and save the default sops config file path."
   )
   args = parser.parse_args()
- 
+
+  if args.roles:
+        print("Discovered Roles:")
+        for p in ROLES_DISPATCHER:
+            print(f"  -{p}")
+
   is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
 
   if is_setter_mode:
