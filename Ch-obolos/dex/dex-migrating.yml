@@ -309,3 +309,8 @@ users:
     groups:
       - wheel
       - input
+
+secrets:
+  sec_mode: sops
+  sec_file: "/home/dexmachina/projetos/Ch-aOS/Ch-aronte/Ch-obolos/dex/secrets_custom-plug-dex.yml"
+  sec_sops: "/home/dexmachina/projetos/Ch-aOS/Ch-aronte/Ch-obolos/dex/sops-config.yml"
