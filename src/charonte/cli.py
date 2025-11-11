@@ -33,6 +33,18 @@ def main():
     parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
     parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. -v for WARNING, -vvv for DEBUG.")
     parser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly. 1=WARNING, 2=INFO, 3=DEBUG.")
+    parser.add_argument(
+        '--secrets-file',
+        '-sf',
+        dest='secrets_file_override',
+        help="Path to the sops-encrypted secrets file (overrides secrets.sec_file value in ch-obolo)."
+    )
+    parser.add_argument(
+        '--sops-file',
+        '-ss'
+        dest='sops_file_override',
+        help="Path to the .sops.yaml config file (overrides secrets.sec_sops value in ch-obolo)."
+    )
     args = parser.parse_args()
 
     log_level = None
@@ -74,13 +86,27 @@ def main():
     print("Connection established.")
     # -----------------------------------------
 
+    # ----- args -----
+    commonArgs = (state, host, chobolo_path, skip)
+    secArgs = (
+        state, 
+        host, 
+        chobolo_path, 
+        skip, 
+        args.secrets_file_override, 
+        args.sops_file_override
+    )
+    SEC_HAVING_ROLES={'users','secrets'}
     # --- Role orchestration ---
     for tag in args.tags:
         normalized_tag = ROLE_ALIASES.get(tag,tag)
         if normalized_tag in ROLES_DISPATCHER:
-                print(f"\n--- Executing {normalized_tag} role with Ch-obolo: {chobolo_path} ---\n")
-                ROLES_DISPATCHER[normalized_tag](state, host, chobolo_path, skip)
-                print(f"\n--- '{normalized_tag}' role finalized. ---")
+            print(f"\n--- Executing {normalized_tag} role with Ch-obolo: {chobolo_path} ---\n")
+            if normalized_tag in SEC_HAVING_ROLES:
+                ROLES_DISPATCHER[normalized_tag](*secArgs)
+            else:
+                ROLES_DISPATCHER[normalized_tag](*commonArgs)
+            print(f"\n--- '{normalized_tag}' role finalized. ---")
         else:
             print(f"\nWARNING: Unknown tag '{normalized_tag}'. Skipping.")
 
