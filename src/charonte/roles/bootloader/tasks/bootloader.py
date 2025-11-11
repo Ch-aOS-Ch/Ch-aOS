@@ -85,9 +85,10 @@ def installBootloader(state, ChObolo, firmware):
                             add_op(
                                 state,
                                 files.block,
-                                src=StringIO(desiredRefindConf),
-                                marker=f"# BEGIN {hostname} CHARONTE MANAGED.\nEND {hostname} CHARONTE MANAGED.",
-                                dest=f"{bootMount}/efi/refind/refind.conf",
+                                name=f"Ensure rEFInd menuentry for {hostname}",
+                                path=refind_cfg_path,
+                                content=desiredRefindConf,
+                                marker=f"# {{mark}} CH-ARONTE MANAGED BLOCK FOR {hostname}",
                                 _sudo=True
                             )
                         else:
