@@ -17,7 +17,6 @@ dependencies = [
 [project.scripts]
 B-coin = "charonte.cli:main"
 
-
 [project.entry-points."charonte.roles"]
 packages     = "charonte.roles.pkgs.tasks.pkgs:run_all_pkg_logic"
 users        = "charonte.roles.users.tasks.users:run_user_logic"
