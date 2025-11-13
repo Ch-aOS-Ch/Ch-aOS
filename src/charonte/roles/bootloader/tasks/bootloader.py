@@ -1,12 +1,12 @@
 from io import StringIO
 from omegaconf import OmegaConf
-import omegaconf
 from pyinfra.api.operation import add_op
 from pyinfra.operations import server, files
+from pyinfra.facts.files import Directory
 
 def checkBootMode(host):
-    efiDir = host.get_fact(files.Directory, path="/sys/firmware/efi/")
-    if efiDir:
+    path="/sys/firmware/efi/"
+    if host.get_fact(Directory, path=path):
         print(f"The system is booted in UEFI mode.")
         return "UEFI"
     else:
