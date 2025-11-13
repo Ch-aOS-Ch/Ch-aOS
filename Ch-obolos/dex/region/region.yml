@@ -1,5 +1,6 @@
 region:
   timezone: "America/Sao_Paulo"
+  ntp: True
   locale:
     - "pt_BR.UTF-8"
     - "en_US.UTF-8"
