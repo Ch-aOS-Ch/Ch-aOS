@@ -31,3 +31,4 @@ tests/__pycache__/test_cli.cpython-313-pytest-9.0.0.pyc
 src/charonte/roles/aurHelper/tasks/__pycache__
 src/charonte/roles/region/tasks/__pycache__
 src/charonte/roles/services/tasks/__pycache__
+src/charonte/roles/reflector/tasks/__pycache__/reflector.cpython-313.pyc
