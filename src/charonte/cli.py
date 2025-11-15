@@ -49,28 +49,27 @@ def discoverRoles():
 
     return discovered_roles
 
-
 def argParsing():
     parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
     parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
-    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides config file).")
+    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).")
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
     parser.add_argument('-a', '--aliases', action='store_true', help="Check which aliases are available.")
-    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="I Know What I'm Doing mode, basically skips confirmations, only leaving sudo calls")
+    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations, only leaving sudo calls")
     parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
-    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. -v for WARNING, -vvv for DEBUG.")
+    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. (3 levels allowed)")
     parser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly. 1=WARNING, 2=INFO, 3=DEBUG.")
     parser.add_argument(
     '--secrets-file',
     '-sf',
     dest='secrets_file_override',
-    help="Path to the sops-encrypted secrets file (overrides secrets.sec_file value in ch-obolo)."
+    help="Path to the sops-encrypted secrets file (overrides all calls)."
     )
     parser.add_argument(
     '--sops-file',
     '-ss',
     dest='sops_file_override',
-    help="Path to the .sops.yaml config file (overrides secrets.sec_sops value in ch-obolo)."
+    help="Path to the .sops.yaml config file (overrides all calls)."
     )
     parser.add_argument(
     '--set-chobolo', '-chobolo',
