@@ -4,6 +4,7 @@ import argparse
 import getpass
 import os
 import sys
+import subprocess
 
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -86,6 +87,16 @@ def argParsing():
     dest='set_sops_file',
     help="Set and save the default sops config file path."
     )
+    parser.add_argument(
+        '--check-sec', '-cs',
+        action='store_true',
+        help="Check the secrets encrypted file. Do not run publicly."
+    )
+    parser.add_argument(
+        '--edit-sec', '-es',
+        action='store_true',
+        help="Edit the secrets encrypted file using sops. Do not run publicly."
+    )
     args = parser.parse_args()
     return args
 
@@ -151,7 +162,6 @@ def setMode(args):
 
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
     print("Configuration saved.")
-
 
 def handleVerbose(args):
     log_level = None
@@ -249,6 +259,65 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     disconnect_all(state)
     print("Finalized.")
 
+def runSopsCheck(sops_file_override, secrets_file_override):
+    secretsFile = secrets_file_override
+    sopsFile = sops_file_override
+    if not secretsFile or not sopsFile:
+        CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+        CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+        cfg = OmegaConf.load(CONFIG_FILE_PATH)
+        ChOboloPath = cfg.get('chobolo_file', None)
+        ChObolo = OmegaConf.load(ChOboloPath).get('secrets', None) if ChOboloPath else None
+        if ChObolo and not secretsFile:
+            secretsFile = ChObolo.get('sec_file', None)
+        if ChObolo and not sopsFile:
+            sopsFile = ChObolo.get('sec_sops', None)
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(
+            ['sops', '--config', sopsFile, '--decrypt', secretsFile],
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print("ERROR: SOPS decryption failed.")
+        print("Details:", e.stderr)
+        sys.exit(1)
+
+def runSopsEdit(sops_file_override, secrets_file_override):
+    secretsFile = secrets_file_override
+    sopsFile = sops_file_override
+    if not secretsFile or not sopsFile:
+        CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+        CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+        cfg = OmegaConf.load(CONFIG_FILE_PATH)
+        ChOboloPath = cfg.get('chobolo_file', None)
+        ChObolo = OmegaConf.load(ChOboloPath).get('secrets', None) if ChOboloPath else None
+        if ChObolo and not secretsFile:
+            secretsFile = ChObolo.get('sec_file', None)
+        if ChObolo and not sopsFile:
+            sopsFile = ChObolo.get('sec_sops', None)
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(
+            ['sops', '--config', sopsFile, secretsFile],
+        )
+        okCodes= [0,200]
+        if result.returncode not in okCodes:
+            raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+    except subprocess.CalledProcessError as e:
+        print("ERROR: SOPS editing failed.")
+        print("Details: sops exited with error code", e.returncode)
+        sys.exit(1)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
+        sys.exit(1)
+
 def main():
     ROLES_DISPATCHER = discoverRoles()
     ROLE_ALIASES = discoverAliases()
@@ -258,6 +327,14 @@ def main():
 
     if args.verbose or args.v>0:
         handleVerbose(args)
+
+    if args.check_sec:
+        runSopsCheck(args.sops_file_override, args.secrets_file_override)
+        sys.exit(0)
+
+    if args.edit_sec:
+        runSopsEdit(args.sops_file_override, args.secrets_file_override)
+        sys.exit(0)
 
     if args.aliases:
         checkAliases(ROLE_ALIASES)
