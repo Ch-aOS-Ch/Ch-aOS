@@ -5,6 +5,8 @@ import getpass
 import os
 import sys
 import subprocess
+import argcomplete
+from argcomplete.completers import FilesCompleter
 
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -50,10 +52,17 @@ def discoverRoles():
 
     return discovered_roles
 
+def completerRaA(prefix, args, **kwargs):
+    roles = list(discoverRoles().keys())
+    aliases = list(discoverAliases().keys())
+    allComps = roles + aliases
+    return [comp for comp in allComps if comp.startswith(prefix)]
+
 def argParsing():
     parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
-    parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
-    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).")
+    tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
+    tags.completer = completerRaA
+    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
     parser.add_argument('-a', '--aliases', action='store_true', help="Check which aliases are available.")
     parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations, only leaving sudo calls")
@@ -65,28 +74,28 @@ def argParsing():
     '-sf',
     dest='secrets_file_override',
     help="Path to the sops-encrypted secrets file (overrides all calls)."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--sops-file',
     '-ss',
     dest='sops_file_override',
     help="Path to the .sops.yaml config file (overrides all calls)."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-chobolo', '-chobolo',
     dest='set_chobolo_file',
     help="Set and save the default Ch-obolo file path."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-sec-file', '-sec',
     dest='set_secrets_file',
     help="Set and save the default secrets file path."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-sops-file', '-sops',
     dest='set_sops_file',
     help="Set and save the default sops config file path."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
         '--check-sec', '-cs',
         action='store_true',
@@ -102,8 +111,12 @@ def argParsing():
         action='store_true',
         help="Edit the Ch-obolo file using the default editor."
     )
-    args = parser.parse_args()
-    return args
+    parser.add_argument(
+        '-gt', '--generate-tab',
+        action='store_true',
+        help="Generate shell tab-completion script."
+    )
+    return parser
 
 def checkRoles(ROLES_DISPATCHER):
     print("Discovered Roles:")
@@ -381,12 +394,23 @@ def runChoboloEdit(chobolo_path):
         print("ERROR: No Ch-obolo file configured to edit.", file=sys.stderr)
         sys.exit(1)
 
+def handleGenerateTab():
+    subprocess.run(['register-python-argcomplete', 'B-coin'])
+
+
 def main():
     ROLES_DISPATCHER = discoverRoles()
     ROLE_ALIASES = discoverAliases()
-    args = argParsing()
+    parser = argParsing()
+    args = parser.parse_args()
     ikwid = args.i_know_what_im_doing
     dry = args.dry
+
+    argcomplete.autocomplete(parser)
+
+    if args.generate_tab:
+        handleGenerateTab()
+        sys.exit(0)
 
     if args.verbose or args.v>0:
         handleVerbose(args)
