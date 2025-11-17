@@ -291,7 +291,7 @@ def runSopsCheck(sops_file_override, secrets_file_override):
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
     if not sopsFile:
-        sopsFile = global_config.get('sops_config')
+        sopsFile = global_config.get('sops_file')
 
     if not secretsFile or not sopsFile:
         ChOboloPath = global_config.get('chobolo_file', None)
@@ -339,7 +339,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
     if not sopsFile:
-        sopsFile = global_config.get('sops_config')
+        sopsFile = global_config.get('sops_file')
 
     if not secretsFile or not sopsFile:
         ChOboloPath = global_config.get('chobolo_file', None)
@@ -402,11 +402,12 @@ def main():
     ROLES_DISPATCHER = discoverRoles()
     ROLE_ALIASES = discoverAliases()
     parser = argParsing()
+
+    argcomplete.autocomplete(parser)
+
     args = parser.parse_args()
     ikwid = args.i_know_what_im_doing
     dry = args.dry
-
-    argcomplete.autocomplete(parser)
 
     if args.generate_tab:
         handleGenerateTab()
