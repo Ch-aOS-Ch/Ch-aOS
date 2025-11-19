@@ -15,11 +15,7 @@ from pyinfra.api.state import StateStage, State
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_state
 
-
-try:
-    from importlib.metadata import entry_points
-except ImportError:
-    from importlib_metadata import entry_points
+from importlib.metadata import entry_points
 
 def discoverAliases():
     discoveredAliases = {}
