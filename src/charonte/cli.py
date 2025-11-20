@@ -25,8 +25,9 @@ from importlib.metadata import entry_points
 def get_plugins(update_cache=False):
     CACHE_DIR = Path(os.path.expanduser("~/.cache/charonte"))
     CACHE_FILE = CACHE_DIR / "plugins.json"
+    cache_exists = CACHE_FILE.exists()
 
-    if not update_cache and CACHE_FILE.exists():
+    if not update_cache and cache_exists:
         with open(CACHE_FILE, 'r') as f:
             try:
                 cache_data = json.load(f)
@@ -53,7 +54,8 @@ def get_plugins(update_cache=False):
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, 'w') as f:
             json.dump({'roles': discovered_roles, 'aliases': discovered_aliases}, f, indent=4)
-        print(f"Plugin cache saved to {CACHE_FILE}")
+        if update_cache or not cache_exists:
+            print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
     except OSError as e:
         print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
 
@@ -71,15 +73,24 @@ def load_roles(roles_spec):
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
 
-def completerRaA(prefix, args, **kwargs):
-    roles, aliases = get_plugins()
-    allComps = list(roles.keys()) + list(aliases.keys())
-    return [comp for comp in allComps if comp.startswith(prefix)]
+
+
+class RolesCompleter:
+    def __init__(self):
+        self._roles = None
+        self._aliases = None
+
+    def __call__(self, prefix, **kwargs):
+        if self._roles is None or self._aliases is None:
+            self. _roles, self._aliases = get_plugins()
+
+        all_comps = list(self._roles.keys()) + list(self._aliases.keys())
+        return [comp for comp in all_comps if comp.startswith(prefix)]
 
 def argParsing():
     parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
     tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
-    tags.completer = completerRaA
+    tags.completer = RolesCompleter()
     parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
@@ -303,7 +314,7 @@ def runSopsCheck(sops_file_override, secrets_file_override):
     CONFIG_DIR = os.path.expanduser("~/.config/charonte")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
-    global_config = {} # Inicia vazio
+    global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
 
@@ -351,7 +362,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
     CONFIG_DIR = os.path.expanduser("~/.config/charonte")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
-    global_config = {} # Inicia vazio
+    global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
 
@@ -425,16 +436,13 @@ def main():
     args = parser.parse_args()
 
     role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)
-    ROLES_DISPATCHER = load_roles(role_specs)
-    ikwid = args.i_know_what_im_doing
-    dry = args.dry
+
+    if args.verbose or args.v > 0:
+        handleVerbose(args)
 
     if args.generate_tab:
         handleGenerateTab()
         sys.exit(0)
-
-    if args.verbose or args.v>0:
-        handleVerbose(args)
 
     if args.check_sec:
         runSopsCheck(args.sops_file_override, args.secrets_file_override)
@@ -452,7 +460,7 @@ def main():
         checkAliases(ROLE_ALIASES)
 
     if args.roles:
-        checkRoles(ROLES_DISPATCHER)
+        checkRoles(role_specs)
 
     is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
     if is_setter_mode:
@@ -462,8 +470,11 @@ def main():
     if not args.tags:
         print('No tags passed.')
         sys.exit(0)
-    else:
-        handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+
+    ROLES_DISPATCHER = load_roles(role_specs)
+    ikwid = args.i_know_what_im_doing
+    dry = args.dry
+    handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
 
 if __name__ == "__main__":
   main()
