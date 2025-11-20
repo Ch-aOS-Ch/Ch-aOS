@@ -4,8 +4,11 @@ import argparse
 import getpass
 import os
 import sys
+import subprocess
+import argcomplete
 import json
 from importlib import import_module
+from argcomplete.completers import FilesCompleter
 
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -68,47 +71,71 @@ def load_roles(roles_spec):
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
 
+def completerRaA(prefix, args, **kwargs):
+    roles, aliases = get_plugins()
+    allComps = list(roles.keys()) + list(aliases.keys())
+    return [comp for comp in allComps if comp.startswith(prefix)]
 
 def argParsing():
     parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
-    parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
+    tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
+    tags.completer = completerRaA
+    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
-    parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides config file).")
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
     parser.add_argument('-a', '--aliases', action='store_true', help="Check which aliases are available.")
-    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="I Know What I'm Doing mode, basically skips confirmations, only leaving sudo calls")
+    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations, only leaving sudo calls")
     parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
-    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. -v for WARNING, -vvv for DEBUG.")
+    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. (3 levels allowed)")
     parser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly. 1=WARNING, 2=INFO, 3=DEBUG.")
     parser.add_argument(
     '--secrets-file',
     '-sf',
     dest='secrets_file_override',
-    help="Path to the sops-encrypted secrets file (overrides secrets.sec_file value in ch-obolo)."
-    )
+    help="Path to the sops-encrypted secrets file (overrides all calls)."
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--sops-file',
     '-ss',
     dest='sops_file_override',
-    help="Path to the .sops.yaml config file (overrides secrets.sec_sops value in ch-obolo)."
-    )
+    help="Path to the .sops.yaml config file (overrides all calls)."
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-chobolo', '-chobolo',
     dest='set_chobolo_file',
     help="Set and save the default Ch-obolo file path."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-sec-file', '-sec',
     dest='set_secrets_file',
     help="Set and save the default secrets file path."
-    )
+    ).completer = FilesCompleter()
     parser.add_argument(
     '--set-sops-file', '-sops',
     dest='set_sops_file',
     help="Set and save the default sops config file path."
+    ).completer = FilesCompleter()
+    parser.add_argument(
+        '--check-sec', '-cs',
+        action='store_true',
+        help="Check the secrets encrypted file. Do not run publicly."
     )
-    args = parser.parse_args()
-    return args
+    parser.add_argument(
+        '--edit-sec', '-es',
+        action='store_true',
+        help="Edit the secrets encrypted file using sops. Do not run publicly."
+    )
+    parser.add_argument(
+        '-ec', '--edit-chobolo',
+        action='store_true',
+        help="Edit the Ch-obolo file using the default editor."
+    )
+    parser.add_argument(
+        '-gt', '--generate-tab',
+        action='store_true',
+        help="Generate shell tab-completion script."
+    )
+    return parser
 
 def checkRoles(ROLES_DISPATCHER):
     print("Discovered Roles:")
@@ -172,7 +199,6 @@ def setMode(args):
 
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
     print("Configuration saved.")
-
 
 def handleVerbose(args):
     log_level = None
@@ -270,20 +296,157 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     disconnect_all(state)
     print("Finalized.")
 
+def runSopsCheck(sops_file_override, secrets_file_override):
+    secretsFile = secrets_file_override
+    sopsFile = sops_file_override
+
+    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+
+    global_config = {} # Inicia vazio
+    if os.path.exists(CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    if not secretsFile:
+        secretsFile = global_config.get('secrets_file')
+    if not sopsFile:
+        sopsFile = global_config.get('sops_file')
+
+    if not secretsFile or not sopsFile:
+        ChOboloPath = global_config.get('chobolo_file', None)
+        if ChOboloPath:
+            try:
+                ChObolo = OmegaConf.load(ChOboloPath)
+                secrets_config = ChObolo.get('secrets', None)
+                if secrets_config:
+                    if not secretsFile:
+                        secretsFile = secrets_config.get('sec_file')
+                    if not sopsFile:
+                        sopsFile = secrets_config.get('sec_sops')
+            except Exception as e:
+                print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
+
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'B-coin -sec' and 'B-coin -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+        okCodes= [0,200]
+        if result.returncode not in okCodes:
+            raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+    except subprocess.CalledProcessError as e:
+        print("ERROR: SOPS decryption failed.")
+        print("Details:", e.stderr)
+        sys.exit(1)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
+        sys.exit(1)
+
+def runSopsEdit(sops_file_override, secrets_file_override):
+    secretsFile = secrets_file_override
+    sopsFile = sops_file_override
+
+    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+
+    global_config = {} # Inicia vazio
+    if os.path.exists(CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    if not secretsFile:
+        secretsFile = global_config.get('secrets_file')
+    if not sopsFile:
+        sopsFile = global_config.get('sops_file')
+
+    if not secretsFile or not sopsFile:
+        ChOboloPath = global_config.get('chobolo_file', None)
+        if ChOboloPath:
+            try:
+                ChObolo = OmegaConf.load(ChOboloPath)
+                secrets_config = ChObolo.get('secrets', None)
+                if secrets_config:
+                    if not secretsFile:
+                        secretsFile = secrets_config.get('sec_file')
+                    if not sopsFile:
+                        sopsFile = secrets_config.get('sec_sops')
+            except Exception as e:
+                print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
+
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'B-coin -sec' and 'B-coin -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
+        okCodes= [0,200]
+        if result.returncode not in okCodes:
+            raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+    except subprocess.CalledProcessError as e:
+        sys.exit(0)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
+        sys.exit(1)
+
+def runChoboloEdit(chobolo_path):
+    editor = os.getenv('EDITOR', 'nano')
+    if not chobolo_path:
+        CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+        CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+        cfg = OmegaConf.load(CONFIG_FILE_PATH)
+        chobolo_path = cfg.get('chobolo_file', None)
+    if chobolo_path:
+        try:
+            result = subprocess.run(
+                [editor, chobolo_path],
+            )
+        except subprocess.CalledProcessError as e:
+            print("ERROR: Ch-obolo editing failed.")
+            print("Details: Editor exited with error code", e.returncode)
+            sys.exit(1)
+        except FileNotFoundError:
+            print(f"ERROR: Editor '{editor}' not found. Please ensure it is installed and in your PATH.", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print("ERROR: No Ch-obolo file configured to edit.", file=sys.stderr)
+        sys.exit(1)
+
+def handleGenerateTab():
+    subprocess.run(['register-python-argcomplete', 'B-coin'])
+
+
 def main():
-    args = argParsing()
+    parser = argParsing()
+
+    argcomplete.autocomplete(parser)
+
+    args = parser.parse_args()
+
+    role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)
+    ROLES_DISPATCHER = load_roles(role_specs)
     ikwid = args.i_know_what_im_doing
     dry = args.dry
 
-    if args.update_plugins:
-        get_plugins(update_cache=True)
+    if args.generate_tab:
+        handleGenerateTab()
         sys.exit(0)
-
-    roles_spec, ROLE_ALIASES = get_plugins()
-    ROLES_DISPATCHER = load_roles(roles_spec)
 
     if args.verbose or args.v>0:
         handleVerbose(args)
+
+    if args.check_sec:
+        runSopsCheck(args.sops_file_override, args.secrets_file_override)
+        sys.exit(0)
+
+    if args.edit_sec:
+        runSopsEdit(args.sops_file_override, args.secrets_file_override)
+        sys.exit(0)
+
+    if args.edit_chobolo:
+        runChoboloEdit(args.chobolo)
+        sys.exit(0)
 
     if args.aliases:
         checkAliases(ROLE_ALIASES)

@@ -12,6 +12,7 @@ dependencies = [
     "pyinfra",
     "omegaconf",
     "passlib>=1.7.4",
+    "argcomplete",
 ]
 
 [project.scripts]

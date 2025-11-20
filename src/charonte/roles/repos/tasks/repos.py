@@ -27,7 +27,6 @@ def buildPacmanConfSecure(chObolo):
         pacmanConf = [PACMAN_OPTIONS_BLOCK]
     else:
         pacmanConf = [reposCfg.get('i_know_exactly_what_im_doing')]
-
     managed = reposCfg.get('managed', {})
     thirdParty = reposCfg.get('third_party', [])
 
@@ -91,4 +90,25 @@ def run_repo_logic(state, host, choboloPath, skip):
                 mode="0644"
             )
     else:
-        print("pacman.conf is already in the desired state.")
+        desiredContent = buildPacmanConf(ChObolo)
+        desiredHash = hashlib.sha1(desiredContent.encode('utf-8')).hexdigest()
+
+        currentHash = host.get_fact(Sha1File, path="/etc/pacman.conf", _sudo=True)
+
+        if desiredHash != currentHash:
+            print(desiredContent)
+
+            print("Changes will be applied.")
+            confirm = "y" if skip else input("\nIs This correct (Y/n)? ")
+            if confirm.lower() in ["y", "yes", "", "s", "sim"]:
+                add_op(
+                    state,
+                    files.put,
+                    name="Deploy /etc/pacman.conf",
+                    src=StringIO(desiredContent),
+                    dest="/etc/pacman.conf",
+                    _sudo=True,
+                    mode="0644"
+                )
+        else:
+            print("Desired state is already current state.")
