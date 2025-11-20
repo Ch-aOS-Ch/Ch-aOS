@@ -26,7 +26,7 @@ package() {
 
   "$_venv_pip" install pex
 
-  "$_venv_pex" . -c B-coin -o B-coin --inherit-path=fallback
+  "$_venv_pex" . -c B-coin -o B-coin --inherit-path=fallback --venv
 
   install -Dm755 B-coin "$pkgdir/usr/bin/B-coin"
 
