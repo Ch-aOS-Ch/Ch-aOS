@@ -6,6 +6,8 @@ import os
 import sys
 import subprocess
 import argcomplete
+import json
+from importlib import import_module
 from argcomplete.completers import FilesCompleter
 
 from omegaconf import OmegaConf
@@ -18,51 +20,79 @@ from pyinfra.api.state import StateStage, State
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_state
 
+from importlib.metadata import entry_points
 
-try:
-    from importlib.metadata import entry_points
-except ImportError:
-    from importlib_metadata import entry_points
+def get_plugins(update_cache=False):
+    CACHE_DIR = Path(os.path.expanduser("~/.cache/charonte"))
+    CACHE_FILE = CACHE_DIR / "plugins.json"
+    cache_exists = CACHE_FILE.exists()
 
-def discoverAliases():
-    discoveredAliases = {}
-    eps = entry_points()
-    if hasattr(eps, "select"):
-        selected = eps.select(group="charonte.aliases")
-    elif isinstance(eps, dict):
-        selected = eps.get("charonte.aliases", [])
-    else:
-        selected = getattr(eps, "get", lambda *_: [])("charonte.aliases", [])
-    for ep in selected:
-        discoveredAliases[ep.name] = ep.value
+    if not update_cache and cache_exists:
+        with open(CACHE_FILE, 'r') as f:
+            try:
+                cache_data = json.load(f)
+                if 'roles' in cache_data and 'aliases' in cache_data:
+                    return cache_data['roles'], cache_data['aliases']
+                else:
+                    print("Warning: Invalid cache file format. Re-discovering plugins.", file=sys.stderr)
+            except json.JSONDecodeError:
+                print("Warning: Could not read cache file. Re-discovering plugins.", file=sys.stderr)
 
-    return discoveredAliases
-
-def discoverRoles():
     discovered_roles = {}
+    discovered_aliases = {}
     eps = entry_points()
-    if hasattr(eps, "select"):
-        selected = eps.select(group="charonte.roles")
-    elif isinstance(eps, dict):
-        selected = eps.get("charonte.roles", [])
-    else:
-        selected = getattr(eps, "get", lambda *_: [])("charonte.roles", [])
-    for ep in selected:
-        discovered_roles[ep.name] = ep.load()
 
-    return discovered_roles
+    role_eps = eps.select(group="charonte.roles") if hasattr(eps, "select") else eps.get("charonte.roles", [])
+    for ep in role_eps:
+        discovered_roles[ep.name] = ep.value
 
-def completerRaA(prefix, args, **kwargs):
-    roles = list(discoverRoles().keys())
-    aliases = list(discoverAliases().keys())
-    allComps = roles + aliases
-    return [comp for comp in allComps if comp.startswith(prefix)]
+    alias_eps = eps.select(group="charonte.aliases") if hasattr(eps, "select") else eps.get("charonte.aliases", [])
+    for ep in alias_eps:
+        discovered_aliases[ep.name] = ep.value
+
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with open(CACHE_FILE, 'w') as f:
+            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases}, f, indent=4)
+        if update_cache or not cache_exists:
+            print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
+    except OSError as e:
+        print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
+
+
+    return discovered_roles, discovered_aliases
+
+def load_roles(roles_spec):
+    loaded_roles = {}
+    for name, spec in roles_spec.items():
+        try:
+            module_name, func_name = spec.split(':', 1)
+            module = import_module(module_name)
+            loaded_roles[name] = getattr(module, func_name)
+        except (ImportError, AttributeError, ValueError) as e:
+            print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
+    return loaded_roles
+
+
+
+class RolesCompleter:
+    def __init__(self):
+        self._roles = None
+        self._aliases = None
+
+    def __call__(self, prefix, **kwargs):
+        if self._roles is None or self._aliases is None:
+            self. _roles, self._aliases = get_plugins()
+
+        all_comps = list(self._roles.keys()) + list(self._aliases.keys())
+        return [comp for comp in all_comps if comp.startswith(prefix)]
 
 def argParsing():
     parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
     tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
-    tags.completer = completerRaA
+    tags.completer = RolesCompleter()
     parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
+    parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
     parser.add_argument('-a', '--aliases', action='store_true', help="Check which aliases are available.")
     parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations, only leaving sudo calls")
@@ -284,7 +314,7 @@ def runSopsCheck(sops_file_override, secrets_file_override):
     CONFIG_DIR = os.path.expanduser("~/.config/charonte")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
-    global_config = {} # Inicia vazio
+    global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
 
@@ -332,7 +362,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
     CONFIG_DIR = os.path.expanduser("~/.config/charonte")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
-    global_config = {} # Inicia vazio
+    global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
 
@@ -399,22 +429,20 @@ def handleGenerateTab():
 
 
 def main():
-    ROLES_DISPATCHER = discoverRoles()
-    ROLE_ALIASES = discoverAliases()
     parser = argParsing()
 
     argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
-    ikwid = args.i_know_what_im_doing
-    dry = args.dry
+
+    role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)
+
+    if args.verbose or args.v > 0:
+        handleVerbose(args)
 
     if args.generate_tab:
         handleGenerateTab()
         sys.exit(0)
-
-    if args.verbose or args.v>0:
-        handleVerbose(args)
 
     if args.check_sec:
         runSopsCheck(args.sops_file_override, args.secrets_file_override)
@@ -432,7 +460,7 @@ def main():
         checkAliases(ROLE_ALIASES)
 
     if args.roles:
-        checkRoles(ROLES_DISPATCHER)
+        checkRoles(role_specs)
 
     is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
     if is_setter_mode:
@@ -442,8 +470,11 @@ def main():
     if not args.tags:
         print('No tags passed.')
         sys.exit(0)
-    else:
-        handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+
+    ROLES_DISPATCHER = load_roles(role_specs)
+    ikwid = args.i_know_what_im_doing
+    dry = args.dry
+    handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
 
 if __name__ == "__main__":
   main()
