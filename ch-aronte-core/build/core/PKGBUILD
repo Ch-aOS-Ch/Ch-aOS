@@ -1,0 +1,23 @@
+# Maintainer: Dexmachi caiorocoli@gmail.com
+pkgname=chaos-dotfiles
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Declarative dotfiles manager for Arch Linux."
+arch=('any')
+_gitname="chaos-dots"
+url="https://github.com/Ch-aOS-Ch/chaos-dots"
+license=('MIT')
+depends=('b-coin')
+makedepends=('python' 'python-pip' 'python-setuptools' 'python-wheel' 'uv')
+source=("${_gitname}-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  cd "$srcdir/${_gitname}-$pkgver/ch-aronte-core"
+
+  uv build 2>/dev/null
+
+  install -d "$pkgdir/usr/share/charonte/plugins/"
+
+  install -m644 dist/*.whl "$pkgdir/usr/share/charonte/plugins/"
+}
