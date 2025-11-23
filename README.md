@@ -178,7 +178,7 @@ region:
 
 > [!TIP]
 >
-> Want to test the chaos role but don't want to mess with your system? Use chaos -dyyy to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
+> Want to test the chaos role but don't want to mess with your system? Use chaos -dvvv to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
 
 # Flags Cheat Sheet (cause no good CLI project is complete without one):
 | Flag | Description |
