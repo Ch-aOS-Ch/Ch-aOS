@@ -176,6 +176,31 @@ region:
 >
 > You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), these are the Ch-obolos I am actively using to manage my own system!
 
+> [!TIP]
+>
+> Want to test the chaos role but don't want to mess with your system? Use chaos -dyyy to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
+
+# Flags Cheat Sheet (cause no good CLI project is complete without one):
+| Flag | Description |
+|------|--------------|
+| `-v`, `-vv`, `-vvv` | Increase verbosity |
+| `-d` | Dry-run mode (preview changes) |
+| `-ikwid` | “I Know What I'm Doing” mode (disables safety checks) |
+| `-ss` | Override `secrets.sec_sops` |
+| `-sops` | Set base SOPS config path |
+| `-chobolo` | Set base Ch-obolo file |
+| `-sec` | Set base secrets file |
+| `-sf` | Override `secrets.sec_file` |
+| `-e` | Override Ch-obolo file |
+| `-r` | List all roles |
+| `-h` | Show help screen |
+| `-a` | List all aliases |
+| `-es`, `--edit-sec` | Edit your secrets with the $EDITOR from your system and exit (will NOT work with sec_mode charonte.) |
+| `-cs`, `--check-sec` | Print secrets file decrypted and exit (will NOT work with sec_mode charonte.) |
+| `-ec`, `--edit-chobolo` | Edit your chobolo file and exit |
+| `-gt`, `--generate-tab` | Generate tab completion for your shell (ofc I have one, are you kidding?) |
+| `-u`, `--update-plugins` | Updates the Ch-aronte plugins cache (the program always uses cached files by default, to make it faster.) |
+
 # Example of usage:
 ![chaos usage](./imagens/B-coin-test.gif)
 
