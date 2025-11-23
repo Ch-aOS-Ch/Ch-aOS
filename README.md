@@ -11,8 +11,8 @@
 
 ## How does it work?
 
-- the chaos CLI uses Python, Pyinfra and OmegaConf as it's main engine, allowing for an declarative paradigm approach in a more simple way.
-- Ch-aronte is only a pluggable module that gives chaos it's "roles", a pluggable backend made for Arch Linux systems.
+- the chaos CLI uses Python, Pyinfra and OmegaConf as it's main engine, allowing for a declarative paradigm approach in a simpler way.
+- Ch-aronte is only a plugin module that gives chaos it's "roles", a pluggable backend made for Arch Linux systems.
 - Ch-imera will be a little bit different, it will _transpile_ the Ch-obolos files into simple nix expressions, allowing for a _kickstart_ into NixOS systems, basically letting you "test drive" the declarative paradigm without needing to learn it inside of a "pure declarative" system.
 - Ch-obolo is the main configuration system, it is meant to be a universal configuration for all of the Ch-aOS projects, letting you distro-hop with ease.
 
