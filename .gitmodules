@@ -1,0 +1,6 @@
+[submodule "Ch-aronte"]
+	path = Ch-aronte
+	url = git@github.com:Ch-aOS-Ch/Ch-aronte
+[submodule "external_plugins/chaos-dots"]
+	path = external_plugins/chaos-dots
+	url = git@github.com:Ch-aOS-Ch/chaos-dots
