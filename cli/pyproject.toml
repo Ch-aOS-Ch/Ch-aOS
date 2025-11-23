@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "b-coin CLI"
+version = "0.1.0"
+description = "Declarative OS configuration manager"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyinfra",
+    "omegaconf",
+    "passlib>=1.7.4",
+    "argcomplete",
+]
+
+[project.scripts]
+B-coin = "charonte.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
