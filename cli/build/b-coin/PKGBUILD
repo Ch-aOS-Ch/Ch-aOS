@@ -1,24 +1,28 @@
 # Maintainer: Dexmachi caiorocoli@gmail.com
 pkgname=b-coin
-pkgver=0.0.7.1
+pkgver=0.0.7.1b
 pkgrel=1
 pkgdesc="Declarative system manager for Arch Linux."
 arch=('any')
 _gitname="Ch-aronte"
-url="git+https://github.com/Ch-aOS-Ch/Ch-aronte.git#branch=pyinfra"
+_gituser="Ch-aOS-Ch"
+_source_url="https://github.com/${_gituser}/${_gitname}"
+url="git+${_source_url}.git#branch=pyinfra"
+
 license=('MIT')
 depends=('python')
 makedepends=('python' 'python-pip' 'python-setuptools' 'python-wheel' 'python-pytest')
-source=("${_gitname}-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+
+source=("${_gitname}-${pkgver}.tar.gz::${_source_url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 check() {
-  cd "$srcdir/${_gitname}-$pkgver"
+  cd "$srcdir/${_gitname}-${pkgver}" 2>/dev/null || cd "$srcdir/${_gitname}-v${pkgver}"
   pytest || true
 }
 
 package() {
-  cd "$srcdir/${_gitname}-$pkgver"/cli
+  cd "$srcdir/${_gitname}-${pkgver}"/cli 2>/dev/null || cd "$srcdir/${_gitname}-v${pkgver}"/cli
 
   python -m venv "$srcdir/pex_venv"
   local _venv_pip="$srcdir/pex_venv/bin/pip"
@@ -30,5 +34,5 @@ package() {
 
   install -Dm755 B-coin "$pkgdir/usr/bin/B-coin"
 
-  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"}
+  install -Dm644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
