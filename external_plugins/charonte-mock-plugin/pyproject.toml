@@ -17,6 +17,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-[project.entry-points."charonte.roles"]
+[project.entry-points."chaos.roles"]
 mock-role = "charonte_mock_plugin.roles:mock_role"
 

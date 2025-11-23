@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-B-coin = "charonte.cli:main"
+chaos = "chaos.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

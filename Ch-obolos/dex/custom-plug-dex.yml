@@ -401,7 +401,7 @@ particoes:
 
 dotfiles:
   - repo: "https://github.com/Dexmachi/dotfiles.git"
-    manager: charonte
+    pull: True
     user: dexmachina
     links:
       - from: bookmarks

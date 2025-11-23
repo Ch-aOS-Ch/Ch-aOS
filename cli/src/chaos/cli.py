@@ -25,18 +25,18 @@ from pyinfra.context import ctx_state
 
 from importlib.metadata import entry_points
 
-pluginDevPath = os.getenv('CHARONTE_DEV_PATH', None)
+pluginDevPath = os.getenv('CHAOS_DEV_PATH', None)
 if pluginDevPath:
     absPath = os.path.abspath(pluginDevPath)
     if os.path.exists(absPath):
         sys.path.insert(0, pluginDevPath)
     else:
-        print(f"Warning: Ch-aronte plugin path '{absPath}' does not exist.", file=sys.stderr)
+        print(f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr)
 
 def get_plugins(update_cache=False):
     plugin_dirs = [
-        Path.home() / ".local/share/charonte/plugins",
-        Path("/usr/share/charonte/plugins")
+        Path.home() / ".local/share/chaos/plugins",
+        Path("/usr/share/chaos/plugins")
     ]
 
     for plugin_dir in plugin_dirs:
@@ -54,7 +54,7 @@ def get_plugins(update_cache=False):
             except Exception as e:
                 print(f"Warning: Could not load plugin wheel '{whl}': {e}", file=sys.stderr)
 
-    CACHE_DIR = Path(os.path.expanduser("~/.cache/charonte"))
+    CACHE_DIR = Path(os.path.expanduser("~/.cache/chaos"))
     CACHE_FILE = CACHE_DIR / "plugins.json"
     cache_exists = CACHE_FILE.exists()
 
@@ -73,11 +73,11 @@ def get_plugins(update_cache=False):
     discovered_aliases = {}
     eps = entry_points()
 
-    role_eps = eps.select(group="charonte.roles") if hasattr(eps, "select") else eps.get("charonte.roles", [])
+    role_eps = eps.select(group="chaos.roles") if hasattr(eps, "select") else eps.get("chaos.roles", [])
     for ep in role_eps:
         discovered_roles[ep.name] = ep.value
 
-    alias_eps = eps.select(group="charonte.aliases") if hasattr(eps, "select") else eps.get("charonte.aliases", [])
+    alias_eps = eps.select(group="chaos.aliases") if hasattr(eps, "select") else eps.get("chaos.aliases", [])
     for ep in alias_eps:
         discovered_aliases[ep.name] = ep.value
 
@@ -119,7 +119,7 @@ class RolesCompleter:
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 def argParsing():
-    parser = argparse.ArgumentParser(description="Ch-aronte orquestrator.")
+    parser = argparse.ArgumentParser(description="chaos system manager.")
     tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
     tags.completer = RolesCompleter()
     parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
@@ -199,7 +199,7 @@ def checkAliases(ROLE_ALIASES):
     sys.exit(0)
 
 def setMode(args):
-    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     print(f"Saving configuration to {CONFIG_FILE_PATH}...")
@@ -262,7 +262,7 @@ def handleVerbose(args):
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
-    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
@@ -274,7 +274,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
 
     if not chobolo_path:
         print("ERROR: No Ch-obolo passed", file=sys.stderr)
-        print("   Use '-e /path/to/file.yml' or configure a base Ch-obolo with 'B-coin --set-chobolo /path/to/file.yml'.", file=sys.stderr)
+        print("   Use '-e /path/to/file.yml' or configure a base Ch-obolo with 'chaos --set-chobolo /path/to/file.yml'.", file=sys.stderr)
         sys.exit(1)
 
     hosts = ["@local"]
@@ -342,7 +342,7 @@ def runSopsCheck(sops_file_override, secrets_file_override):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
-    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     global_config = {}
@@ -370,7 +370,7 @@ def runSopsCheck(sops_file_override, secrets_file_override):
 
     if not secretsFile or not sopsFile:
         print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'B-coin -sec' and 'B-coin -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -390,7 +390,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
-    CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     global_config = {}
@@ -418,7 +418,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
 
     if not secretsFile or not sopsFile:
         print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'B-coin -sec' and 'B-coin -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -435,7 +435,7 @@ def runSopsEdit(sops_file_override, secrets_file_override):
 def runChoboloEdit(chobolo_path):
     editor = os.getenv('EDITOR', 'nano')
     if not chobolo_path:
-        CONFIG_DIR = os.path.expanduser("~/.config/charonte")
+        CONFIG_DIR = os.path.expanduser("~/.config/chaos")
         CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
         cfg = OmegaConf.load(CONFIG_FILE_PATH)
         chobolo_path = cfg.get('chobolo_file', None)
@@ -456,7 +456,7 @@ def runChoboloEdit(chobolo_path):
         sys.exit(1)
 
 def handleGenerateTab():
-    subprocess.run(['register-python-argcomplete', 'B-coin'])
+    subprocess.run(['register-python-argcomplete', 'chaos'])
 
 
 def main():
