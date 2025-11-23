@@ -34,22 +34,25 @@ if pluginDevPath:
         print(f"Warning: Ch-aronte plugin path '{absPath}' does not exist.", file=sys.stderr)
 
 def get_plugins(update_cache=False):
-    USER_PLUGIN_DIR = Path(os.path.expanduser("~/.local/share/charonte/plugins"))
+    plugin_dirs = [
+        Path.home() / ".local/share/charonte/plugins",
+        Path("/usr/share/charonte/plugins")
+    ]
 
-    USER_PLUGIN_DIR.mkdir(parents=True, exist_ok=True)
+    for plugin_dir in plugin_dirs:
+        if not plugin_dir.exists():
+            continue
 
-    plugin_path_str = str(USER_PLUGIN_DIR)
-    if plugin_path_str not in sys.path:
-        site.addsitedir(plugin_path_str)
+        wheel_files = list(plugin_dir.glob("*.whl"))
+        for whl in wheel_files:
+            try:
+                whl_path = str(whl.resolve())
 
-    wheel_files = list(USER_PLUGIN_DIR.glob("*.whl"))
-    for whl in wheel_files:
-        try:
-            whl_path = str(whl.resolve())
-            if whl_path not in sys.path:
-                sys.path.insert(0, whl_path)
-        except Exception as e:
-            print(f"Warning: Could not load plugin wheel '{whl}': {e}", file=sys.stderr)
+                if whl_path not in sys.path:
+                    sys.path.insert(0, whl_path) 
+
+            except Exception as e:
+                print(f"Warning: Could not load plugin wheel '{whl}': {e}", file=sys.stderr)
 
     CACHE_DIR = Path(os.path.expanduser("~/.cache/charonte"))
     CACHE_FILE = CACHE_DIR / "plugins.json"
