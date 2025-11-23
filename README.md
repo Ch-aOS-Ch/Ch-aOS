@@ -28,8 +28,8 @@
 ## Getting Started
 
 1. Clone this repo (i'm working on making it pip/aur installable, but for now, this is the only way to get it)
-2. To ./cli/build/b-coin/ and run `makepkg -fcsi` to install the chaos CLI.
-3.(optional) go to ../../Ch-aronte/build/core and run `makepkg -fcsi` to install the Ch-aronte core.
+2. Go to ./cli/build/b-coin/ and run `makepkg -fcsi` to install the chaos CLI.
+3. (optional) go to ../../Ch-aronte/build/core and run `makepkg -fcsi` to install the Ch-aronte core.
 4. (optional) go to ../../external_plugins/chaos-dots and run `makepkg -fcsi` to install the chaos-dots plugin.
 5. Now you can run `chaos -h` to see the help menu and `chaos -r` to check all available roles!
 > [!TIP]
