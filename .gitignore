@@ -32,3 +32,11 @@ src/charonte/roles/aurHelper/tasks/__pycache__
 src/charonte/roles/region/tasks/__pycache__
 src/charonte/roles/services/tasks/__pycache__
 src/charonte/roles/reflector/tasks/__pycache__/reflector.cpython-313.pyc
+ch-aronte-core/src/charonte/roles/aurHelper/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/bootloader/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/pkgs/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/reflector/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/region/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/repos/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/services/tasks/__pycache__
+ch-aronte-core/src/charonte/roles/users/tasks/__pycache__

@@ -1,15 +1,19 @@
 # Maintainer: Dexmachi caiorocoli@gmail.com
-pkgname=chaos-dotfiles
-pkgver=0.1.0
+pkgname=ch-aronte-core
+pkgver=0.0.7.3b
 pkgrel=1
-pkgdesc="Declarative dotfiles manager for Arch Linux."
+pkgdesc="Ch-aOS B-coin core for Ch-aronte"
 arch=('any')
-_gitname="chaos-dots"
-url="https://github.com/Ch-aOS-Ch/chaos-dots"
+_gitname="Ch-aronte"
+_gituser="Ch-aOS-Ch"
+_source_url="https://github.com/${_gituser}/${_gitname}"
+url="git+${_source_url}.git#branch=pyinfra"
+
 license=('MIT')
-depends=('b-coin')
-makedepends=('python' 'python-pip' 'python-setuptools' 'python-wheel' 'uv')
-source=("${_gitname}-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+depends=('python')
+makedepends=('python' 'python-pip' 'python-setuptools' 'python-wheel' 'python-pytest')
+
+source=("${_gitname}-${pkgver}.tar.gz::${_source_url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 package() {
