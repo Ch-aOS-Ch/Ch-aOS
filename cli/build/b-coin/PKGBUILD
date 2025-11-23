@@ -30,7 +30,7 @@ package() {
 
   "$_venv_pip" install pex
 
-  "$_venv_pex" . -c B-coin -o chaos --inherit-path=fallback --venv
+  "$_venv_pex" . -c chaos -o chaos --inherit-path=fallback --venv
 
   install -Dm755 chaos "$pkgdir/usr/bin/chaos"
 
