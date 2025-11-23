@@ -1,5 +1,5 @@
 # Maintainer: Dexmachi caiorocoli@gmail.com
-pkgname=b-coin
+pkgname=ch-aos
 pkgver=0.0.7.3b
 pkgrel=1
 pkgdesc="Declarative system manager for Arch Linux."
@@ -30,9 +30,9 @@ package() {
 
   "$_venv_pip" install pex
 
-  "$_venv_pex" . -c B-coin -o B-coin --inherit-path=fallback --venv
+  "$_venv_pex" . -c B-coin -o chaos --inherit-path=fallback --venv
 
-  install -Dm755 B-coin "$pkgdir/usr/bin/B-coin"
+  install -Dm755 chaos "$pkgdir/usr/bin/chaos"
 
   install -Dm644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
