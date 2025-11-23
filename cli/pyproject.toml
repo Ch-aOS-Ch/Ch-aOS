@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "b-coin"
+name = "chaos"
 version = "0.1.0"
 description = "Declarative OS configuration manager"
 readme = "README.md"
