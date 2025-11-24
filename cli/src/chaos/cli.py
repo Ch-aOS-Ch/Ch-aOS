@@ -62,15 +62,16 @@ def get_plugins(update_cache=False):
         with open(CACHE_FILE, 'r') as f:
             try:
                 cache_data = json.load(f)
-                if 'roles' in cache_data and 'aliases' in cache_data:
-                    return cache_data['roles'], cache_data['aliases']
+                if 'roles' in cache_data and 'aliases' in cache_data and 'explainations' in cache_data:
+                    return cache_data['roles'], cache_data['aliases'], cache_data['explainations']
                 else:
-                    print("Warning: Invalid cache file format. Re-discovering plugins.", file=sys.stderr)
+                    print("Warning: Invalid or outdated cache file format. Re-discovering plugins.", file=sys.stderr)
             except json.JSONDecodeError:
                 print("Warning: Could not read cache file. Re-discovering plugins.", file=sys.stderr)
 
     discovered_roles = {}
     discovered_aliases = {}
+    discovered_explainations = {}
     eps = entry_points()
 
     role_eps = eps.select(group="chaos.roles") if hasattr(eps, "select") else eps.get("chaos.roles", [])
@@ -81,17 +82,21 @@ def get_plugins(update_cache=False):
     for ep in alias_eps:
         discovered_aliases[ep.name] = ep.value
 
+    exp_eps = eps.select(group="chaos.explain") if hasattr(eps, "select") else eps.get("chaos.explain", [])
+    for ep in exp_eps:
+        discovered_explainations[ep.name] = ep.value
+
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, 'w') as f:
-            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases}, f, indent=4)
+            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explainations': discovered_explainations}, f, indent=4)
         if update_cache or not cache_exists:
             print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
     except OSError as e:
         print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
 
 
-    return discovered_roles, discovered_aliases
+    return discovered_roles, discovered_aliases, discovered_explainations
 
 def load_roles(roles_spec):
     loaded_roles = {}
@@ -104,79 +109,53 @@ def load_roles(roles_spec):
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
 
-
-
 class RolesCompleter:
     def __init__(self):
         self._roles = None
         self._aliases = None
+        self.explain = None
 
     def __call__(self, prefix, **kwargs):
-        if self._roles is None or self._aliases is None:
-            self. _roles, self._aliases = get_plugins()
+        if self._roles is None or self._aliases is None or self.explain is None:
+            self. _roles, self._aliases, self.explain = get_plugins()
 
-        all_comps = list(self._roles.keys()) + list(self._aliases.keys())
+        all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 def argParsing():
-    parser = argparse.ArgumentParser(description="chaos system manager.")
-    tags = parser.add_argument('tags', nargs='*', help=f"The tag(s) for the role(s) to be executed.")
-    tags.completer = RolesCompleter()
+    parser = argparse.ArgumentParser(
+        description="chaos system manager.",
+        epilog="Use 'chaos <tags...>' to run roles, or 'chaos explain <topic>' for details."
+    )
+
     parser.add_argument('-e', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-r', '--roles', action='store_true', help="Check which roles are available.")
     parser.add_argument('-a', '--aliases', action='store_true', help="Check which aliases are available.")
-    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations, only leaving sudo calls")
-    parser.add_argument('--dry', '-d', action='store_true', help="Execute in dry mode.")
-    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level. (3 levels allowed)")
-    parser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly. 1=WARNING, 2=INFO, 3=DEBUG.")
-    parser.add_argument(
-    '--secrets-file',
-    '-sf',
-    dest='secrets_file_override',
-    help="Path to the sops-encrypted secrets file (overrides all calls)."
-    ).completer = FilesCompleter()
-    parser.add_argument(
-    '--sops-file',
-    '-ss',
-    dest='sops_file_override',
-    help="Path to the .sops.yaml config file (overrides all calls)."
-    ).completer = FilesCompleter()
-    parser.add_argument(
-    '--set-chobolo', '-chobolo',
-    dest='set_chobolo_file',
-    help="Set and save the default Ch-obolo file path."
-    ).completer = FilesCompleter()
-    parser.add_argument(
-    '--set-sec-file', '-sec',
-    dest='set_secrets_file',
-    help="Set and save the default secrets file path."
-    ).completer = FilesCompleter()
-    parser.add_argument(
-    '--set-sops-file', '-sops',
-    dest='set_sops_file',
-    help="Set and save the default sops config file path."
-    ).completer = FilesCompleter()
-    parser.add_argument(
-        '--check-sec', '-cs',
-        action='store_true',
-        help="Check the secrets encrypted file. Do not run publicly."
-    )
-    parser.add_argument(
-        '--edit-sec', '-es',
-        action='store_true',
-        help="Edit the secrets encrypted file using sops. Do not run publicly."
-    )
-    parser.add_argument(
-        '-ec', '--edit-chobolo',
-        action='store_true',
-        help="Edit the Ch-obolo file using the default editor."
-    )
-    parser.add_argument(
-        '-gt', '--generate-tab',
-        action='store_true',
-        help="Generate shell tab-completion script."
-    )
+    parser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
+    parser.add_argument('--dry', '-d', action='store_true', help="Execute roles in dry mode.")
+    parser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")
+    parser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly.")
+    parser.add_argument('--secrets-file', '-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
+    parser.add_argument('--sops-file', '-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    parser.add_argument('--set-chobolo', '-chobolo', dest='set_chobolo_file', help="Set and save the default Ch-obolo file path.").completer = FilesCompleter()
+    parser.add_argument('--set-sec-file', '-sec', dest='set_secrets_file', help="Set and save the default secrets file path.").completer = FilesCompleter()
+    parser.add_argument('--set-sops-file', '-sops', dest='set_sops_file', help="Set and save the default sops config file path.").completer = FilesCompleter()
+    parser.add_argument('--check-sec', '-cs', action='store_true', help="Check the secrets encrypted file. Do not run publicly.")
+    parser.add_argument('--edit-sec', '-es', action='store_true', help="Edit the secrets encrypted file using sops. Do not run publicly.")
+    parser.add_argument('-ec', '--edit-chobolo', action='store_true', help="Edit the Ch-obolo file using the default editor.")
+    parser.add_argument('-gt', '--generate-tab', action='store_true', help="Generate shell tab-completion script.")
+
+    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
+
+    parser_explain = subparsers.add_parser('explain', help="Explain a role or topic.")
+    parser_explain.add_argument('topic', help="The topic to explain (e.g., 'users', 'users.sudo').")
+    parser_explain.add_argument('--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
+    parser_explain.add_argument('-l', '--list', action='store_true', help="List all available explanation topics.")
+
+    tags = parser.add_argument('tags', nargs='*', help="The tag(s) for the role(s) to be executed.")
+    tags.completer = RolesCompleter()
+
     return parser
 
 def checkRoles(ROLES_DISPATCHER):
@@ -187,6 +166,16 @@ def checkRoles(ROLES_DISPATCHER):
         for p in ROLES_DISPATCHER:
             print(f"  -{p}")
     sys.exit(0)
+
+def checkExplainations(EXPLAINATIONS):
+    print("Discovered Explainations:")
+    if not EXPLAINATIONS:
+        print("No explainations found.")
+    else:
+        for p in EXPLAINATIONS:
+            print(f"  -{p}")
+    sys.exit(0)
+
 
 def checkAliases(ROLE_ALIASES):
     print("Discovered Aliases for Roles:")
@@ -262,6 +251,7 @@ def handleVerbose(args):
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
+    # ----- Ch-obolo Discovery -----
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = {}
@@ -276,6 +266,9 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
         print("ERROR: No Ch-obolo passed", file=sys.stderr)
         print("   Use '-e /path/to/file.yml' or configure a base Ch-obolo with 'chaos --set-chobolo /path/to/file.yml'.", file=sys.stderr)
         sys.exit(1)
+
+    # -----------------------------
+    # ---- Pyinfra Setup ----
 
     hosts = ["@local"]
     inventory = Inventory((hosts, {}))
@@ -292,6 +285,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     connect_all(state)
     host = state.inventory.get_host("@local")
     print("Connection established.")
+
     # -----------------------------------------
 
     # ----- args -----
@@ -302,6 +296,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     )
 
     SEC_HAVING_ROLES={'users','secrets'}
+
     # --- Role orchestration ---
     for tag in args.tags:
         normalized_tag = ROLE_ALIASES.get(tag,tag)
@@ -333,6 +328,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
         run_ops(state)
     else:
         print(f"dry mode active, skipping.")
+
     # --- Disconnection ---
     print("\nDisconnecting...")
     disconnect_all(state)
@@ -458,6 +454,25 @@ def runChoboloEdit(chobolo_path):
 def handleGenerateTab():
     subprocess.run(['register-python-argcomplete', 'chaos'])
 
+def handleExplain(args, EXPLAIN_DISPATCHER):
+    topic = args.topic
+    detailLevel = args.details
+    parts = topic.split('.')
+    role = parts[0]
+    sub_topic = parts[1] if len(parts) > 1 else None
+
+    if role in EXPLAIN_DISPATCHER:
+        explainObj = EXPLAIN_DISPATCHER[role]
+        methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
+
+        if hasattr(explainObj, methodName):
+            method = getattr(explainObj, methodName)
+            explanation = method(detailLevel)
+            print(f"Explanation for topic '{topic}' with detail level {detailLevel}:\n")
+            print(explanation)
+        else:
+            print(f"ERROR: No explanation found for topic '{topic}'.", file=sys.stderr) if not sub_topic else print(f"ERROR: No explanation found for sub-topic '{sub_topic}' in role '{role}'.\nAvailable sub-topics: {[m for m in dir(explainObj) if m.startswith('explain_')]}", file=sys.stderr)
+            sys.exit(1)
 
 def main():
     try:
@@ -467,46 +482,59 @@ def main():
 
         args = parser.parse_args()
 
-        role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)
+        if args:
+            role_specs, ROLE_ALIASES, EXPLAINATIONS = get_plugins(args.update_plugins)
 
-        if args.verbose or args.v > 0:
-            handleVerbose(args)
+            if hasattr(args, 'command') and args.command == 'explain':
+                if args.list:
+                    checkExplainations(EXPLAINATIONS)
+                    sys.exit(0)
 
-        if args.generate_tab:
-            handleGenerateTab()
-            sys.exit(0)
+                if args.topic:
+                    handleExplain(args, EXPLAINATIONS)
+                    sys.exit(0)
 
-        if args.check_sec:
-            runSopsCheck(args.sops_file_override, args.secrets_file_override)
-            sys.exit(0)
+            if args.verbose or args.v > 0:
+                handleVerbose(args)
 
-        if args.edit_sec:
-            runSopsEdit(args.sops_file_override, args.secrets_file_override)
-            sys.exit(0)
+            if args.generate_tab:
+                handleGenerateTab()
+                sys.exit(0)
 
-        if args.edit_chobolo:
-            runChoboloEdit(args.chobolo)
-            sys.exit(0)
+            if args.check_sec:
+                runSopsCheck(args.sops_file_override, args.secrets_file_override)
+                sys.exit(0)
 
-        if args.aliases:
-            checkAliases(ROLE_ALIASES)
+            if args.edit_sec:
+                runSopsEdit(args.sops_file_override, args.secrets_file_override)
+                sys.exit(0)
 
-        if args.roles:
-            checkRoles(role_specs)
+            if args.edit_chobolo:
+                runChoboloEdit(args.chobolo)
+                sys.exit(0)
 
-        is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
-        if is_setter_mode:
-            setMode(args)
-            sys.exit(0)
+            if args.aliases:
+                checkAliases(ROLE_ALIASES)
 
-        if not args.tags:
-            print('No tags passed.')
-            sys.exit(0)
+            if args.roles:
+                checkRoles(role_specs)
 
-        ROLES_DISPATCHER = load_roles(role_specs)
-        ikwid = args.i_know_what_im_doing
-        dry = args.dry
-        handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+            is_setter_mode = any([args.set_chobolo_file, args.set_secrets_file, args.set_sops_file])
+            if is_setter_mode:
+                setMode(args)
+                sys.exit(0)
+
+            if not args.tags:
+                print('No tags passed.')
+                sys.exit(0)
+
+            ROLES_DISPATCHER = load_roles(role_specs)
+            ikwid = args.i_know_what_im_doing
+            dry = args.dry
+            handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+        else:
+            print("No arguments passed.")
+            parser.parse_args(['-h'])
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
         sys.exit(1)
