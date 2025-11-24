@@ -466,8 +466,8 @@ def handleGenerateTab():
 def handleExplain(args, EXPLAIN_DISPATCHER):
     console = Console()
     DETAIL_LEVELS = {
-        'basic': ['concept', 'what', 'why', 'examples'],
-        'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples'],
+        'basic': ['concept', 'what', 'why', 'examples', 'security'],
+        'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples', 'security'],
         'advanced': ['concept', 'what', 'why', 'how', 'technical', 'commands', 'files', 'security', 'equivalent', 'examples', 'validation', 'learn_more']
     }
 
@@ -526,7 +526,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
 
                 if 'validation' in keysToShow and explanation.get('validation'):
                     explanation_renderables.append(Markdown(f"**Validation:**"))
-                    explanation_renderables.append(Padding.indent(Markdown(explanation['validation']), 5))
+                    explanation_renderables.append(Padding.indent(Syntax(explanation['validation'], "bash", line_numbers=True), 5))
                     explanation_renderables.append(Text("\n"))
 
                 examples = explanation.get('examples', [])
