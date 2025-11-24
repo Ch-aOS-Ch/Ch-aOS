@@ -5,6 +5,7 @@ import getpass
 import os
 import sys
 import subprocess
+
 import argcomplete
 import json
 import site
@@ -283,7 +284,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     ctx_state.set(state)
 
     console.print("[bold magenta]Sudo password:[/bold magenta] ")
-    config.SUDO_PASSWORD = getpass.getpass()
+    config.SUDO_PASSWORD = getpass.getpass("")
 
     skip = ikwid
 
@@ -525,9 +526,10 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(Markdown("**Examples:**"))
                     for ex in examples:
                         if 'yaml' in ex:
-                            explanation_renderables.append(Syntax(ex['yaml'], "yaml", theme="monokai", line_numbers=True))
+                            explanation_renderables.append(Syntax(ex['yaml'], "yaml", line_numbers=True))
                         if 'equivalent' in ex:
-                             explanation_renderables.append(Text.from_markup(f"[italic]This is equivalent to:[/] [cyan]{ex['equivalent']}[/cyan]"))
+                            explanation_renderables.append(Text.from_markup(f"[italic]This is equivalent to:[/] [cyan][/cyan]"))
+                            explanation_renderables.append(Syntax(ex['equivalent'], "bash", line_numbers=True))
                     explanation_renderables.append(Text("\n"))
 
 
@@ -559,7 +561,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                         border_style="green",
                         expand=True,
                         width=80 if len(explanation_renderables) > 1 else None,
-                    )
+                    ),
                 )
 
             else:
