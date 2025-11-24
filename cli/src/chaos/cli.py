@@ -13,6 +13,12 @@ import glob
 from importlib import import_module
 from argcomplete.completers import FilesCompleter
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+from rich.syntax import Syntax
+from rich.tree import Tree
+
 from omegaconf import OmegaConf
 from pathlib import Path
 
@@ -149,7 +155,7 @@ def argParsing():
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     parser_explain = subparsers.add_parser('explain', help="Explain a role or topic.")
-    parser_explain.add_argument('topic', help="The topic to explain (e.g., 'users', 'users.sudo').")
+    parser_explain.add_argument('topic', nargs="*", help="The topic to explain (e.g., 'users', 'users.sudo').")
     parser_explain.add_argument('--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
     parser_explain.add_argument('-l', '--list', action='store_true', help="List all available explanation topics.")
 
@@ -455,24 +461,84 @@ def handleGenerateTab():
     subprocess.run(['register-python-argcomplete', 'chaos'])
 
 def handleExplain(args, EXPLAIN_DISPATCHER):
-    topic = args.topic
-    detailLevel = args.details
-    parts = topic.split('.')
-    role = parts[0]
-    sub_topic = parts[1] if len(parts) > 1 else None
+    DETAIL_LEVELS = {
+        'basic': ['what', 'why', 'examples'],
+        'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples'],
+        'advanced': ['concept', 'what', 'why', 'how', 'commands', 'files', 'security', 'equivalent', 'examples', 'validation', 'learn_more']
+    }
+    
+    topics = args.topic
+    if not isinstance(topics, list):
+        topics = [topics]
 
-    if role in EXPLAIN_DISPATCHER:
-        explainObj = EXPLAIN_DISPATCHER[role]
-        methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
+    for topic in topics:
+        keysToShow = DETAIL_LEVELS.get(args.details, DETAIL_LEVELS['basic'])
+        parts = topic.split('.')
+        role = parts[0]
+        sub_topic = parts[1] if len(parts) > 1 else None
 
-        if hasattr(explainObj, methodName):
-            method = getattr(explainObj, methodName)
-            explanation = method(detailLevel)
-            print(f"Explanation for topic '{topic}' with detail level {detailLevel}:\n")
-            print(explanation)
+        if role in EXPLAIN_DISPATCHER:
+            try:
+                module_name, class_name = EXPLAIN_DISPATCHER[role].split(':')
+                module = import_module(module_name)
+                ExplainClass = getattr(module, class_name)
+                explainObj = ExplainClass()
+            except (ImportError, AttributeError, ValueError) as e:
+                print(f"ERROR: Could not load explanation class for role '{role}': {e}", file=sys.stderr)
+                continue
+
+            methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
+
+            if hasattr(explainObj, methodName):
+                method = getattr(explainObj, methodName)
+                explanation = method()
+                print(f"--- Explanation for topic '{topic}' (Detail: {args.details}) ---")
+                if 'what' in keysToShow:
+                    print(f"\nWhat is it: {explanation.get('what')}") if explanation.get('what') else None
+                if 'why' in keysToShow:
+                    print(f"\nWhy use it: {explanation.get('why')}") if explanation.get('why') else None
+                if 'equivalent' in keysToShow:
+                    if explanation.get('commands'):
+                        print(f"\nEquivalent command (Linux):")
+                        for command in explanation.get('commands', []):
+                            print(f"  - {command}")
+                if 'files' in keysToShow:
+                    files = explanation.get('files', [])
+                    if files:
+                        print("\nRelevant files:")
+                        for f in files:
+                            print(f"  - {f}")
+                if 'examples' in keysToShow:
+                    examples = explanation.get('examples', [])
+                    if examples:
+                        print("\nExamples:")
+                        for ex in examples:
+                            print(ex.get('yaml', 'N/A'))
+                            print(f"This is equivalent to: {ex.get('equivalent')}") if ex.get('equivalent') else None
+                if 'security' in keysToShow:
+                    security = explanation.get('security', None)
+                    if security:
+                        print(f"\nSecurity considerations: {security}")
+                if 'how' in keysToShow:
+                    print(f"\nHow it works: {explanation.get('how')}") if explanation.get('how') else None
+                if 'validation' in keysToShow:
+                    validation = explanation.get('validation', None)
+                    if validation:
+                        print(f"\nValidation: {validation}")
+                if 'learn_more' in keysToShow:
+                    learn_more = explanation.get('learn_more', [])
+                    if learn_more:
+                        print("\nLearn more:")
+                        for item in learn_more:
+                            print(f"  - {item}")
+                print("-" * (50 + len(topic) + len(args.details)))
+            else:
+                available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
+                print(f"ERROR: No explanation found for sub-topic '{sub_topic}' in role '{role}'.", file=sys.stderr)
+                if available_methods:
+                    print(f"Available sub-topics for '{role}': {available_methods}", file=sys.stderr)
         else:
-            print(f"ERROR: No explanation found for topic '{topic}'.", file=sys.stderr) if not sub_topic else print(f"ERROR: No explanation found for sub-topic '{sub_topic}' in role '{role}'.\nAvailable sub-topics: {[m for m in dir(explainObj) if m.startswith('explain_')]}", file=sys.stderr)
-            sys.exit(1)
+            print(f"ERROR: No explanation found for topic '{topic}'.", file=sys.stderr)
 
 def main():
     try:
