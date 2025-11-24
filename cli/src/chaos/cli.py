@@ -16,6 +16,7 @@ from argcomplete.completers import FilesCompleter
 
 from rich.console import Console, Group
 from rich.align import Align
+from rich.padding import Padding
 from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.syntax import Syntax
@@ -503,47 +504,47 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(Text("\n"))
 
                 if 'what' in keysToShow and explanation.get('what'):
-                    explanation_renderables.append(Markdown(f"## **What does it do?**"))
-                    explanation_renderables.append(Markdown(explanation['what'], justify="center"))
+                    explanation_renderables.append(Markdown(f"**What does it do?**"))
+                    explanation_renderables.append(Padding.indent(Markdown(explanation['what'],), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'technical' in keysToShow and explanation.get('technical'):
-                    explanation_renderables.append(Markdown(f"## **Technical details:**"))
-                    explanation_renderables.append(Markdown(explanation['technical'], justify="center"))
+                    explanation_renderables.append(Markdown(f"**Technical details:**"))
+                    explanation_renderables.append(Padding.indent(Markdown(explanation['technical']), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'why' in keysToShow and explanation.get('why'):
-                    explanation_renderables.append(Markdown(f"## **Why use it:**"))
-                    explanation_renderables.append(Markdown(explanation['why'], justify="center"))
+                    explanation_renderables.append(Markdown(f"**Why use it:**"))
+                    explanation_renderables.append(Padding.indent(Markdown(explanation['why']), 5))
                     explanation_renderables.append(Text("\n"))
 
 
                 if 'how' in keysToShow and explanation.get('how'):
-                    explanation_renderables.append(Markdown(f"## **How it works:**"))
-                    explanation_renderables.append(Markdown(explanation['how'], justify="center"))
+                    explanation_renderables.append(Markdown(f"**How it works:**"))
+                    explanation_renderables.append(Padding.indent(Markdown(explanation['how']), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'validation' in keysToShow and explanation.get('validation'):
-                    explanation_renderables.append(Markdown(f"## **Validation:**"))
-                    explanation_renderables.append(Markdown(explanation['validation'], justify="center"))
+                    explanation_renderables.append(Markdown(f"**Validation:**"))
+                    explanation_renderables.append(Padding.indent(Markdown(explanation['validation']), 5))
                     explanation_renderables.append(Text("\n"))
 
                 examples = explanation.get('examples', [])
                 if 'examples' in keysToShow and len(examples) > 0:
-                    explanation_renderables.append(Markdown("## **Examples:**"))
+                    explanation_renderables.append(Markdown("**Examples:**"))
                     for ex in examples:
                         if 'yaml' in ex:
-                            explanation_renderables.append(Align.center(Syntax(ex['yaml'], "yaml", line_numbers=True)))
+                            explanation_renderables.append(Padding.indent(Syntax(ex['yaml'], "yaml", line_numbers=True), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'equivalent' in keysToShow and explanation.get('equivalent'):
-                    explanation_renderables.append(Markdown("## **Equivalent script:**"))
+                    explanation_renderables.append(Markdown("**Equivalent script:**"))
                     equivalent = explanation['equivalent']
                     if isinstance(equivalent, list):
                         for cmd in equivalent:
-                            explanation_renderables.append(Align.center(Syntax(cmd, "bash", line_numbers=True)))
+                            explanation_renderables.append(Padding.indent(Syntax(cmd, "bash", line_numbers=True), 5))
                     else:
-                        explanation_renderables.append(Align.center(Syntax(equivalent, "bash", line_numbers=True)))
+                        explanation_renderables.append(Padding.indent(Syntax(equivalent, "bash", line_numbers=True), 5))
                     explanation_renderables.append(Text("\n"))
 
                 files = explanation.get('files', [])
@@ -551,7 +552,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     tree = Tree("[bold]Related files[/]", )
                     for f in files:
                         tree.add(f"[green]{f}[/green]")
-                    explanation_renderables.append(Align.center(tree))
+                    explanation_renderables.append(tree)
                     explanation_renderables.append(Text("\n"))
 
                 commands = explanation.get('commands', [])
@@ -559,7 +560,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     tree = Tree("[bold]Related Commands:[/]")
                     for command in commands:
                         tree.add(f"[cyan]{command}[/cyan]")
-                    explanation_renderables.append(Align.center(tree))
+                    explanation_renderables.append(tree)
                     explanation_renderables.append(Text("\n"))
                 learn_more = explanation.get('learn_more', [])
 
@@ -567,7 +568,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     tree = Tree("[bold]Learn more[/]")
                     for item in learn_more:
                         tree.add(f"[blue]{item}[/blue]")
-                    explanation_renderables.append(Align.center(tree))
+                    explanation_renderables.append(tree)
                     explanation_renderables.append(Text("\n"))
 
                 if 'security' in keysToShow and explanation.get('security'):
