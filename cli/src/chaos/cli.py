@@ -13,11 +13,13 @@ import glob
 from importlib import import_module
 from argcomplete.completers import FilesCompleter
 
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.tree import Tree
+from rich.text import Text
+import io
 
 from omegaconf import OmegaConf
 from pathlib import Path
@@ -151,14 +153,9 @@ def argParsing():
     parser.add_argument('--edit-sec', '-es', action='store_true', help="Edit the secrets encrypted file using sops. Do not run publicly.")
     parser.add_argument('-ec', '--edit-chobolo', action='store_true', help="Edit the Ch-obolo file using the default editor.")
     parser.add_argument('-gt', '--generate-tab', action='store_true', help="Generate shell tab-completion script.")
-
-    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
-
-    parser_explain = subparsers.add_parser('explain', help="Explain a role or topic.")
-    parser_explain.add_argument('topic', nargs="*", help="The topic to explain (e.g., 'users', 'users.sudo').")
-    parser_explain.add_argument('--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
-    parser_explain.add_argument('-l', '--list', action='store_true', help="List all available explanation topics.")
-
+    parser.add_argument('-ex', '--explain', nargs='+', help="Explain a role or topic (e.g., 'users', 'users.sudo').")
+    parser.add_argument('-le', '--list-explainations', action='store_true', help="List all available explanation topics.")
+    parser.add_argument('--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
     tags = parser.add_argument('tags', nargs='*', help="The tag(s) for the role(s) to be executed.")
     tags.completer = RolesCompleter()
 
@@ -257,6 +254,8 @@ def handleVerbose(args):
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
+    console = Console() # Initialize console
+
     # ----- Ch-obolo Discovery -----
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
@@ -269,8 +268,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     sops_file_override = args.sops_file_override or global_config.get('sops_file')
 
     if not chobolo_path:
-        print("ERROR: No Ch-obolo passed", file=sys.stderr)
-        print("   Use '-e /path/to/file.yml' or configure a base Ch-obolo with 'chaos --set-chobolo /path/to/file.yml'.", file=sys.stderr)
+        console.print("[bold red]ERROR:[/] No Ch-obolo passed", file=sys.stderr)
+        console.print("   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos --set-chobolo /path/to/file.yml[/cyan]'.", file=sys.stderr)
         sys.exit(1)
 
     # -----------------------------
@@ -283,14 +282,15 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     state.current_stage = StateStage.Prepare
     ctx_state.set(state)
 
-    config.SUDO_PASSWORD = getpass.getpass("Sudo password: ")
+    console.print("[bold magenta]Sudo password:[/bold magenta] ")
+    config.SUDO_PASSWORD = getpass.getpass()
 
     skip = ikwid
 
-    print("Connecting to localhost...")
+    console.print("Connecting to localhost...")
     connect_all(state)
     host = state.inventory.get_host("@local")
-    print("Connection established.")
+    console.print("[bold green]Connection established.[/bold green]")
 
     # -----------------------------------------
 
@@ -322,23 +322,23 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
                     pkgArgs = commonArgs + (mode,)
                     ROLES_DISPATCHER[normalized_tag](*pkgArgs)
                 else:
-                    print(f"\nWARNING: Could not determine a mode for tag '{tag}'. Skipping.")
-
+                    console.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.", file=sys.stderr)
             else:
                 ROLES_DISPATCHER[normalized_tag](*commonArgs)
-            print(f"\n--- '{normalized_tag}' role finalized. ---")
+
+            console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized. ---\n")
         else:
-            print(f"\nWARNING: Unknown tag '{normalized_tag}'. Skipping.")
+            console.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.", file=sys.stderr)
 
     if not dry:
         run_ops(state)
     else:
-        print(f"dry mode active, skipping.")
+        console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
 
     # --- Disconnection ---
-    print("\nDisconnecting...")
+    console.print("\nDisconnecting...")
     disconnect_all(state)
-    print("Finalized.")
+    console.print("[bold green]Finalized.[/bold green]")
 
 def runSopsCheck(sops_file_override, secrets_file_override):
     secretsFile = secrets_file_override
@@ -461,13 +461,14 @@ def handleGenerateTab():
     subprocess.run(['register-python-argcomplete', 'chaos'])
 
 def handleExplain(args, EXPLAIN_DISPATCHER):
+    console = Console()
     DETAIL_LEVELS = {
         'basic': ['what', 'why', 'examples'],
         'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples'],
         'advanced': ['concept', 'what', 'why', 'how', 'commands', 'files', 'security', 'equivalent', 'examples', 'validation', 'learn_more']
     }
-    
-    topics = args.topic
+
+    topics = args.explain
     if not isinstance(topics, list):
         topics = [topics]
 
@@ -484,7 +485,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                 ExplainClass = getattr(module, class_name)
                 explainObj = ExplainClass()
             except (ImportError, AttributeError, ValueError) as e:
-                print(f"ERROR: Could not load explanation class for role '{role}': {e}", file=sys.stderr)
+                console.print(f"[bold red]ERROR:[/] Could not load explanation class for role '{role}': {e}")
                 continue
 
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
@@ -492,53 +493,82 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             if hasattr(explainObj, methodName):
                 method = getattr(explainObj, methodName)
                 explanation = method()
-                print(f"--- Explanation for topic '{topic}' (Detail: {args.details}) ---")
-                if 'what' in keysToShow:
-                    print(f"\nWhat is it: {explanation.get('what')}") if explanation.get('what') else None
-                if 'why' in keysToShow:
-                    print(f"\nWhy use it: {explanation.get('why')}") if explanation.get('why') else None
-                if 'equivalent' in keysToShow:
-                    if explanation.get('commands'):
-                        print(f"\nEquivalent command (Linux):")
-                        for command in explanation.get('commands', []):
-                            print(f"  - {command}")
-                if 'files' in keysToShow:
-                    files = explanation.get('files', [])
-                    if files:
-                        print("\nRelevant files:")
-                        for f in files:
-                            print(f"  - {f}")
-                if 'examples' in keysToShow:
-                    examples = explanation.get('examples', [])
-                    if examples:
-                        print("\nExamples:")
-                        for ex in examples:
-                            print(ex.get('yaml', 'N/A'))
-                            print(f"This is equivalent to: {ex.get('equivalent')}") if ex.get('equivalent') else None
-                if 'security' in keysToShow:
-                    security = explanation.get('security', None)
-                    if security:
-                        print(f"\nSecurity considerations: {security}")
-                if 'how' in keysToShow:
-                    print(f"\nHow it works: {explanation.get('how')}") if explanation.get('how') else None
-                if 'validation' in keysToShow:
-                    validation = explanation.get('validation', None)
-                    if validation:
-                        print(f"\nValidation: {validation}")
-                if 'learn_more' in keysToShow:
-                    learn_more = explanation.get('learn_more', [])
-                    if learn_more:
-                        print("\nLearn more:")
-                        for item in learn_more:
-                            print(f"  - {item}")
-                print("-" * (50 + len(topic) + len(args.details)))
+
+                explanation_renderables = []
+
+                if 'what' in keysToShow and explanation.get('what'):
+                    explanation_renderables.append(Markdown(f"**What is it:** {explanation['what']}"))
+                    explanation_renderables.append(Text("\n"))
+
+                if 'why' in keysToShow and explanation.get('why'):
+                    explanation_renderables.append(Markdown(f"**Why use it:** {explanation['why']}"))
+                    explanation_renderables.append(Text("\n"))
+
+                commands = explanation.get('commands', [])
+                if 'equivalent' in keysToShow and commands:
+                    tree = Tree("[bold]Equivalent command (Linux)[/]")
+                    for command in commands:
+                        tree.add(f"[cyan]{command}[/cyan]")
+                    explanation_renderables.append(tree)
+                    explanation_renderables.append(Text("\n"))
+
+                files = explanation.get('files', [])
+                if 'files' in keysToShow and files:
+                    tree = Tree("[bold]Relevant files[/]")
+                    for f in files:
+                        tree.add(f"[green]{f}[/green]")
+                    explanation_renderables.append(tree)
+                    explanation_renderables.append(Text("\n"))
+
+                examples = explanation.get('examples', [])
+                if 'examples' in keysToShow and examples:
+                    explanation_renderables.append(Markdown("**Examples:**"))
+                    for ex in examples:
+                        if 'yaml' in ex:
+                            explanation_renderables.append(Syntax(ex['yaml'], "yaml", theme="monokai", line_numbers=True))
+                        if 'equivalent' in ex:
+                             explanation_renderables.append(Text.from_markup(f"[italic]This is equivalent to:[/] [cyan]{ex['equivalent']}[/cyan]"))
+                    explanation_renderables.append(Text("\n"))
+
+
+
+                if 'how' in keysToShow and explanation.get('how'):
+                    explanation_renderables.append(Markdown(f"**How it works:** {explanation['how']}"))
+                    explanation_renderables.append(Text("\n"))
+
+                if 'validation' in keysToShow and explanation.get('validation'):
+                     explanation_renderables.append(Markdown(f"**Validation:** {explanation['validation']}"))
+                     explanation_renderables.append(Text("\n"))
+
+                learn_more = explanation.get('learn_more', [])
+                if 'learn_more' in keysToShow and learn_more:
+                    tree = Tree("[bold]Learn more[/]")
+                    for item in learn_more:
+                        tree.add(f"[blue]{item}[/blue]")
+                    explanation_renderables.append(tree)
+                    explanation_renderables.append(Text("\n"))
+
+                if 'security' in keysToShow and explanation.get('security'):
+                    explanation_renderables.append(Panel(explanation['security'], title="[bold yellow]Security considerations[/]", border_style="yellow", expand=False))
+                    explanation_renderables.append(Text("\n"))
+
+                console.print(
+                    Panel(
+                        Group(*explanation_renderables),
+                        title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{args.details}[/])",
+                        border_style="green",
+                        expand=True,
+                        width=80 if len(explanation_renderables) > 1 else None,
+                    )
+                )
+
             else:
                 available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
-                print(f"ERROR: No explanation found for sub-topic '{sub_topic}' in role '{role}'.", file=sys.stderr)
+                console.print(f"[bold red]ERROR:[/] No explanation found for sub-topic '{sub_topic}' in role '{role}'.")
                 if available_methods:
-                    print(f"Available sub-topics for '{role}': {available_methods}", file=sys.stderr)
+                    console.print(f"Available sub-topics for '{role}': [yellow]{available_methods}[/yellow]")
         else:
-            print(f"ERROR: No explanation found for topic '{topic}'.", file=sys.stderr)
+            console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
 
 def main():
     try:
@@ -551,14 +581,13 @@ def main():
         if args:
             role_specs, ROLE_ALIASES, EXPLAINATIONS = get_plugins(args.update_plugins)
 
-            if hasattr(args, 'command') and args.command == 'explain':
-                if args.list:
-                    checkExplainations(EXPLAINATIONS)
-                    sys.exit(0)
-
-                if args.topic:
-                    handleExplain(args, EXPLAINATIONS)
-                    sys.exit(0)
+            if args.list_explainations:
+                checkExplainations(EXPLAINATIONS)
+                sys.exit(0)
+            
+            if args.explain:
+                handleExplain(args, EXPLAINATIONS)
+                sys.exit(0)
 
             if args.verbose or args.v > 0:
                 handleVerbose(args)

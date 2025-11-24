@@ -13,6 +13,7 @@ dependencies = [
     "omegaconf",
     "passlib>=1.7.4",
     "argcomplete",
+    "rich>=13.7.1",
 ]
 
 [project.scripts]
