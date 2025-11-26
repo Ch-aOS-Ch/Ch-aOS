@@ -284,7 +284,7 @@ def setMode(args):
             global_config.chobolo_file = str(absolutePath)
             print(f"- Default Ch-obolo set to: {args.chobolo_file}")
         except FileNotFoundError:
-            print(f"ERRO: Arquivo não encontrado em: {inputPath}", file=sys.stderr)
+            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
             sys.exit(1)
     if hasattr(args, "secrets_file") and args.secrets_file:
         inputPath = Path(args.secrets_file)
@@ -293,7 +293,7 @@ def setMode(args):
             global_config.secrets_file = str(absolutePath)
             print(f"- Default secrets file set to: {args.secrets_file}")
         except FileNotFoundError:
-            print(f"ERRO: Arquivo não encontrado em: {inputPath}", file=sys.stderr)
+            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
             sys.exit(1)
     if hasattr(args, "sops_file") and args.sops_file:
         inputPath = Path(args.sops_file)
@@ -302,7 +302,7 @@ def setMode(args):
             global_config.sops_file = str(absolutePath)
             print(f"- Default sops file set to: {args.sops_file}")
         except FileNotFoundError:
-            print(f"ERRO: Arquivo não encontrado em: {inputPath}", file=sys.stderr)
+            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
             sys.exit(1)
 
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
