@@ -159,7 +159,6 @@ def argParsing():
     parser.add_argument('-le', '--list-explainations', action='store_true', help="List all available explanation topics.")
     parser.add_argument('--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
     tags = parser.add_argument('tags', nargs='*', help="The tag(s) for the role(s) to be executed.")
-    tags.completer = RolesCompleter()
 
     return parser
 
