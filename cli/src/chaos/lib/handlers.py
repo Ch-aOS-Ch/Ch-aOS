@@ -1,4 +1,4 @@
-from rich.console import Console, Group
+from rich.console import Console, Group, JustifyMethod
 from rich.align import Align
 from rich.padding import Padding
 from rich.panel import Panel
@@ -6,6 +6,7 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.tree import Tree
 from rich.text import Text
+from rich.table import Table
 
 from importlib import import_module
 
@@ -162,9 +163,20 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
 
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 
+            if (sub_topic == 'list'):
+                available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
+                available_methods = set(available_methods) - {role}
+                table = Table(show_lines=True, )
+                table.add_column(f"[bold green][italic]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:", justify="center")
+                for m in available_methods:
+                    table.add_row(f"[cyan]{m}[/]")
+                console.print(Panel(table, border_style="green", expand=False))
+                sys.exit(0)
+
             if hasattr(explainObj, methodName):
                 method = getattr(explainObj, methodName)
                 explanation = method()
+
 
                 explanation_renderables = []
 
@@ -257,10 +269,13 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                 )
 
             else:
-                available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
-                console.print(f"[bold red]ERROR:[/] No explanation found for sub-topic '{sub_topic}' in role '{role}'.")
-                if available_methods:
-                    console.print(f"Available sub-topics for '{role}': [yellow]{available_methods}[/yellow]")
+                if (sub_topic != 'list'):
+                    available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
+                    console.print(f"[bold red]ERROR:[/] No explanation found for sub-topic '{sub_topic}' in role '{role}'.")
+                    if available_methods:
+                        console.print(f"Available sub-topics for '{role}': [yellow]{available_methods}[/yellow]")
+                    else:
+                        console.print(f"[bold red]ERROR:[/] Poorly configured explanation module. \n(if you're a dev, make sure your module has a class with functions that simply return a dict with your needed explanations.)")
         else:
             console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
 
