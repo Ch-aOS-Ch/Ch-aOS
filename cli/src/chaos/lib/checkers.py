@@ -55,10 +55,8 @@ def printCheck(namespace, dispatcher):
 def checkRoles(ROLES_DISPATCHER, **kwargs):
     printCheck("role", ROLES_DISPATCHER)
 
-
-def checkExplainations(EXPLAINATIONS, **kwargs):
-    printCheck("explanation", EXPLAINATIONS)
-
+def checkExplanations(EXPLANATIONS, **kwargs):
+    printCheck("explanation", EXPLANATIONS)
 
 def checkAliases(ROLE_ALIASES, **kwargs):
     printCheck("alias", ROLE_ALIASES)

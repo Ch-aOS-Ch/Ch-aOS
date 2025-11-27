@@ -5,7 +5,7 @@ import argcomplete
 
 from chaos.lib.plugDiscovery import get_plugins, load_roles
 from chaos.lib.args import handleGenerateTab, argParsing
-from chaos.lib.checkers import checkAliases, checkExplainations, checkRoles
+from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
 from chaos.lib.handlers import setMode, handleVerbose, handleExplain, handleOrchestration
 from chaos.lib.tinyScript import runChoboloEdit, runSopsCheck, runSopsEdit
 
@@ -18,11 +18,11 @@ def main():
         argcomplete.autocomplete(parser)
 
         args = parser.parse_args()
-        role_specs, ROLE_ALIASES, EXPLAINATIONS = get_plugins(args.update_plugins)
+        role_specs, ROLE_ALIASES, EXPLANATIONS = get_plugins(args.update_plugins)
 
         if hasattr(args, 'command') and args.command == 'explain':
             if args.topics:
-                handleExplain(args, EXPLAINATIONS)
+                handleExplain(args, EXPLANATIONS)
             else:
                 print("No explanation passed.")
 
@@ -49,7 +49,7 @@ def main():
                 checkRoles(role_specs)
 
             if explain_checks.intersection(user_checks):
-                checkExplainations(EXPLAINATIONS)
+                checkExplanations(EXPLANATIONS)
 
             if sec_checks.intersection(user_checks):
                 runSopsCheck(args.sops_file_override, args.secrets_file_override)
