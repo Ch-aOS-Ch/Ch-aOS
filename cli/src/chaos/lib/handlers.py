@@ -1,4 +1,4 @@
-from rich.console import Console, Group, JustifyMethod
+from rich.console import Console, Group
 from rich.align import Align
 from rich.padding import Padding
 from rich.panel import Panel
@@ -166,7 +166,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             if (sub_topic == 'list'):
                 available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
                 available_methods = set(available_methods) - {role}
-                table = Table(show_lines=True, )
+                table = Table(show_lines=True)
                 table.add_column(f"[bold green][italic]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:", justify="center")
                 for m in available_methods:
                     table.add_row(f"[cyan]{m}[/]")
