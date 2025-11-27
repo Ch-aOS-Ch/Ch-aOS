@@ -1,4 +1,4 @@
-from rich.console import Console, Group
+from rich.console import Console, Group, JustifyMethod
 from rich.align import Align
 from rich.padding import Padding
 from rich.panel import Panel
@@ -164,13 +164,17 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 
             if (sub_topic == 'list'):
-                available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
-                available_methods = set(available_methods) - {role}
-                table = Table(show_lines=True)
-                table.add_column(f"[bold green][italic]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:", justify="center")
+                manualOrder = getattr(explainObj, '_order', [])
+                if manualOrder:
+                    available_methods = manualOrder
+                else:
+                    available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
+                    available_methods = set(available_methods) - {role}
+                table = Table(show_lines=True, width=40)
+                table.add_column(f"{role}", justify="center")
                 for m in available_methods:
                     table.add_row(f"[cyan]{m}[/]")
-                console.print(Panel(table, border_style="green", expand=False))
+                console.print(Panel(table, border_style="green", expand=False, title=f"[bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta]:"))
                 sys.exit(0)
 
             if hasattr(explainObj, methodName):
