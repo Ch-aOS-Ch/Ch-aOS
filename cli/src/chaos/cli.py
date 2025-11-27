@@ -9,6 +9,8 @@ from chaos.lib.checkers import checkAliases, checkExplainations, checkRoles
 from chaos.lib.handlers import setMode, handleVerbose, handleExplain, handleOrchestration
 from chaos.lib.tinyScript import runChoboloEdit, runSopsCheck, runSopsEdit
 
+from pyinfra.api import exceptions
+
 def main():
     try:
         parser = argParsing()
@@ -79,6 +81,8 @@ def main():
             runChoboloEdit(args.chobolo)
             sys.exit(0)
 
+    except exceptions.PyinfraError as e:
+        print(f"Unexpected pyinfra error: {e}")
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
         sys.exit(1)
