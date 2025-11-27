@@ -34,6 +34,8 @@ def main():
                 handleVerbose(args)
             if args.tags:
                 handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+            else:
+                print("No tags passed.")
 
         if hasattr(args, 'command') and args.command == 'check':
             user_checks = set(args.checks)
