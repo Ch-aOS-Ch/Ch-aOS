@@ -13,12 +13,12 @@ def printCheck(namespace, dispatcher):
         return
 
     if namespace == 'alias':
-        table = Table(show_lines=True, title=f"[green][italic]Available [/][bold blue]{namespace}es[/][/]:", expand=False)
+        table = Table(show_lines=True)
         table.add_column("[green]Alias[/]", justify="center")
         table.add_column("[green]Maps to[/]", justify="center")
         for p, r in dispatcher.items():
             table.add_row(f"[cyan]{p}[/]", f"[cyan]{r}[/]")
-        console.print(Panel(table, border_style="green", expand=False))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[green][italic]Available [/][bold blue]{namespace}es[/][/]:"))
         return
 
     items = sorted(list(dispatcher))
@@ -27,15 +27,14 @@ def printCheck(namespace, dispatcher):
 
     if num_items < 5:
         table = Table(show_lines=True)
-        table.add_column(f"[green]Available {namespace}s:[/]", justify="center")
+        table.add_column()
         for item in items:
             table.add_row(f"[cyan]{item}[/]")
-        console.print(Panel(table, border_style="green", expand=False))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[green]Available {namespace}s:[/]"))
     else:
         num_columns = math.ceil(num_items / max_rows)
         table = Table(
             show_lines=True,
-            title=f"[green][italic]Available [/][bold blue]{namespace}s[/][/]:",
             expand=False,
             show_header=False
         )
@@ -50,7 +49,7 @@ def printCheck(namespace, dispatcher):
             styled_row = [f"[cyan]{item}[/]" if item else "" for item in row_data]
             table.add_row(*styled_row)
 
-        console.print(Panel(table, border_style="green", expand=False))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[green][italic]Available [/][bold blue]{namespace}s[/][/]:"))
 
 
 def checkRoles(ROLES_DISPATCHER, **kwargs):
