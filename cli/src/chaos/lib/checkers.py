@@ -18,7 +18,7 @@ def printCheck(namespace, dispatcher):
         table.add_column("[green]Maps to[/]", justify="center")
         for p, r in dispatcher.items():
             table.add_row(f"[cyan]{p}[/]", f"[cyan]{r}[/]")
-        console.print(Panel(table, border_style="green", expand=False, title=f"[green][italic]Available [/][bold blue]{namespace}es[/][/]:"))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:"))
         return
 
     items = sorted(list(dispatcher))
@@ -30,7 +30,7 @@ def printCheck(namespace, dispatcher):
         table.add_column()
         for item in items:
             table.add_row(f"[cyan]{item}[/]")
-        console.print(Panel(table, border_style="green", expand=False, title=f"[green]Available {namespace}s:[/]"))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}s:[/][/]"))
     else:
         num_columns = math.ceil(num_items / max_rows)
         table = Table(
@@ -49,7 +49,7 @@ def printCheck(namespace, dispatcher):
             styled_row = [f"[cyan]{item}[/]" if item else "" for item in row_data]
             table.add_row(*styled_row)
 
-        console.print(Panel(table, border_style="green", expand=False, title=f"[green][italic]Available [/][bold blue]{namespace}s[/][/]:"))
+        console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}s[/][/]:"))
 
 
 def checkRoles(ROLES_DISPATCHER, **kwargs):
