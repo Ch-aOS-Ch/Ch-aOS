@@ -17,7 +17,7 @@ def printCheck(namespace, dispatcher):
         table.add_column("[green]Alias[/]", justify="center")
         table.add_column("[green]Maps to[/]", justify="center")
         for p, r in dispatcher.items():
-            table.add_row(f"[cyan]{p}[/]", f"[cyan]{r}[/]")
+            table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
         console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:"))
         return
 
@@ -29,7 +29,7 @@ def printCheck(namespace, dispatcher):
         table = Table(show_lines=True)
         table.add_column()
         for item in items:
-            table.add_row(f"[cyan]{item}[/]")
+            table.add_row(f"[italic][cyan]{item}[/][/]")
         console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}s:[/][/]"))
     else:
         num_columns = math.ceil(num_items / max_rows)
@@ -46,7 +46,7 @@ def printCheck(namespace, dispatcher):
         transposed_items = zip_longest(*chunks, fillvalue="")
 
         for row_data in transposed_items:
-            styled_row = [f"[cyan]{item}[/]" if item else "" for item in row_data]
+            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
             table.add_row(*styled_row)
 
         console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}s[/][/]:"))
