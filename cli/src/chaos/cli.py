@@ -62,9 +62,9 @@ def main():
 
         if hasattr(args, 'command') and args.command == 'set':
             is_setter_mode = any([
-                hasattr(args, 'chobolo_file') and args.chobolo_file,
-                hasattr(args, 'secrets_file') and args.secrets_file,
-                hasattr(args, 'sops_file') and args.sops_file
+                hasattr(args, 'chobolo-file'),
+                hasattr(args, 'secrets-file'),
+                hasattr(args, 'sops-file')
             ])
             if is_setter_mode:
                 setMode(args)
@@ -85,6 +85,7 @@ def main():
 
     except exceptions.PyinfraError as e:
         print(f"Unexpected pyinfra error: {e}")
+        sys.exit(1)
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
         sys.exit(1)
