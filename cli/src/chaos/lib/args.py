@@ -45,13 +45,13 @@ def argParsing():
     setSubParser = setParser.add_subparsers(dest="set_command")
 
     chParser = setSubParser.add_parser('chobolo', aliases=['c', 'ch'], help="Set default chobolo file")
-    chParser.add_argument('chobolo-file', help="Chobolo file path")
+    chParser.add_argument('chobolo_file', help="Chobolo file path")
 
     secParser = setSubParser.add_parser('secrets', aliases=['sec', 'se'], help="Set default secrets file")
-    secParser.add_argument('secrets-file', help="Secrets file path")
+    secParser.add_argument('secrets_file', help="Secrets file path")
 
     sopsParser = setSubParser.add_parser('sops', aliases=['sop'], help="Set default sops file")
-    sopsParser.add_argument('sops-file', help="Sops file path")
+    sopsParser.add_argument('sops_file', help="Sops file path")
 
     applyParser = subParser.add_parser('apply', help="Apply an available role")
     tags = applyParser.add_argument('tags', nargs='*', help="The tag(s) for the role(s) to be executed.")

@@ -62,9 +62,9 @@ def main():
 
         if hasattr(args, 'command') and args.command == 'set':
             is_setter_mode = any([
-                hasattr(args, 'chobolo-file'),
-                hasattr(args, 'secrets-file'),
-                hasattr(args, 'sops-file')
+                hasattr(args, 'chobolo_file') and args.chobolo_file,
+                hasattr(args, 'secrets_file') and args.secrets_file,
+                hasattr(args, 'sops_file') and args.sops_file
             ])
             if is_setter_mode:
                 setMode(args)
