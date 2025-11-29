@@ -70,7 +70,7 @@ def saveGen(args, passwd: str):
     console.print(f"[bold green]Creating Generation {i}[/]")
 
     subprocess.run(['sudo -S', 'cp', chobolo_path, destPath], check=True, input=(passwd + '\n').encode())
-    subprocess.run(['sudo -S', 'ln', '-sfn', filename, linkPath], check=True, input=(passwd + 'n').encode())
+    subprocess.run(['sudo -S', 'ln', '-sfn', filename, linkPath], check=True, input=(passwd + '\n').encode())
 
 def handleVerbose(args):
     log_level = None
