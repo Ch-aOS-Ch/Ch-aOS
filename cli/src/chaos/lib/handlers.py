@@ -257,7 +257,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(Text("\n"))
 
                 if 'security' in keysToShow and explanation.get('security'):
-                    explanation_renderables.append(Align.center(Panel(explanation['security'], title="[bold yellow]Security considerations[/]", border_style="yellow", expand=False)))
+                    explanation_renderables.append(Align.center(Panel(Markdown(explanation['security']), title="[bold yellow]Security considerations[/]", border_style="yellow", expand=False)))
                     explanation_renderables.append(Text("\n"))
 
                 console.print(
