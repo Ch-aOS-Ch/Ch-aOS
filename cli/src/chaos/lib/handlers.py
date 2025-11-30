@@ -174,7 +174,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                 table.add_column(f"{role}", justify="center")
                 for m in available_methods:
                     table.add_row(f"[cyan][italic]{m}[/][/]")
-                console.print(Panel(table, border_style="green", expand=False, title=f"[italic][bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:"))
+                console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:")))
                 sys.exit(0)
 
             if hasattr(explainObj, methodName):
