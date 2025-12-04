@@ -269,6 +269,14 @@ def initSecrets():
             with open(sec_file, 'w') as f:
                 yaml.dump(sec_content, f, default_flow_style=False)
 
+        subprocess.run([
+            'sops',
+            '--config', str(sops_file),
+            '--encrypt',
+            '--in-place',
+            str(sec_file)
+        ], check=True)
+
         console.print(f"[bold green]Success![/] SOPS configuration generated at: [dim]{sops_file}[/]")
 
         global_conf_path = configDir / "config.yml"
@@ -277,6 +285,10 @@ def initSecrets():
         oc.save(conf, global_conf_path)
         console.print(f"[cyan]Info:[/] Updated global chaos config 'sops_file' path.")
 
+
+    except subprocess.CalledProcessError as e:
+        console.print(f"Could not encrypt file {sec_file}: {e}")
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
+        console.print("[dim]Hint: Check if your GPG key is imported or if age keys are correct.[/]")
         sys.exit(1)
