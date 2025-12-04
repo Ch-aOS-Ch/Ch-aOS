@@ -82,7 +82,7 @@ def setupAge():
         try:
             proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
             pubkey = proc.stdout.strip()
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
             sys.exit(1)
 
@@ -163,7 +163,7 @@ def genGpgManual():
     fingerprint = Prompt.ask("Enter the [bold]Fingerprint[/] (long hex string) of the key you want to use")
     fingerprint = fingerprint.replace(" ", "")
 
-    if len(fingerprint) < 8:
+    if len(fingerprint) < 40:
         console.print("[bold red]ERROR:[/] Invalid fingerprint length.")
         sys.exit(1)
 
@@ -238,7 +238,7 @@ def initSecrets():
     sops_content = {
         "creation_rules": [
             {
-                "path_regex": ".*",
+                "path_regex": "(.*)?secrets.*\\.yml$",
                 key: keyValue
             },
             {
