@@ -11,9 +11,9 @@ class RolesCompleter:
 
     def __call__(self, prefix, **kwargs):
         if self._roles is None or self._aliases is None or self.explain is None:
-            self. _roles, self._aliases, self.explain = get_plugins()
+            self. _roles, self._aliases, self.explain, self.keys = get_plugins()
 
-        all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys())
+        all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 def argParsing():
@@ -83,6 +83,12 @@ def argParsing():
     applyParser.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     applyParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     applyParser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
+
+    initParser = subParser.add_parser('init', help="Let Ch-aOS handle the boiler plates!")
+
+    initSubParser = initParser.add_subparsers(dest='init_command', required=True, help='What to initialize')
+    initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
+    initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
 
     tags.completer = RolesCompleter()
 

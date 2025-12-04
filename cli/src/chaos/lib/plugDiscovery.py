@@ -45,7 +45,7 @@ def get_plugins(update_cache=False):
             try:
                 cache_data = json.load(f)
                 if 'roles' in cache_data and 'aliases' in cache_data and 'explanations' in cache_data:
-                    return cache_data['roles'], cache_data['aliases'], cache_data['explanations']
+                    return cache_data['roles'], cache_data['aliases'], cache_data['explanations'], cache_data['keys']
                 else:
                     print("Warning: Invalid or outdated cache file format. Re-discovering plugins.", file=sys.stderr)
             except json.JSONDecodeError:
@@ -54,6 +54,7 @@ def get_plugins(update_cache=False):
     discovered_roles = {}
     discovered_aliases = {}
     discovered_explanations = {}
+    discovered_keys = {}
     eps = entry_points()
 
     role_eps = eps.select(group="chaos.roles") if hasattr(eps, "select") else eps.get("chaos.roles", [])
@@ -68,17 +69,20 @@ def get_plugins(update_cache=False):
     for ep in exp_eps:
         discovered_explanations[ep.name] = ep.value
 
+    keys_eps = eps.select(group="chaos.keys") if hasattr(eps, "select") else eps.get("chaos.keys", [])
+    for ep in keys_eps:
+        discovered_keys[ep.name] = ep.value
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, 'w') as f:
-            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explanations': discovered_explanations}, f, indent=4)
+            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explanations': discovered_explanations, 'keys': discovered_keys}, f, indent=4)
         if update_cache or not cache_exists:
             print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
     except OSError as e:
         print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
 
 
-    return discovered_roles, discovered_aliases, discovered_explanations
+    return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys
 
 def load_roles(roles_spec):
     loaded_roles = {}
@@ -90,3 +94,12 @@ def load_roles(roles_spec):
         except (ImportError, AttributeError, ValueError) as e:
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
+
+def loadList(spec):
+    try:
+        moduleName, obj = spec.split(':', 1)
+        module = import_module(moduleName)
+        return getattr(module, obj)
+    except (ImportError, AttributeError, ValueError) as e:
+        print(f"ERROR: Could not load key from spec '{spec}': {e}")
+        return None

@@ -6,6 +6,7 @@ import argcomplete
 from chaos.lib.plugDiscovery import get_plugins, load_roles
 from chaos.lib.args import handleGenerateTab, argParsing
 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
+from chaos.lib.inits import initSecrets, initChobolo
 
 from chaos.lib.handlers import (
     setMode,
@@ -29,7 +30,7 @@ def main():
         argcomplete.autocomplete(parser)
 
         args = parser.parse_args()
-        role_specs, ROLE_ALIASES, EXPLANATIONS = get_plugins(args.update_plugins)
+        role_specs, ROLE_ALIASES, EXPLANATIONS, keys = get_plugins(args.update_plugins)
 
         if hasattr(args, 'command') and args.command == 'explain':
             if args.topics:
@@ -90,6 +91,12 @@ def main():
                 handleEncryptRamble(args)
             elif args.ramble_commands == 'read':
                 handleReadRamble(args)
+
+        if hasattr(args, 'command') and args.command == 'init':
+            if args.init_command == 'chobolo':
+                initChobolo(keys)
+            elif args.init_command == 'secrets':
+                initSecrets()
 
         if args.generate_tab:
             handleGenerateTab()
