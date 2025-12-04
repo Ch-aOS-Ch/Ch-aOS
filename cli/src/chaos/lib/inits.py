@@ -88,6 +88,7 @@ def setupAge():
 
     else:
         console.print("[cyan]Info:[/] No key found, generating a new one.")
+        console.print(f"[bold yellow]WARNING:[/] THIS FILE: {ageFile} IS EXTREMELY IMPORTANT, if you lose it, you lose all your files forever. Do not commit it.")
         ageDir.mkdir(parents=True, exist_ok=True)
         try:
             with open(ageFile, 'w') as f:
@@ -173,6 +174,7 @@ def setupGpg():
         console.print("[bold red]ERROR:[/] Could not find gpg binary, please install gnupg and try again.")
         sys.exit(1)
 
+    console.print("[bold yellow]WARNING:[/] ALL your secrets are tied to your ~/.gnupg folder. DO NOT lose it or commit it, or you'll lose your secrets forever.")
     proc = subprocess.run(['gpg', '--list-secret-keys', '--with-colons'], capture_output=True, text=True)
     hasKeys = "sec" in proc.stdout
     if hasKeys:
