@@ -104,10 +104,8 @@ def setupAge():
 
 def genBatchGpg(name, email):
     batch = f"""
-Key-type: RSA
-Key-length: 4096
-Subkey-Type: RSA
-Subkey-Length: 4096
+Key-type: ed25519
+Subkey-Type: cv25519
 Name-Real: {name}
 Name-Email: {email}
 Expire-date: 0
