@@ -6,7 +6,18 @@ import argcomplete
 from chaos.lib.plugDiscovery import get_plugins, load_roles
 from chaos.lib.args import handleGenerateTab, argParsing
 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
-from chaos.lib.handlers import setMode, handleVerbose, handleExplain, handleOrchestration
+
+from chaos.lib.handlers import (
+    setMode,
+    handleVerbose,
+    handleExplain,
+    handleOrchestration,
+    handleCreateRamble,
+    handleEditRamble,
+    handleEncryptRamble,
+    handleReadRamble
+)
+
 from chaos.lib.tinyScript import runChoboloEdit, runSopsCheck, runSopsEdit
 
 from pyinfra.api import exceptions
@@ -70,6 +81,15 @@ def main():
                 setMode(args)
                 sys.exit(0)
 
+        if hasattr(args, 'command') and args.command == 'ramble':
+            if args.ramble_commands == 'create':
+                handleCreateRamble(args)
+            elif args.ramble_commands == 'edit':
+                handleEditRamble(args)
+            elif args.ramble_commands == 'encrypt':
+                handleEncryptRamble(args)
+            elif args.ramble_commands == 'read':
+                handleReadRamble(args)
 
         if args.generate_tab:
             handleGenerateTab()

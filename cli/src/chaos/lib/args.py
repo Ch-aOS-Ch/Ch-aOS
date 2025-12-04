@@ -31,8 +31,28 @@ def argParsing():
 
     subParser = parser.add_subparsers(dest="command", help="Available subcommands")
 
+    rambleParser = subParser.add_parser('ramble', help="Annotate your rambles!")
+
+    rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
+
+    rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
+    rambleCreate.add_argument('target', help='The ramble/rambling to create (e.g., ramble.rambling)')
+
+    rambleEdit = rambSubParser.add_parser('edit', help='Edit a rambling directly, whether encrypted or not.')
+    rambleEdit.add_argument('target', help='The rambling you want to edit (e.g., ramble.rambling)')
+    rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
+    rambleEncrypt = rambSubParser.add_parser('encrypt', help='Encrypt a rambling inside a ramble with sops.')
+    rambleEncrypt.add_argument('target', help='The rambling you want to encrypt (e.g., ramble.rambling)')
+    rambleEncrypt.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
+    rambleEncrypt.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
+    rambleRead = rambSubParser.add_parser('read', help='Read your rambles.')
+    rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
+    rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
     expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
-    expParser.add_argument('topics', nargs="*", help="Topic(s) to be explained")
+    expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
     checkParser = subParser.add_parser('check', help='Check and list roles, secrets, aliases and explanations')
@@ -54,7 +74,7 @@ def argParsing():
     sopsParser.add_argument('sops_file', help="Sops file path")
 
     applyParser = subParser.add_parser('apply', help="Apply an available role")
-    tags = applyParser.add_argument('tags', nargs='*', help="The tag(s) for the role(s) to be executed.")
+    tags = applyParser.add_argument('tags', nargs='+', help="The tag(s) for the role(s) to be executed.")
 
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
     applyParser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")

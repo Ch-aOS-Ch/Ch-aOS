@@ -1,4 +1,5 @@
-from rich.console import Console, Group, JustifyMethod
+import subprocess
+from rich.console import Console, Group
 from rich.align import Align
 from rich.padding import Padding
 from rich.panel import Panel
@@ -24,7 +25,9 @@ import os
 import sys
 from pathlib import Path
 
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
+console = Console()
+
 
 def handleVerbose(args):
     log_level = None
@@ -134,7 +137,6 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     console.print("[bold green]Finalized.[/bold green]")
 
 def handleExplain(args, EXPLAIN_DISPATCHER):
-    console = Console()
     DETAIL_LEVELS = {
         'basic': ['concept', 'what', 'why', 'examples', 'security'],
         'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples', 'security'],
@@ -327,3 +329,452 @@ def setMode(args):
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
     print("Configuration saved.")
 
+def handleCreateRamble(args):
+    ramble = args.target
+    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    if '.' in ramble:
+        parts = ramble.split('.', 1)
+        directory = parts[0]
+        if not parts[1]:
+            console.print(f"[bold red]ERROR:[/] No page passed for {directory}")
+            sys.exit(1)
+        page = parts[1]
+        baseText=f"""title: {page}
+concept:
+what:
+why:
+how:
+scripts:
+"""
+        path = CONFIG_DIR / directory
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+            console.print(f'[yellow]Created new journal: {directory}![/]')
+
+        CONFIG_FILE_PATH = path / f'{page}.yml'
+        try:
+            f = open(CONFIG_FILE_PATH, 'x')
+            f.write(baseText)
+            f.close()
+            console.print(f'[bold green][italic]Page {page} created![/][/] [dim]{directory}.{page}[/]')
+        except FileExistsError:
+            ask = console.input(f'[bold yellow]WARNING:[/] page {page} already exists!\n Do you want to go write on it? (y/N) ')
+            if not ask.lower() == 'y':
+                sys.exit(1)
+        editor = os.getenv('EDITOR', 'nano')
+        try:
+            subprocess.run([editor, CONFIG_FILE_PATH], check=True)
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR: ramble editing failed: {e}')
+            sys.exit(1)
+
+    else:
+        path = CONFIG_DIR/ramble
+        fullPath = path/f'{ramble}.yml'
+        baseText=f"""title: {ramble}
+concept:
+what:
+why:
+how:
+scripts:
+"""
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            console.print(f'[bold green]Journal "{ramble}" created![/]')
+            try:
+                f = open(fullPath, 'x')
+                f.write(baseText)
+                f.close()
+                console.print(f'[bold green][italic]Page {ramble} created![/][/] [dim]{ramble}.{ramble}[/]')
+            except FileExistsError:
+                ask = console.input(f'[bold yellow]WARNING:[/] page {ramble} already exists!\n Do you want to go write on it? (y/N) ')
+                if not ask.lower() == 'y':
+                    sys.exit(1)
+
+        except FileExistsError:
+            console.print(f"[yellow]Journal '{ramble}' already exists.[/]")
+
+        editor = os.getenv('EDITOR', 'nano')
+        try:
+            subprocess.run([editor, fullPath], check=True)
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR: ramble editing failed: {e}')
+            sys.exit(1)
+
+    sys.exit(0)
+
+def handleEditRamble(args):
+    ramble = args.target
+    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    def edit_file(file_path):
+        is_encrypted = False
+        try:
+            data = OmegaConf.load(file_path)
+            if 'sops' in data:
+                is_encrypted = True
+        except Exception:
+            pass
+
+        if is_encrypted:
+            if not sops_file_override:
+                console.print('[bold red]ERROR:[/] This ramble appears to be encrypted, but no sops configuration was found.')
+                console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
+                sys.exit(1)
+            try:
+                subprocess.run(['sops', '--config', sops_file_override, str(file_path)], check=True)
+            except FileNotFoundError:
+                console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to edit encrypted rambles.')
+                sys.exit(1)
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 200:
+                    print('')
+                else:
+                    console.print(f'[bold red]ERROR: Ramble editing with sops failed: {e}')
+                    sys.exit(1)
+        else:
+            editor = os.getenv('EDITOR', 'nano')
+            try:
+                subprocess.run([editor, file_path], check=True)
+            except FileNotFoundError:
+                console.print(f'[bold red]ERROR:[/] Editor `{editor}` not found. Please set your EDITOR environment variable.')
+                sys.exit(1)
+            except subprocess.CalledProcessError as e:
+                console.print(f'[bold red]ERROR: Ramble editing failed: {e}')
+                sys.exit(1)
+
+    if '.' in ramble:
+        parts = ramble.split('.', 1)
+        directory = parts[0]
+
+        if not parts[1]:
+            page = directory
+        else:
+            page = parts[1]
+
+        path = CONFIG_DIR / directory
+        if not path.exists():
+            console.print(f'[bold red]ERROR:[/] Journal directory not found: {path}')
+            sys.exit(1)
+
+        CONFIG_FILE_PATH = path / f'{page}.yml'
+        if not CONFIG_FILE_PATH.exists():
+            console.print(f'[bold red]ERROR:[/] Ramble page not found: {CONFIG_FILE_PATH}')
+            sys.exit(1)
+
+        edit_file(CONFIG_FILE_PATH)
+        sys.exit(0)
+
+    path = CONFIG_DIR / ramble
+    try:
+        entries = sorted([f.name for f in path.iterdir() if f.is_file()])
+    except FileNotFoundError:
+        console.print(f"[bold red]ERROR:[/] Journal not found: {path}.")
+        sys.exit(1)
+
+    if not entries:
+        console.print(f"[yellow]No pages found in the '{ramble}' journal.[/]")
+        sys.exit(0)
+
+    table = Table(show_lines=True)
+    table.add_column(f'Index', style='cyan')
+    table.add_column(f'Pages in {ramble}', style='green')
+
+    for i, e in enumerate(entries, start=1):
+        table.add_row(str(i), Path(e).stem)
+
+    console.print(Align.center(Panel(table, expand=False, border_style="green", title=f'Journal: [cyan]{ramble}[/]')))
+    inp = console.input("Which page do you want to edit? (index) ")
+
+    if inp:
+        try:
+            indx = int(inp)
+            if 1 <= indx <= len(entries):
+                selected_file_name = entries[indx - 1]
+                file_to_edit = path / selected_file_name
+                edit_file(file_to_edit)
+            else:
+                raise IndexError
+        except (IndexError, ValueError):
+            console.print(f"[bold red]ERROR:[/] Invalid index: '{inp}'")
+            sys.exit(1)
+        sys.exit(0)
+    else:
+        console.print("No page selected. Exiting.")
+        sys.exit(0)
+
+def handleEncryptRamble(args):
+    console_err = Console(stderr=True)
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    if not sops_file_override:
+        console.print('[bold red]ERROR:[/] You need a sops configuration for encryption to work.')
+        console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
+        sys.exit(1)
+
+    ramble = args.target
+    keys = args.keys or []
+    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+
+    if not '.' in ramble:
+        console.print('[bold red]ERROR:[/] You must pass a specific page to be encrypted (e.g., diary.page).')
+        sys.exit(1)
+
+    parts = ramble.split('.', 1)
+    directory = parts[0]
+    page = parts[1]
+
+    path = CONFIG_DIR / directory
+    fullPath = path / f'{page}.yml'
+
+    if not fullPath.exists():
+        console.print(f"[bold red]ERROR:[/] Ramble page not found: {fullPath}")
+        sys.exit(1)
+
+    try:
+        data = OmegaConf.load(fullPath)
+    except Exception as e:
+        console.print(f'[bold red]ERROR:[/] Could not read ramble file: {e}')
+        sys.exit(1)
+
+    keysInData = data.keys()
+    baseKeys = ['title', 'concept', 'sops']
+
+    if not keys:
+        keys = [str(key) for key in keysInData if key not in baseKeys]
+
+    if not keys:
+        console.print('[yellow]No new keys to encrypt. Exiting.[/]')
+        sys.exit(0)
+
+    joinKeys = '|'.join(keys)
+    regex = f"^({joinKeys})$"
+    console.print(f'[italic][yellow]Encrypting these keys:[/][cyan] {keys}[/][/]')
+
+    if 'sops' in data:
+        try:
+            result = subprocess.run(['sops', '--config', sops_file_override, '-d', str(fullPath)], capture_output=True, text=True, check=True)
+            with open(fullPath, 'w') as f:
+                f.write(result.stdout)
+                f.close()
+        except FileNotFoundError:
+            console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to edit encrypted rambles.')
+            sys.exit(1)
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 200:
+                print('')
+            else:
+                console.print(f'[bold red]ERROR: Ramble editing with sops failed: {e}')
+                sys.exit(1)
+
+    try:
+        subprocess.run(
+            [
+                'sops',
+                '--config', sops_file_override,
+                '--encrypt',
+                '--in-place',
+                '--encrypted-regex', regex,
+                str(fullPath)
+            ],
+            check=True
+        )
+        console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
+    except FileNotFoundError:
+        console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to encrypt rambles.')
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        console.print(f'[bold red]ERROR: Ramble encryption failed: {e}')
+        sys.exit(1)
+
+    sys.exit(0)
+
+def _read_and_print_ramble(ramble_path, sops_config, target_name):
+    if not ramble_path.exists():
+        console.print(f'[bold red]ERROR:[/] Ramble page not found: {ramble_path}')
+        return
+
+    ramble_data = None
+    try:
+        # Use OmegaConf.load() directly. This simplifies loading and checking for the 'sops' key.
+        data = OmegaConf.load(ramble_path)
+        is_encrypted = 'sops' in data
+
+        if is_encrypted:
+            if not sops_config:
+                console.print('[bold red]ERROR:[/] This ramble appears to be encrypted, but no sops configuration was found.')
+                console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
+                return
+
+            result = subprocess.run(
+                ['sops', '--config', sops_config, '-d', str(ramble_path)],
+                capture_output=True, text=True, check=True
+            )
+            ramble_data = OmegaConf.create(result.stdout)
+        else:
+            ramble_data = data
+
+    except subprocess.CalledProcessError as e:
+        console.print(f'[bold red]ERROR: Ramble decryption with sops failed.[/]\n{e.stderr}')
+        return
+    except FileNotFoundError:
+        # This can be triggered by sops not being installed or the ramble_path not existing for OmegaConf.load
+        console.print(f"[bold red]ERROR:[/] File not found or `sops` command not found. Please check the path and that sops is installed.")
+        return
+    except Exception as e: # Broad exception for other parsing errors
+        console.print(f'[bold red]ERROR:[/] Could not read or parse ramble file: {ramble_path}\n{e}')
+        return
+
+    renderables = []
+    standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
+
+    if 'concept' in ramble_data and ramble_data.concept:
+        renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
+        renderables.append(Text("\n"))
+    if 'what' in ramble_data and ramble_data.what:
+        renderables.append(Markdown(f"**What is it?**"))
+        renderables.append(Padding.indent(Markdown(ramble_data.what), 4))
+        renderables.append(Text("\n"))
+    if 'why' in ramble_data and ramble_data.why:
+        renderables.append(Markdown(f"**Why use it?**"))
+        renderables.append(Padding.indent(Markdown(ramble_data.why), 4))
+        renderables.append(Text("\n"))
+    if 'how' in ramble_data and ramble_data.how:
+        renderables.append(Markdown(f"**How it works:**"))
+        renderables.append(Padding.indent(Markdown(ramble_data.how), 4))
+        renderables.append(Text("\n"))
+
+    scripts = ramble_data.get('scripts')
+    if scripts:
+        renderables.append(Markdown("**Scripts:**"))
+        if isinstance(scripts, DictConfig):
+            knownLangs = ['python', 'c', 'java', 'javascript', 'rust', 'bash', 'go', 'c++', 'json']
+            for lang, code in scripts.items():
+                if lang in knownLangs and code:
+                    renderables.append(Padding.indent(Syntax(code, lang, line_numbers=True, theme="ansi_dark"), 5))
+        else:
+            renderables.append(Padding.indent(Syntax(scripts, "bash", line_numbers=True, theme="monokai"), 5))
+        renderables.append(Text("\n"))
+
+    other_keys = [k for k in ramble_data.keys() if k not in standard_keys]
+    if other_keys:
+        for key in other_keys:
+            renderables.append(Markdown(f"**{key.replace('_', ' ').title()}:**"))
+            content = ramble_data.get(key)
+
+            formatted_content = ""
+            if content is None:
+                formatted_content = "null"
+            elif isinstance(content, str):
+                formatted_content = content
+            elif isinstance(content, (dict, list)): # OmegaConf containers are instances of dict/list
+                formatted_content = OmegaConf.to_yaml(content).strip()
+            else:
+                formatted_content = str(content)
+
+            renderables.append(Padding.indent(Markdown(formatted_content), 5))
+            renderables.append(Text("\n"))
+
+    title = ramble_data.get('title', target_name)
+    console.print(
+        Align.center(
+            Panel(
+                Group(*renderables),
+                title=f"[bold green]Ramble for '{title}'[/]",
+                border_style="green",
+                expand=False,
+                width=100
+            )
+        )
+    )
+
+def _process_ramble_target(target, sops_file_override):
+    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    parts = target.split('.', 1)
+    journal = parts[0]
+    path = CONFIG_DIR / journal
+
+    is_list_request = (len(parts) > 1 and parts[1] == 'list') or len(parts) == 1
+
+    if is_list_request:
+        try:
+            entries = sorted([f.name for f in path.iterdir() if f.is_file()])
+            if not entries:
+                console.print(f"[yellow]No pages found in the '{journal}' journal.[/]")
+                return
+
+            table = Table(show_lines=True)
+            table.add_column(f'Index', style='cyan')
+            table.add_column(f'Pages in {journal}', style='green')
+            for i, e in enumerate(entries, start=1):
+                table.add_row(str(i), Path(e).stem)
+            console.print(Align.center(Panel(table, expand=False, border_style="green", title=f'Journal: [cyan]{journal}[/]')))
+
+            inp = console.input("Which page do you want to read? (index) ")
+            if not inp:
+                console.print("No page selected. Exiting.")
+                return
+
+            try:
+                indx = int(inp)
+                if 1 <= indx <= len(entries):
+                    selected_file_name = entries[indx - 1]
+                    file_to_read = path / selected_file_name
+                    _read_and_print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem)
+                else:
+                    raise IndexError
+            except (IndexError, ValueError):
+                console.print(f"[bold red]ERROR:[/] Invalid index: '{inp}'")
+                return
+
+        except FileNotFoundError:
+            console.print(f"[bold red]ERROR:[/] Journal not found: {path}.")
+            return
+
+    else:
+        page = parts[1]
+        if not page:
+             console.print(f"[bold red]ERROR:[/] No page passed for journal '{journal}'.")
+             return
+        full_path = path / f'{page}.yml'
+        _read_and_print_ramble(full_path, sops_file_override, target)
+
+def handleReadRamble(args):
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    for target in args.targets:
+        _process_ramble_target(target, sops_file_override)
+
+    sys.exit(0)

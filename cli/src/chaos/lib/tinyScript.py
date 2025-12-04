@@ -62,10 +62,14 @@ def runSopsEdit(sops_file_override, secrets_file_override):
         sys.exit(1)
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile])
-    except subprocess.CalledProcessError:
-        # Exit silently, as sops not saving is not a failure condition.
-        sys.exit(0)
+        subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 200:
+            print("File has not changed, exiting.")
+            sys.exit(0)
+        else:
+            print(f"ERROR: SOPS editing failed with exit code {e.returncode}.", file=sys.stderr)
+            sys.exit(1)
     except FileNotFoundError:
         print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
         sys.exit(1)
