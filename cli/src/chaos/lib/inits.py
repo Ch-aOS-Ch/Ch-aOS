@@ -80,18 +80,12 @@ def setupAge():
                 sys.exit(1)
 
         try:
-            with open(ageFile, 'r') as f:
-                for line in f:
-                    if line.startswith("# public key:"):
-                        pubkey = line.split(": ")[1]
-                        break
-            if not pubkey:
+            try:
                 proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
                 pubkey = proc.stdout.strip()
-                console.print(f"[bold green]Success![/] generated new age key!")
-        except Exception as e:
-            console.print(f"[bold red]ERROR:[/] could not read existing public key: {e}")
-            sys.exit(1)
+            except subprocess.CalledProcessError:
+                console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
+                sys.exit(1)
 
     else:
         console.print("[cyan]Info:[/] No key found, generating a new one.")
