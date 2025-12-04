@@ -80,12 +80,11 @@ def setupAge():
                 sys.exit(1)
 
         try:
-            try:
-                proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
-                pubkey = proc.stdout.strip()
-            except subprocess.CalledProcessError:
-                console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-                sys.exit(1)
+            proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
+            pubkey = proc.stdout.strip()
+        except subprocess.CalledProcessError:
+            console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
+            sys.exit(1)
 
     else:
         console.print("[cyan]Info:[/] No key found, generating a new one.")
@@ -263,6 +262,8 @@ def initSecrets():
             with open(sec_file, 'w') as f:
                 yaml.dump(sec_content, f, default_flow_style=False)
 
+        console.print("[cyan]Info:[/] Encrypting initial secrets file...")
+        console.print("[dim]Hint: Use chaos -es/chaos check s to both check your secrets and edit your secrets\nchaos check s will print your secrets to your screen to help with automation.[/]")
         subprocess.run([
             'sops',
             '--config', str(sops_file),
