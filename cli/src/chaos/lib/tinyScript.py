@@ -44,7 +44,7 @@ def runSopsCheck(sops_file_override=None, secrets_file_override=None):
         sys.exit(1)
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile])
+        subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
     except subprocess.CalledProcessError as e:
         print("ERROR: SOPS decryption failed.")
         print("Details:", e.stderr.decode() if e.stderr else "No output.")
