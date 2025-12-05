@@ -47,7 +47,7 @@ def argParsing():
     rambleEncrypt.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
     rambleEncrypt.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
-    rambleRead = rambSubParser.add_parser('read', help='Read your rambles.')
+    rambleRead = rambSubParser.add_parser('read', help='Read your ramblings.')
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
     rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
@@ -55,6 +55,13 @@ def argParsing():
     rambleFind.add_argument('find_term', nargs='?', default=None, help='A keyword to search for in your rambles.')
     rambleFind.add_argument('-t', '--tag', help='Filter rambles by a specific tag.')
     rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
+    rambleMove = rambSubParser.add_parser('move', help='Move a rambling through rambles')
+    rambleMove.add_argument('old', help='Your old rambling')
+    rambleMove.add_argument('new', help='Your new rambling')
+
+    rambleDel = rambSubParser.add_parser('delete', help='Delete a rambling or an entire ramble.')
+    rambleDel.add_argument('ramble', help='Your ramble')
 
     expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
     expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")

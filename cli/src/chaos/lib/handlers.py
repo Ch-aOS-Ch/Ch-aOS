@@ -1,33 +1,32 @@
-import subprocess
-import math
+from importlib import import_module
 from itertools import zip_longest
+from pygments.lexer import default
 from rich.console import Console, Group
 from rich.align import Align
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.prompt import Confirm
 from rich.syntax import Syntax
 from rich.tree import Tree
 from rich.text import Text
 from rich.table import Table
-
-from importlib import import_module
-
-import logging
-import getpass
-
 from pyinfra.api.inventory import Inventory
 from pyinfra.api.config import Config
 from pyinfra.api.connect import connect_all, disconnect_all
 from pyinfra.api.state import StateStage, State
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_state
+from pathlib import Path
+from omegaconf import DictConfig, OmegaConf
 
+import subprocess
+import math
+import logging
 import os
 import sys
-from pathlib import Path
-
-from omegaconf import DictConfig, OmegaConf
+import shutil
+import getpass
 
 console = Console()
 
@@ -874,3 +873,59 @@ def handleFindRamble(args):
             table.add_row(*styled_row)
 
         console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
+
+def handleMoveRamble(args):
+    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    old = args.old
+    new = args.new
+
+    oldPath = RAMBLE_DIR / old.replace('.', '/')
+    newPath = RAMBLE_DIR / new.replace('.', '/')
+
+    oldFile = Path(str(oldPath) + ".yml")
+    newFile = Path(str(newPath) + ".yml")
+
+    if not oldFile.exists():
+        console.print(f"[bold red]ERROR:[/] No such file: {oldFile}")
+        sys.exit(1)
+
+    if newFile.exists():
+        console.print(f"[bold red]ERROR:[/] File already exists: {newFile}")
+        sys.exit(1)
+
+    newFile.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(oldFile), str(newFile))
+    console.print(f"[green]Successfully moved {old} to {new}")
+    sys.exit(0)
+
+def handleDelRamble(args):
+    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    ramble = args.ramble
+
+    if '.' in ramble:
+        ramblePath = RAMBLE_DIR / ramble.replace('.', '/')
+        rambleFile = Path(str(ramblePath) + ".yml")
+
+        if not rambleFile.exists():
+            console.print(f"[bold red]ERROR:[/] {rambleFile} does not exist.")
+            sys.exit(1)
+
+        confirmation = Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete {ramble}?", default=False)
+        if confirmation:
+            console.print(f"[bold red]Removing {ramble}.[/]")
+            os.remove(rambleFile)
+            sys.exit(0)
+        console.print("[green]Alright![/] Aborting.")
+    else:
+        ramblePath = RAMBLE_DIR / ramble
+
+        if not ramblePath.exists():
+            console.print(f"[bold red]ERROR:[/] {ramblePath} does not exist.")
+            sys.exit(1)
+
+        confirmation = Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete {ramble}?", default=False)
+        if confirmation:
+            console.print(f"[bold red]Removing {ramble}.[/]")
+            shutil.rmtree(ramblePath)
+            sys.exit(0)
+        console.print("[green]Alright![/] Aborting.")

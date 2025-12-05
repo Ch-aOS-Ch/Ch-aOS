@@ -9,6 +9,8 @@ from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
 from chaos.lib.inits import initSecrets, initChobolo
 
 from chaos.lib.handlers import (
+    handleDelRamble,
+    handleMoveRamble,
     setMode,
     handleVerbose,
     handleExplain,
@@ -84,16 +86,21 @@ def main():
                 sys.exit(0)
 
         if hasattr(args, 'command') and args.command == 'ramble':
-            if args.ramble_commands == 'create':
-                handleCreateRamble(args)
-            elif args.ramble_commands == 'edit':
-                handleEditRamble(args)
-            elif args.ramble_commands == 'encrypt':
-                handleEncryptRamble(args)
-            elif args.ramble_commands == 'read':
-                handleReadRamble(args)
-            elif args.ramble_commands == 'find':
-                handleFindRamble(args)
+            match args.ramble_commands:
+                case 'create':
+                    handleCreateRamble(args)
+                case 'edit':
+                    handleEditRamble(args)
+                case 'encrypt':
+                    handleEncryptRamble(args)
+                case 'read':
+                    handleReadRamble(args)
+                case 'find':
+                    handleFindRamble(args)
+                case 'move':
+                    handleMoveRamble(args)
+                case 'delete':
+                    handleDelRamble(args)
 
         if hasattr(args, 'command') and args.command == 'init':
             if args.init_command == 'chobolo':
