@@ -104,11 +104,13 @@ def setupAge():
 
 def genBatchGpg(name, email):
     batch = f"""
-Key-type: ed25519
-Subkey-Type: cv25519
+Key-Type: EdDSA
+Key-Curve: ed25519
+Subkey-Type: ECDH
+Subkey-Curve: cv25519
 Name-Real: {name}
 Name-Email: {email}
-Expire-date: 0
+Expire-Date: 0
 %commit
 """
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
