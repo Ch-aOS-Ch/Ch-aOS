@@ -51,6 +51,11 @@ def argParsing():
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
     rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
+    rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
+    rambleFind.add_argument('find_term', nargs='?', default=None, help='A keyword to search for in your rambles.')
+    rambleFind.add_argument('-t', '--tag', help='Filter rambles by a specific tag.')
+    rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
     expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
     expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")

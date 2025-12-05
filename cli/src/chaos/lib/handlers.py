@@ -1,4 +1,6 @@
 import subprocess
+import math
+from itertools import zip_longest
 from rich.console import Console, Group
 from rich.align import Align
 from rich.padding import Padding
@@ -26,6 +28,7 @@ import sys
 from pathlib import Path
 
 from omegaconf import DictConfig, OmegaConf
+
 console = Console()
 
 
@@ -611,14 +614,13 @@ def handleEncryptRamble(args):
 
     sys.exit(0)
 
-def _read_and_print_ramble(ramble_path, sops_config, target_name):
+def _read_ramble_content(ramble_path, sops_config):
     if not ramble_path.exists():
         console.print(f'[bold red]ERROR:[/] Ramble page not found: {ramble_path}')
         return
 
     ramble_data = None
     try:
-        # Use OmegaConf.load() directly. This simplifies loading and checking for the 'sops' key.
         data = OmegaConf.load(ramble_path)
         is_encrypted = 'sops' in data
 
@@ -626,89 +628,99 @@ def _read_and_print_ramble(ramble_path, sops_config, target_name):
             if not sops_config:
                 console.print('[bold red]ERROR:[/] This ramble appears to be encrypted, but no sops configuration was found.')
                 console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
-                return
+                return None, None
 
             result = subprocess.run(
                 ['sops', '--config', sops_config, '-d', str(ramble_path)],
                 capture_output=True, text=True, check=True
             )
-            ramble_data = OmegaConf.create(result.stdout)
+            text = result.stdout
+            ramble_data = OmegaConf.create(text)
+            return ramble_data, text
         else:
             ramble_data = data
+            with open(ramble_path, 'r') as f:
+                text = f.read()
+            return ramble_data, text
 
     except subprocess.CalledProcessError as e:
         console.print(f'[bold red]ERROR: Ramble decryption with sops failed.[/]\n{e.stderr}')
-        return
+        return None, None
     except FileNotFoundError:
-        # This can be triggered by sops not being installed or the ramble_path not existing for OmegaConf.load
         console.print(f"[bold red]ERROR:[/] File not found or `sops` command not found. Please check the path and that sops is installed.")
-        return
-    except Exception as e: # Broad exception for other parsing errors
+        return None, None
+    except Exception as e:
         console.print(f'[bold red]ERROR:[/] Could not read or parse ramble file: {ramble_path}\n{e}')
-        return
+        return None, None
+
+def _print_ramble(ramble_path, sops_config, target_name):
+    ramble_data, _ = _read_ramble_content(ramble_path, sops_config)
 
     renderables = []
     standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
 
-    if 'concept' in ramble_data and ramble_data.concept:
-        renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
-        renderables.append(Text("\n"))
-    if 'what' in ramble_data and ramble_data.what:
-        renderables.append(Markdown(f"**What is it?**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.what), 4))
-        renderables.append(Text("\n"))
-    if 'why' in ramble_data and ramble_data.why:
-        renderables.append(Markdown(f"**Why use it?**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.why), 4))
-        renderables.append(Text("\n"))
-    if 'how' in ramble_data and ramble_data.how:
-        renderables.append(Markdown(f"**How it works:**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.how), 4))
-        renderables.append(Text("\n"))
-
-    scripts = ramble_data.get('scripts')
-    if scripts:
-        renderables.append(Markdown("**Scripts:**"))
-        if isinstance(scripts, DictConfig):
-            knownLangs = ['python', 'c', 'java', 'javascript', 'rust', 'bash', 'go', 'c++', 'json']
-            for lang, code in scripts.items():
-                if lang in knownLangs and code:
-                    renderables.append(Padding.indent(Syntax(code, lang, line_numbers=True, theme="ansi_dark"), 5))
-        else:
-            renderables.append(Padding.indent(Syntax(scripts, "bash", line_numbers=True, theme="monokai"), 5))
-        renderables.append(Text("\n"))
-
-    other_keys = [k for k in ramble_data.keys() if k not in standard_keys]
-    if other_keys:
-        for key in other_keys:
-            renderables.append(Markdown(f"**{key.replace('_', ' ').title()}:**"))
-            content = ramble_data.get(key)
-
-            formatted_content = ""
-            if content is None:
-                formatted_content = "null"
-            elif isinstance(content, str):
-                formatted_content = content
-            elif isinstance(content, (dict, list)): # OmegaConf containers are instances of dict/list
-                formatted_content = OmegaConf.to_yaml(content).strip()
-            else:
-                formatted_content = str(content)
-
-            renderables.append(Padding.indent(Markdown(formatted_content), 5))
+    if ramble_data is not None:
+        if 'concept' in ramble_data and ramble_data.concept:
+            renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
+            renderables.append(Text("\n"))
+        if 'what' in ramble_data and ramble_data.what:
+            renderables.append(Markdown(f"**What is it?**"))
+            renderables.append(Padding.indent(Markdown(ramble_data.what), 4))
+            renderables.append(Text("\n"))
+        if 'why' in ramble_data and ramble_data.why:
+            renderables.append(Markdown(f"**Why use it?**"))
+            renderables.append(Padding.indent(Markdown(ramble_data.why), 4))
+            renderables.append(Text("\n"))
+        if 'how' in ramble_data and ramble_data.how:
+            renderables.append(Markdown(f"**How it works:**"))
+            renderables.append(Padding.indent(Markdown(ramble_data.how), 4))
             renderables.append(Text("\n"))
 
-    title = ramble_data.get('title', target_name)
-    console.print(
-        Align.center(
-            Panel(
-                Group(*renderables),
-                title=f"[bold green]Ramble for '{title}'[/]",
-                border_style="green",
-                expand=False,
-                width=100
+        scripts = ramble_data.get('scripts')
+        if scripts:
+            renderables.append(Markdown("**Scripts:**"))
+            if isinstance(scripts, DictConfig):
+                knownLangs = ['python', 'c', 'java', 'javascript', 'rust', 'bash', 'go', 'c++', 'json']
+                for lang, code in scripts.items():
+                    if lang in knownLangs and code:
+                        renderables.append(Padding.indent(Syntax(code, lang, line_numbers=True, theme="ansi_dark"), 5))
+            else:
+                renderables.append(Padding.indent(Syntax(scripts, "bash", line_numbers=True, theme="monokai"), 5))
+            renderables.append(Text("\n"))
+
+        other_keys = [k for k in ramble_data.keys() if k not in standard_keys]
+        if other_keys:
+            for key in other_keys:
+                renderables.append(Markdown(f"**{key.replace('_', ' ').title()}:**"))
+                content = ramble_data.get(key)
+
+                formatted_content = ""
+                if content is None:
+                    formatted_content = "null"
+                elif isinstance(content, str):
+                    formatted_content = content
+                elif isinstance(content, (dict, list)): # OmegaConf containers are instances of dict/list
+                    formatted_content = OmegaConf.to_yaml(content).strip()
+                else:
+                    formatted_content = str(content)
+
+                renderables.append(Padding.indent(Markdown(formatted_content), 5))
+                renderables.append(Text("\n"))
+
+        title = ramble_data.get('title', target_name)
+        console.print(
+            Align.center(
+                Panel(
+                    Group(*renderables),
+                    title=f"[bold green]Ramble for '{title}'[/]",
+                    border_style="green",
+                    expand=False,
+                    width=100
+                )
             )
         )
-    )
+    else:
+        console.print("ERROR: ramble_data returned None.")
 
 def _process_ramble_target(target, sops_file_override):
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
@@ -742,7 +754,7 @@ def _process_ramble_target(target, sops_file_override):
                 if 1 <= indx <= len(entries):
                     selected_file_name = entries[indx - 1]
                     file_to_read = path / selected_file_name
-                    _read_and_print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem)
+                    _print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem)
                 else:
                     raise IndexError
             except (IndexError, ValueError):
@@ -759,7 +771,7 @@ def _process_ramble_target(target, sops_file_override):
              console.print(f"[bold red]ERROR:[/] No page passed for journal '{journal}'.")
              return
         full_path = path / f'{page}.yml'
-        _read_and_print_ramble(full_path, sops_file_override, target)
+        _print_ramble(full_path, sops_file_override, target)
 
 def handleReadRamble(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
@@ -778,3 +790,87 @@ def handleReadRamble(args):
         _process_ramble_target(target, sops_file_override)
 
     sys.exit(0)
+
+def handleFindRamble(args):
+    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    search_term = getattr(args, 'find_term', None)
+    required_tag = getattr(args, 'tag', None)
+    results = []
+
+
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+
+    if search_term or required_tag:
+        for ramble_file in RAMBLE_DIR.rglob("*.yml"):
+            data, text = _read_ramble_content(ramble_file, sops_file_override)
+
+            if data is None or text is None:
+                continue
+
+            if required_tag:
+                tags = data.get('tags', [])
+                if required_tag not in tags:
+                    continue
+
+            if search_term:
+                if search_term.lower() not in text.lower():
+                    continue
+
+            ramble = ramble_file.parent.name
+            page = ramble_file.stem
+            results.append(f"{ramble}.{page}")
+    else:
+        for ramble_file in RAMBLE_DIR.rglob('*.yml'):
+            ramble = ramble_file.parent.name
+            page = ramble_file.stem
+            results.append(f"{ramble}.{page}")
+
+    if not results:
+        console.print("Could not find any rambles.")
+        return
+
+    items = sorted(results)
+    num_items = len(results)
+    max_rows = 4
+
+    if num_items < 5:
+        table = Table(show_lines=True, expand=False, show_header=False)
+        table.add_column(justify="center")
+
+        for item in items:
+            table.add_row(f"[italic][cyan]{item}[/][/]")
+
+        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
+    else:
+        num_columns = math.ceil(num_items / max_rows)
+
+        table = Table(
+            show_lines=True,
+            expand=False,
+            show_header=False
+        )
+
+        for _ in range(num_columns):
+            table.add_column(justify="center")
+
+        chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
+        transposed_items = zip_longest(*chunks, fillvalue="")
+
+        for row_data in transposed_items:
+            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
+            table.add_row(*styled_row)
+
+        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")

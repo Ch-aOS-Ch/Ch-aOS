@@ -16,7 +16,8 @@ from chaos.lib.handlers import (
     handleCreateRamble,
     handleEditRamble,
     handleEncryptRamble,
-    handleReadRamble
+    handleReadRamble,
+    handleFindRamble
 )
 
 from chaos.lib.tinyScript import runChoboloEdit, runSopsCheck, runSopsEdit
@@ -91,6 +92,8 @@ def main():
                 handleEncryptRamble(args)
             elif args.ramble_commands == 'read':
                 handleReadRamble(args)
+            elif args.ramble_commands == 'find':
+                handleFindRamble(args)
 
         if hasattr(args, 'command') and args.command == 'init':
             if args.init_command == 'chobolo':
