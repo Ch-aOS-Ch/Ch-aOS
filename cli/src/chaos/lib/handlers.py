@@ -1,3 +1,4 @@
+from operator import add
 from rich.console import Console, Group
 from rich.align import Align
 from rich.padding import Padding
@@ -10,23 +11,33 @@ from rich.table import Table
 
 from importlib import import_module
 from pathlib import Path
+from omegaconf import OmegaConf
 
 import logging
-import getpass
+import time
+import os
+import sys
 from pyinfra.operations import files, server
 from pyinfra.facts.files import FindFiles, Directory
 from pyinfra.api.operation import add_op
+from pyinfra.api.inventory import Inventory
+from pyinfra.api.config import Config
+from pyinfra.api.connect import connect_all, disconnect_all
+from pyinfra.api.state import StateStage, State
+from pyinfra.api.operations import run_ops
+from pyinfra.context import ctx_state
 
 def add_generation_ops_to_state(state, host, chobolo_path):
     console = Console()
     genDir = "/var/lib/chaos/generations"
 
-    files.directory(
+    add_op(
         state,
+        files.directory,
+        name="Ensure chaos generations directory exists",
         path=genDir,
         present=True,
         _sudo=True,
-        name="Ensure chaos generations directory exists"
     )
 
     try:
@@ -38,7 +49,7 @@ def add_generation_ops_to_state(state, host, chobolo_path):
         existing_gens = []
 
     i = len(existing_gens) + 1
-    
+
     timestamp = int(time.time())
     filename = f"gen-{i:03d}-{timestamp}.yml"
     destPath = f"{genDir}/{filename}"
@@ -46,7 +57,8 @@ def add_generation_ops_to_state(state, host, chobolo_path):
 
     console.print(f"[bold green]Queuing Generation {i} creation[/]")
 
-    files.put(
+    add_op(
+        files.put,
         state,
         src=chobolo_path,
         dest=destPath,
@@ -54,7 +66,8 @@ def add_generation_ops_to_state(state, host, chobolo_path):
         name=f"Create chaos generation {i}"
     )
 
-    server.shell(
+    add_op(
+        server.shell,
         state,
         commands=[['ln', '-sfn', filename, linkPath]],
         _sudo=True,
