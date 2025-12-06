@@ -1,100 +1,71 @@
 [versão pt br](./READMEpt_BR.md)
-# Ch-aronte
-
-**A declarative Arch linux installer and manager**
+# ***Ch-aOS project suite***
 
 [![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
----
+***Ch-aronte for Arch; Ch-imera for NixOS; Ch-obolos for it all. Studying the viablity of a Ch-iron for Fedora and Ch-ronos for Debian.***
 
-> [!WARNING]
->
-> This is the Legacy code, I am currently working on switching both the bash scripts with OmegaConf and ansible playbooks with pyinfra OR pulumi (considering both).
+## What is it about?
 
-***A guided arch-installer and declarative system manager***
+- Ch-aOS is meant to be a way to declaratively manage your linux system, from installation to post-install configuration, in a modular way.
 
-***PART OF THE Ch-aOS (Ch-aronte + Ch-imera for nix + Ch-obolos [studying the ideas of a Ch-iron for fedora and a Ch-ronos for debian]) PROJECT SUITE***
+## How does it work?
 
-## Key Features
+- the chaos CLI uses Python, Pyinfra and OmegaConf as it's main engine, allowing for a declarative paradigm approach in a simpler way.
+- Ch-aronte is only a plugin module that gives chaos it's "roles", a pluggable backend made for Arch Linux systems.
+- Ch-imera will be a little bit different, it will _transpile_ the Ch-obolos files into simple nix expressions, allowing for a _kickstart_ into NixOS systems, basically letting you "test drive" the declarative paradigm without needing to learn it inside of a "pure declarative" system.
+- Ch-obolo is the main configuration system, it is meant to be a universal configuration for all of the Ch-aOS projects, letting you distro-hop with ease.
 
-- **An *guided* instalation process**: Instead of automating everything, the script displays a series of questions and explanations about what it's doing to the reader, they gather information about the _how_ the reader wants their system, it then writes a singular file in yaml –for easy readability– and uses _that_ file to install the system, it is not automated at all (Im working on an automated mode)
-- **The plugin –or better yet, Ch-obolos– system**: Akin to nix, the Ch-aOS plugin system is fully declarative, written exclusively in yaml, it helps the user manage their whole entire system with one singular file by using ansible + the (WIP) Ch-imera project will be able to take these plugins and compile them into nixlang, allowing for an easy transition.
+## Did you say plugins??
+- Yes! The chaos CLI is basically just the CLI itself, with no backends at all, the backends are plugins themselves, this means that you can create your own backend for your own distro if you want to!
+- Some examples of possible backends are found inside of the external_plugins folder, including a mock backend for testing and a chaos-dots backend for dotfile management! (This one i use myself!)
 
-## The Architecture: Orchestrator + Worker
-
-The project uses a hybrid architecture, delegating to different languages their do's and don't's:
-
-* **Shell Script (The Orchestrator)**: Used to gather user input, transform the input into a declarative file and call in–
-* **Ansible (The Worker)**: Used to make sure the system state is the same as the one declared in the Ch-obolo file.
+### But what about... yk... actually managing my _system_??
+- That's where the "cores" come in, cores are just pre-made plugins that manage specific distros, like Ch-aronte for Arch Linux!
+- These are made by me, myself and I, but anyone can create their own core if they want to... yk... cause they're plugins.
+- Cores should contain all the bare minimum to manage a system, such as package management, user management, service management, etc.
 
 ## Getting Started
 
-Run directly from the Arch Linux Live ISO environment.
-
-### Prerequisites:
-
-* An internet connection (use `iwctl` in the live environment).
-* A running Arch Linux Live ISO.
-
-### Installation Steps:
-
-```bash
-# 1. In the live environment, connect to the internet
-iwctl
-
-# 2. (Optional, but recommended) Increase the RAM space for the liveboot
-mount -o remount,size=2G /run/archiso/cowspace
-
-# 3. Install the dependencies
-pacman -Sy --noconfirm ansible git yq sops # this last one is only if you
-                                           # want to encript and commit your passwords (recommended)
-
-# 4. Clone the repository and start the installer
-git clone [https://github.com/Dexmachi/Ch-aronte.git](https://github.com/Dexmachi/Ch-aronte.git)
-cd Ch-aronte
-
-# IMPORTANT: Run the script from inside the project folder
-chmod +x A-coin.sh
-./A-coin.sh
-```
-> [!WARNING]
+1. Clone this repo (i'm working on making it pip/aur installable, but for now, this is the only way to get it)
+2. Go to ./cli/build/b-coin/ and run `makepkg -fcsi` to install the chaos CLI.
+3. (optional) go to ../../Ch-aronte/build/core and run `makepkg -fcsi` to install the Ch-aronte core.
+4. (optional) go to ../../external_plugins/chaos-dots and run `makepkg -fcsi` to install the chaos-dots plugin.
+5. Now you can run `chaos -h` to see the help menu and `chaos -r` to check all available roles!
+> [!TIP]
 >
-> The script is your guide. Follow the instructions in the terminal and answer the questions, the system will install the system based on it
+> sops is highly recommended, it is used for secrets management. Right now it is not a full on dependency, but some features will not work without it and the non use of it will be deprecated in the future.
 
 ## Ch-obolos System
 
-Customize your installation by creating your own presets.
-1. Create a file named custom-YOUR-PLUGIN.yml inside ./Ch-obolos/.
+> [!TIP]
+>
+> You can use `chaos -chobolo/sec/sops` to set your base chobolo file, secrets file or sops file, this will be used as the base for all role runs and decryptions!
 
-### Example of a complete file with everything in one:
+### Example of a Ch-aronte Ch-obolos file:
 ```YAML
 # Defines system users, groups, and hostname
 users:
   - name: "dexmachina"
     shell: "zsh"
+    sudo: True
     groups:
       - wheel
       - dexmachina
-  - name: "root"
-    shell: "bash"
-    groups:
-      - root
 hostname: "Dionysus"
-wheel_access: true # Grants sudo access to the 'wheel' group
 
 secrets:
   sec_mode: sops
-  sec_file: Ch-obolos/secrets-here.yml
-  sec_sops: Ch-obolos/sops-secs.yml
+  sec_file: /absolute/path/to/Ch-obolos/secrets-here.yml # <~ Not necessary if you've set it with the chaos CLI, but it can be used as a fallback!
+  sec_sops: /absolute/path/to/Ch-obolos/sops-secs.yml # <~ Not necessary if you've set it with the chaos CLI, but it can be used as a fallback!
 
-# Defines the list of packages to be declaratively managed
-pacotes:
+packages:
   - neovim
   - fish
   - starship
   - btop
 
-aur_pkgs: # <~ yeah, I sepparated them, this is a safety net for when you DON'T have a damn aur helper (how could you?)
+aurPackages: # <~ yeah, I sepparated them, this is a safety net for when you DON'T have a damn aur helper (how could you?)
   - 1password-cli
   - aurroamer # <~ Highly recommend, very good package
   - aurutils
@@ -102,16 +73,16 @@ aur_pkgs: # <~ yeah, I sepparated them, this is a safety net for when you DON'T 
  
 bootloader: "grub" # or "refind"
 
-# pacotes_base_override:  <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
+# baseOverride:  <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
 #   - linux-cachyos-headers
 #   - linux-cachyos
 #   - linux-firmware
 
-aur_helpers: # <~ Only yay and paru are available right now, the script will _install_ any aur_helpers you want, but it'll only declaratively manage these 2
+aurHelpers:
   - yay
   - paru
 
-mirrors: # <~ this was made to translate to reflector, I'll probably be able to translate it with overlays, but it'll be very hard ://
+mirrors:
   countries:
     - "br"
     - "us"
@@ -120,14 +91,15 @@ mirrors: # <~ this was made to translate to reflector, I'll probably be able to 
 # Manages systemd services
 services:
   - name: NetworkManager
-    state: started # <~ You are able to not define this, since it defaults to started
-    enabled: true # <~ You are able to not define this, since it defaults to enabled
+    running: True # <~ defaults to True
+    on_boot: true # <~ since it defaults to True
                   # I like to keep these for granularity
     dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
 
-  - name: bluetooth.service # <~ ".service" _is_ required when there's a .service in the service name (do NOT use dense for these types.)
+  - name: bluetooth
+    dense_service: true # <~ Cause i don't want to put .service every time
 
-  - name: sshd
+  - name: sshd # <~ auto puts .service lmao
 
   - name: nvidia
     dense_service: true
@@ -137,40 +109,37 @@ services:
 # Manages pacman repositories
 repos:
   managed:
-    extras: true      # Enables the [extras+multilib] repository
-    unstable: false   # Disables the [testing] repositories
+    core: True      # Enables the [core] repository (default: true)
+    extras: true      # Enables the [extras+multilib] repository (default: false)
+    unstable: false   # Disables the [testing] repositories (default: false)
   third_party:
-    - name: "cachyOS"
-      distribution: "arch" #<~ Allows for quick Ch-imera parsing, it tells it to not use it as a nix repo
-      url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
+    - name: "cachyOS" # <~ you can add as many third party repos as you want, as long as you have them installed
+      include: /etc/pacman.d/cachyos-mirrorlist
+      distribution: "arch"
 
 # Manages dotfiles from git repositories
-dotfiles: # Translatable with Ch-imera with the manager: tag, it will only use the nix manager tho
-  - repo: https://github.com/your-user/your-dotfiles.git #<~ To decide how the script will behave, you have 3 options as to how it will work.
+dotfiles:
+  - url: https://github.com/your-user/your-dotfiles.git
     user: dexmachina # <~ user where the dotfiles will be applied
-    install_command: "your_custom_dotfile_command.sh" # <~ It uses the root of your repo as a base point, so be aware of that.
-    manager: "charonte" # <~ MUTUALLY EXCLUSIVE FROM INSTALL_COMMAND. Options are charonte OR stow (as of now), this allows for using a proper manager, I personally recommend that you use "charonte" since it is modular AND it is declarative.
-    # btw, I'm actively using this dotfile manager rn, it is not dangerous.
-    links: # <~ this is only available with the charonte manager.
+    branch: main # <~ optional, defaults to main
+    pull: true # <~ optional, defaults to false, if true, it will pull the latest changes
+    links:
       - from: "zsh" # <~ this is a _folder_ inside of my dotfiles folder
-        to: . # <~ this is . by default, it takes the home of the first user on the list of users to define which home to go to
-        open: true # <~ defines if the script should symlink the files _inside_ the folder _or_ the folder itself.
+        to: . # <~ this is . by default, it takes the home of the declared user as a base point.
+        open: true # <~ defines if the script should symlink the files _inside_ the folder _or_ the folder itself. (defaults to false)
       - from: "bash"
         open: true
       - from: ".config"
 # ATTENTION: _ALL_ THE FILES YOU PUT HERE _AND_ ALREADY EXIST ARE BACKED UP BESIDE THE NEW ONES. IF YOU _REMOVE_ A FILE FROM THE LIST, IT WILL BE REMOVED FROM THE PATH YOU SET AS WELL. (duh, it's declarative)
 
-        # Your third option is leaving this blank, it will simply search for an install.sh inside your root folder, it'll do nothing if it doesn't find one.
-
 # Defines disk partitions (usually filled by the interactive script)
-firmware: UEFI
-particoes: # <~ is not and never will be translatable to a configurations.nix :( but it is translatable to a disko.nix :)
+partitioning: # <~ is not and never will be translatable to a configurations.nix :( but it is translatable to a disko.nix :)
   disk: "/dev/sdb" # <~ what disk you want to partition into
   partitions:
     - name: chronos # <~ Ch-aronte uses label for fstab andother things, this changes nothing to your overall experience, but it is a commodity for me
       important: boot # <~ Only 4 of these, boot, root, swap and home, it uses this to define how the role should be treated (mainly boot and swap)
       size: 1GB # <~ Use G, MiB might work, but it might not, it's still not well stabilized
-      mount_point: "/boot" # <~ required (duh)
+      mountpoint: "/boot" # <~ required (duh)
       part: 1 # <~ this tells what partition it is (sdb1,2,3,4...)
       type: vfat # <~ or ext4, btrfs, well, you get the idea
 
@@ -183,14 +152,14 @@ particoes: # <~ is not and never will be translatable to a configurations.nix :(
     - name: dionysus_root
       important: root
       size: 46GB
-      mount_point: "/"
+      mountpoint: "/"
       part: 3
       type: ext4
 
     - name: dionysus_home
       important: home
       size: 100%
-      mount_point: "/home"
+      mountpoint: "/home"
       part: 4
       type: ext4
 
@@ -205,38 +174,60 @@ region:
 ```
 > [!WARNING]
 >
-> You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/custom-plug-dex.yml), these are the Ch-obolos I am actively using to manage my own system!
+> You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), these are the Ch-obolos I am actively using to manage my own system!
+
+> [!TIP]
+>
+> Want to test the chaos role but don't want to mess with your system? Use chaos -dvvv to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
+
+# Flags Cheat Sheet (cause no good CLI project is complete without one):
+| Flag | Description |
+|------|--------------|
+| `-v`, `-vv`, `-vvv` | Increase verbosity |
+| `-d` | Dry-run mode (preview changes) |
+| `-ikwid` | “I Know What I'm Doing” mode (disables safety checks) |
+| `-ss` | Override `secrets.sec_sops` |
+| `-sops` | Set base SOPS config path |
+| `-chobolo` | Set base Ch-obolo file |
+| `-sec` | Set base secrets file |
+| `-sf` | Override `secrets.sec_file` |
+| `-e` | Override Ch-obolo file |
+| `-r` | List all roles |
+| `-h` | Show help screen |
+| `-a` | List all aliases |
+| `-es`, `--edit-sec` | Edit your secrets with the $EDITOR from your system and exit (will NOT work with sec_mode charonte.) |
+| `-cs`, `--check-sec` | Print secrets file decrypted and exit (will NOT work with sec_mode charonte.) |
+| `-ec`, `--edit-chobolo` | Edit your chobolo file and exit |
+| `-gt`, `--generate-tab` | Generate tab completion for your shell (ofc I have one, are you kidding?) |
+| `-u`, `--update-plugins` | Updates the Ch-aronte plugins cache (the program always uses cached files by default, to make it faster.) |
 
 # Example of usage:
-![B-coin usage](./imagens/B-coin-test.gif)
-Note: This GIF shows the new B-coin executor (Pyinfra-based) that is currently under development and not yet fully in the main branch. The installation steps above are for the legacy Ansible version.
+![chaos usage](./imagens/B-coin-test.gif)
 
 ## Project Roadmap
 
 - [-] = In Progress, probably in another branch, either being worked on or already implemented, but not fully tested.
 
 ### MVP
-- [x] Minimal Installer with Firmware Detection
-- [x] Plugin System for Custom Packages
+- [-] Minimal Installer with Firmware Detection
+- [x] Plugin System for Ch-aronte
 
 ### Modularity + Automation
 - [x] Dotfile Manager integrated with the Plugin System
-- [ ] B-coin system manager CLI helper.
+- [x] chaos system manager CLI helper.
 
 ### Declarativity
-- [-] Fully declarative installation mode, with it's only necessity being the custom*.yml file. (I just need to implement the checker on the start of the script and if the plugin file exists and is selected, run in declarative mode)
-- [-] Fully declarative post-install system configuration with only one custom*.yml file. (I just need to implement the B-coin helper for this one)
-- [x] Declarative package state manager (Install and uninstall declaratively).
-- [x] Repo manager.
+- [-] Fully declarative installation mode, with it's only necessity being the *.yml file for Ch-aronte.
+- [x] Fully declarative post-install system configuration with only one custom*.yml file for Ch-aronte.
+- [x] Declarative package state manager (Install and uninstall declaratively) for Ch-aronte.
+- [x] Repo manager for Ch-aronte.
 
 ### Quality + security
-- [-] ansible-lint and ansible-test tests. (Currently being done manually)
+- [-] Pytest + flake8 tests for all the codebase.
 
 ### Ideas being studied
 - [-] Secrets management (HIGHLY expansible, currently only used for user passwords).
-  - Now that I finally integrated [sops](https://github.com/getsops/sops) to the system,
-    I can easily do secrets management with encryption and safe commiting.
-- [ ] ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive) Support, as a flakes.lock equivalent.
+  - Now that I finally integrated [sops](https://github.com/getsops/sops) to the system, I can easily do secrets management with encryption and safe commiting.
 
 ## Contributing
 

@@ -236,8 +236,10 @@ packages:
   - xdg-desktop-portal-hyprland
   - gtk-vnc
   - python-regex
+  - jdk17-openjdk
   - inetutils
   - python-omegaconf
+  - gitlogue
   - remmina
 
 baseOverride:
@@ -255,31 +257,14 @@ baseOverride:
   - vi
   - nano
 
-services:
-  - name: NetworkManager
-    dense_service: true
-
-  - name: nvidia
-    dense_service: true
-
-  - name: bluetooth
-  - name: sshd
-  - name: sddm
-
-region:
-  timezone: "America/Sao_Paulo"
-  ntp: True
-  locale:
-    - "pt_BR.UTF-8"
-    - "en_US.UTF-8"
-  keymap: "br-abnt2"
-
 aurHelpers:
   - yay
   - paru
 
 aurPackages:
   - 1password-cli
+  - b-coin
+  - chaos-dotfiles
   - aurroamer
   - aurutils
   - bibata-cursor-theme-bin
@@ -318,6 +303,8 @@ aurPackages:
   - velero-bin
   - vencord
   - wallust
+  - b-coin
+  - smassh-bin
   - wlr-layout-ui
   - yaru-icon-theme
   - zsh-abbr
@@ -325,6 +312,7 @@ aurPackages:
 users:
   - name: "dexmachina"
     shell: "zsh"
+    sudo: True
     groups:
       - wheel
       - input
@@ -387,3 +375,46 @@ repos:
     - name: cachyos
       include: /etc/pacman.d/cachyos-mirrorlist
       distribution: "arch"
+
+dotfiles:
+  - url: "https://github.com/Dexmachi/dotfiles.git"
+    pull: True
+    branch: "main"
+    user: dexmachina
+    links:
+      - from: bookmarks
+        to: .
+
+      - from: .config
+        to: .
+
+      - from: bash
+        to: .
+        open: true
+
+      - from: walls
+        to: .
+        open: true
+
+      - from: zsh
+        to: .
+        open: true
+
+mirrors:
+  countries:
+    - "br"
+    - "us"
+  count: 25
+
+services:
+  - name: NetworkManager
+    dense_service: true
+
+  - name: bluetooth.service
+
+  - name: sshd
+
+  - name: nvidia
+    dense_service: true
+
+  - name: sddm.service

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chaos"
+version = "0.1.0"
+description = "Declarative OS configuration manager"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyinfra",
+    "omegaconf",
+    "passlib>=1.7.4",
+    "argcomplete",
+    "rich>=13.7.1",
+]
+
+[project.scripts]
+chaos = "chaos.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
