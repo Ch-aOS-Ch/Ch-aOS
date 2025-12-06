@@ -26,6 +26,7 @@ import logging
 import os
 import sys
 import shutil
+import tempfile
 import getpass
 
 console = Console()
@@ -578,38 +579,61 @@ def handleEncryptRamble(args):
     if 'sops' in data:
         try:
             result = subprocess.run(['sops', '--config', sops_file_override, '-d', str(fullPath)], capture_output=True, text=True, check=True)
-            with open(fullPath, 'w') as f:
-                f.write(result.stdout)
-                f.close()
+            with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+                tmp.write(result.stdout)
+                tmpPath=tmp.name
         except FileNotFoundError:
             console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to edit encrypted rambles.')
             sys.exit(1)
         except subprocess.CalledProcessError as e:
             if e.returncode == 200:
                 print('')
+                sys.exit(1)
             else:
                 console.print(f'[bold red]ERROR: Ramble editing with sops failed: {e}')
                 sys.exit(1)
 
-    try:
-        subprocess.run(
-            [
-                'sops',
-                '--config', sops_file_override,
-                '--encrypt',
-                '--in-place',
-                '--encrypted-regex', regex,
-                str(fullPath)
-            ],
-            check=True
-        )
-        console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
-    except FileNotFoundError:
-        console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to encrypt rambles.')
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        console.print(f'[bold red]ERROR: Ramble encryption failed: {e}')
-        sys.exit(1)
+        try:
+            subprocess.run(
+                [
+                    'sops',
+                    '--config', sops_file_override,
+                    '--encrypt',
+                    '--in-place',
+                    '--encrypted-regex', regex,
+                    str(tmpPath)
+                ],
+                check=True
+            )
+            shutil.move(tmpPath, fullPath)
+            console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
+        except FileNotFoundError:
+            console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to encrypt rambles.')
+            sys.exit(1)
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR: Ramble encryption failed: {e}')
+            sys.exit(1)
+
+    else:
+        try:
+            subprocess.run(
+                [
+                    'sops',
+                    '--config', sops_file_override,
+                    '--encrypt',
+                    '--in-place',
+                    '--encrypted-regex', regex,
+                    str(fullPath)
+                ],
+                check=True
+            )
+            console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
+        except FileNotFoundError:
+            console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to encrypt rambles.')
+            sys.exit(1)
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR: Ramble encryption failed: {e}')
+            sys.exit(1)
 
     sys.exit(0)
 
@@ -879,24 +903,85 @@ def handleMoveRamble(args):
     old = args.old
     new = args.new
 
-    oldPath = RAMBLE_DIR / old.replace('.', '/')
-    newPath = RAMBLE_DIR / new.replace('.', '/')
+    old_is_dir = '.' not in old
+    new_is_dir = '.' not in new
 
-    oldFile = Path(str(oldPath) + ".yml")
-    newFile = Path(str(newPath) + ".yml")
+    # Determine source path
+    if old_is_dir:
+        source_path = RAMBLE_DIR / old
+    else:
+        try:
+            old_journal, old_page = old.split('.', 1)
+            source_path = RAMBLE_DIR / old_journal / f"{old_page}.yml"
+        except ValueError:
+            console.print(f"[bold red]ERROR:[/] Invalid source format: '{old}'")
+            sys.exit(1)
 
-    if not oldFile.exists():
-        console.print(f"[bold red]ERROR:[/] No such file: {oldFile}")
+    # Determine destination paths
+    if new_is_dir:
+        dest_dir_path = RAMBLE_DIR / new
+    else:
+        try:
+            new_journal, new_page = new.split('.', 1)
+            dest_dir_path = RAMBLE_DIR / new_journal
+            dest_file_path = dest_dir_path / f"{new_page}.yml"
+        except ValueError:
+            console.print(f"[bold red]ERROR:[/] Invalid destination format: '{new}'")
+            sys.exit(1)
+
+
+    # Case 1: Move/Rename directory (ramble1 -> ramble2)
+    if old_is_dir and new_is_dir:
+        if not source_path.is_dir():
+            console.print(f"[bold red]ERROR:[/] No such journal (directory): {source_path}")
+            sys.exit(1)
+        if dest_dir_path.exists():
+            console.print(f"[bold red]ERROR:[/] Destination journal (directory) already exists: {dest_dir_path}")
+            sys.exit(1)
+
+        shutil.move(str(source_path), str(dest_dir_path))
+        console.print(f"[green]Successfully moved journal '{old}' to '{new}'[/]")
+        sys.exit(0)
+
+    # Case 2: Move/Rename file (ramble1.page1 -> ramble2.page2)
+    if not old_is_dir and not new_is_dir:
+        if not source_path.is_file():
+            console.print(f"[bold red]ERROR:[/] No such page (file): {source_path}")
+            sys.exit(1)
+        if dest_file_path.exists():
+            console.print(f"[bold red]ERROR:[/] Destination page (file) already exists: {dest_file_path}")
+            sys.exit(1)
+
+        dest_file_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source_path), str(dest_file_path))
+        console.print(f"[green]Successfully moved page '{old}' to '{new}'[/]")
+        sys.exit(0)
+
+    # Case 3: Move directory to file (ramble1 -> ramble2.page2) -> FORBIDDEN
+    if old_is_dir and not new_is_dir:
+        console.print("[bold red]ERROR:[/] system cannot move a directory to a singular file")
         sys.exit(1)
 
-    if newFile.exists():
-        console.print(f"[bold red]ERROR:[/] File already exists: {newFile}")
-        sys.exit(1)
+    # Case 4: Move file to directory (ramble1.page1 -> ramble2)
+    if not old_is_dir and new_is_dir:
+        if not source_path.is_file():
+            console.print(f"[bold red]ERROR:[/] No such page (file): {source_path}")
+            sys.exit(1)
 
-    newFile.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(oldFile), str(newFile))
-    console.print(f"[green]Successfully moved {old} to {new}")
-    sys.exit(0)
+        final_dest_file = dest_dir_path / source_path.name
+
+        if final_dest_file.exists():
+            console.print(f"[bold red]ERROR:[/] Page (file) '{source_path.name}' already exists in journal '{new}'")
+            sys.exit(1)
+
+        dest_dir_path.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source_path), str(final_dest_file))
+        new_ramble_name = f"{new}.{source_path.stem}"
+        console.print(f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]")
+        sys.exit(0)
+
+    console.print("[bold red]An unknown error occurred during the move operation.[/]")
+    sys.exit(1)
 
 def handleDelRamble(args):
     RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
