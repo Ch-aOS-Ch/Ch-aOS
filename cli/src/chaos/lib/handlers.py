@@ -586,12 +586,8 @@ def handleEncryptRamble(args):
             console.print('[bold red]ERROR:[/] The `sops` command was not found. Please install sops to edit encrypted rambles.')
             sys.exit(1)
         except subprocess.CalledProcessError as e:
-            if e.returncode == 200:
-                print('')
-                sys.exit(1)
-            else:
-                console.print(f'[bold red]ERROR: Ramble editing with sops failed: {e}')
-                sys.exit(1)
+            console.print(f'[bold red]ERROR: Ramble decryption with sops failed: {e}')
+            sys.exit(1)
 
         try:
             subprocess.run(
