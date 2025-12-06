@@ -1,13 +1,13 @@
 # Maintainer: Dexmachi caiorocoli@gmail.com
 pkgname=b-coin
-pkgver=0.0.7.1
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="Declarative system manager for Arch Linux."
 arch=('any')
 _gitname="Ch-aronte"
 url="https://github.com/Ch-aOS-Ch/Ch-aronte"
 license=('MIT')
-depends=('python')
+depends=('python' 'sops')
 makedepends=('python' 'python-pip' 'python-setuptools' 'python-wheel' 'python-pytest')
 source=("${_gitname}-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
