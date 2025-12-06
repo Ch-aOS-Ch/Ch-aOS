@@ -1,226 +1,169 @@
-> [!WARNING]
->
-> Algumas das funcionalidades aqui localizadas estão em um branch beta.
-
 [english version](./README.md)
-# Ch-aronte
-
-**Um instalador e gerenciador declarativo para Arch Linux**
+***Suíte de projetos Ch-aOS***
 
 [![Status do Projeto: Ativo](https://img.shields.io/badge/status-ativo-success.svg)](https://github.com/Dexmachi/Ch-aronte)
 
----
+***Ch-aronte para Arch; Ch-imera para NixOS; Ch-obolos para todos. Estudando a viabilidade de um Ch-iron para Fedora e um Ch-ronos para Debian.***
 
-***Um instalador arch guiado e gerenciador de sistema declarativo***
-***PARTE DA SUÍTE DE PROJETOS Ch-aOS (Ch-aronte + Ch-imera para nix + Ch-obolos)***
+## Do que se trata?
 
-## Funcionalidades Principais
+- O Ch-aOS foi projetado para ser uma forma de gerenciar seu sistema Linux de maneira declarativa e modular, desde a instalação até a configuração pós-instalação.
 
-- **Um processo de instalação *guiado***: Em vez de automatizar tudo, o script exibe uma série de perguntas e explicações sobre o que está fazendo para o leitor, eles coletam informações sobre _como_ o leitor quer seu sistema, ele então escreve um arquivo singular em yaml –para fácil legibilidade– e usa _esse_ arquivo para instalar o sistema, não é totalmente automatizado (estou trabalhando em um modo automatizado)
-- **O sistema de plugins –ou melhor, Ch-obolos–**: Semelhante ao nix, o sistema de plugins Ch-aOS é totalmente declarativo, escrito exclusivamente em yaml, ele ajuda o usuário a gerenciar todo o seu sistema com um único arquivo usando ansible + o projeto (WIP) Ch-imera será capaz de pegar esses plugins e compilá-los em nixlang, permitindo uma transição fácil.
+## Como funciona?
 
-## A Arquitetura: Orquestrador + Executor
+- A CLI chaos usa Python, Pyinfra e OmegaConf como seu motor principal, permitindo uma abordagem de paradigma declarativo de forma mais simples.
+- O Ch-aronte é apenas um módulo plugável que fornece os "roles" (funções) para a chaos, um backend plugável feito para sistemas Arch Linux.
+- O Ch-imera será um pouco diferente, ele irá _transpilar_ os arquivos Ch-obolos em expressões Nix simples, permitindo um _kickstart_ em sistemas NixOS, basicamente deixando você "testar" o paradigma declarativo sem precisar aprendê-lo dentro de um sistema "puramente declarativo".
+- O Ch-obolo é o sistema de configuração principal, projetado para ser uma configuração universal para todos os projetos Ch-aOS, permitindo que você troque de distro com facilidade.
 
-O projeto utiliza uma arquitetura híbrida, delegando a diferentes linguagens seus prós e contras:
+## Você disse plugins??
+- Sim! A CLI chaos é basicamente apenas a própria CLI, sem nenhum backend. Os backends são os próprios plugins, o que significa que você pode criar seu próprio backend para sua própria distro, se quiser!
+- Alguns exemplos de backends possíveis são encontrados na pasta `external_plugins`, incluindo um backend mock para testes e um backend `chaos-dots` para gerenciamento de dotfiles! (Este eu mesmo uso!)
 
-* **Shell Script (O Orquestrador)**: Usado para coletar a entrada do usuário, transformar a entrada em um arquivo declarativo e chamar o–
-* **Ansible (O Executor)**: Usado para garantir que o estado do sistema seja o mesmo que o declarado no arquivo Ch-obolo.
+### Mas e quanto a... você sabe... gerenciar meu _sistema_ de verdade??
+- É aí que entram os "cores". Cores são apenas plugins pré-fabricados que gerenciam distros específicas, como o Ch-aronte para Arch Linux!
+- Estes são feitos por mim, euzinho e eu mesmo, mas qualquer um pode criar seu próprio core se quiser... porque, você sabe... são plugins.
+- Os Cores devem conter todo o mínimo necessário para gerenciar um sistema, como gerenciamento de pacotes, usuários, serviços, etc.
 
 ## Começando
 
-Execute diretamente do ambiente Live ISO do Arch Linux.
-
-### Pré-requisitos:
-
-* Uma conexão com a internet (use `iwctl` no ambiente live).
-* Um Live ISO do Arch Linux em execução.
-
-### Passos da Instalação:
-
-```bash
-# 1. No ambiente live, conecte-se à internet
-iwctl
-
-# 2. (Opcional, mas recomendado) Aumente o espaço em RAM para o liveboot
-mount -o remount,size=2G /run/archiso/cowspace
-
-# 3. Instale as dependências
-pacman -Sy --noconfirm ansible git yq
-
-# 4. Clone o repositório e inicie o instalador
-git clone https://github.com/Dexmachi/Ch-aronte.git
-cd Ch-aronte
-
-# IMPORTANTE: Execute o script de dentro da pasta do projeto
-chmod +x A-coin.sh
-./A-coin.sh
-```
-> [!WARNING]
+1. Clone este repositório (estou trabalhando para torná-lo instalável via pip/aur, mas por enquanto, esta é a única maneira de obtê-lo).
+2. Vá para `./cli/build/b-coin/` e execute `makepkg -fcsi` para instalar a CLI chaos.
+3. (Opcional) vá para `../../Ch-aronte/build/core` e execute `makepkg -fcsi` para instalar o core Ch-aronte.
+4. (Opcional) vá para `../../external_plugins/chaos-dots` e execute `makepkg -fcsi` para instalar o plugin chaos-dots.
+5. Agora você pode executar `chaos -h` para ver o menu de ajuda e `chaos -r` para verificar todos os roles disponíveis!
+> [!TIP]
 >
-> O script é seu guia. Siga as instruções no terminal e responda às perguntas, o sistema será instalado com base nisso
+> O uso de `sops` é altamente recomendado. Ele é usado para gerenciamento de segredos. No momento, não é uma dependência obrigatória, mas algumas funcionalidades não funcionarão sem ele e seu não uso será descontinuado no futuro.
 
-## Sistema de Plugins
+## O Sistema Ch-obolos
 
-Personalize sua instalação criando seus próprios presets.
-1. Crie um arquivo chamado custom-SEU-PLUGIN.yml dentro de ./Ch-obolos/.
-2. Embora você possa colocar tudo em um único arquivo, recomendo separar as responsabilidades em múltiplos arquivos e usar um arquivo principal para importá-los. Isso torna sua configuração mais limpa e reutilizável.
+> [!TIP]
+>
+> Você pode usar `chaos --set-chobolo`, `--set-sec-file` e `--set-sops-file` para definir seu arquivo Ch-obolo base, arquivo de segredos ou arquivo de configuração sops. Isso será usado como base para todas as execuções de roles e decriptações!
 
-Por exemplo, você poderia ter a seguinte estrutura em seu diretório `./Ch-obolos/`:
-```
-.
-├── custom-main.yml
-├── dotfiles.yml
-├── packages.yml
-├── partitions.yml
-├── region.yml
-├── repos.yml
-├── services.yml
-└── users.yml
-```
-
-Seu arquivo principal, `custom-main.yml`, usaria então `imports` para combinar os outros arquivos. A chave `strategy` (`override`, `combine`, `merge`) determina como os dados são mesclados em caso de conflito de chaves.
+### Exemplo de um arquivo Ch-obolos para o Ch-aronte:
 ```YAML
-# ./Ch-obolos/custom-main.yml
-# Este é o arquivo de ponto de entrada principal para o seu plugin.
-plug_name: custom-main.yml # <- essencial, isso identifica o plugin
-
-imports:
-  - file: 'users.yml'
-    strategy: merge
-    merge_keys:
-      - users
-
-  - file: 'packages.yml'
-    strategy: override
-
-  - file: 'services.yml'
-    strategy: combine
-
-  - file: 'repos.yml'
-    strategy: combine
-
-  - file: 'dotfiles.yml'
-    strategy: merge
-    merge_keys:
-      - dotfiles
-
-  # Partições e região são geralmente definidos pelo script interativo,
-  # mas também podem ser importados se você estiver rodando em modo totalmente declarativo.
-  - file: 'particoes.yml'
-    strategy: override
-
-  - file: 'region.yml'
-    strategy: override
-```
-
-E os arquivos correspondentes conteriam as configurações específicas, por exemplo:
-```YAML
-# ./Ch-obolos/packages.yml
-pacotes:
-  - neovim
-  - fish
-  - starship
-
-bootloader: "grub"
-```
-
-Ou:
-```YAML
-# ./Ch-obolos/users.yml
+# Define usuários do sistema, grupos e hostname
 users:
   - name: "dexmachina"
-    shell: "/bin/zsh"
+    shell: "zsh"
+    sudo: True
     groups:
       - wheel
       - dexmachina
-
-  - name: "root"
-    shell: "/bin/bash"
-    groups:
-      - root
 hostname: "Dionysus"
-wheel_access: true
+
 secrets:
-  sec_mode: "charonte" #<- depois vou adicionar um modo "system", que requer setup prévio do ansible-vault ou do sops do nix
-  sec_file: "Ch-obolos/secrets.yml" #<- arquivo de segredos (senhas), deve ser secreto e é NECESSÁRIO para sec_mode "charonte"
-```
+  sec_mode: sops
+  sec_file: /caminho/absoluto/para/Ch-obolos/secrets-here.yml # <~ Não é necessário se você já configurou com a CLI chaos, mas pode ser usado como fallback!
+  sec_sops: /caminho/absoluto/para/Ch-obolos/sops-secs.yml # <~ Não é necessário se você já configurou com a CLI chaos, mas pode ser usado como fallback!
 
-### Exemplo de um arquivo completo com tudo em um:
-```YAML
-# É recomendado separar essas configurações em arquivos diferentes
-# (ex: users.yml, packages.yml) e usar um arquivo de plugin principal para importá-los,
-# mas para este exemplo, tudo está em um só lugar.
-
-# Define os usuários do sistema, grupos e hostname
-users:
-  - name: "dexmachina"
-    shell: "/bin/zsh"
-    groups:
-      - wheel
-      - dexmachina
-  - name: "root"
-    shell: "/bin/bash"
-    groups:
-      - root
-hostname: "Dionysus"
-wheel_access: true # Concede acesso sudo ao grupo 'wheel'
-
-# Define a lista de pacotes a ser gerenciada declarativamente
-pacotes:
+packages:
   - neovim
   - fish
   - starship
   - btop
+
+aurPackages: # <~ sim, eu os separei, isso é uma rede de segurança para quando você NÃO tem um maldito aur helper (como ousa?)
+  - 1password-cli
+  - aurroamer # <~ Recomendo fortemente, pacote muito bom
+  - aurutils
+  - bibata-cursor-theme-bin
+ 
 bootloader: "grub" # ou "refind"
 
-# pacotes_base_override: <~ muito perigoso, permite que você altere os pacotes base do núcleo (ex: linux linux-firmware ansible ~cowsay~ etc)
+# baseOverride:  <~ muito perigoso, permite que você altere os pacotes base do sistema (ex: linux linux-firmware ansible ~~cowsay~~ etc)
+#   - linux-cachyos-headers
+#   - linux-cachyos
+#   - linux-firmware
 
-# Gerencia os serviços do systemd
+aurHelpers:
+  - yay
+  - paru
+
+mirrors:
+  countries:
+    - "br"
+    - "us"
+  count: 25
+
+# Gerencia serviços do systemd
 services:
-  - name: "NetworkManager"
-    state: "started"
-    enabled: true
-  - name: "bluetooth"
-    state: "started"
-    enabled: true
+  - name: NetworkManager
+    running: True # <~ o padrão é True
+    on_boot: true # <~ como o padrão é True
+                  # eu gosto de manter isso para maior granularidade
+    dense_service: true # <~ isso diz ao script para usar regex para encontrar todos os serviços com "NetworkManager" no nome
 
-# Gerencia os repositórios do pacman
+  - name: bluetooth
+    dense_service: true # <~ Porque eu não quero colocar .service toda vez
+
+  - name: sshd # <~ coloca .service automaticamente lmao
+
+  - name: nvidia
+    dense_service: true
+
+  - name: sddm.service
+
+# Gerencia repositórios do pacman
 repos:
   managed:
-    extras: true      # Ativa o repositório [extras+multilib]
-    unstable: false   # Desativa os repositórios [testing]
+    core: True      # Habilita o repositório [core] (padrão: true)
+    extras: true    # Habilita o repositório [extras+multilib] (padrão: false)
+    unstable: false # Desabilita os repositórios [testing] (padrão: false)
   third_party:
-    - name: "cachyOS"
+    - name: "cachyOS" # <~ você pode adicionar quantos repositórios de terceiros quiser, desde que os tenha instalados
+      include: /etc/pacman.d/cachyos-mirrorlist
       distribution: "arch"
-      url: "https://mirror.cachyos.org/cachyos-repo.tar.xz"
 
-# Gerencia dotfiles a partir de repositórios git
+# Gerencia dotfiles de repositórios git
 dotfiles:
-  - repo: https://github.com/seu-usuario/seus-dotfiles.git
-    # Para decidir como o script irá se comportar, você tem 3 opções de como ele funcionará.
-    install_command: "seu_comando_customizado_de_dotfile.sh"
-    # OPÇÃO 1: install_command é uma variável que você pode definir para decidir como o script instalará seus dotfiles. Ele usa a raiz do seu repositório como ponto de partida, então esteja ciente disso.
-    manager: "stow"
-    # OPÇÃO 2: Você define um gerenciador e o script o aplica a todas as pastas em seu repositório.
-    # OPÇÃO 3: deixar em branco (nem install_command nem manager) faz com que o script procure por um arquivo "install.sh" dentro da raiz do seu repositório, usando-o como base para instalar seus dotfiles.
+  - url: https://github.com/seu-usuario/seus-dotfiles.git
+    user: dexmachina # <~ usuário onde os dotfiles serão aplicados
+    branch: main # <~ opcional, o padrão é main
+    pull: true # <~ opcional, o padrão é false. Se true, ele puxará as últimas alterações
+    links:
+      - from: "zsh" # <~ esta é uma _pasta_ dentro do meu repositório de dotfiles
+        to: . # <~ o padrão é ., ele usa o diretório home do usuário declarado como ponto de partida.
+        open: true # <~ define se o script deve criar um link simbólico para os arquivos _dentro_ da pasta _ou_ para a própria pasta. (padrão: false)
+      - from: "bash"
+        open: true
+      - from: ".config"
+# ATENÇÃO: _TODOS_ OS ARQUIVOS QUE VOCÊ COLOCAR AQUI _E_ JÁ EXISTIREM SERÃO MOVIDOS PARA UM ARQUIVO DE BACKUP. SE VOCÊ _REMOVER_ UM ARQUIVO DA LISTA, ELE TAMBÉM SERÁ REMOVIDO DO CAMINHO QUE VOCÊ DEFINIU. (óbvio, é declarativo)
 
-# Define as partições de disco (geralmente preenchido pelo script interativo)
-particoes:
-  root:
-    device: "/dev/sda2"
-    label: "ARCH_ROOT"
-    formato: "ext4"
-  home:
-    device: "/dev/sda4"
-    label: "ARCH_HOME"
-  boot:
-    device: "/dev/sda1"
-    label: "ESP"
-  swap:
-    device: "/dev/sda3"
-    label: "SWAP"
+# Define partições de disco (geralmente preenchido pelo script interativo)
+partitioning: # <~ não é e nunca será traduzível para um configurations.nix :( mas é traduzível para um disko.nix :)
+  disk: "/dev/sdb" # <~ em qual disco você deseja particionar
+  partitions:
+    - name: chronos # <~ O Ch-aronte usa labels para o fstab e outras coisas, isso não muda nada na sua experiência geral, mas é uma comodidade para mim
+      important: boot # <~ Apenas 4 tipos: boot, root, swap e home. É usado para definir como o role deve tratar a partição (principalmente boot e swap)
+      size: 1GB # <~ Use G. MiB pode funcionar, mas talvez não, ainda não está bem estabilizado
+      mountpoint: "/boot" # <~ obrigatório (dã)
+      part: 1 # <~ isso informa qual é a partição (sdb1,2,3,4...)
+      type: vfat # <~ ou ext4, btrfs, bem, você entendeu
 
-# Define as configurações de região, idioma e teclado
+    - name: Moira
+      important: swap
+      size: 4GB
+      part: 2
+      type: linux-swap
+
+    - name: dionysus_root
+      important: root
+      size: 46GB
+      mountpoint: "/"
+      part: 3
+      type: ext4
+
+    - name: dionysus_home
+      important: home
+      size: 100%
+      mountpoint: "/home"
+      part: 4
+      type: ext4
+
+# Define configurações de região, idioma e teclado
 region:
   timezone: "America/Sao_Paulo"
   locale:
@@ -229,38 +172,37 @@ region:
   keymap: "br-abnt2"
 
 ```
+> [!WARNING]
+>
+> Você pode encontrar um exemplo mais completo em [Meus-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), estes são os Ch-obolos que eu uso ativamente para gerenciar meu próprio sistema!
 
-### Para gerar o plugin do seu sistema atual, execute:
-```bash
-cd Ch-aronte
-DIR="./Ch-obolos/" && FILENAME="custom-meu-sistema-atual.yml" && mkdir -p "$DIR" && echo "pacotes:" > "$DIR/$FILENAME" && pacman -Qqen | sed 's/^/  - /' >> "$DIR/$FILENAME" && echo "Plugin gerado com sucesso em '$DIR/$FILENAME'!"
-```
+# Exemplo de uso:
+![chaos usage](./imagens/B-coin-test.gif)
 
 ## Roadmap do Projeto
 
-- [-] = Em Progresso, provavelmente em outra branch, seja sendo trabalhado ou já implementado, mas não totalmente testado.
+- [-] = Em Progresso, provavelmente em outro branch, seja sendo trabalhado ou já implementado, mas não totalmente testado.
 
 ### MVP
-- [x] Instalador Mínimo com Detecção de Firmware
-- [x] Sistema de Plugins para Pacotes Customizados
+- [-] Instalador Mínimo com Detecção de Firmware
+- [x] Sistema de Plugins para o Ch-aronte
 
 ### Modularidade + Automação
 - [x] Gerenciador de Dotfiles integrado ao Sistema de Plugins
-- [x] Sistema de importação (inferno)
-- [ ] Helper de linha de comando para gerenciador de sistema B-coin.
+- [x] CLI helper para gerenciamento de sistema chaos.
 
 ### Declaratividade
-- [-] Modo de instalação totalmente declarativo, com sua única necessidade sendo o arquivo custom*.yml. (Eu só preciso implementar o verificador no início do script e, se o arquivo de plugin existir e for selecionado, rodar em modo declarativo)
-- [-] Configuração de sistema pós-instalação totalmente declarativa com apenas um arquivo custom*.yml. (Eu só preciso implementar o helper B-coin para este)
-- [x] Gerenciador de estado de pacotes declarativo (Instala e desinstala declarativamente).
-- [x] Gerenciador de repositórios.
+- [-] Modo de instalação totalmente declarativo, com sua única necessidade sendo o arquivo *.yml para o Ch-aronte.
+- [x] Configuração de sistema pós-instalação totalmente declarativa com apenas um arquivo custom*.yml para o Ch-aronte.
+- [x] Gerenciador de estado de pacotes declarativo (Instala e desinstala declarativamente) para o Ch-aronte.
+- [x] Gerenciador de repositórios para o Ch-aronte.
 
 ### Qualidade + segurança
-- [-] Testes com ansible-lint e ansible-test. (Atualmente sendo feito manualmente)
+- [-] Testes Pytest + flake8 para toda a base de código.
 
 ### Ideias em estudo
 - [-] Gerenciamento de segredos (ALTAMENTE expansível, atualmente usado apenas para senhas de usuário).
-- [ ] Suporte a ALA/ALHA (Arch Linux Archive/Arch Linux Historical Archive), como um equivalente ao flakes.lock.
+  - Agora que finalmente integrei o [sops](https://github.com/getsops/sops) ao sistema, posso facilmente gerenciar segredos com criptografia e commits seguros.
 
 ## Contribuindo
 
@@ -275,5 +217,5 @@ Contribuições são muito bem-vindas. Se você tem ideias para melhorar o Ch-ar
 
 ## Agradecimentos
 
-A inspiração principal para este projeto veio do [archible](https://github.com/0xzer0x/archible) do [0xzer0x](https://github.com/0xzer0x).
-> Se você está lendo isso (duvido, mas vai que), muito obrigado por sua ferramenta incrível, espero alcançar o nível de criatividade e expertise que você teve para torná-la realidade.
+A inspiração principal para este projeto veio do [archible](https://github.com/0xzer0x/archible) de [0xzer0x](https://github.com/0xzer0x).
+> Se você está lendo isso (duvido, mas vai que), muito obrigado por sua ferramenta incrível, espero um dia alcançar o nível de criatividade e expertise que você teve para torná-la realidade.
