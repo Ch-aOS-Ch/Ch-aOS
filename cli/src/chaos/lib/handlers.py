@@ -13,64 +13,54 @@ from pathlib import Path
 
 import logging
 import getpass
-import shutil
-import time
-import subprocess
+from pyinfra.operations import files, server
+from pyinfra.facts.files import FindFiles, Directory
+from pyinfra.api.operation import add_op
 
-from pyinfra.api.inventory import Inventory
-from pyinfra.api.config import Config
-from pyinfra.api.connect import connect_all, disconnect_all
-from pyinfra.api.state import StateStage, State
-from pyinfra.api.operations import run_ops
-from pyinfra.context import ctx_state
-
-import os
-import sys
-from pathlib import Path
-
-from omegaconf import OmegaConf
-
-def saveGen(args, passwd: str):
+def add_generation_ops_to_state(state, host, chobolo_path):
     console = Console()
-    console_err = Console(stderr=True)
+    genDir = "/var/lib/chaos/generations"
 
-    # ----- Ch-obolo Discovery -----
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
-    global_config = {}
-    if os.path.exists(CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
-
-    chobolo_path = args.chobolo or global_config.get('chobolo_file')
-    secrets_file_override = args.secrets_file_override or global_config.get('secrets_file')
-    sops_file_override = args.sops_file_override or global_config.get('sops_file')
-
-    if not chobolo_path:
-        console_err.print("[bold red]ERROR:[/] No Ch-obolo passed")
-        console_err.print("   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos --set-chobolo /path/to/file.yml[/cyan]'.")
-        sys.exit(1)
-
-    genDir="/var/lib/chaos/generations"
-    subprocess.run(['sudo -S', 'mkdir', '-p', genDir], input=(passwd + "\n").encode())
-
-    timestamp = int(time.time())
+    files.directory(
+        state,
+        path=genDir,
+        present=True,
+        _sudo=True,
+        name="Ensure chaos generations directory exists"
+    )
 
     try:
-        result = subprocess.run(f"sudo -S find {genDir} -maxdepth 1 -name 'gen-*' | wc -l", shell=True, capture_output=True, text=True, input=(passwd + '\n').encode())
-        i = int(result.stdout.strip())
+        if host.get_fact(Directory, path=genDir, _sudo=True):
+            existing_gens = host.get_fact(FindFiles, path=genDir, files_glob="gen-*.yml", _sudo=True) or []
+        else:
+            existing_gens = []
     except Exception:
-        i = 0
+        existing_gens = []
 
-    i = i+1
-
+    i = len(existing_gens) + 1
+    
+    timestamp = int(time.time())
     filename = f"gen-{i:03d}-{timestamp}.yml"
     destPath = f"{genDir}/{filename}"
     linkPath = f"{genDir}/current"
 
-    console.print(f"[bold green]Creating Generation {i}[/]")
+    console.print(f"[bold green]Queuing Generation {i} creation[/]")
 
-    subprocess.run(['sudo -S', 'cp', chobolo_path, destPath], check=True, input=(passwd + '\n').encode())
-    subprocess.run(['sudo -S', 'ln', '-sfn', filename, linkPath], check=True, input=(passwd + '\n').encode())
+    files.put(
+        state,
+        src=chobolo_path,
+        dest=destPath,
+        _sudo=True,
+        name=f"Create chaos generation {i}"
+    )
+
+    server.shell(
+        state,
+        commands=[['ln', '-sfn', filename, linkPath]],
+        _sudo=True,
+        chdir=genDir,
+        name="Update 'current' generation symlink"
+    )
 
 def handleVerbose(args):
     log_level = None
@@ -121,8 +111,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     state.current_stage = StateStage.Prepare
     ctx_state.set(state)
 
-    passwd = console.input("[bold magenta]Sudo password:[/bold magenta] ", )
-    config.SUDO_PASSWORD = passwd
+    config.SUDO_PASSWORD = console.input("[bold magenta]Sudo password:[/bold magenta] ", password=True)
 
     skip = ikwid
 
@@ -170,8 +159,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
             console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
 
     if not dry:
+        add_generation_ops_to_state(state, host, chobolo_path)
         run_ops(state)
-        saveGen(args, passwd)
     else:
         console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
 
