@@ -1,6 +1,6 @@
 # Maintainer: Dexmachi caiorocoli@gmail.com
 pkgname=ch-aos
-pkgver=0.0.7.4b
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="Declarative system manager for Arch Linux."
 arch=('any')
