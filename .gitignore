@@ -40,3 +40,7 @@ ch-aronte-core/src/charonte/roles/region/tasks/__pycache__
 ch-aronte-core/src/charonte/roles/repos/tasks/__pycache__
 ch-aronte-core/src/charonte/roles/services/tasks/__pycache__
 ch-aronte-core/src/charonte/roles/users/tasks/__pycache__
+cli/src/chaos/__pycache__
+cli/src/chaos/lib/__pycache__
+cli/src/chaos.egg-info
+cli/tests/__pycache__
