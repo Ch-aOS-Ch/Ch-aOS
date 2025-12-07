@@ -1,22 +1,7 @@
 from importlib import import_module
-from itertools import zip_longest
-from pygments.lexer import default
-from rich.console import Console, Group
-from rich.align import Align
-from rich.padding import Padding
-from rich.panel import Panel
-from rich.markdown import Markdown
+from rich.console import Console
 from rich.prompt import Confirm
-from rich.syntax import Syntax
-from rich.tree import Tree
 from rich.text import Text
-from rich.table import Table
-from pyinfra.api.inventory import Inventory
-from pyinfra.api.config import Config
-from pyinfra.api.connect import connect_all, disconnect_all
-from pyinfra.api.state import StateStage, State
-from pyinfra.api.operations import run_ops
-from pyinfra.context import ctx_state
 from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 
@@ -52,6 +37,15 @@ def handleVerbose(args):
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
+    # --- Lazy import pyinfra components ---
+    from pyinfra.api.inventory import Inventory
+    from pyinfra.api.config import Config
+    from pyinfra.api.connect import connect_all, disconnect_all
+    from pyinfra.api.state import StateStage, State
+    from pyinfra.api.operations import run_ops
+    from pyinfra.context import ctx_state
+    # ------------------------------------
+
     console = Console()
     console_err = Console(stderr=True)
 
@@ -140,6 +134,15 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     console.print("[bold green]Finalized.[/bold green]")
 
 def handleExplain(args, EXPLAIN_DISPATCHER):
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.markdown import Markdown
+    from rich.table import Table
+    from rich.tree import Tree
+    from rich.align import Align
+    from rich.padding import Padding
+    from rich.console import Group
+
     DETAIL_LEVELS = {
         'basic': ['concept', 'what', 'why', 'examples', 'security'],
         'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples', 'security'],
@@ -407,6 +410,10 @@ scripts:
     sys.exit(0)
 
 def handleEditRamble(args):
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.align import Align
+
     ramble = args.target
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
@@ -673,6 +680,13 @@ def _read_ramble_content(ramble_path, sops_config):
         return None, None
 
 def _print_ramble(ramble_path, sops_config, target_name):
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.markdown import Markdown
+    from rich.padding import Padding
+    from rich.console import Group
+    from rich.align import Align
+
     ramble_data, _ = _read_ramble_content(ramble_path, sops_config)
 
     renderables = []
@@ -742,6 +756,10 @@ def _print_ramble(ramble_path, sops_config, target_name):
         console.print("ERROR: ramble_data returned None.")
 
 def _process_ramble_target(target, sops_file_override):
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.align import Align
+
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
     parts = target.split('.', 1)
     journal = parts[0]
@@ -811,6 +829,11 @@ def handleReadRamble(args):
     sys.exit(0)
 
 def handleFindRamble(args):
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.align import Align
+    from itertools import zip_longest
+
     RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
     search_term = getattr(args, 'find_term', None)
     required_tag = getattr(args, 'tag', None)
