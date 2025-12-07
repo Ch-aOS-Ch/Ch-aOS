@@ -6,7 +6,6 @@ from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
 
 def main():
-    from pyinfra.api import exceptions as pyinfra_exceptions
 
     try:
         parser = argParsing()
@@ -27,16 +26,21 @@ def main():
         elif hasattr(args, 'command') and args.command == 'apply':
             from chaos.lib.plugDiscovery import load_roles
             from chaos.lib.handlers import handleVerbose, handleOrchestration
+            from pyinfra.api import exceptions as pyinfra_exceptions
 
-            ROLES_DISPATCHER = load_roles(role_specs)
-            ikwid = args.i_know_what_im_doing
-            dry = args.dry
-            if args.verbose or args.v > 0:
-                handleVerbose(args)
-            if args.tags:
-                handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
-            else:
-                print("No tags passed.")
+            try:
+                ROLES_DISPATCHER = load_roles(role_specs)
+                ikwid = args.i_know_what_im_doing
+                dry = args.dry
+                if args.verbose or args.v > 0:
+                    handleVerbose(args)
+                if args.tags:
+                    handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
+                else:
+                    print("No tags passed.")
+            except pyinfra_exceptions.PyinfraError as e:
+                print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
+                sys.exit(1)
 
         elif hasattr(args, 'command') and args.command == 'check':
             from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
@@ -109,9 +113,6 @@ def main():
 
     except ImportError as e:
         print(f"Error: Missing dependency. Please ensure all requirements are installed. Details: {e}", file=sys.stderr)
-        sys.exit(1)
-    except pyinfra_exceptions.PyinfraError as e:
-        print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
