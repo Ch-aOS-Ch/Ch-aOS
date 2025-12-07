@@ -335,16 +335,43 @@ def setMode(args):
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
     print("Configuration saved.")
 
+def is_safe_path(target_path: Path) -> bool:
+    """
+    Valida se um objeto Path alvo está contido de forma segura dentro do diretório base de ramblings.
+    Esta é a verificação de segurança principal contra Path Traversal.
+    """
+    try:
+        base_dir = Path(os.path.expanduser("~/.local/share/chaos/ramblings")).resolve(strict=True)
+        resolved_target = target_path.resolve(strict=False)
+
+        if not str(resolved_target).startswith(str(base_dir)):
+            console.print("[bold red]ERROR:[/] Path traversal detected. Aborting.[/]")
+            return False
+        return True
+    except FileNotFoundError:
+        console.print(f"[bold red]ERROR:[/] Directory not found.")
+        return False
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Secure validation failed: {e}")
+        return False
+
 def handleCreateRamble(args):
     ramble = args.target
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+
     if '.' in ramble:
         parts = ramble.split('.', 1)
         directory = parts[0]
-        if not parts[1]:
-            console.print(f"[bold red]ERROR:[/] No page passed for {directory}")
-            sys.exit(1)
         page = parts[1]
+        if not page or ".." in directory or "/" in directory:
+            console.print(f"[bold red]ERROR:[/] Invalid format for journal.page")
+            sys.exit(1)
+        path = CONFIG_DIR / directory
+        CONFIG_FILE_PATH = path / f'{page}.yml'
+
+        if not is_safe_path(CONFIG_FILE_PATH):
+            sys.exit(1)
+
         baseText=f"""title: {page}
 concept:
 what:
@@ -352,21 +379,19 @@ why:
 how:
 scripts:
 """
-        path = CONFIG_DIR / directory
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
             console.print(f'[yellow]Created new journal: {directory}![/]')
 
-        CONFIG_FILE_PATH = path / f'{page}.yml'
         try:
-            f = open(CONFIG_FILE_PATH, 'x')
-            f.write(baseText)
-            f.close()
+            with open(CONFIG_FILE_PATH, 'x') as f:
+                f.write(baseText)
             console.print(f'[bold green][italic]Page {page} created![/][/] [dim]{directory}.{page}[/]')
         except FileExistsError:
             ask = console.input(f'[bold yellow]WARNING:[/] page {page} already exists!\n Do you want to go write on it? (y/N) ')
             if not ask.lower() == 'y':
                 sys.exit(1)
+
         editor = os.getenv('EDITOR', 'nano')
         try:
             subprocess.run([editor, CONFIG_FILE_PATH], check=True)
@@ -375,8 +400,16 @@ scripts:
             sys.exit(1)
 
     else:
-        path = CONFIG_DIR/ramble
-        fullPath = path/f'{ramble}.yml'
+        if ".." in ramble or "/" in ramble:
+            console.print(f"[bold red]ERROR:[/] Invalid format for journal")
+            sys.exit(1)
+
+        path = CONFIG_DIR / ramble
+        fullPath = path / f'{ramble}.yml'
+
+        if not is_safe_path(fullPath):
+            sys.exit(1)
+
         baseText=f"""title: {ramble}
 concept:
 what:
@@ -388,9 +421,8 @@ scripts:
             path.mkdir(parents=True, exist_ok=True)
             console.print(f'[bold green]Journal "{ramble}" created![/]')
             try:
-                f = open(fullPath, 'x')
-                f.write(baseText)
-                f.close()
+                with open(fullPath, 'x') as f:
+                    f.write(baseText)
                 console.print(f'[bold green][italic]Page {ramble} created![/][/] [dim]{ramble}.{ramble}[/]')
             except FileExistsError:
                 ask = console.input(f'[bold yellow]WARNING:[/] page {ramble} already exists!\n Do you want to go write on it? (y/N) ')
@@ -415,6 +447,10 @@ def handleEditRamble(args):
     from rich.align import Align
 
     ramble = args.target
+    if ".." in ramble or "/" in ramble:
+        console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
+        sys.exit(1)
+
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
@@ -430,6 +466,9 @@ def handleEditRamble(args):
         sops_file_override = global_config.get('sops_file')
 
     def edit_file(file_path):
+        if not is_safe_path(file_path):
+            sys.exit(1)
+
         is_encrypted = False
         try:
             data = OmegaConf.load(file_path)
@@ -475,12 +514,11 @@ def handleEditRamble(args):
             page = parts[1]
 
         path = CONFIG_DIR / directory
-        if not path.exists():
-            console.print(f'[bold red]ERROR:[/] Journal directory not found: {path}')
-            sys.exit(1)
-
         CONFIG_FILE_PATH = path / f'{page}.yml'
+
         if not CONFIG_FILE_PATH.exists():
+            if not is_safe_path(path):
+                 sys.exit(1)
             console.print(f'[bold red]ERROR:[/] Ramble page not found: {CONFIG_FILE_PATH}')
             sys.exit(1)
 
@@ -488,6 +526,9 @@ def handleEditRamble(args):
         sys.exit(0)
 
     path = CONFIG_DIR / ramble
+    if not is_safe_path(path):
+        sys.exit(1)
+
     try:
         entries = sorted([f.name for f in path.iterdir() if f.is_file()])
     except FileNotFoundError:
@@ -526,7 +567,6 @@ def handleEditRamble(args):
         sys.exit(0)
 
 def handleEncryptRamble(args):
-    console_err = Console(stderr=True)
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
@@ -545,6 +585,10 @@ def handleEncryptRamble(args):
         sys.exit(1)
 
     ramble = args.target
+    if ".." in ramble or "/" in ramble:
+        console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
+        sys.exit(1)
+
     keys = args.keys or []
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
@@ -558,6 +602,9 @@ def handleEncryptRamble(args):
 
     path = CONFIG_DIR / directory
     fullPath = path / f'{page}.yml'
+
+    if not is_safe_path(fullPath):
+        sys.exit(1)
 
     if not fullPath.exists():
         console.print(f"[bold red]ERROR:[/] Ramble page not found: {fullPath}")
@@ -641,6 +688,9 @@ def handleEncryptRamble(args):
     sys.exit(0)
 
 def _read_ramble_content(ramble_path, sops_config):
+    if not is_safe_path(ramble_path):
+        sys.exit(1)
+
     if not ramble_path.exists():
         console.print(f'[bold red]ERROR:[/] Ramble page not found: {ramble_path}')
         sys.exit(1)
@@ -732,7 +782,7 @@ def _print_ramble(ramble_path, sops_config, target_name):
                     formatted_content = "null"
                 elif isinstance(content, str):
                     formatted_content = content
-                elif isinstance(content, (dict, list)): # OmegaConf containers are instances of dict/list
+                elif isinstance(content, (dict, list)):
                     formatted_content = OmegaConf.to_yaml(content).strip()
                 else:
                     formatted_content = str(content)
@@ -760,6 +810,10 @@ def _process_ramble_target(target, sops_file_override):
     from rich.panel import Panel
     from rich.align import Align
 
+    if ".." in target or "/" in target:
+        console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
+        return
+
     CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
     parts = target.split('.', 1)
     journal = parts[0]
@@ -768,6 +822,8 @@ def _process_ramble_target(target, sops_file_override):
     is_list_request = (len(parts) > 1 and parts[1] == 'list') or len(parts) == 1
 
     if is_list_request:
+        if not is_safe_path(path):
+            return
         try:
             entries = sorted([f.name for f in path.iterdir() if f.is_file()])
             if not entries:
@@ -922,10 +978,13 @@ def handleMoveRamble(args):
     old = args.old
     new = args.new
 
+    if ".." in old or "/" in old or ".." in new or "/" in new:
+        console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
+        sys.exit(1)
+
     old_is_dir = '.' not in old
     new_is_dir = '.' not in new
 
-    # Determine source path
     if old_is_dir:
         source_path = RAMBLE_DIR / old
     else:
@@ -936,7 +995,10 @@ def handleMoveRamble(args):
             console.print(f"[bold red]ERROR:[/] Invalid source format: '{old}'")
             sys.exit(1)
 
-    # Determine destination paths
+    if not is_safe_path(source_path):
+        sys.exit(1)
+
+    dest_file_path = None
     if new_is_dir:
         dest_dir_path = RAMBLE_DIR / new
     else:
@@ -948,8 +1010,11 @@ def handleMoveRamble(args):
             console.print(f"[bold red]ERROR:[/] Invalid destination format: '{new}'")
             sys.exit(1)
 
+    if not is_safe_path(dest_dir_path):
+        sys.exit(1)
+    if dest_file_path and not is_safe_path(dest_file_path):
+        sys.exit(1)
 
-    # Case 1: Move/Rename directory (ramble1 -> ramble2)
     if old_is_dir and new_is_dir:
         if not source_path.is_dir():
             console.print(f"[bold red]ERROR:[/] No such journal (directory): {source_path}")
@@ -962,8 +1027,7 @@ def handleMoveRamble(args):
         console.print(f"[green]Successfully moved journal '{old}' to '{new}'[/]")
         sys.exit(0)
 
-    # Case 2: Move/Rename file (ramble1.page1 -> ramble2.page2)
-    if not old_is_dir and not new_is_dir:
+    if not old_is_dir and not new_is_dir and dest_file_path:
         if not source_path.is_file():
             console.print(f"[bold red]ERROR:[/] No such page (file): {source_path}")
             sys.exit(1)
@@ -976,18 +1040,19 @@ def handleMoveRamble(args):
         console.print(f"[green]Successfully moved page '{old}' to '{new}'[/]")
         sys.exit(0)
 
-    # Case 3: Move directory to file (ramble1 -> ramble2.page2) -> FORBIDDEN
     if old_is_dir and not new_is_dir:
         console.print("[bold red]ERROR:[/] system cannot move a directory to a singular file")
         sys.exit(1)
 
-    # Case 4: Move file to directory (ramble1.page1 -> ramble2)
     if not old_is_dir and new_is_dir:
         if not source_path.is_file():
             console.print(f"[bold red]ERROR:[/] No such page (file): {source_path}")
             sys.exit(1)
 
         final_dest_file = dest_dir_path / source_path.name
+
+        if not is_safe_path(final_dest_file):
+            sys.exit(1)
 
         if final_dest_file.exists():
             console.print(f"[bold red]ERROR:[/] Page (file) '{source_path.name}' already exists in journal '{new}'")
@@ -999,16 +1064,22 @@ def handleMoveRamble(args):
         console.print(f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]")
         sys.exit(0)
 
-    console.print("[bold red]An unknown error occurred during the move operation.[/]")
-    sys.exit(1)
-
 def handleDelRamble(args):
     RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
     ramble = args.ramble
 
+    if ".." in ramble or "/" in ramble:
+        console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
+        sys.exit(1)
+
     if '.' in ramble:
-        ramblePath = RAMBLE_DIR / ramble.replace('.', '/')
-        rambleFile = Path(str(ramblePath) + ".yml")
+        parts = ramble.split('.', 1)
+        journal = parts[0]
+        page = parts[1]
+        rambleFile = RAMBLE_DIR / journal / f"{page}.yml"
+
+        if not is_safe_path(rambleFile):
+            sys.exit(1)
 
         if not rambleFile.exists():
             console.print(f"[bold red]ERROR:[/] {rambleFile} does not exist.")
@@ -1023,11 +1094,14 @@ def handleDelRamble(args):
     else:
         ramblePath = RAMBLE_DIR / ramble
 
+        if not is_safe_path(ramblePath):
+            sys.exit(1)
+
         if not ramblePath.exists():
             console.print(f"[bold red]ERROR:[/] {ramblePath} does not exist.")
             sys.exit(1)
 
-        confirmation = Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete {ramble}?", default=False)
+        confirmation = Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete the entire journal '{ramble}'?", default=False)
         if confirmation:
             console.print(f"[bold red]Removing {ramble}.[/]")
             shutil.rmtree(ramblePath)
