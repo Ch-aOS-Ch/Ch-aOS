@@ -643,7 +643,7 @@ def handleEncryptRamble(args):
 def _read_ramble_content(ramble_path, sops_config):
     if not ramble_path.exists():
         console.print(f'[bold red]ERROR:[/] Ramble page not found: {ramble_path}')
-        return
+        sys.exit(1)
 
     ramble_data = None
     try:
