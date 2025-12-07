@@ -37,15 +37,6 @@ def handleVerbose(args):
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
-    # --- Lazy import pyinfra components ---
-    from pyinfra.api.inventory import Inventory
-    from pyinfra.api.config import Config
-    from pyinfra.api.connect import connect_all, disconnect_all
-    from pyinfra.api.state import StateStage, State
-    from pyinfra.api.operations import run_ops
-    from pyinfra.context import ctx_state
-    # ------------------------------------
-
     console = Console()
     console_err = Console(stderr=True)
 
@@ -67,6 +58,15 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
 
     # -----------------------------
     # ---- Pyinfra Setup ----
+
+    # --- Lazy import pyinfra components ---
+    from pyinfra.api.inventory import Inventory
+    from pyinfra.api.config import Config
+    from pyinfra.api.connect import connect_all, disconnect_all
+    from pyinfra.api.state import StateStage, State
+    from pyinfra.api.operations import run_ops
+    from pyinfra.context import ctx_state
+    # ------------------------------------
 
     hosts = ["@local"]
     inventory = Inventory((hosts, {}))
