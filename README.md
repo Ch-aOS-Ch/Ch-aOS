@@ -180,26 +180,67 @@ region:
 >
 > Want to test the chaos role but don't want to mess with your system? Use chaos -dvvv to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
 
-# Flags Cheat Sheet (cause no good CLI project is complete without one):
+# Command Cheat Sheet (cause no good CLI project is complete without one):
+#### Global Flags
 | Flag | Description |
-|------|--------------|
-| `-v`, `-vv`, `-vvv` | Increase verbosity |
-| `-d` | Dry-run mode (preview changes) |
-| `-ikwid` | “I Know What I'm Doing” mode (disables safety checks) |
-| `-ss` | Override `secrets.sec_sops` |
-| `-sops` | Set base SOPS config path |
-| `-chobolo` | Set base Ch-obolo file |
-| `-sec` | Set base secrets file |
-| `-sf` | Override `secrets.sec_file` |
-| `-e` | Override Ch-obolo file |
-| `-r` | List all roles |
-| `-h` | Show help screen |
-| `-a` | List all aliases |
-| `-es`, `--edit-sec` | Edit your secrets with the $EDITOR from your system and exit (will NOT work with sec_mode charonte.) |
-| `-cs`, `--check-sec` | Print secrets file decrypted and exit (will NOT work with sec_mode charonte.) |
-| `-ec`, `--edit-chobolo` | Edit your chobolo file and exit |
-| `-gt`, `--generate-tab` | Generate tab completion for your shell (ofc I have one, are you kidding?) |
-| `-u`, `--update-plugins` | Updates the Ch-aronte plugins cache (the program always uses cached files by default, to make it faster.) |
+|------|-------------|
+| `-c /path/to/chobolo.yml` | Override the Ch-obolo file for a single run. |
+| `-sf /path/to/secrets.yml`| Override the secrets file for a single run. |
+| `-ss /path/to/sops.yml` | Override the sops config file for a single run. |
+| `-u`, `--update-plugins` | Force an update of the plugin cache. |
+| `-t`, `--generate-tab` | Generate a shell tab-completion script. |
+| `-es`, `--edit-sec` | Edit your secrets file using `sops`. |
+| `-ec`, `--edit-chobolo` | Edit your chobolo file with `$EDITOR`. |
+| `-h`, `--help` | Show the help screen. |
+
+#### `apply`
+Applies one or more roles to the system.
+| Flag | Description |
+|------|-------------|
+| `tags...` | A space-separated list of roles/aliases to execute. |
+| `-d`, `--dry` | Dry-run mode (preview changes without executing). |
+| `-v`, `-vv`, `-vvv` | Increase verbosity level. |
+| `--verbose [1-3]` | Set verbosity level directly. |
+| `-ikwid`, `--i-know-what-im-doing` | "I Know What I'm Doing" mode (disables safety checks). |
+
+#### `check`
+Lists available items like roles, aliases, and explanations.
+| Argument | Description |
+|----------|-------------|
+| `roles` | List all available roles. |
+| `aliases` | List all available aliases. |
+| `explanations`| List all available explanation topics. |
+| `secrets` | Decrypt and print the secrets file to stdout. |
+
+#### `explain`
+Provides detailed explanations for roles and topics.
+| Argument | Description |
+|----------|-------------|
+| `topic` or `topic.subtopic` | The topic to explain. Use `topic.list` to see subtopics. |
+| `-d [basic\|intermediate\|advanced]` | Set the level of detail for the explanation. |
+
+#### `init`
+Creates boilerplate configuration files.
+| Argument | Description |
+|----------|-------------|
+| `chobolo` | Generate a template `ch-obolo.yml` from installed plugins. |
+| `secrets` | Interactively set up `sops` and create an initial `secrets.yml`. |
+
+#### `set`
+Sets the default paths for configuration files.
+| Argument | Description |
+|----------|-------------|
+| `chobolo /path/to/file.yml` | Set the default Ch-obolo file. |
+| `secrets /path/to/file.yml` | Set the default secrets file. |
+| `sops /path/to/file.yml` | Set the default sops config file. |
+
+#### `ramble`
+A built-in, encrypted note-taking utility.
+* `chaos ramble create journal.page`
+* `chaos ramble edit journal.page`
+* `chaos ramble read journal.page`
+* `chaos ramble find "keyword"`
+* ... and more! Run `chaos ramble -h` for all commands.
 
 # Example of usage:
 ![chaos usage](./imagens/B-coin-test.gif)
