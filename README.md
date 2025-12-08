@@ -201,7 +201,7 @@ Applies one or more roles to the system.
 | `-d`, `--dry` | Dry-run mode (preview changes without executing). |
 | `-v`, `-vv`, `-vvv` | Increase verbosity level. |
 | `--verbose [1-3]` | Set verbosity level directly. |
-| `-ikwid`, `--i-know-what-im-doing` | "I Know What I'm Doing" mode (disables safety checks). |
+| `-ikwid`, `--i-know-what-im-doing` (or just `-y` if you're boring) | "I Know What I'm Doing" mode (disables safety checks). |
 
 #### `check`
 Lists available items like roles, aliases, and explanations.
