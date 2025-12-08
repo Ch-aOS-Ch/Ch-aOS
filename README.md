@@ -31,150 +31,18 @@
 2. Go to ./cli/build/b-coin/ and run `makepkg -fcsi` to install the chaos CLI.
 3. (optional) go to ../../Ch-aronte/build/core and run `makepkg -fcsi` to install the Ch-aronte core.
 4. (optional) go to ../../external_plugins/chaos-dots and run `makepkg -fcsi` to install the chaos-dots plugin.
-5. Now you can run `chaos -h` to see the help menu and `chaos -r` to check all available roles!
-> [!TIP]
->
-> sops is highly recommended, it is used for secrets management. Right now it is not a full on dependency, but some features will not work without it and the non use of it will be deprecated in the future.
+5. Now you can run `chaos -h` to see the help menu and `chaos check [roles/explanations/aliases/secrets]`!
 
 ## Ch-obolos System
+It's a declarative yaml file describing what your system should have! Ch-aOS will load this file and utilize it's keys for managing your system for you.
 
 > [!TIP]
 >
 > You can use `chaos -chobolo/sec/sops` to set your base chobolo file, secrets file or sops file, this will be used as the base for all role runs and decryptions!
 
-### Example of a Ch-aronte Ch-obolos file:
-```YAML
-# Defines system users, groups, and hostname
-users:
-  - name: "dexmachina"
-    shell: "zsh"
-    sudo: True
-    groups:
-      - wheel
-      - dexmachina
-hostname: "Dionysus"
-
-secrets:
-  sec_mode: sops
-  sec_file: /absolute/path/to/Ch-obolos/secrets-here.yml # <~ Not necessary if you've set it with the chaos CLI, but it can be used as a fallback!
-  sec_sops: /absolute/path/to/Ch-obolos/sops-secs.yml # <~ Not necessary if you've set it with the chaos CLI, but it can be used as a fallback!
-
-packages:
-  - neovim
-  - fish
-  - starship
-  - btop
-
-aurPackages: # <~ yeah, I sepparated them, this is a safety net for when you DON'T have a damn aur helper (how could you?)
-  - 1password-cli
-  - aurroamer # <~ Highly recommend, very good package
-  - aurutils
-  - bibata-cursor-theme-bin
- 
-bootloader: "grub" # or "refind"
-
-# baseOverride:  <~ very dangerous, it allows you to change the core base packages (e.g: linux linux-firmware ansible ~~cowsay~~ etc)
-#   - linux-cachyos-headers
-#   - linux-cachyos
-#   - linux-firmware
-
-aurHelpers:
-  - yay
-  - paru
-
-mirrors:
-  countries:
-    - "br"
-    - "us"
-  count: 25
-
-# Manages systemd services
-services:
-  - name: NetworkManager
-    running: True # <~ defaults to True
-    on_boot: true # <~ since it defaults to True
-                  # I like to keep these for granularity
-    dense_service: true # <~ this tells the script to use regex to find all services with "NetworkManager" in it's name
-
-  - name: bluetooth
-    dense_service: true # <~ Cause i don't want to put .service every time
-
-  - name: sshd # <~ auto puts .service lmao
-
-  - name: nvidia
-    dense_service: true
-
-  - name: sddm.service
-
-# Manages pacman repositories
-repos:
-  managed:
-    core: True      # Enables the [core] repository (default: true)
-    extras: true      # Enables the [extras+multilib] repository (default: false)
-    unstable: false   # Disables the [testing] repositories (default: false)
-  third_party:
-    - name: "cachyOS" # <~ you can add as many third party repos as you want, as long as you have them installed
-      include: /etc/pacman.d/cachyos-mirrorlist
-      distribution: "arch"
-
-# Manages dotfiles from git repositories
-dotfiles:
-  - url: https://github.com/your-user/your-dotfiles.git
-    user: dexmachina # <~ user where the dotfiles will be applied
-    branch: main # <~ optional, defaults to main
-    pull: true # <~ optional, defaults to false, if true, it will pull the latest changes
-    links:
-      - from: "zsh" # <~ this is a _folder_ inside of my dotfiles folder
-        to: . # <~ this is . by default, it takes the home of the declared user as a base point.
-        open: true # <~ defines if the script should symlink the files _inside_ the folder _or_ the folder itself. (defaults to false)
-      - from: "bash"
-        open: true
-      - from: ".config"
-# ATTENTION: _ALL_ THE FILES YOU PUT HERE _AND_ ALREADY EXIST ARE BACKED UP BESIDE THE NEW ONES. IF YOU _REMOVE_ A FILE FROM THE LIST, IT WILL BE REMOVED FROM THE PATH YOU SET AS WELL. (duh, it's declarative)
-
-# Defines disk partitions (usually filled by the interactive script)
-partitioning: # <~ is not and never will be translatable to a configurations.nix :( but it is translatable to a disko.nix :)
-  disk: "/dev/sdb" # <~ what disk you want to partition into
-  partitions:
-    - name: chronos # <~ Ch-aronte uses label for fstab andother things, this changes nothing to your overall experience, but it is a commodity for me
-      important: boot # <~ Only 4 of these, boot, root, swap and home, it uses this to define how the role should be treated (mainly boot and swap)
-      size: 1GB # <~ Use G, MiB might work, but it might not, it's still not well stabilized
-      mountpoint: "/boot" # <~ required (duh)
-      part: 1 # <~ this tells what partition it is (sdb1,2,3,4...)
-      type: vfat # <~ or ext4, btrfs, well, you get the idea
-
-    - name: Moira
-      important: swap
-      size: 4GB
-      part: 2
-      type: linux-swap
-
-    - name: dionysus_root
-      important: root
-      size: 46GB
-      mountpoint: "/"
-      part: 3
-      type: ext4
-
-    - name: dionysus_home
-      important: home
-      size: 100%
-      mountpoint: "/home"
-      part: 4
-      type: ext4
-
-# Defines region, language, and keyboard settings
-region:
-  timezone: "America/Sao_Paulo"
-  locale:
-    - "pt_BR.UTF-8"
-    - "en_US.UTF-8"
-  keymap: "br-abnt2"
-
-```
 > [!WARNING]
 >
-> You can find a more complete example in [My-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), these are the Ch-obolos I am actively using to manage my own system!
+> You can complete example of a Ch-obolo in [My-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), these are the Ch-obolos I am actively using to manage my own system!
 
 > [!TIP]
 >
@@ -249,30 +117,39 @@ A built-in, encrypted note-taking utility.
 
 - [-] = In Progress, probably in another branch, either being worked on or already implemented, but not fully tested.
 
+### Next on the chopping board:
+- [ ] Ch-imera
+- [ ] Installer
+
 ### MVP
 - [-] Minimal Installer with Firmware Detection
 - [x] Plugin System for Ch-aronte
+- [x] Declarative package state manager (Install and uninstall declaratively) for Ch-aOS.
 
 ### Modularity + Automation
 - [x] Dotfile Manager integrated with the Plugin System
 - [x] chaos system manager CLI helper.
+- [ ] Ch-imera Ch-obolo transpiler for simple nix 
 
 ### Declarativity
-- [-] Fully declarative installation mode, with it's only necessity being the *.yml file for Ch-aronte.
-- [x] Fully declarative post-install system configuration with only one custom*.yml file for Ch-aronte.
-- [x] Declarative package state manager (Install and uninstall declaratively) for Ch-aronte.
+- [-] Fully declarative installation mode, with it's only necessity being the *.yml file for Ch-aOS.
+- [x] Fully declarative post-install system configuration with only one custom*.yml file for Ch-aOS.
 - [x] Repo manager for Ch-aronte.
+- [x] Secrets management.
+  - Utilizes sops as a secrets manager.
+  - Utilizes Jinja2 for templating.
 
 ### Quality + security
 - [-] Pytest + flake8 tests for all the codebase.
 
 ### Ideas being studied
-- [-] Secrets management (HIGHLY expansible, currently only used for user passwords).
-  - Now that I finally integrated [sops](https://github.com/getsops/sops) to the system, I can easily do secrets management with encryption and safe commiting.
+- Ch-iron -- a fedora core for Ch-aOS
+- Ch-ronos -- a debian core for Ch-aOS
+- mapping for distro agnosticity (probably impossible)
 
 ## Contributing
 
-Contributions are higly welcomed. If you have ideas to improve Ch-aronte, your help is very welcome! Check out CONTRIBUTING.md to get started.
+Contributions are higly welcomed. If you have ideas to improve Ch-aOS, your help is very welcome! Check out CONTRIBUTING.md to get started.
 
 Areas of particular interest include:
 
