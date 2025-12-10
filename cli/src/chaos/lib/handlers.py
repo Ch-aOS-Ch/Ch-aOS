@@ -617,10 +617,10 @@ def handleEncryptRamble(args):
         sys.exit(1)
 
     keysInData = data.keys()
-    baseKeys = ['title', 'concept', 'sops']
+    baseKeys = ['title', 'concept', 'sops', 'tags']
 
     if not keys:
-        keys = [str(key) for key in keysInData if key not in baseKeys]
+        keys = [str(key) for key in keysInData if key not in baseKeys and key != 'tags']
 
     if not keys:
         console.print('[yellow]No new keys to encrypt. Exiting.[/]')
@@ -633,7 +633,7 @@ def handleEncryptRamble(args):
     if 'sops' in data:
         try:
             result = subprocess.run(['sops', '--config', sops_file_override, '-d', str(fullPath)], capture_output=True, text=True, check=True)
-            with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, dir=fullPath.parent, suffix=".yml") as tmp:
                 tmp.write(result.stdout)
                 tmpPath=tmp.name
         except FileNotFoundError:
@@ -910,8 +910,7 @@ def handleFindRamble(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
-
-    if search_term or required_tag:
+    if search_term:
         for ramble_file in RAMBLE_DIR.rglob("*.yml"):
             data, text = _read_ramble_content(ramble_file, sops_file_override)
 
@@ -923,13 +922,23 @@ def handleFindRamble(args):
                 if required_tag not in tags:
                     continue
 
-            if search_term:
-                if search_term.lower() not in text.lower():
-                    continue
+            if search_term.lower() not in text.lower():
+                continue
 
             ramble = ramble_file.parent.name
             page = ramble_file.stem
             results.append(f"{ramble}.{page}")
+    elif required_tag:
+        for ramble_file in RAMBLE_DIR.rglob("*.yml"):
+            try:
+                data = OmegaConf.load(ramble_file)
+                tags = data.get('tags', [])
+                if required_tag in tags:
+                    ramble = ramble_file.parent.name
+                    page = ramble_file.stem
+                    results.append(f"{ramble}.{page}")
+            except Exception:
+                continue
     else:
         for ramble_file in RAMBLE_DIR.rglob('*.yml'):
             ramble = ramble_file.parent.name
