@@ -60,6 +60,9 @@ def argParsing():
     rambleMove.add_argument('old', help='Your old rambling')
     rambleMove.add_argument('new', help='Your new rambling')
 
+    rambleUpdate = rambSubParser.add_parser('update', help='Update your rambling encryption keys, great for rotation!')
+    rambleUpdate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
     rambleDel = rambSubParser.add_parser('delete', help='Delete a rambling or an entire ramble.')
     rambleDel.add_argument('ramble', help='Your ramble')
 
