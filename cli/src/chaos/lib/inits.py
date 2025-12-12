@@ -239,11 +239,19 @@ def initSecrets():
         "creation_rules": [
             {
                 "path_regex": "(.*)?secrets.*\\.yml$",
-                key: keyValue
+                "key_groups" : [
+                    {
+                        key: keyValue
+                    }
+                ]
             },
             {
                 "path_regex": ".*\\.local/share/chaos/ramblings/.*\\.yml$",
-                key: keyValue
+                "key_groups" : [
+                    {
+                        key: keyValue
+                    }
+                ]
             },
         ]
     }

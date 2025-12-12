@@ -4,7 +4,6 @@ import argcomplete
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
-from chaos.lib.ramble import handleUpdateEncryptRamble
 
 def main():
 
@@ -43,6 +42,12 @@ def main():
                 print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
                 sys.exit(1)
 
+        elif hasattr(args, 'command') and args.command == 'secrets':
+            from chaos.lib.secrets import(handleRotateAdd, handleRotateRemove)
+            match args.secrets_commands:
+                case 'rotate-add': handleRotateAdd(args)
+                case 'rotate-rm': handleRotateRemove(args)
+
         elif hasattr(args, 'command') and args.command == 'check':
             from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
             from chaos.lib.tinyScript import runSopsCheck
@@ -80,7 +85,8 @@ def main():
         elif hasattr(args, 'command') and args.command == 'ramble':
             from chaos.lib.ramble import (
                 handleCreateRamble, handleEditRamble, handleEncryptRamble,
-                handleReadRamble, handleFindRamble, handleMoveRamble, handleDelRamble
+                handleReadRamble, handleFindRamble, handleMoveRamble, handleDelRamble,
+                handleUpdateEncryptRamble
             )
             match args.ramble_commands:
                 case 'create': handleCreateRamble(args)

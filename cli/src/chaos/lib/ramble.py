@@ -823,7 +823,7 @@ def handleUpdateEncryptRamble(args):
                 console.print(f"Checking for key updates in [cyan]{ramble_file.relative_to(RAMBLE_DIR)}[/]...")
                 result = subprocess.run(
                     ['sops', '--config', sops_file_override, 'updatekeys', str(ramble_file)],
-                    capture_output=True, text=True, check=True
+                    capture_output=True, text=True, check=True, input="y"
                 )
                 updated_count += 1
         except subprocess.CalledProcessError as e:
