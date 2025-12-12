@@ -51,12 +51,55 @@ def checkDep(bin):
         return False
     return True
 
+def setupSshToAge():
+    if not checkDep('ssh-to-age'):
+        console.print("[bold red]ERROR:[/] ssh-to-age is not installed. Please install it to use this feature.")
+        sys.exit(1)
+
+    console.print("[cyan]Info:[/] Looking for SSH public keys in ~/.ssh")
+    ssh_dir = Path(os.path.expanduser("~/.ssh"))
+    public_keys = list(ssh_dir.glob("*.pub"))
+
+    if not public_keys:
+        console.print("[bold red]ERROR:[/] No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
+        sys.exit(1)
+
+    key_choices = [str(k) for k in public_keys]
+    selected_key_path = Prompt.ask("Choose an SSH public key to use", choices=key_choices, default=key_choices[0])
+
+    console.print(f"[cyan]Info:[/] Using SSH key: {selected_key_path}")
+    console.print("[bold yellow]WARNING:[/] Your secrets will be tied to this SSH key. If you lose it, you will lose access to your secrets.")
+
+    try:
+        proc = subprocess.run(
+            ['ssh-to-age', '-i', selected_key_path],
+            capture_output=True, text=True, check=True
+        )
+        pubkey = proc.stdout.strip()
+        console.print("[bold green]Success![/] Derived age public key from your SSH key.")
+        return "age", pubkey
+    except subprocess.CalledProcessError as e:
+        console.print(f"[bold red]ERROR:[/] Failed to convert SSH key to age key: {e.stderr.strip()}")
+
 def setupAge():
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
+
     if not checkDep('age-keygen'):
         console.print(f"[bold red]ERROR:[/] age-keygen not installed, please install it to use sops+age.")
         sys.exit(1)
+
+    method_choices = ['generate']
+    if checkDep('ssh-to-age'):
+        method_choices.append('ssh')
+
+    method = 'generate'
+    if len(method_choices) > 1:
+        method = Prompt.ask("Choose age key source", choices=method_choices, default='generate')
+
+    if method == 'ssh':
+        return setupSshToAge()
+
     console.print(f"[cyan]Info:[/] checking for age keys in [dim]{ageDir}[/]")
     pubkey = None
     if ageFile.exists():
