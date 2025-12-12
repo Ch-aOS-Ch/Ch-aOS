@@ -41,6 +41,9 @@ def argParsing():
     secRotateRemove.add_argument('pgp_keys', nargs="+", help="Keys to be added.")
     secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
+    secList = secSubParser.add_parser('list',  help="Show all PGP keys inside your sops configuration.")
+    secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new PGP keys to your secrets.")
     secRotateAdd.add_argument('pgp_keys', nargs="+", help="Keys to be added.")
     secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")

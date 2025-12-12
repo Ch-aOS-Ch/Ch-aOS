@@ -1,11 +1,16 @@
 from rich.console import Console
-import os
-from rich.prompt import Confirm
-import sys
-import re
-import subprocess
+from rich.table import Table
+from rich.panel import Panel
+from rich.align import Align
+from itertools import zip_longest
 from omegaconf import OmegaConf, ListConfig
 from pathlib import Path
+from rich.prompt import Confirm
+import os
+import sys
+import re
+import math
+import subprocess
 
 console = Console()
 
@@ -190,3 +195,75 @@ def handleRotateRemove(args):
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
+
+def listFp(args):
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    if not sops_file_override:
+        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
+        sys.exit(1)
+
+    try:
+        sops_config = OmegaConf.load(sops_file_override)
+        creation_rules = sops_config.get('creation_rules')
+        if not creation_rules:
+            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            return
+
+        all_pgp_keys_in_config = set()
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'pgp' in key_group and key_group.pgp is not None:
+                    all_pgp_keys_in_config.update(flatten(key_group.pgp))
+
+        if not all_pgp_keys_in_config:
+            console.print(f"[cyan]INFO:[/] No keys to be shown.")
+            return
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+
+    results = all_pgp_keys_in_config
+    items = sorted(results)
+    num_items = len(results)
+    max_rows = 4
+
+    if num_items < 5:
+        table = Table(show_lines=True, expand=False, show_header=False)
+        table.add_column(justify="center")
+
+        for item in items:
+            table.add_row(f"[italic][cyan]{item}[/][/]")
+
+        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found pgp Keys:[/][/]")), justify="center")
+    else:
+        num_columns = math.ceil(num_items / max_rows)
+
+        table = Table(
+            show_lines=True,
+            expand=False,
+            show_header=False
+        )
+
+        for _ in range(num_columns):
+            table.add_column(justify="center")
+
+        chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
+        transposed_items = zip_longest(*chunks, fillvalue="")
+
+        for row_data in transposed_items:
+            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
+            table.add_row(*styled_row)
+
+        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
