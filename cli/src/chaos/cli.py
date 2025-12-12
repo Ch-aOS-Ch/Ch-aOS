@@ -4,6 +4,7 @@ import argcomplete
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
+from chaos.lib.ramble import handleUpdateEncryptRamble
 
 def main():
 
@@ -77,7 +78,7 @@ def main():
                 sys.exit(0)
 
         elif hasattr(args, 'command') and args.command == 'ramble':
-            from chaos.lib.handlers import (
+            from chaos.lib.ramble import (
                 handleCreateRamble, handleEditRamble, handleEncryptRamble,
                 handleReadRamble, handleFindRamble, handleMoveRamble, handleDelRamble
             )
@@ -89,6 +90,7 @@ def main():
                 case 'find': handleFindRamble(args)
                 case 'move': handleMoveRamble(args)
                 case 'delete': handleDelRamble(args)
+                case 'update': handleUpdateEncryptRamble(args)
 
         elif hasattr(args, 'command') and args.command == 'init':
             from chaos.lib.inits import initChobolo, initSecrets
