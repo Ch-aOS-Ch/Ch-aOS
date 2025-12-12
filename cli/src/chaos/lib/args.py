@@ -33,6 +33,19 @@ def argParsing():
 
     rambleParser = subParser.add_parser('ramble', help="Annotate your rambles!")
 
+    secParser = subParser.add_parser('secrets', help="Manage your secrets.")
+
+    secSubParser = secParser.add_subparsers(dest="secrets_commands", help="Secret subcommands", required=True)
+
+    secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove PGP keys from your secrets.")
+    secRotateRemove.add_argument('pgp_keys', nargs="+", help="Keys to be added.")
+    secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
+    secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new PGP keys to your secrets.")
+    secRotateAdd.add_argument('pgp_keys', nargs="+", help="Keys to be added.")
+    secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")
+    secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
     rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
 
     rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
