@@ -21,26 +21,53 @@ def flatten(items):
         else:
             yield i
 
-def is_valid_fp(fp):
-    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
-        return True
-    else:
-        return False
-
-def pgp_exists(fp):
+def listPgp(sops_file_override):
     try:
-        subprocess.run(
-            ['gpg', '--list-keys', fp],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        sops_config = OmegaConf.load(sops_file_override)
+        creation_rules = sops_config.get('creation_rules')
+        if not creation_rules:
+            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            return
 
-def handleRotateAdd(args):
+        all_pgp_keys_in_config = set()
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'pgp' in key_group and key_group.pgp is not None:
+                    all_pgp_keys_in_config.update(flatten(key_group.pgp))
+
+        if not all_pgp_keys_in_config:
+            console.print(f"[cyan]INFO:[/] No keys to be shown.")
+
+        return all_pgp_keys_in_config
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+
+def listAge(sops_file_override):
+    try:
+        sops_config = OmegaConf.load(sops_file_override)
+        creation_rules = sops_config.get('creation_rules')
+        if not creation_rules:
+            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            return
+
+        all_age_keys_in_config = set()
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'age' in key_group and key_group.age is not None:
+                    all_age_keys_in_config.update(flatten(key_group.age))
+
+        if not all_age_keys_in_config:
+            console.print(f"[cyan]INFO:[/] No keys to be shown.")
+
+        return all_age_keys_in_config
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+
+def listFp(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
@@ -54,12 +81,74 @@ def handleRotateAdd(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
-    keys = args.pgp_keys
-
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
         sys.exit(1)
 
+    match args.type:
+        case 'pgp': results = listPgp(sops_file_override)
+        case 'age': results = listAge(sops_file_override)
+        case _:
+            console.print("No available type passed. Exiting.")
+            return
+
+    if results != None:
+        items = sorted(results)
+        num_items = len(results)
+        max_rows = 4
+
+        if num_items < 5:
+            table = Table(show_lines=True, expand=False, show_header=False)
+            table.add_column(justify="center")
+
+            for item in items:
+                table.add_row(f"[italic][cyan]{item}[/][/]")
+
+            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+        else:
+            num_columns = math.ceil(num_items / max_rows)
+
+            table = Table(
+                show_lines=True,
+                expand=False,
+                show_header=False
+            )
+
+            for _ in range(num_columns):
+                table.add_column(justify="center")
+
+            chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
+            transposed_items = zip_longest(*chunks, fillvalue="")
+
+            for row_data in transposed_items:
+                styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
+                table.add_row(*styled_row)
+
+            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+
+def is_valid_fp(fp):
+    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
+    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
+        return True
+    else:
+        return False
+
+def is_valid_age_key(key):
+    return re.fullmatch(r"age1[a-z0-9]{58}", key)
+
+def pgp_exists(fp):
+    try:
+        subprocess.run(
+            ['gpg', '--list-keys', fp],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def handlePgpAdd(args, sops_file_override, keys):
     server = args.pgp_server
     valids = set()
     for key in keys:
@@ -125,26 +214,54 @@ def handleRotateAdd(args):
         console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
         sys.exit(1)
 
-def handleRotateRemove(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+def handleAgeAdd(args, sops_file_override, keys):
+    valids = set()
+    for key in keys:
+        clean_key = key.strip()
+        if not is_valid_age_key(clean_key):
+            console.print(f"[bold red]ERROR:[/] Invalid age key: {key}. Skipping.")
+            continue
+        valids.add(clean_key)
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+    if not valids:
+        console.print("No valid keys. Returning.")
+        return
 
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
+    try:
+        config_data = OmegaConf.load(sops_file_override)
+        creation_rules = config_data.get('creation_rules', [])
+        if not creation_rules:
+            console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
+            sys.exit(1)
 
-    keys = args.pgp_keys
+        total_added_keys = set()
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                existing_keys = []
+                if 'age' in key_group and key_group.age is not None:
+                    existing_keys = list(flatten(key_group.age))
 
-    if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
+                keys_to_write = list(existing_keys)
+                current_keys_set = set(keys_to_write)
+                for key_to_add in valids:
+                    if key_to_add not in current_keys_set:
+                        keys_to_write.append(key_to_add)
+                        total_added_keys.add(key_to_add)
+
+                key_group.age = keys_to_write
+
+        if not total_added_keys:
+            console.print("[yellow]All provided keys are already in the sops config. No changes made.[/]")
+            return
+
+        OmegaConf.save(config_data, sops_file_override)
+        console.print(f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}")
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
         sys.exit(1)
 
+def handlePgpRem(sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
@@ -195,7 +312,58 @@ def handleRotateRemove(args):
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
 
-def listFp(args):
+def handleAgeRem(sops_file_override, keys):
+    try:
+        config_data = OmegaConf.load(sops_file_override)
+        creation_rules = config_data.get('creation_rules', [])
+        if not creation_rules:
+            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            return
+
+        all_age_keys_in_config = set()
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'age' in key_group and key_group.age is not None:
+                    all_age_keys_in_config.update(flatten(key_group.age))
+
+        keys_to_remove = set()
+        for key_to_check in keys:
+            clean_key = key_to_check.strip()
+            if not is_valid_age_key(clean_key):
+                console.print(f"[bold red]ERROR:[/] Invalid age key: {key_to_check}. Skipping.")
+                continue
+
+            if clean_key in all_age_keys_in_config:
+                keys_to_remove.add(clean_key)
+            else:
+                console.print(f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping.")
+
+        if not keys_to_remove:
+            console.print("No keys to remove. Exiting.")
+            return
+
+        console.print("Keys to remove:")
+        for key in keys_to_remove:
+            console.print(f"  {key}")
+
+        confirm = Confirm.ask("Are you sure you want to remove these keys?", default=False)
+        if not confirm:
+            console.print("Aborting.")
+            return
+
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'age' in key_group and key_group.age is not None:
+                    key_group.age = [k for k in flatten(key_group.age) if k not in keys_to_remove]
+
+        OmegaConf.save(config_data, sops_file_override)
+        console.print(f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}")
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+
+def handleRotateAdd(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
@@ -209,60 +377,44 @@ def listFp(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
+    keys = args.keys
+
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
         sys.exit(1)
 
-    try:
-        sops_config = OmegaConf.load(sops_file_override)
-        creation_rules = sops_config.get('creation_rules')
-        if not creation_rules:
-            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+    match args.type:
+        case 'pgp': handlePgpAdd(args, sops_file_override, keys)
+        case 'age': handleAgeAdd(args, sops_file_override, keys)
+        case _:
+            console.print("No available type passed. Exiting.")
             return
 
-        all_pgp_keys_in_config = set()
-        for rule in creation_rules:
-            for key_group in rule.get('key_groups', []):
-                if 'pgp' in key_group and key_group.pgp is not None:
-                    all_pgp_keys_in_config.update(flatten(key_group.pgp))
 
-        if not all_pgp_keys_in_config:
-            console.print(f"[cyan]INFO:[/] No keys to be shown.")
-            return
-    except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+def handleRotateRemove(args):
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    keys = args.keys
+
+    if not sops_file_override:
+        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
         sys.exit(1)
 
-    results = all_pgp_keys_in_config
-    items = sorted(results)
-    num_items = len(results)
-    max_rows = 4
+    match args.type:
+        case 'pgp': handlePgpRem(sops_file_override, keys)
+        case 'age': handleAgeRem(sops_file_override, keys)
+        case _:
+            console.print("No available type passed. Exiting.")
+            return
 
-    if num_items < 5:
-        table = Table(show_lines=True, expand=False, show_header=False)
-        table.add_column(justify="center")
-
-        for item in items:
-            table.add_row(f"[italic][cyan]{item}[/][/]")
-
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found pgp Keys:[/][/]")), justify="center")
-    else:
-        num_columns = math.ceil(num_items / max_rows)
-
-        table = Table(
-            show_lines=True,
-            expand=False,
-            show_header=False
-        )
-
-        for _ in range(num_columns):
-            table.add_column(justify="center")
-
-        chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-        transposed_items = zip_longest(*chunks, fillvalue="")
-
-        for row_data in transposed_items:
-            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-            table.add_row(*styled_row)
-
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
