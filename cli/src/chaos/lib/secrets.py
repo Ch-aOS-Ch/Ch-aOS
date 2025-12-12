@@ -65,9 +65,8 @@ def handleRotateAdd(args):
     for key in keys:
         clean_key = key.replace(" ", "")
         if len(clean_key) < 40:
-            confirm = Confirm.ask(f"[bold yellow]WARNING:[/] Unsafe PGP key fingerprint: {key}. Are you sure you want to proceed?", default=False)
-            if not confirm:
-                continue
+            console.print(f"[bold yellow]WARNING:[/] Unsafe PGP key fingerprint: {key}. Skipping.")
+            continue
 
         if not is_valid_fp(clean_key):
             console.print(f"[bold red]ERROR:[/] Invalid PGP fingerprint: {key}. Skipping.")
