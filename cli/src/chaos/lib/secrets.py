@@ -21,6 +21,28 @@ def flatten(items):
         else:
             yield i
 
+def is_valid_fp(fp):
+    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
+    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
+        return True
+    else:
+        return False
+
+def pgp_exists(fp):
+    try:
+        subprocess.run(
+            ['gpg', '--list-keys', fp],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def is_valid_age_key(key):
+    return re.fullmatch(r"age1[a-z0-9]{58}", key)
+
 def listPgp(sops_file_override):
     try:
         sops_config = OmegaConf.load(sops_file_override)
@@ -67,87 +89,6 @@ def listAge(sops_file_override):
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
 
-def listFp(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
-
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
-
-    if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
-        sys.exit(1)
-
-    match args.type:
-        case 'pgp': results = listPgp(sops_file_override)
-        case 'age': results = listAge(sops_file_override)
-        case _:
-            console.print("No available type passed. Exiting.")
-            return
-
-    if results != None:
-        items = sorted(results)
-        num_items = len(results)
-        max_rows = 4
-
-        if num_items < 5:
-            table = Table(show_lines=True, expand=False, show_header=False)
-            table.add_column(justify="center")
-
-            for item in items:
-                table.add_row(f"[italic][cyan]{item}[/][/]")
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
-        else:
-            num_columns = math.ceil(num_items / max_rows)
-
-            table = Table(
-                show_lines=True,
-                expand=False,
-                show_header=False
-            )
-
-            for _ in range(num_columns):
-                table.add_column(justify="center")
-
-            chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-            transposed_items = zip_longest(*chunks, fillvalue="")
-
-            for row_data in transposed_items:
-                styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-                table.add_row(*styled_row)
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
-
-def is_valid_fp(fp):
-    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
-        return True
-    else:
-        return False
-
-def is_valid_age_key(key):
-    return re.fullmatch(r"age1[a-z0-9]{58}", key)
-
-def pgp_exists(fp):
-    try:
-        subprocess.run(
-            ['gpg', '--list-keys', fp],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
 def handlePgpAdd(args, sops_file_override, keys):
     server = args.pgp_server
     valids = set()
@@ -155,16 +96,19 @@ def handlePgpAdd(args, sops_file_override, keys):
         clean_key = key.replace(" ", "")
         if len(clean_key) < 40:
             console.print(f"[bold yellow]WARNING:[/] Unsafe PGP key fingerprint: {key}. Skipping.")
+            console.print("[cyan]INFO:[/] To list your GPG keys, run: [italic]gpg --list-secret-keys --keyid-format LONG[/]")
             continue
 
         if not is_valid_fp(clean_key):
             console.print(f"[bold red]ERROR:[/] Invalid PGP fingerprint: {key}. Skipping.")
+            console.print("[cyan]INFO:[/] To list your GPG keys, run: [italic]gpg --list-secret-keys --keyid-format LONG[/]")
             continue
 
         if not pgp_exists(clean_key):
             console.print(f"[bold yellow]WARNING:[/] PGP fingerprint {key} does not exist locally.")
             if not server:
                 console.print(f"[bold red]ERROR:[/] PGP fingerprint {key} does not exist locally and no server was passed. Skipping")
+                console.print("[cyan]INFO:[/] To list your GPG keys, run: [italic]gpg --list-secret-keys --keyid-format LONG[/]")
                 continue
             try:
                 subprocess.run(['gpg', '--keyserver', server, '--recv-keys', clean_key], check=True)
@@ -220,6 +164,9 @@ def handleAgeAdd(args, sops_file_override, keys):
         clean_key = key.strip()
         if not is_valid_age_key(clean_key):
             console.print(f"[bold red]ERROR:[/] Invalid age key: {key}. Skipping.")
+            console.print("[cyan]INFO:[/] To get your age public key:")
+            console.print("[cyan]INFO:[/]   - From a native age private key file (e.g., ~/.config/chaos/keys.txt): [italic]age-keygen -y ~/.config/chaos/keys.txt[/]")
+            console.print("[cyan]INFO:[/]   - From an SSH public key (e.g., ~/.ssh/id_rsa.pub, requires ssh-to-age): [italic]ssh-to-age -i ~/.ssh/id_rsa.pub[/]")
             continue
         valids.add(clean_key)
 
@@ -390,7 +337,6 @@ def handleRotateAdd(args):
             console.print("No available type passed. Exiting.")
             return
 
-
 def handleRotateRemove(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -418,3 +364,61 @@ def handleRotateRemove(args):
             console.print("No available type passed. Exiting.")
             return
 
+def listFp(args):
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = {}
+
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    if not sops_file_override:
+        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
+        sys.exit(1)
+
+    match args.type:
+        case 'pgp': results = listPgp(sops_file_override)
+        case 'age': results = listAge(sops_file_override)
+        case _:
+            console.print("No available type passed. Exiting.")
+            return
+
+    if results != None:
+        items = sorted(results)
+        num_items = len(results)
+        max_rows = 4
+
+        if num_items < 5:
+            table = Table(show_lines=True, expand=False, show_header=False)
+            table.add_column(justify="center")
+
+            for item in items:
+                table.add_row(f"[italic][cyan]{item}[/][/]")
+
+            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+        else:
+            num_columns = math.ceil(num_items / max_rows)
+
+            table = Table(
+                show_lines=True,
+                expand=False,
+                show_header=False
+            )
+
+            for _ in range(num_columns):
+                table.add_column(justify="center")
+
+            chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
+            transposed_items = zip_longest(*chunks, fillvalue="")
+
+            for row_data in transposed_items:
+                styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
+                table.add_row(*styled_row)
+
+            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
