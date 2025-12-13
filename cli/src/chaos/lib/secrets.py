@@ -14,6 +14,40 @@ import subprocess
 
 console = Console()
 
+# --- Copied from tinyScript.py to avoid circular imports ---
+def _get_sops_files(sops_file_override, secrets_file_override):
+    secretsFile = secrets_file_override
+    sopsFile = sops_file_override
+
+    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+
+    global_config = {}
+    if os.path.exists(CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    if not secretsFile:
+        secretsFile = global_config.get('secrets_file')
+    if not sopsFile:
+        sopsFile = global_config.get('sops_file')
+
+    if not secretsFile or not sopsFile:
+        ChOboloPath = global_config.get('chobolo_file', None)
+        if ChOboloPath:
+            try:
+                ChObolo = OmegaConf.load(ChOboloPath)
+                secrets_config = ChObolo.get('secrets', None)
+                if secrets_config:
+                    if not secretsFile:
+                        secretsFile = secrets_config.get('sec_file')
+                    if not sopsFile:
+                        sopsFile = secrets_config.get('sec_sops')
+            except Exception as e:
+                print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
+
+    return secretsFile, sopsFile
+# -----------------------------------------------------------
+
 def flatten(items):
     for i in items:
         if isinstance(i, (list, ListConfig)):
@@ -310,6 +344,37 @@ def handleAgeRem(sops_file_override, keys):
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
 
+def handleUpdateAllSecrets(args):
+    console.print("\n[bold cyan]Starting key update for all secret files...[/]")
+
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+
+    main_secrets_file, sops_file_path = _get_sops_files(sops_file_override, secrets_file_override)
+
+    if not sops_file_path:
+        console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
+    elif main_secrets_file and Path(main_secrets_file).exists():
+        try:
+            data = OmegaConf.load(main_secrets_file)
+            if "sops" in data:
+                console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
+                result = subprocess.run(
+                    ['sops', '--config', sops_file_path, 'updatekeys', main_secrets_file],
+                    check=True, input="y", text=True, capture_output=True
+                )
+                console.print("[green]Keys updated successfully.[/green]")
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}')
+        except Exception as e:
+            console.print(f'[bold red]ERROR:[/] Could not process file {main_secrets_file}: {e}')
+    else:
+        console.print("[dim]Main secrets file not found or not configured. Skipping.[/dim]")
+
+    console.print("\n[bold cyan]Updating ramble files...[/]")
+    from chaos.lib.ramble import handleUpdateEncryptRamble
+    handleUpdateEncryptRamble(args)
+
 def handleRotateAdd(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -336,6 +401,9 @@ def handleRotateAdd(args):
         case _:
             console.print("No available type passed. Exiting.")
             return
+    confirm = Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
+    if confirm:
+        handleUpdateAllSecrets(args)
 
 def handleRotateRemove(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
@@ -363,6 +431,9 @@ def handleRotateRemove(args):
         case _:
             console.print("No available type passed. Exiting.")
             return
+    confirm = Confirm.ask("Do you wish to update all encrypted files to remove the old keys?", default=True)
+    if confirm:
+        handleUpdateAllSecrets(args)
 
 def listFp(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
