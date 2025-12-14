@@ -1,9 +1,12 @@
 import math
 from itertools import zip_longest
+from typing import cast
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from omegaconf import OmegaConf, DictConfig
+import os
 
 console = Console()
 
@@ -13,6 +16,22 @@ def printCheck(namespace, dispatcher):
         return
 
     if namespace == 'alias':
+        CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+        CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
+        global_config = OmegaConf.create()
+        if os.path.exists(CONFIG_FILE_PATH):
+            global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+            global_config = cast(DictConfig, global_config)
+
+        userAliases = global_config.get('aliases', {})
+        for a in userAliases.keys():
+            if a in dispatcher:
+                console.print(f"[bold yellow]WARNING:[/] Alias {a} already exists in Aliases installed. Skipping.")
+                del userAliases[a]
+
+        if dispatcher:
+            dispatcher.update(userAliases)
+
         table = Table(show_lines=True)
         table.add_column("[green]Alias[/]", justify="center")
         table.add_column("[green]Maps to[/]", justify="center")

@@ -1,8 +1,11 @@
 from importlib import import_module
+from typing import cast
+import omegaconf
 from rich.console import Console
+from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 import logging
 import os
@@ -31,24 +34,27 @@ def handleVerbose(args):
     if log_level:
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
-def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
+def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
     console = Console()
     console_err = Console(stderr=True)
 
     # ----- Ch-obolo Discovery -----
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
-    global_config = {}
+    global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+        global_config = cast(DictConfig, global_config)
 
-    chobolo_path = args.chobolo or global_config.get('chobolo_file')
-    secrets_file_override = args.secrets_file_override or global_config.get('secrets_file')
-    sops_file_override = args.sops_file_override or global_config.get('sops_file')
+    chobolo_path = args.chobolo or global_config.get('chobolo_file', None)
+    secrets_file_override = args.secrets_file_override or global_config.get('secrets_file', None)
+    sops_file_override = args.sops_file_override or global_config.get('sops_file', None)
+    enabledSecPlugins = global_config.get('secret_plugins', [])
+    userAliases = global_config.get('aliases', {})
 
     if not chobolo_path:
         console_err.print("[bold red]ERROR:[/] No Ch-obolo passed")
-        console_err.print("   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos --set-chobolo /path/to/file.yml[/cyan]'.")
+        console_err.print("   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos set chobolo /path/to/file.yml[/cyan]'.")
         sys.exit(1)
 
     # -----------------------------
@@ -86,14 +92,32 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES=None):
     commonArgs = (state, host, chobolo_path, skip)
     secArgs = commonArgs + (
         secrets_file_override,
-        sops_file_override
+        sops_file_override,
+        args
     )
 
-    SEC_HAVING_ROLES={'users','secrets'}
+    SEC_HAVING_ROLES=['users', 'secrets']
+    if enabledSecPlugins:
+        confirm = True if skip else Confirm.ask(f"You are about to use external plugins as Secret having plugins:\n[bold yellow]{enabledSecPlugins}[/]\nAre you sure you want to continue?", default=False)
+        if confirm:
+            SEC_HAVING_ROLES.extend(enabledSecPlugins)
+
+    SEC_HAVING_ROLES = set(SEC_HAVING_ROLES)
+
+    for a in userAliases.keys():
+        if a in ROLE_ALIASES:
+            console.print(f"[bold yellow]WARNING:[/] Alias {a} already exists in Aliases installed. Skipping.")
+            del userAliases[a]
+
+    if ROLE_ALIASES:
+        ROLE_ALIASES.update(userAliases)
 
     # --- Role orchestration ---
     for tag in args.tags:
-        normalized_tag = ROLE_ALIASES.get(tag,tag)
+        if ROLE_ALIASES:
+            normalized_tag = ROLE_ALIASES.get(tag, tag)
+        else:
+            normalized_tag = tag
         if normalized_tag in ROLES_DISPATCHER:
             if normalized_tag in SEC_HAVING_ROLES:
                 ROLES_DISPATCHER[normalized_tag](*secArgs)

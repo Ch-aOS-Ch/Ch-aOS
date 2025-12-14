@@ -14,7 +14,6 @@ import subprocess
 
 console = Console()
 
-# --- Copied from tinyScript.py to avoid circular imports ---
 def _get_sops_files(sops_file_override, secrets_file_override):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
@@ -46,7 +45,6 @@ def _get_sops_files(sops_file_override, secrets_file_override):
                 print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
 
     return secretsFile, sopsFile
-# -----------------------------------------------------------
 
 def flatten(items):
     for i in items:
@@ -242,7 +240,7 @@ def handleAgeAdd(args, sops_file_override, keys):
         console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
         sys.exit(1)
 
-def handlePgpRem(sops_file_override, keys):
+def handlePgpRem(sops_file_override, keys, ikwid):
     try:
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
@@ -272,11 +270,12 @@ def handlePgpRem(sops_file_override, keys):
             console.print("No keys to remove. Exiting.")
             return
 
-        console.print("Keys to remove:")
-        for key in keys_to_remove:
-            console.print(f"  {key}")
+        if not ikwid:
+            console.print("Keys to remove:")
+            for key in keys_to_remove:
+                console.print(f"  {key}")
 
-        confirm = Confirm.ask("Are you sure you want to remove these keys?", default=False)
+        confirm = True if ikwid else Confirm.ask("Are you sure you want to remove these keys?", default=False)
         if not confirm:
             console.print("Aborting.")
             return
@@ -293,7 +292,7 @@ def handlePgpRem(sops_file_override, keys):
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
 
-def handleAgeRem(sops_file_override, keys):
+def handleAgeRem(sops_file_override, keys, ikwid):
     try:
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
@@ -323,11 +322,12 @@ def handleAgeRem(sops_file_override, keys):
             console.print("No keys to remove. Exiting.")
             return
 
-        console.print("Keys to remove:")
-        for key in keys_to_remove:
-            console.print(f"  {key}")
+        if not ikwid:
+            console.print("Keys to remove:")
+            for key in keys_to_remove:
+                console.print(f"  {key}")
 
-        confirm = Confirm.ask("Are you sure you want to remove these keys?", default=False)
+        confirm = True if ikwid else Confirm.ask("Are you sure you want to remove these keys?", default=False)
         if not confirm:
             console.print("Aborting.")
             return
@@ -401,7 +401,9 @@ def handleRotateAdd(args):
         case _:
             console.print("No available type passed. Exiting.")
             return
-    confirm = Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
+    ikwid = args.i_know_what_im_doing
+
+    confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
     if confirm:
         handleUpdateAllSecrets(args)
 
@@ -425,13 +427,14 @@ def handleRotateRemove(args):
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
         sys.exit(1)
 
+    ikwid = args.i_know_what_im_doing
     match args.type:
-        case 'pgp': handlePgpRem(sops_file_override, keys)
-        case 'age': handleAgeRem(sops_file_override, keys)
+        case 'pgp': handlePgpRem(sops_file_override, keys, ikwid)
+        case 'age': handleAgeRem(sops_file_override, keys, ikwid)
         case _:
             console.print("No available type passed. Exiting.")
             return
-    confirm = Confirm.ask("Do you wish to update all encrypted files to remove the old keys?", default=True)
+    confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
     if confirm:
         handleUpdateAllSecrets(args)
 
