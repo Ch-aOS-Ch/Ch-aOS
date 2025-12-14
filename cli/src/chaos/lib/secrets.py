@@ -1,9 +1,10 @@
+from typing import cast
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.align import Align
 from itertools import zip_longest
-from omegaconf import OmegaConf, ListConfig
+from omegaconf import OmegaConf, ListConfig, DictConfig
 from pathlib import Path
 from rich.prompt import Confirm
 import os
@@ -155,36 +156,56 @@ def handlePgpAdd(args, sops_file_override, keys):
         return
 
     try:
+        create = args.create
         config_data = OmegaConf.load(sops_file_override)
-
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
             sys.exit(1)
 
-        total_added_keys = set()
-        for rule in creation_rules:
-            for key_group in rule.get('key_groups', []):
+        rule_index = getattr(args, 'index', None)
+        rules_to_process = creation_rules
+        if rule_index is not None:
+            if not (0 <= rule_index < len(creation_rules)):
+                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
+                sys.exit(1)
+            rules_to_process = [creation_rules[rule_index]]
 
-                existing_keys = []
-                if 'pgp' in key_group and key_group.pgp is not None:
-                    existing_keys = list(flatten(key_group.pgp))
+        if not create:
+            total_added_keys = set()
+            for rule in rules_to_process:
+                for key_group in rule.get('key_groups', []):
 
-                keys_to_write = list(existing_keys)
-                current_keys_set = set(keys_to_write)
-                for key_to_add in valids:
-                    if key_to_add not in current_keys_set:
-                        keys_to_write.append(key_to_add)
-                        total_added_keys.add(key_to_add)
+                    existing_keys = []
+                    if 'pgp' in key_group and key_group.pgp is not None:
+                        existing_keys = list(flatten(key_group.pgp))
 
-                key_group.pgp = keys_to_write
+                    keys_to_write = list(existing_keys)
+                    current_keys_set = set(keys_to_write)
+                    for key_to_add in valids:
+                        if key_to_add not in current_keys_set:
+                            keys_to_write.append(key_to_add)
+                            total_added_keys.add(key_to_add)
 
-        if not total_added_keys:
-            console.print("[yellow]All provided keys are already in the sops config or no 'pgp' section was found to add them. No changes made.[/]")
-            return
+                    key_group.pgp = keys_to_write
 
-        OmegaConf.save(config_data, sops_file_override)
-        console.print(f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}")
+            if not total_added_keys:
+                console.print("[yellow]All provided keys are already in the sops config or no 'pgp' section was found to add them. No changes made.[/]")
+                return
+
+            OmegaConf.save(config_data, sops_file_override)
+            console.print(f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}")
+        else:
+            for rule in rules_to_process:
+                new_group = OmegaConf.create({'pgp': list(valids)})
+                if 'key_groups' in rule and rule.key_groups is not None:
+                    rule.key_groups.append(new_group)
+                else:
+                    rule.key_groups = [new_group]
+
+            OmegaConf.save(config_data, sops_file_override)
+            console.print(f"[bold green]Successfully updated sops config![/] New PGP key group created with keys: {list(valids)}")
+
 
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
@@ -207,40 +228,63 @@ def handleAgeAdd(args, sops_file_override, keys):
         return
 
     try:
+        create = args.create
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
             sys.exit(1)
 
-        total_added_keys = set()
-        for rule in creation_rules:
-            for key_group in rule.get('key_groups', []):
-                existing_keys = []
-                if 'age' in key_group and key_group.age is not None:
-                    existing_keys = list(flatten(key_group.age))
+        rule_index = getattr(args, 'index', None)
 
-                keys_to_write = list(existing_keys)
-                current_keys_set = set(keys_to_write)
-                for key_to_add in valids:
-                    if key_to_add not in current_keys_set:
-                        keys_to_write.append(key_to_add)
-                        total_added_keys.add(key_to_add)
+        rules_to_process = creation_rules
+        if rule_index is not None:
+            if not (0 <= rule_index < len(creation_rules)):
+                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
+                sys.exit(1)
+            rules_to_process = [creation_rules[rule_index]]
 
-                key_group.age = keys_to_write
+        if not create:
+            total_added_keys = set()
+            for rule in rules_to_process:
+                for key_group in rule.get('key_groups', []):
+                    existing_keys = []
+                    if 'age' in key_group and key_group.age is not None:
+                        existing_keys = list(flatten(key_group.age))
 
-        if not total_added_keys:
-            console.print("[yellow]All provided keys are already in the sops config. No changes made.[/]")
-            return
+                    keys_to_write = list(existing_keys)
+                    current_keys_set = set(keys_to_write)
+                    for key_to_add in valids:
+                        if key_to_add not in current_keys_set:
+                            keys_to_write.append(key_to_add)
+                            total_added_keys.add(key_to_add)
 
-        OmegaConf.save(config_data, sops_file_override)
-        console.print(f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}")
+                    key_group.age = keys_to_write
+
+            if not total_added_keys:
+                console.print("[yellow]All provided keys are already in the sops config. No changes made.[/]")
+                return
+
+            OmegaConf.save(config_data, sops_file_override)
+            console.print(f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}")
+        else:
+            for rule in rules_to_process:
+                new_group = OmegaConf.create({'age': list(valids)})
+                if 'key_groups' in rule and rule.key_groups is not None:
+                    rule.key_groups.append(new_group)
+                else:
+                    rule.key_groups = [new_group]
+
+            OmegaConf.save(config_data, sops_file_override)
+            console.print(f"[bold green]Successfully updated sops config![/] New age key group created with keys: {list(valids)}")
 
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
         sys.exit(1)
 
-def handlePgpRem(sops_file_override, keys, ikwid):
+def handlePgpRem(args, sops_file_override, keys):
+    rule_index = getattr(args, 'index', None)
+    ikwid = getattr(args, 'i_know_what_im_doing', False)
     try:
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
@@ -279,8 +323,15 @@ def handlePgpRem(sops_file_override, keys, ikwid):
         if not confirm:
             console.print("Aborting.")
             return
+        
+        rules_to_process = creation_rules
+        if rule_index is not None:
+            if not (0 <= rule_index < len(creation_rules)):
+                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
+                sys.exit(1)
+            rules_to_process = [creation_rules[rule_index]]
 
-        for rule in creation_rules:
+        for rule in rules_to_process:
             for key_group in rule.get('key_groups', []):
                 if 'pgp' in key_group and key_group.pgp is not None:
                     key_group.pgp = [k for k in flatten(key_group.pgp) if k not in keys_to_remove]
@@ -292,7 +343,9 @@ def handlePgpRem(sops_file_override, keys, ikwid):
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
         sys.exit(1)
 
-def handleAgeRem(sops_file_override, keys, ikwid):
+def handleAgeRem(args, sops_file_override, keys):
+    rule_index = getattr(args, 'index', None)
+    ikwid = getattr(args, 'i_know_what_im_doing', False)
     try:
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
@@ -332,7 +385,14 @@ def handleAgeRem(sops_file_override, keys, ikwid):
             console.print("Aborting.")
             return
 
-        for rule in creation_rules:
+        rules_to_process = creation_rules
+        if rule_index is not None:
+            if not (0 <= rule_index < len(creation_rules)):
+                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
+                sys.exit(1)
+            rules_to_process = [creation_rules[rule_index]]
+
+        for rule in rules_to_process:
             for key_group in rule.get('key_groups', []):
                 if 'age' in key_group and key_group.age is not None:
                     key_group.age = [k for k in flatten(key_group.age) if k not in keys_to_remove]
@@ -429,8 +489,8 @@ def handleRotateRemove(args):
 
     ikwid = args.i_know_what_im_doing
     match args.type:
-        case 'pgp': handlePgpRem(sops_file_override, keys, ikwid)
-        case 'age': handleAgeRem(sops_file_override, keys, ikwid)
+        case 'pgp': handlePgpRem(args, sops_file_override, keys)
+        case 'age': handleAgeRem(args, sops_file_override, keys)
         case _:
             console.print("No available type passed. Exiting.")
             return
@@ -496,3 +556,87 @@ def listFp(args):
                 table.add_row(*styled_row)
 
             console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+
+def handleSetShamir(args):
+    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+    global_config = OmegaConf.create()
+
+    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+        global_config = cast(DictConfig, global_config)
+
+    sops_file_override = None
+    if hasattr(args, 'sops_file_override') and args.sops_file_override:
+        sops_file_override = args.sops_file_override
+    else:
+        sops_file_override = global_config.get('sops_file')
+
+    if not sops_file_override:
+        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
+        sys.exit(1)
+
+    if not os.path.exists(sops_file_override):
+        console.print(f"[bold red]ERROR:[/] Sops config file does not exist at path: {sops_file_override}")
+        sys.exit(1)
+
+    threshold: int = args.share
+    rule_index: int = args.index
+    ikwid = getattr(args, 'i_know_what_im_doing', False)
+
+    try:
+        config_data = OmegaConf.load(sops_file_override)
+        creation_rules = config_data.get('creation_rules')
+
+        if not creation_rules:
+            console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold.")
+            sys.exit(1)
+
+        if not (0 <= rule_index < len(creation_rules)):
+            console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
+            sys.exit(1)
+
+        rule = creation_rules[rule_index]
+        key_groups = rule.get('key_groups', [])
+        num_key_groups = len(key_groups)
+
+        if threshold <= 0:
+            if rule.get('shamir_threshold') is not None:
+                confirm = True if ikwid else Confirm.ask(f"Are you sure you want to remove the Shamir threshold from rule {rule_index}?", default=False)
+
+                if confirm:
+                    del rule['shamir_threshold']
+                    OmegaConf.save(config_data, sops_file_override)
+                    console.print(f"[bold green]Successfully removed Shamir threshold from rule {rule_index} in {sops_file_override}[/]")
+                    confirm_update = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with this change?", default=True)
+                    if confirm_update:
+                        handleUpdateAllSecrets(args)
+                else:
+                    console.print("Aborting.")
+            else:
+                console.print(f"No Shamir threshold to remove from rule {rule_index}.")
+
+            return
+
+        if num_key_groups < 2:
+            console.print(f"[bold red]ERROR:[/] Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined.")
+            sys.exit(1)
+
+        if not (1 <= threshold <= num_key_groups):
+            console.print(f"[bold red]ERROR:[/] Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups}).")
+            sys.exit(1)
+
+        rule['shamir_threshold'] = threshold
+
+        OmegaConf.save(config=config_data, f=sops_file_override)
+
+        console.print(f"[bold green]Successfully set Shamir threshold to {threshold} for rule {rule_index} in {sops_file_override}[/]")
+
+        confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new threshold?", default=True)
+        if confirm:
+            handleUpdateAllSecrets(args)
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+

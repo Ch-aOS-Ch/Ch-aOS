@@ -40,6 +40,7 @@ def argParsing():
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove PGP keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
     secRotateRemove.add_argument('keys', nargs="+", help="Keys to be removed.")
+    secRotateRemove.add_argument('-i', '--index', type=int, help="Rule index to be used.")
     secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secRotateRemove.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
 
@@ -50,9 +51,16 @@ def argParsing():
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
     secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
     secRotateAdd.add_argument('keys', nargs="+", help="Keys to be added.")
+    secRotateAdd.add_argument('-i', '--index', type=int, help="Rule index to be used.")
+    secRotateAdd.add_argument('-cr', '--create', action='store_true', help="If you want to create a new key group or not.")
     secRotateAdd.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
     secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")
     secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+
+    secShamir = secSubParser.add_parser('shamir', help="Manage Shamir's Secret Sharing configuration.")
+    secShamir.add_argument('index', type=int, help="Rule index to be used.")
+    secShamir.add_argument('share', type=int, help="Amount of Shares to be obligatory.")
+    secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
     rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
 

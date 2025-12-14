@@ -4,7 +4,7 @@ import argcomplete
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
-from chaos.lib.secrets import listFp
+from chaos.lib.secrets import handleSetShamir, listFp
 
 def main():
 
@@ -49,6 +49,7 @@ def main():
                 case 'rotate-add': handleRotateAdd(args)
                 case 'rotate-rm': handleRotateRemove(args)
                 case 'list': listFp(args)
+                case 'shamir': handleSetShamir(args)
 
         elif hasattr(args, 'command') and args.command == 'check':
             from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
