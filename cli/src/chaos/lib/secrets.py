@@ -332,9 +332,18 @@ def handlePgpRem(args, sops_file_override, keys):
             rules_to_process = [creation_rules[rule_index]]
 
         for rule in rules_to_process:
-            for key_group in rule.get('key_groups', []):
-                if 'pgp' in key_group and key_group.pgp is not None:
-                    key_group.pgp = [k for k in flatten(key_group.pgp) if k not in keys_to_remove]
+            if rule.get('key_groups'):
+                for i in range(len(rule.key_groups) - 1, -1, -1):
+                    key_group = rule.key_groups[i]
+                    if 'pgp' in key_group and key_group.pgp is not None:
+                        updated_keys = [k for k in flatten(key_group.pgp) if k not in keys_to_remove]
+                        if updated_keys:
+                            key_group.pgp = updated_keys
+                        else:
+                            del key_group.pgp
+                    
+                    if not key_group:
+                        del rule.key_groups[i]
 
         OmegaConf.save(config_data, sops_file_override)
         console.print(f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}")
@@ -393,9 +402,18 @@ def handleAgeRem(args, sops_file_override, keys):
             rules_to_process = [creation_rules[rule_index]]
 
         for rule in rules_to_process:
-            for key_group in rule.get('key_groups', []):
-                if 'age' in key_group and key_group.age is not None:
-                    key_group.age = [k for k in flatten(key_group.age) if k not in keys_to_remove]
+            if rule.get('key_groups'):
+                for i in range(len(rule.key_groups) - 1, -1, -1):
+                    key_group = rule.key_groups[i]
+                    if 'age' in key_group and key_group.age is not None:
+                        updated_keys = [k for k in flatten(key_group.age) if k not in keys_to_remove]
+                        if updated_keys:
+                            key_group.age = updated_keys
+                        else:
+                            del key_group.age
+                    
+                    if not key_group:
+                        del rule.key_groups[i]
 
         OmegaConf.save(config_data, sops_file_override)
         console.print(f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}")
