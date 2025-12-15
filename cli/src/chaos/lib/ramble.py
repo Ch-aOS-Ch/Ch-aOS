@@ -12,13 +12,22 @@ import sys
 
 console = Console()
 
-def is_safe_path(target_path: Path) -> bool:
+def _get_ramble_dir(team) -> Path:
+    """Gets the ramble directory, considering the team if provided."""
+    if team:
+        if ".." in team or team.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
+             sys.exit(1)
+        return Path(os.path.expanduser(f"~/.local/share/chaos/teams/{team}/ramblings"))
+    return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+
+def is_safe_path(target_path: Path, team) -> bool:
     """
     Valida se um objeto Path alvo está contido de forma segura dentro do diretório base de ramblings.
     Esta é a verificação de segurança principal contra Path Traversal.
     """
     try:
-        base_dir = Path(os.path.expanduser("~/.local/share/chaos/ramblings")).resolve(strict=True)
+        base_dir = _get_ramble_dir(team).resolve(strict=False)
         resolved_target = target_path.resolve(strict=False)
 
         if not str(resolved_target).startswith(str(base_dir)):
@@ -32,8 +41,8 @@ def is_safe_path(target_path: Path) -> bool:
         console.print(f"[bold red]ERROR:[/] Secure validation failed: {e}")
         return False
 
-def _read_ramble_content(ramble_path, sops_config):
-    if not is_safe_path(ramble_path):
+def _read_ramble_content(ramble_path, sops_config, team):
+    if not is_safe_path(ramble_path, team):
         sys.exit(1)
 
     if not ramble_path.exists():
@@ -74,7 +83,7 @@ def _read_ramble_content(ramble_path, sops_config):
         console.print(f'[bold red]ERROR:[/] Could not read or parse ramble file: {ramble_path}\n{e}')
         return None, None
 
-def _print_ramble(ramble_path, sops_config, target_name):
+def _print_ramble(ramble_path, sops_config, target_name, team):
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.markdown import Markdown
@@ -82,7 +91,7 @@ def _print_ramble(ramble_path, sops_config, target_name):
     from rich.console import Group
     from rich.align import Align
 
-    ramble_data, _ = _read_ramble_content(ramble_path, sops_config)
+    ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team)
 
     renderables = []
     standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
@@ -150,7 +159,7 @@ def _print_ramble(ramble_path, sops_config, target_name):
     else:
         console.print("ERROR: ramble_data returned None.")
 
-def _process_ramble_target(target, sops_file_override):
+def _process_ramble_target(target, sops_file_override, team):
     from rich.table import Table
     from rich.panel import Panel
     from rich.align import Align
@@ -159,7 +168,7 @@ def _process_ramble_target(target, sops_file_override):
         console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
         return
 
-    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    CONFIG_DIR = _get_ramble_dir(team)
     parts = target.split('.', 1)
     journal = parts[0]
     path = CONFIG_DIR / journal
@@ -167,7 +176,7 @@ def _process_ramble_target(target, sops_file_override):
     is_list_request = (len(parts) > 1 and parts[1] == 'list') or len(parts) == 1
 
     if is_list_request:
-        if not is_safe_path(path):
+        if not is_safe_path(path, team):
             return
         try:
             entries = sorted([f.name for f in path.iterdir() if f.is_file()])
@@ -192,7 +201,7 @@ def _process_ramble_target(target, sops_file_override):
                 if 1 <= indx <= len(entries):
                     selected_file_name = entries[indx - 1]
                     file_to_read = path / selected_file_name
-                    _print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem)
+                    _print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem, team)
                 else:
                     raise IndexError
             except (IndexError, ValueError):
@@ -209,11 +218,12 @@ def _process_ramble_target(target, sops_file_override):
              console.print(f"[bold red]ERROR:[/] No page passed for journal '{journal}'.")
              return
         full_path = path / f'{page}.yml'
-        _print_ramble(full_path, sops_file_override, target)
+        _print_ramble(full_path, sops_file_override, target, team)
 
 def handleCreateRamble(args):
     ramble = args.target
-    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    CONFIG_DIR = _get_ramble_dir(team)
 
     if '.' in ramble:
         parts = ramble.split('.', 1)
@@ -225,7 +235,7 @@ def handleCreateRamble(args):
         path = CONFIG_DIR / directory
         CONFIG_FILE_PATH = path / f'{page}.yml'
 
-        if not is_safe_path(CONFIG_FILE_PATH):
+        if not is_safe_path(CONFIG_FILE_PATH, team):
             sys.exit(1)
 
         baseText=f"""title: {page}
@@ -263,7 +273,7 @@ scripts:
         path = CONFIG_DIR / ramble
         fullPath = path / f'{ramble}.yml'
 
-        if not is_safe_path(fullPath):
+        if not is_safe_path(fullPath, team):
             sys.exit(1)
 
         baseText=f"""title: {ramble}
@@ -307,7 +317,8 @@ def handleEditRamble(args):
         console.print(f"[bold red]ERROR:[/] Invalid format for ramble.")
         sys.exit(1)
 
-    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    CONFIG_DIR = _get_ramble_dir(team)
 
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -322,7 +333,7 @@ def handleEditRamble(args):
         sops_file_override = global_config.get('sops_file')
 
     def edit_file(file_path):
-        if not is_safe_path(file_path):
+        if not is_safe_path(file_path, team):
             sys.exit(1)
 
         is_encrypted = False
@@ -373,7 +384,7 @@ def handleEditRamble(args):
         CONFIG_FILE_PATH = path / f'{page}.yml'
 
         if not CONFIG_FILE_PATH.exists():
-            if not is_safe_path(path):
+            if not is_safe_path(path, team):
                  sys.exit(1)
             console.print(f'[bold red]ERROR:[/] Ramble page not found: {CONFIG_FILE_PATH}')
             sys.exit(1)
@@ -382,7 +393,7 @@ def handleEditRamble(args):
         sys.exit(0)
 
     path = CONFIG_DIR / ramble
-    if not is_safe_path(path):
+    if not is_safe_path(path, team):
         sys.exit(1)
 
     try:
@@ -446,7 +457,8 @@ def handleEncryptRamble(args):
         sys.exit(1)
 
     keys = args.keys or []
-    CONFIG_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    CONFIG_DIR = _get_ramble_dir(team)
 
     if not '.' in ramble:
         console.print('[bold red]ERROR:[/] You must pass a specific page to be encrypted (e.g., diary.page).')
@@ -459,7 +471,7 @@ def handleEncryptRamble(args):
     path = CONFIG_DIR / directory
     fullPath = path / f'{page}.yml'
 
-    if not is_safe_path(fullPath):
+    if not is_safe_path(fullPath, team):
         sys.exit(1)
 
     if not fullPath.exists():
@@ -556,8 +568,10 @@ def handleReadRamble(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
+    team = getattr(args, 'team', None)
+
     for target in args.targets:
-        _process_ramble_target(target, sops_file_override)
+        _process_ramble_target(target, sops_file_override, team)
 
     sys.exit(0)
 
@@ -567,7 +581,8 @@ def handleFindRamble(args):
     from rich.align import Align
     from itertools import zip_longest
 
-    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    RAMBLE_DIR = _get_ramble_dir(team)
     search_term = getattr(args, 'find_term', None)
     required_tag = getattr(args, 'tag', None)
     results = []
@@ -589,7 +604,7 @@ def handleFindRamble(args):
 
     if search_term:
         for ramble_file in RAMBLE_DIR.rglob("*.yml"):
-            data, text = _read_ramble_content(ramble_file, sops_file_override)
+            data, text = _read_ramble_content(ramble_file, sops_file_override, team)
 
             if data is None or text is None:
                 continue
@@ -606,15 +621,15 @@ def handleFindRamble(args):
             results.append(f"{ramble}.{page}")
     elif required_tag:
         for ramble_file in RAMBLE_DIR.rglob("*.yml"):
-            try:
-                data = OmegaConf.load(ramble_file)
-                tags = data.get('tags', [])
-                if required_tag in tags:
-                    ramble = ramble_file.parent.name
-                    page = ramble_file.stem
-                    results.append(f"{ramble}.{page}")
-            except Exception:
+            data, _ = _read_ramble_content(ramble_file, sops_file_override, team)
+            if data is None:
                 continue
+
+            tags = data.get('tags', [])
+            if required_tag in tags:
+                ramble = ramble_file.parent.name
+                page = ramble_file.stem
+                results.append(f"{ramble}.{page}")
     else:
         for ramble_file in RAMBLE_DIR.rglob('*.yml'):
             ramble = ramble_file.parent.name
@@ -659,7 +674,8 @@ def handleFindRamble(args):
         console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
 
 def handleMoveRamble(args):
-    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    RAMBLE_DIR = _get_ramble_dir(team)
     old = args.old
     new = args.new
 
@@ -680,7 +696,7 @@ def handleMoveRamble(args):
             console.print(f"[bold red]ERROR:[/] Invalid source format: '{old}'")
             sys.exit(1)
 
-    if not is_safe_path(source_path):
+    if not is_safe_path(source_path, team):
         sys.exit(1)
 
     dest_file_path = None
@@ -695,9 +711,9 @@ def handleMoveRamble(args):
             console.print(f"[bold red]ERROR:[/] Invalid destination format: '{new}'")
             sys.exit(1)
 
-    if not is_safe_path(dest_dir_path):
+    if not is_safe_path(dest_dir_path, team):
         sys.exit(1)
-    if dest_file_path and not is_safe_path(dest_file_path):
+    if dest_file_path and not is_safe_path(dest_file_path, team):
         sys.exit(1)
 
     if old_is_dir and new_is_dir:
@@ -736,7 +752,7 @@ def handleMoveRamble(args):
 
         final_dest_file = dest_dir_path / source_path.name
 
-        if not is_safe_path(final_dest_file):
+        if not is_safe_path(final_dest_file, team):
             sys.exit(1)
 
         if final_dest_file.exists():
@@ -750,7 +766,8 @@ def handleMoveRamble(args):
         sys.exit(0)
 
 def handleDelRamble(args):
-    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    RAMBLE_DIR = _get_ramble_dir(team)
     ramble = args.ramble
 
     if ".." in ramble or "/" in ramble:
@@ -763,7 +780,7 @@ def handleDelRamble(args):
         page = parts[1]
         rambleFile = RAMBLE_DIR / journal / f"{page}.yml"
 
-        if not is_safe_path(rambleFile):
+        if not is_safe_path(rambleFile, team):
             sys.exit(1)
 
         if not rambleFile.exists():
@@ -779,7 +796,7 @@ def handleDelRamble(args):
     else:
         ramblePath = RAMBLE_DIR / ramble
 
-        if not is_safe_path(ramblePath):
+        if not is_safe_path(ramblePath, team):
             sys.exit(1)
 
         if not ramblePath.exists():
@@ -794,7 +811,8 @@ def handleDelRamble(args):
         console.print("[green]Alright![/] Aborting.")
 
 def handleUpdateEncryptRamble(args):
-    RAMBLE_DIR = Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    team = getattr(args, 'team', None)
+    RAMBLE_DIR = _get_ramble_dir(team)
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
@@ -810,7 +828,7 @@ def handleUpdateEncryptRamble(args):
         sops_file_override = global_config.get('sops_file')
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
-        if not is_safe_path(ramble_file):
+        if not is_safe_path(ramble_file, team):
             continue
         try:
             data = OmegaConf.load(ramble_file)

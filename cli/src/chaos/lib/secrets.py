@@ -15,7 +15,7 @@ import subprocess
 
 console = Console()
 
-def _get_sops_files(sops_file_override, secrets_file_override):
+def _get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
@@ -25,6 +25,26 @@ def _get_sops_files(sops_file_override, secrets_file_override):
     global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    if team:
+        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{team}'))
+        if teamPath.exists():
+
+            teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
+            teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / "secrets/secrets.yml"
+
+            secretsHelp = secretsFile
+            sopsHelp = sopsFile
+
+            sopsFile = teamSops if teamSops.exists() else sopsFile
+            secretsFile = teamSec if teamSec.exists() else secretsFile
+
+            if secrets_file_override and ('..' in secrets_file_override or secrets_file_override.startswith('/')):
+                Console().print("[bold yellow]WARNING:[/]Team secrets file is invalid. Skipping.")
+                secretsFile = secretsHelp
+            if sops_file_override and ('..' in sops_file_override or sops_file_override.startswith('/')):
+                Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
+                sopsFile = sopsHelp
 
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
@@ -427,8 +447,9 @@ def handleUpdateAllSecrets(args):
 
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
 
-    main_secrets_file, sops_file_path = _get_sops_files(sops_file_override, secrets_file_override)
+    main_secrets_file, sops_file_path = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_path:
         console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
@@ -454,18 +475,11 @@ def handleUpdateAllSecrets(args):
     handleUpdateEncryptRamble(args)
 
 def handleRotateAdd(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
+    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
@@ -486,18 +500,11 @@ def handleRotateAdd(args):
         handleUpdateAllSecrets(args)
 
 def handleRotateRemove(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
+    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
@@ -517,18 +524,11 @@ def handleRotateRemove(args):
         handleUpdateAllSecrets(args)
 
 def listFp(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
+    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
@@ -576,19 +576,11 @@ def listFp(args):
             console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
 
 def handleSetShamir(args):
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = OmegaConf.create()
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-        global_config = cast(DictConfig, global_config)
-
-    sops_file_override = None
-    if hasattr(args, 'sops_file_override') and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get('sops_file')
+    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
