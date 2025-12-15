@@ -45,6 +45,9 @@ def _get_sops_files(sops_file_override, secrets_file_override, team):
             if sops_file_override and ('..' in sops_file_override or sops_file_override.startswith('/')):
                 Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
                 sopsFile = sopsHelp
+        else:
+            console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
+            sys.exit(1)
 
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
@@ -343,7 +346,7 @@ def handlePgpRem(args, sops_file_override, keys):
         if not confirm:
             console.print("Aborting.")
             return
-        
+
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
@@ -361,7 +364,7 @@ def handlePgpRem(args, sops_file_override, keys):
                             key_group.pgp = updated_keys
                         else:
                             del key_group.pgp
-                    
+
                     if not key_group:
                         del rule.key_groups[i]
 

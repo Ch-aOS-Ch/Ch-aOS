@@ -12,13 +12,17 @@ import sys
 
 console = Console()
 
-def _get_ramble_dir(team) -> Path:
+def _get_ramble_dir(team: str = None) -> Path:
     """Gets the ramble directory, considering the team if provided."""
     if team:
         if ".." in team or team.startswith("/"):
              console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
              sys.exit(1)
-        return Path(os.path.expanduser(f"~/.local/share/chaos/teams/{team}/ramblings"))
+        team_ramble_path = Path(os.path.expanduser(f"~/.local/share/chaos/teams/{team}/ramblings"))
+        if not team_ramble_path.exists():
+            console.print(f"[bold red]ERROR:[/] Team ramble directory for '{team}' not found at {team_ramble_path}.")
+            sys.exit(1)
+        return team_ramble_path
     return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
 def is_safe_path(target_path: Path, team) -> bool:
