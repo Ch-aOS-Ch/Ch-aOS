@@ -17,10 +17,6 @@ def main():
 
         role_specs, ROLE_ALIASES, EXPLANATIONS, keys = get_plugins(args.update_plugins)
 
-        if not hasattr(args, 'command'):
-            from rich.console import Console
-            Console().print("No commands passed. Check chaos -h")
-
         match args.command:
             case 'explain':
                 from chaos.lib.handlers import handleExplain
@@ -99,13 +95,16 @@ def main():
                     case 'move': handleMoveRamble(args)
                     case 'delete': handleDelRamble(args)
                     case 'update': handleUpdateEncryptRamble(args)
-
             case 'init':
                 from chaos.lib.inits import initChobolo, initSecrets
                 if args.init_command == 'chobolo':
                     initChobolo(keys)
                 elif args.init_command == 'secrets':
                     initSecrets()
+            case None:
+                parser.print_help()
+                sys.exit(0)
+
             case _:
                 if args.generate_tab:
                     handleGenerateTab()
