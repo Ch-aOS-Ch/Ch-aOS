@@ -100,7 +100,8 @@ def argParsing():
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
     checkParser = subParser.add_parser('check', help='Check and list roles, secrets, aliases and explanations')
-    checkParser.add_argument('checks', nargs='+', help='The operations you want to check.')
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'secrets', 'aliases'], help='The operations you want to check.')
+    checkParser.add_argument('-t', '--team', type=str, help="If you have a team repository, you may check your team secrets on it.")
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
     checkParser.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     checkParser.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()

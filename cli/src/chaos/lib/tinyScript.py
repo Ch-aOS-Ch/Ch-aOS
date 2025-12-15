@@ -1,9 +1,12 @@
 import os
+from pathlib import Path
 import subprocess
 from omegaconf import OmegaConf
 import sys
 
-def _get_sops_files(sops_file_override, secrets_file_override):
+from rich.console import Console
+
+def _get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
@@ -13,6 +16,26 @@ def _get_sops_files(sops_file_override, secrets_file_override):
     global_config = {}
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    if team:
+        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{team}'))
+        if teamPath.exists():
+
+            teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
+            teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / "secrets/secrets.yml"
+
+            secretsHelp = secretsFile
+            sopsHelp = sopsFile
+
+            sopsFile = teamSops if teamSops.exists() else sopsFile
+            secretsFile = teamSec if teamSec.exists() else secretsFile
+
+            if '..' in secrets_file_override or secrets_file_override.startswith('/'):
+                Console().print("[bold yellow]WARNING:[/]Team secrets file is invalid. Skipping.")
+                secretsFile = secretsHelp
+            if '..' in sops_file_override or sops_file_override.startswith('/'):
+                Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
+                sopsFile = sopsHelp
 
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
@@ -35,8 +58,9 @@ def _get_sops_files(sops_file_override, secrets_file_override):
 
     return secretsFile, sopsFile
 
-def runSopsCheck(sops_file_override=None, secrets_file_override=None):
-    secretsFile, sopsFile = _get_sops_files(sops_file_override, secrets_file_override)
+def runSopsCheck(sops_file_override, secrets_file_override, args):
+    team = args.team
+    secretsFile, sopsFile = _get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not secretsFile or not sopsFile:
         print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
