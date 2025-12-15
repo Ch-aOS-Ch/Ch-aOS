@@ -12,13 +12,22 @@ import sys
 
 console = Console()
 
-def _get_ramble_dir(team: str = None) -> Path:
-    """Gets the ramble directory, considering the team if provided."""
+def _get_ramble_dir(team) -> Path:
     if team:
+        if not '.' in team:
+            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team)")
+            sys.exit(1)
+
+        parts = team.split('.')
+        company = parts[0]
+        team = parts[1]
+
         if ".." in team or team.startswith("/"):
              console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
              sys.exit(1)
-        team_ramble_path = Path(os.path.expanduser(f"~/.local/share/chaos/teams/{team}/ramblings"))
+
+        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/ramblings'))
+
         if not team_ramble_path.exists():
             console.print(f"[bold red]ERROR:[/] Team ramble directory for '{team}' not found at {team_ramble_path}.")
             sys.exit(1)
@@ -26,10 +35,6 @@ def _get_ramble_dir(team: str = None) -> Path:
     return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
 def is_safe_path(target_path: Path, team) -> bool:
-    """
-    Valida se um objeto Path alvo está contido de forma segura dentro do diretório base de ramblings.
-    Esta é a verificação de segurança principal contra Path Traversal.
-    """
     try:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
         resolved_target = target_path.resolve(strict=False)

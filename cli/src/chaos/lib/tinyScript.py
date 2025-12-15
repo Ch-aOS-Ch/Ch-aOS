@@ -18,7 +18,15 @@ def _get_sops_files(sops_file_override, secrets_file_override, team):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
 
     if team:
-        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{team}'))
+        if not '.' in team:
+            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team)")
+            sys.exit(1)
+
+        parts = team.split('.')
+        company = parts[0]
+        team = parts[1]
+        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}'))
+
         if teamPath.exists():
 
             teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
@@ -30,10 +38,10 @@ def _get_sops_files(sops_file_override, secrets_file_override, team):
             sopsFile = teamSops if teamSops.exists() else sopsFile
             secretsFile = teamSec if teamSec.exists() else secretsFile
 
-            if '..' in secrets_file_override or secrets_file_override.startswith('/'):
+            if secrets_file_override and ('..' in secrets_file_override or secrets_file_override.startswith('/')):
                 Console().print("[bold yellow]WARNING:[/]Team secrets file is invalid. Skipping.")
                 secretsFile = secretsHelp
-            if '..' in sops_file_override or sops_file_override.startswith('/'):
+            if sops_file_override and ('..' in sops_file_override or sops_file_override.startswith('/')):
                 Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
                 sopsFile = sopsHelp
 
