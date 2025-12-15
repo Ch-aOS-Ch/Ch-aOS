@@ -101,10 +101,6 @@ def main():
                     initChobolo(keys)
                 elif args.init_command == 'secrets':
                     initSecrets()
-            case None:
-                parser.print_help()
-                sys.exit(0)
-
             case _:
                 if args.generate_tab:
                     handleGenerateTab()
@@ -118,7 +114,8 @@ def main():
                 elif args.edit_chobolo:
                     from chaos.lib.tinyScript import runChoboloEdit
                     runChoboloEdit(args.chobolo)
-                    sys.exit(0)
+
+        sys.exit(0)
 
     except ImportError as e:
         print(f"Error: Missing dependency. Please ensure all requirements are installed. Details: {e}", file=sys.stderr)
