@@ -4,8 +4,6 @@ import sys
 from importlib.metadata import entry_points
 from importlib import import_module
 from pathlib import Path
-import site
-import glob
 
 pluginDevPath = os.getenv('CHAOS_DEV_PATH', None)
 if pluginDevPath:

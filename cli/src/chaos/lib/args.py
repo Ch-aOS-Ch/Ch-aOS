@@ -1,4 +1,4 @@
-from chaos.lib.plugDiscovery import get_plugins, load_roles
+from chaos.lib.plugDiscovery import get_plugins
 import subprocess
 import argparse
 from argcomplete.completers import FilesCompleter
