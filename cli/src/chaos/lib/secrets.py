@@ -1,10 +1,9 @@
-from typing import cast
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.align import Align
 from itertools import zip_longest
-from omegaconf import OmegaConf, ListConfig, DictConfig
+from omegaconf import OmegaConf, ListConfig
 from pathlib import Path
 from rich.prompt import Confirm
 import os
