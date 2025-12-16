@@ -3,6 +3,7 @@ from rich.console import Console
 from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
 from rich.text import Text
+from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 import subprocess
 import math
 import shutil
@@ -81,6 +82,12 @@ def _read_ramble_content(ramble_path, sops_config, team):
                 console.print('[bold red]ERROR:[/] This ramble appears to be encrypted, but no sops configuration was found.')
                 console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
                 return None, None
+
+            if is_vault_in_use(sops_config):
+                is_authed, message = check_vault_auth()
+                if not is_authed:
+                    console.print(message)
+                    return None, None
 
             result = subprocess.run(
                 ['sops', '--config', sops_config, '-d', str(ramble_path)],
@@ -371,6 +378,12 @@ def handleEditRamble(args):
                 console.print('[bold red]ERROR:[/] This ramble appears to be encrypted, but no sops configuration was found.')
                 console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
                 sys.exit(1)
+
+            if is_vault_in_use(sops_file_override):
+                is_authed, message = check_vault_auth()
+                if not is_authed:
+                    console.print(message)
+                    sys.exit(1)
             try:
                 subprocess.run(['sops', '--config', sops_file_override, str(file_path)], check=True)
             except FileNotFoundError:
@@ -472,6 +485,12 @@ def handleEncryptRamble(args):
         console.print('[bold red]ERROR:[/] You need a sops configuration for encryption to work.')
         console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
         sys.exit(1)
+
+    if is_vault_in_use(sops_file_override):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
 
     ramble = args.target
     if ".." in ramble or "/" in ramble:
@@ -848,6 +867,12 @@ def handleUpdateEncryptRamble(args):
         sops_file_override = args.sops_file_override
     else:
         sops_file_override = global_config.get('sops_file')
+
+    if is_vault_in_use(sops_file_override):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         if not is_safe_path(ramble_file, team):

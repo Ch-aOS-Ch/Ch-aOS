@@ -2,6 +2,7 @@ from rich.console import Console
 from omegaconf import OmegaConf, ListConfig
 from pathlib import Path
 from rich.prompt import Confirm
+from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 import os
 import sys
 import re
@@ -45,18 +46,18 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
             teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / f"secrets/secrets.yml"
 
-            secretsHelp = secretsFile
-            sopsHelp = sopsFile
-
+            if not teamSops.exists() or not teamSec.exists():
+                Console().print(f"[bold red]ERROR:[/] Either secrets file doesn't exist or sops file doesn't exist.")
+                sys.exit(1)
             sopsFile = teamSops if teamSops.exists() else sopsFile
             secretsFile = teamSec if teamSec.exists() else secretsFile
 
             if secrets_file_override and ('..' in secrets_file_override or secrets_file_override.startswith('/')):
-                Console().print("[bold yellow]WARNING:[/]Team secrets file is invalid. Skipping.")
-                secretsFile = secretsHelp
+                Console().print("[bold red]ERROR:[/]Team secrets file is invalid. Skipping.")
+                sys.exit(1)
             if sops_file_override and ('..' in sops_file_override or sops_file_override.startswith('/')):
-                Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
-                sopsFile = sopsHelp
+                Console().print("[bold red]ERROR:[/]Team sops file is invalid. Skipping.")
+                sys.exit(1)
         else:
             console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
             sys.exit(1)
@@ -118,21 +119,17 @@ def is_valid_vault_key(key):
         client = hvac.Client(url=key)
         seal_status = client.sys.read_seal_status()
         if not seal_status:
-            return False
+            return False, f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable."
         if 'sealed' in seal_status['data']:
-            console.print(f"Valid vault uri. Server status: {seal_status['data']['sealed']}")
-            return True
+            return True, f"Valid vault URI. Server status: {seal_status['data']['sealed']}."
         else:
-            console.print(f"'{key}' is a reachable endpoint, but status check failed or returned unexpected data.")
+            return False, f"Vault URI '{key}' is a reachable endpoint, but status check failed or returned unexpected data."
     except requests.exceptions.MissingSchema:
-        print(f"'{key}' is an invalid URL format. Missing schema (e.g., 'https://').")
-        return False
+        return False, f"Vault URI '{key}' is an invalid URL format. Missing schema (e.g., 'https://')."
     except requests.exceptions.ConnectionError:
-        print(f"'{key}' is a valid URL format but unreachable. Check network connectivity or if the Vault server is running.")
-        return False
+        return False, f"Vault URI '{key}' is a valid URL format but unreachable. Check network connectivity or if the Vault server is running."
     except Exception as e:
-        print(f"An unexpected error occurred while validating URI '{key}': {e}")
-        return False
+        return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
 
 def listPgp(sops_file_override):
     try:
@@ -364,10 +361,13 @@ def handleVaultAdd(args, sops_file_override, keys):
     valids = set()
     for key in keys:
         clean_key = key.strip()
-        if not is_valid_vault_key(clean_key):
-            console.print(f"[bold red]ERROR:[/] Invalid Vault key: {key}. Skipping.")
+        is_valid, message = is_valid_vault_key(clean_key)
+        if is_valid:
+            console.print(f"[green]INFO:[/] {message}")
+            valids.add(clean_key)
+        else:
+            console.print(f"[bold red]ERROR:[/] {message} Skipping key '{key}'.")
             continue
-        valids.add(clean_key)
 
     if not valids:
         console.print("No valid keys. Returning.")
@@ -639,6 +639,12 @@ def handleUpdateAllSecrets(args):
 
     main_secrets_file, sops_file_path = get_sops_files(sops_file_override, secrets_file_override, team)
 
+    if is_vault_in_use(sops_file_path):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
+
     if not sops_file_path:
         console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
     elif main_secrets_file and Path(main_secrets_file).exists():
@@ -851,6 +857,12 @@ def handleSecEdit(args):
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
 
+    if is_vault_in_use(sopsFile):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
+
     if not secretsFile or not sopsFile:
         print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
         print("       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
@@ -874,6 +886,12 @@ def handleSecPrint(args):
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    if is_vault_in_use(sopsFile):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
 
     if not secretsFile or not sopsFile:
         print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
