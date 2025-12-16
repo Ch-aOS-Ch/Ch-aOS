@@ -103,11 +103,13 @@ def main():
                     case 'update': handleUpdateEncryptRamble(args)
 
             case 'init':
-                from chaos.lib.inits import initChobolo, initSecrets
+                from chaos.lib.inits import initChobolo, initSecrets, initTeam
                 if args.init_command == 'chobolo':
                     initChobolo(keys)
                 elif args.init_command == 'secrets':
                     initSecrets()
+                elif args.init_command == 'team':
+                    initTeam(args)
             case _:
                 if args.generate_tab:
                     handleGenerateTab()

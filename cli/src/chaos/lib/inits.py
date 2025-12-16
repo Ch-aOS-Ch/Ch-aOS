@@ -15,6 +15,12 @@ import os
 
 console = Console()
 
+def checkDep(bin):
+    path = shutil.which(bin)
+    if path is None:
+        return False
+    return True
+
 def initChobolo(keys):
     finalConf = oc.create()
     addedKeys = set()
@@ -41,15 +47,7 @@ def initChobolo(keys):
     path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
     oc.save(finalConf, path)
 
-
 # -------------- SECRET INITING -------------
-
-
-def checkDep(bin):
-    path = shutil.which(bin)
-    if path is None:
-        return False
-    return True
 
 def setupSshToAge():
     if not checkDep('ssh-to-age'):
@@ -80,6 +78,7 @@ def setupSshToAge():
         return "age", pubkey
     except subprocess.CalledProcessError as e:
         console.print(f"[bold red]ERROR:[/] Failed to convert SSH key to age key: {e.stderr.strip()}")
+        sys.exit(1)
 
 def setupAge():
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
@@ -316,7 +315,7 @@ def initSecrets():
                 yaml.dump(sec_content, f, default_flow_style=False)
 
         console.print("[cyan]Info:[/] Encrypting initial secrets file...")
-        console.print("[dim]Hint: Use chaos -es/chaos check s to both check your secrets and edit your secrets\nchaos check s will print your secrets to your screen to help with automation.[/]")
+        console.print("[dim]Hint: Use chaos secrets edit/chaos check s to both check your secrets and edit your secrets\nchaos check s will print your secrets to your screen to help with automation.[/]")
         subprocess.run([
             'sops',
             '--config', str(sops_file),
@@ -340,3 +339,220 @@ def initSecrets():
         console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
         console.print("[dim]Hint: Check if your GPG key is imported or if age keys are correct.[/]")
         sys.exit(1)
+
+# ------------- team-secret initing --------------
+
+def initTeam(args):
+    hasAge = checkDep('age-keygen')
+    hasSops = checkDep('sops')
+    hasPgp = checkDep('gpg')
+    hasVault = checkDep('vault')
+
+    if not hasSops:
+        console.print("[bold red]CRITICAL:[/] sops is not installed. It is required for this software.")
+        sys.exit(1)
+
+    if not hasVault:
+        console.print("[bold red]CRITICAL:[/] vault is not installed. It is required for this functionality.")
+        sys.exit(1)
+
+    if not (hasAge or hasPgp):
+        console.print("[bold red]CRITICAL:[/] Neither gpg nor age are installed. At least one is required for this functionality.")
+        sys.exit(1)
+
+    choices = []
+
+    if hasAge:
+        choices.append('age')
+    if hasPgp:
+        choices.append('gpg')
+    if hasPgp and hasAge:
+        choices.append('both')
+
+    batch = args.target
+
+    if not '.' in batch:
+        Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.group)")
+        sys.exit(1)
+
+    parts = batch.split('.')
+    company = parts[0]
+    team = parts[1]
+    person = parts[2] if len(parts) == 3 else None
+
+    if not team or not company:
+        console.print("[bold red]ERROR:[/] Must pass both team and company.")
+        sys.exit(1)
+
+    if person:
+        if ".." in person or person.startswith("/"):
+            console.print(f"[bold red]ERROR:[/] Invalid group name '{person}'.")
+            sys.exit(1)
+
+    if ".." in company or company.startswith("/"):
+         console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
+         sys.exit(1)
+
+    if ".." in team or team.startswith("/"):
+         console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
+         sys.exit(1)
+
+
+    teamDir = Path(os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team}"))
+    teamDir.mkdir(parents=True, exist_ok=True)
+
+    rambleTeamDir = teamDir / f"ramblings/{person}" if person else teamDir / "ramblings"
+    rambleTeamDir.mkdir(parents=True, exist_ok=True)
+
+    secretsTeamDir = teamDir / "secrets"
+    devSecs = secretsTeamDir / "dev"
+    devSecs.mkdir(parents=True, exist_ok=True)
+    prodSecs = secretsTeamDir / "prod"
+    prodSecs.mkdir(parents=True, exist_ok=True)
+
+    sops_file = teamDir / "sops-config.yml"
+
+    if sops_file.exists():
+        if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
+            console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
+            sys.exit(0)
+
+    default="age" if hasAge else "gpg"
+    console.print(Panel("Chaos uses [bold]SOPS[/] for encryption.\nYou need to choose a backend engine to handle the keys.", title="Secrets Initialization", border_style="green"))
+    engine = Prompt.ask("Choose encryption engine", choices=choices, default=default)
+
+    sopsContent = {}
+    match engine:
+        case "age":
+            rules = [
+                {
+                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups": [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                },
+                {
+                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 4,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                }
+            ]
+            if person:
+                rules.append({
+                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                })
+            sopsContent = {"creation_rules": rules}
+
+        case "gpg":
+            rules = [
+                {
+                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups": [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
+                    ]
+                },
+                {
+                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 4,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
+                    ]
+                }
+            ]
+            if person:
+                rules.append({
+                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
+                    ]
+                })
+            sopsContent = {"creation_rules": rules}
+
+        case "both":
+            rules = [
+                {
+                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups": [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
+                        { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                },
+                {
+                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 4,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
+                        { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                }
+            ]
+            if person:
+                rules.append({
+                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
+                    "shamir_threshold": 3,
+                    "key_groups" : [
+                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
+                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
+                        { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
+                        { "age": [ "BACKUP-AGE-KEYS" ] }
+                    ]
+                })
+            sopsContent = {"creation_rules": rules}
+        case _:
+            console.print("Unsuported. Exiting.")
+            sys.exit(1)
+
+    try:
+        with open(sops_file, 'w') as f:
+            yaml.dump(sopsContent, f, default_flow_style=False)
+
+        console.print(f"[bold green]Success![/] SOPS configuration generated at: [dim]{sops_file}[/]")
+
+    except Exception as e:
+        console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
+        sys.exit(1)
+

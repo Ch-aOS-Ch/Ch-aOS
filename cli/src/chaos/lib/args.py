@@ -147,10 +147,11 @@ def argParsing():
 
     initParser = subParser.add_parser('init', help="Let Ch-aOS handle the boiler plates!")
 
-    initSubParser = initParser.add_subparsers(dest='init_command', required=True, help='What to initialize')
+    initSubParser = initParser.add_subparsers(dest='init_command', help='What to initialize', required=True)
     initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
-    initSubParser.add_parser('team-secrets', help="Initialize both a secrets file and a sops file for a team!")
+    teamInitParser = initSubParser.add_parser('team', help="Manage your teams.")
+    teamInitParser.add_argument('target', help="The team to initialize, in the format company.team or company.team.person")
 
     tags.completer = RolesCompleter()
 
