@@ -10,7 +10,7 @@ import subprocess
 
 console = Console()
 
-def _get_sops_files(sops_file_override, secrets_file_override, team):
+def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
@@ -23,17 +23,35 @@ def _get_sops_files(sops_file_override, secrets_file_override, team):
 
     if team:
         if not '.' in team:
-            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team)")
+            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.group)")
             sys.exit(1)
 
         parts = team.split('.')
+        if len(parts) != 3:
+            Console().print("[bold red]ERROR:[/] Must set a specific secrets group for your team. (company.team.group)")
+            sys.exit(1)
         company = parts[0]
         team = parts[1]
+        group = parts[2]
+
+        if ".." in group or group.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid group name '{group}'.")
+             sys.exit(1)
+
+        if ".." in company or company.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
+             sys.exit(1)
+
+        if ".." in team or team.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
+             sys.exit(1)
+
         teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}'))
+
         if teamPath.exists():
 
             teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
-            teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / "secrets/secrets.yml"
+            teamSec = teamPath / f'secrets/{group}/{secrets_file_override}' if secrets_file_override else teamPath / f"secrets/{group}/secrets.yml"
 
             secretsHelp = secretsFile
             sopsHelp = sopsFile
@@ -48,7 +66,7 @@ def _get_sops_files(sops_file_override, secrets_file_override, team):
                 Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
                 sopsFile = sopsHelp
         else:
-            console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
+            console.print(f"[bold red]ERROR:[/] Team directory for '{group}' not found at {teamPath}/secrets/{group}.")
             sys.exit(1)
 
     if not secretsFile:
@@ -454,7 +472,7 @@ def handleUpdateAllSecrets(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    main_secrets_file, sops_file_path = _get_sops_files(sops_file_override, secrets_file_override, team)
+    main_secrets_file, sops_file_path = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_path:
         console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
@@ -484,7 +502,7 @@ def handleRotateAdd(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
@@ -509,7 +527,7 @@ def handleRotateRemove(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
@@ -537,7 +555,7 @@ def listFp(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
@@ -589,7 +607,7 @@ def handleSetShamir(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = _get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
         console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
@@ -657,5 +675,50 @@ def handleSetShamir(args):
 
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
+        sys.exit(1)
+
+def handleSecEdit(args):
+    team = args.team
+    sops_file_override = args.sops_file_override
+    secrets_file_override = args.secrets_file_override
+    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 200:
+            print("File has not changed, exiting.")
+            sys.exit(0)
+        else:
+            print(f"ERROR: SOPS editing failed with exit code {e.returncode}.", file=sys.stderr)
+            sys.exit(1)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
+        sys.exit(1)
+
+def handleSecPrint(args):
+    team = args.team
+    sops_file_override = args.sops_file_override
+    secrets_file_override = args.secrets_file_override
+    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+    except subprocess.CalledProcessError as e:
+        print("ERROR: SOPS decryption failed.")
+        print("Details:", e.stderr.decode() if e.stderr else "No output.")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
         sys.exit(1)
 

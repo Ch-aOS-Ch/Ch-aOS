@@ -52,23 +52,25 @@ def main():
                     handleRotateAdd,
                     handleRotateRemove,
                     listFp,
-                    handleSetShamir
+                    handleSetShamir,
+                    handleSecEdit,
+                    handleSecPrint
                 )
                 match args.secrets_commands:
                     case 'rotate-add': handleRotateAdd(args)
                     case 'rotate-rm': handleRotateRemove(args)
                     case 'list': listFp(args)
+                    case 'edit': handleSecEdit(args)
                     case 'shamir': handleSetShamir(args)
+                    case 'print': handleSecPrint(args)
 
             case 'check':
                 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
-                from chaos.lib.tinyScript import runSopsCheck
 
                 match args.checks:
                     case 'explanations': checkExplanations(EXPLANATIONS)
                     case 'aliases': checkAliases(ROLE_ALIASES)
                     case 'roles': checkRoles(role_specs)
-                    case 'secrets': runSopsCheck(args.sops_file_override, args.secrets_file_override, args)
                     case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
                 sys.exit(0)
@@ -99,6 +101,7 @@ def main():
                     case 'move': handleMoveRamble(args)
                     case 'delete': handleDelRamble(args)
                     case 'update': handleUpdateEncryptRamble(args)
+
             case 'init':
                 from chaos.lib.inits import initChobolo, initSecrets
                 if args.init_command == 'chobolo':
@@ -108,11 +111,6 @@ def main():
             case _:
                 if args.generate_tab:
                     handleGenerateTab()
-                    sys.exit(0)
-
-                elif args.edit_sec:
-                    from chaos.lib.tinyScript import runSopsEdit
-                    runSopsEdit(args.sops_file_override, args.secrets_file_override)
                     sys.exit(0)
 
                 elif args.edit_chobolo:
