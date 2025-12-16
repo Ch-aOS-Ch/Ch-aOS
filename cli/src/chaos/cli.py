@@ -4,7 +4,6 @@ import argcomplete
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
-from chaos.lib.secrets import handleSetShamir, listFp
 
 def main():
 
@@ -49,7 +48,12 @@ def main():
                     sys.exit(1)
 
             case 'secrets':
-                from chaos.lib.secrets import(handleRotateAdd, handleRotateRemove)
+                from chaos.lib.secrets import(
+                    handleRotateAdd,
+                    handleRotateRemove,
+                    listFp,
+                    handleSetShamir
+                )
                 match args.secrets_commands:
                     case 'rotate-add': handleRotateAdd(args)
                     case 'rotate-rm': handleRotateRemove(args)
