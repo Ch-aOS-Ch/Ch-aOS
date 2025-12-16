@@ -27,16 +27,8 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             sys.exit(1)
 
         parts = team.split('.')
-        if len(parts) != 3:
-            Console().print("[bold red]ERROR:[/] Must set a specific secrets group for your team. (company.team.group)")
-            sys.exit(1)
         company = parts[0]
         team = parts[1]
-        group = parts[2]
-
-        if ".." in group or group.startswith("/"):
-             console.print(f"[bold red]ERROR:[/] Invalid group name '{group}'.")
-             sys.exit(1)
 
         if ".." in company or company.startswith("/"):
              console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
@@ -51,7 +43,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         if teamPath.exists():
 
             teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
-            teamSec = teamPath / f'secrets/{group}/{secrets_file_override}' if secrets_file_override else teamPath / f"secrets/{group}/secrets.yml"
+            teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / f"secrets/secrets.yml"
 
             secretsHelp = secretsFile
             sopsHelp = sopsFile
@@ -66,7 +58,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                 Console().print("[bold yellow]WARNING:[/]Team sops file is invalid. Skipping.")
                 sopsFile = sopsHelp
         else:
-            console.print(f"[bold red]ERROR:[/] Team directory for '{group}' not found at {teamPath}/secrets/{group}.")
+            console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
             sys.exit(1)
 
     if not secretsFile:
