@@ -15,18 +15,31 @@ console = Console()
 def _get_ramble_dir(team) -> Path:
     if team:
         if not '.' in team:
-            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team)")
+            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.person)")
             sys.exit(1)
 
         parts = team.split('.')
+        if len(parts) != 3:
+            Console().print("[bold red]ERROR:[/] Must set a person for your team. (company.team.person)")
+            sys.exit(1)
+
         company = parts[0]
         team = parts[1]
+        person = parts[2]
+
+        if ".." in person or person.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid person name '{person}'.")
+             sys.exit(1)
+
+        if ".." in company or company.startswith("/"):
+             console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
+             sys.exit(1)
 
         if ".." in team or team.startswith("/"):
              console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
              sys.exit(1)
 
-        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/ramblings'))
+        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/ramblings/{person}'))
 
         if not team_ramble_path.exists():
             console.print(f"[bold red]ERROR:[/] Team ramble directory for '{team}' not found at {team_ramble_path}.")

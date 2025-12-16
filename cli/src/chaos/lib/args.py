@@ -22,11 +22,8 @@ def argParsing():
     )
 
     parser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
-    parser.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    parser.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-t', '--generate-tab', action='store_true', help="Generate shell tab-completion script.")
-    parser.add_argument('-es', '--edit-sec', action='store_true', help="Edit the secrets encrypted file using sops. Do not run publicly.")
     parser.add_argument('-ec', '--edit-chobolo', action='store_true', help="Edit the Ch-obolo file using the default editor.")
 
     subParser = parser.add_subparsers(dest="command", help="Available subcommands")
@@ -42,13 +39,23 @@ def argParsing():
     secRotateRemove.add_argument('keys', nargs="+", help="Keys to be removed.")
     secRotateRemove.add_argument('-i', '--index', type=int, help="Rule index to be used.")
     secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    secRotateRemove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    secRotateRemove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     secRotateRemove.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
 
     secList = secSubParser.add_parser('list',  help="Show all PGP keys inside your sops configuration.")
     secList.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to list.")
     secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    secList.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    secList.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+
+    secEdit = secSubParser.add_parser('edit', help="Edit your secrets file.")
+    secEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    secEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secEdit.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
+
+    secPrint = secSubParser.add_parser('print', help="Print your secrets to the screen. Be careful where you use this.")
+    secPrint.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
+    secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
     secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
@@ -58,65 +65,62 @@ def argParsing():
     secRotateAdd.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
     secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")
     secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
 
     secShamir = secSubParser.add_parser('shamir', help="Manage Shamir's Secret Sharing configuration.")
     secShamir.add_argument('index', type=int, help="Rule index to be used.")
     secShamir.add_argument('share', type=int, help="Amount of Shares to be obligatory.")
     secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
 
     rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
 
     rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
     rambleCreate.add_argument('target', help='The ramble/rambling to create (e.g., ramble.rambling)')
-    rambleCreate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleCreate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleEdit = rambSubParser.add_parser('edit', help='Edit a rambling directly, whether encrypted or not.')
     rambleEdit.add_argument('target', help='The rambling you want to edit (e.g., ramble.rambling)')
     rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    rambleEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleEncrypt = rambSubParser.add_parser('encrypt', help='Encrypt a rambling inside a ramble with sops.')
     rambleEncrypt.add_argument('target', help='The rambling you want to encrypt (e.g., ramble.rambling)')
     rambleEncrypt.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
     rambleEncrypt.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    rambleEncrypt.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleEncrypt.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleRead = rambSubParser.add_parser('read', help='Read your ramblings.')
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
     rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
     rambleFind.add_argument('find_term', nargs='?', default=None, help='A keyword to search for in your rambles.')
-    rambleFind.add_argument('-t', '--tag', help='Filter rambles by a specific tag.')
-    rambleFind.add_argument('--team', type=str, help="Team to be used, in the format company.team")
+    rambleFind.add_argument('--tag', help='Filter rambles by a specific tag.')
+    rambleFind.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
     rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
     rambleMove = rambSubParser.add_parser('move', help='Move a rambling through rambles')
     rambleMove.add_argument('old', help='Your old rambling')
     rambleMove.add_argument('new', help='Your new rambling')
-    rambleMove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleMove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleUpdate = rambSubParser.add_parser('update', help='Update your rambling encryption keys, great for rotation!')
     rambleUpdate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    rambleUpdate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleUpdate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleDel = rambSubParser.add_parser('delete', help='Delete a rambling or an entire ramble.')
     rambleDel.add_argument('ramble', help='Your ramble')
-    rambleDel.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team")
+    rambleDel.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
     expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
     checkParser = subParser.add_parser('check', help='Check and list roles, secrets, aliases and explanations')
-    checkParser.add_argument('checks', choices=['explanations', 'roles', 'secrets', 'aliases'], help='The operations you want to check.')
-    checkParser.add_argument('-t', '--team', type=str, help="Team to be used (company.team). If you have a team repository, you may check your team secrets on it.")
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
-    checkParser.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    checkParser.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
     setParser = subParser.add_parser('set', help='Set configuration files')
     setSubParser = setParser.add_subparsers(dest="set_command")
@@ -146,6 +150,7 @@ def argParsing():
     initSubParser = initParser.add_subparsers(dest='init_command', required=True, help='What to initialize')
     initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
+    initSubParser.add_parser('team-secrets', help="Initialize both a secrets file and a sops file for a team!")
 
     tags.completer = RolesCompleter()
 
