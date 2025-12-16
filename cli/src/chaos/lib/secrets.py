@@ -210,22 +210,20 @@ def handlePgpAdd(args, sops_file_override, keys):
             total_added_keys = set()
             for rule in rules_to_process:
                 for key_group in rule.get('key_groups', []):
-
-                    existing_keys = []
                     if 'pgp' in key_group and key_group.pgp is not None:
                         existing_keys = list(flatten(key_group.pgp))
 
-                    keys_to_write = list(existing_keys)
-                    current_keys_set = set(keys_to_write)
-                    for key_to_add in valids:
-                        if key_to_add not in current_keys_set:
-                            keys_to_write.append(key_to_add)
-                            total_added_keys.add(key_to_add)
+                        keys_to_write = list(existing_keys)
+                        current_keys_set = set(keys_to_write)
+                        for key_to_add in valids:
+                            if key_to_add not in current_keys_set:
+                                keys_to_write.append(key_to_add)
+                                total_added_keys.add(key_to_add)
 
-                    key_group.pgp = keys_to_write
+                        key_group.pgp = keys_to_write
 
             if not total_added_keys:
-                console.print("[yellow]All provided keys are already in the sops config or no 'pgp' section was found to add them. No changes made.[/]")
+                console.print("[yellow]All provided keys are already in the relevant sops config 'pgp' sections, or no 'pgp' sections were found. No changes made.[/]")
                 return
 
             OmegaConf.save(config_data, sops_file_override)
@@ -283,21 +281,20 @@ def handleAgeAdd(args, sops_file_override, keys):
             total_added_keys = set()
             for rule in rules_to_process:
                 for key_group in rule.get('key_groups', []):
-                    existing_keys = []
                     if 'age' in key_group and key_group.age is not None:
                         existing_keys = list(flatten(key_group.age))
 
-                    keys_to_write = list(existing_keys)
-                    current_keys_set = set(keys_to_write)
-                    for key_to_add in valids:
-                        if key_to_add not in current_keys_set:
-                            keys_to_write.append(key_to_add)
-                            total_added_keys.add(key_to_add)
+                        keys_to_write = list(existing_keys)
+                        current_keys_set = set(keys_to_write)
+                        for key_to_add in valids:
+                            if key_to_add not in current_keys_set:
+                                keys_to_write.append(key_to_add)
+                                total_added_keys.add(key_to_add)
 
-                    key_group.age = keys_to_write
+                        key_group.age = keys_to_write
 
             if not total_added_keys:
-                console.print("[yellow]All provided keys are already in the sops config. No changes made.[/]")
+                console.print("[yellow]All provided keys are already in the relevant sops config 'age' sections, or no 'age' sections were found. No changes made.[/]")
                 return
 
             OmegaConf.save(config_data, sops_file_override)
