@@ -1,8 +1,4 @@
 from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.align import Align
-from itertools import zip_longest
 from omegaconf import OmegaConf, ListConfig
 from pathlib import Path
 from rich.prompt import Confirm
@@ -533,6 +529,10 @@ def handleRotateRemove(args):
         handleUpdateAllSecrets(args)
 
 def listFp(args):
+    from rich.panel import Panel
+    from itertools import zip_longest
+    from rich.align import Align
+    from rich.table import Table
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)

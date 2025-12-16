@@ -1,11 +1,10 @@
 from importlib import import_module
 from typing import cast
-import omegaconf
 from rich.console import Console
 from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf
 
 import logging
 import os
