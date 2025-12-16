@@ -79,3 +79,38 @@ def checkExplanations(EXPLANATIONS, **kwargs):
 
 def checkAliases(ROLE_ALIASES, **kwargs):
     printCheck("alias", ROLE_ALIASES)
+
+def is_vault_in_use(sops_file_path: str) -> bool:
+    if not sops_file_path or not os.path.exists(sops_file_path):
+        return False
+    try:
+        config = OmegaConf.load(sops_file_path)
+        creation_rules = config.get('creation_rules', [])
+        for rule in creation_rules:
+            for key_group in rule.get('key_groups', []):
+                if 'vault' in key_group and key_group.get('vault'):
+                    return True
+    except Exception:
+        return False
+    return False
+
+def check_vault_auth():
+    vault_addr = os.getenv('VAULT_ADDR')
+    if not vault_addr:
+        return False, "[bold red]ERROR:[/] VAULT_ADDR environment variable is not set, which is required when using Vault keys."
+
+    vault_token = os.getenv('VAULT_TOKEN')
+    if not vault_token:
+        return False, "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault."
+
+    try:
+        import hvac
+        client = hvac.Client(url=vault_addr, token=vault_token)
+        if client.is_authenticated():
+            return True, "[green]INFO:[/] Vault token is valid."
+        else:
+            return False, "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault."
+    except ImportError:
+        return False, "[bold red]ERROR:[/] The 'hvac' library is not installed. Please install it to use Vault features (`pip install hvac`)."
+    except Exception as e:
+        return False, f"[bold red]ERROR:[/] Failed to authenticate with Vault at {vault_addr}: {e}"
