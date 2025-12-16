@@ -14,6 +14,8 @@ dependencies = [
     "passlib>=1.7.4",
     "argcomplete",
     "rich>=13.7.1",
+    "hvac>=2.4.0",
+    "requests>=2.32.4",
 ]
 
 [project.scripts]
