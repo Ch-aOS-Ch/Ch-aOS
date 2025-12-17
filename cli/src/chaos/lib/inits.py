@@ -429,8 +429,8 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups": [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
                         { "age": [ "BACKUP-AGE-KEYS" ] }
                     ]
@@ -439,10 +439,10 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 4,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
                         { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
                         { "age": [ "BACKUP-AGE-KEYS" ] }
                     ]
@@ -453,8 +453,8 @@ def initTeam(args):
                     "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
                         { "age": [ "BACKUP-AGE-KEYS" ] }
                     ]
@@ -467,8 +467,8 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups": [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] }
                     ]
@@ -477,10 +477,10 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 4,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
                         { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] }
                     ]
@@ -491,8 +491,8 @@ def initTeam(args):
                     "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] }
                     ]
@@ -505,8 +505,8 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups": [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] },
                         { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
@@ -517,10 +517,10 @@ def initTeam(args):
                     "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 4,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
                         { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] },
                         { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
@@ -533,8 +533,8 @@ def initTeam(args):
                     "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
                     "shamir_threshold": 3,
                     "key_groups" : [
-                        { "vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
+                        { "hc_vault_transit_uri": [ "VAULT-TEAM-URI-INSTANCE." ] },
+                        { "hc_vault_transit_uri": [ "VAULT-COMPANY-URI-INSTANCE" ] },
                         { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
                         { "pgp": [ "BACKUP-PGP-KEYS" ] },
                         { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
