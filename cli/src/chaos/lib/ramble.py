@@ -868,11 +868,12 @@ def handleUpdateEncryptRamble(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
-    if is_vault_in_use(sops_file_override):
-        is_authed, message = check_vault_auth()
-        if not is_authed:
-            console.print(message)
-            sys.exit(1)
+    if sops_file_override:
+        if is_vault_in_use(sops_file_override):
+            is_authed, message = check_vault_auth()
+            if not is_authed:
+                console.print(message)
+                sys.exit(1)
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         if not is_safe_path(ramble_file, team):
