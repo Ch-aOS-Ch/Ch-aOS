@@ -1,6 +1,6 @@
 from io import StringIO
 from rich.console import Console
-from omegaconf import OmegaConf, ListConfig
+from omegaconf import OmegaConf, ListConfig, DictConfig
 from pathlib import Path
 from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
@@ -888,16 +888,16 @@ def handleSecPrint(args):
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
 
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
         if not is_authed:
             console.print(message)
             sys.exit(1)
-
-    if not secretsFile or not sopsFile:
-        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
-        sys.exit(1)
 
     try:
         subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
@@ -916,33 +916,40 @@ def handleSecCat(args):
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
 
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
         if not is_authed:
             console.print(message)
             sys.exit(1)
 
-    if not secretsFile or not sopsFile:
-        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
-        sys.exit(1)
-
     try:
         sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
+        isJson = args.json
         for key in keys:
-            try:
-                value = OmegaConf.select(ocLoadResult, key)
-                console.print(f"[green]{key}:[/] [italic]{value}[/]")
-            except Exception as e:
+            value = OmegaConf.select(ocLoadResult, key, default=None)
+            if value is None:
                 console.print(f"[bold yellow]WARNING:[/]{key} not found in {secretsFile}.")
+                continue
+
+            if not isJson:
+                if isinstance(value, (DictConfig, ListConfig)):
+                    container = OmegaConf.create({key: value})
+                    print(f"{OmegaConf.to_yaml(container)}")
+                else:
+                    print(f"{key}: {value}")
+            else:
+                output_value = str(value)
+                print(f"{key}: {output_value}")
     except subprocess.CalledProcessError as e:
         print("ERROR: SOPS decryption failed.")
-        print("Details:", e.stderr.decode() if e.stderr else "No output.")
+        print("Details:", e.stderr if e.stderr else "No output.")
         sys.exit(1)
     except FileNotFoundError:
         print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
         sys.exit(1)
-
-
-
