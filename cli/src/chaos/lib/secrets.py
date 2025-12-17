@@ -1,3 +1,4 @@
+from io import StringIO
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig
 from pathlib import Path
@@ -907,4 +908,41 @@ def handleSecPrint(args):
     except FileNotFoundError:
         print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
         sys.exit(1)
+
+def handleSecCat(args):
+    team = args.team
+    sops_file_override = args.sops_file_override
+    keys = args.keys
+    secrets_file_override = args.secrets_file_override
+    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    if is_vault_in_use(sopsFile):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            console.print(message)
+            sys.exit(1)
+
+    if not secretsFile or not sopsFile:
+        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
+        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+        ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
+        for key in keys:
+            try:
+                value = OmegaConf.select(ocLoadResult, key)
+                console.print(f"[green]{key}:[/] [italic]{value}[/]")
+            except Exception as e:
+                console.print(f"[bold yellow]WARNING:[/]{key} not found in {secretsFile}.")
+    except subprocess.CalledProcessError as e:
+        print("ERROR: SOPS decryption failed.")
+        print("Details:", e.stderr.decode() if e.stderr else "No output.")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
+        sys.exit(1)
+
+
 
