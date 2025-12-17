@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import argcomplete
+from rich.console import Console
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
@@ -54,7 +55,8 @@ def main():
                     listFp,
                     handleSetShamir,
                     handleSecEdit,
-                    handleSecPrint
+                    handleSecPrint,
+                    handleSecCat
                 )
                 match args.secrets_commands:
                     case 'rotate-add': handleRotateAdd(args)
@@ -63,6 +65,9 @@ def main():
                     case 'edit': handleSecEdit(args)
                     case 'shamir': handleSetShamir(args)
                     case 'print': handleSecPrint(args)
+                    case 'cat': handleSecCat(args)
+                    case _:
+                        Console().print("Unsupported secrets subcommand.")
 
             case 'check':
                 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
@@ -101,15 +106,17 @@ def main():
                     case 'move': handleMoveRamble(args)
                     case 'delete': handleDelRamble(args)
                     case 'update': handleUpdateEncryptRamble(args)
+                    case _:
+                        Console().print("Unsupported ramble subcommand.")
 
             case 'init':
                 from chaos.lib.inits import initChobolo, initSecrets, initTeam
-                if args.init_command == 'chobolo':
-                    initChobolo(keys)
-                elif args.init_command == 'secrets':
-                    initSecrets()
-                elif args.init_command == 'team':
-                    initTeam(args)
+                match args.init_command:
+                    case 'chobolo': initChobolo(keys)
+                    case 'secrets': initSecrets()
+                    case 'team': initTeam(args)
+                    case _:
+                        Console().print("Unsupported init.")
             case _:
                 if args.generate_tab:
                     handleGenerateTab()
