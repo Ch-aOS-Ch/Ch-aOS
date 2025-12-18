@@ -6,7 +6,6 @@ from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _gener
 
 console = Console()
 
-
 def is_valid_age_key(key):
     return re.fullmatch(r"age1[a-z0-9]{58}", key)
 

@@ -7,7 +7,6 @@ import os
 from omegaconf import OmegaConf
 import subprocess
 
-
 console = Console()
 
 def get_sops_files(sops_file_override, secrets_file_override, team):

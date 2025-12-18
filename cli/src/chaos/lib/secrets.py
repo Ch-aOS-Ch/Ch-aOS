@@ -1,8 +1,6 @@
 from io import StringIO
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
-from pathlib import Path
-from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.secret_backends.utils import get_sops_files
 import os
@@ -41,7 +39,7 @@ def handleRotateAdd(args):
             return
     ikwid = args.i_know_what_im_doing
 
-    confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
+    confirm = True if ikwid else False
     if confirm:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
@@ -73,7 +71,7 @@ def handleRotateRemove(args):
         case _:
             console.print("No available type passed. Exiting.")
             return
-    confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new keys?", default=True)
+    confirm = True if ikwid else False
     if confirm:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
@@ -178,13 +176,13 @@ def handleSetShamir(args):
 
         if threshold <= 0:
             if rule.get('shamir_threshold') is not None:
-                confirm = True if ikwid else Confirm.ask(f"Are you sure you want to remove the Shamir threshold from rule {rule_index}?", default=False)
+                confirm = True if ikwid else False
 
                 if confirm:
                     del rule['shamir_threshold']
                     OmegaConf.save(config_data, sops_file_override)
                     console.print(f"[bold green]Successfully removed Shamir threshold from rule {rule_index} in {sops_file_override}[/]")
-                    confirm_update = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with this change?", default=True)
+                    confirm_update = True if ikwid else False
                     if confirm_update:
                         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
                         handleUpdateAllSecrets(args)
@@ -209,7 +207,7 @@ def handleSetShamir(args):
 
         console.print(f"[bold green]Successfully set Shamir threshold to {threshold} for rule {rule_index} in {sops_file_override}[/]")
 
-        confirm = True if ikwid else Confirm.ask("Do you wish to update all encrypted files with the new threshold?", default=True)
+        confirm = True if ikwid else False
         if confirm:
             from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
             handleUpdateAllSecrets(args)

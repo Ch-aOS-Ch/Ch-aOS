@@ -40,7 +40,7 @@ def argParsing():
     secRotateRemove.add_argument('-i', '--index', type=int, help="Rule index to be used.")
     secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secRotateRemove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
-    secRotateRemove.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
+    secRotateRemove.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
 
     secList = secSubParser.add_parser('list',  help="Show all PGP keys inside your sops configuration.")
     secList.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to list.")
@@ -71,7 +71,7 @@ def argParsing():
     secRotateAdd.add_argument('keys', nargs="+", help="Keys to be added.")
     secRotateAdd.add_argument('-i', '--index', type=int, help="Rule index to be used.")
     secRotateAdd.add_argument('-cr', '--create', action='store_true', help="If you want to create a new key group or not.")
-    secRotateAdd.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
+    secRotateAdd.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
     secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")
     secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
@@ -81,6 +81,7 @@ def argParsing():
     secShamir.add_argument('share', type=int, help="Amount of Shares to be obligatory.")
     secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    secShamir.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
 
     rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
 
