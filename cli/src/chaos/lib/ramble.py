@@ -181,7 +181,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team):
                     title=f"[bold green]Ramble for '{title}'[/]",
                     border_style="green",
                     expand=False,
-                    width=100
+                    width=120
                 )
             )
         )
