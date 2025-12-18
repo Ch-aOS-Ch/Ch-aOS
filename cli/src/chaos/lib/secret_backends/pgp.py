@@ -4,7 +4,6 @@ import sys
 from omegaconf import OmegaConf
 from rich.console import Console
 from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
-from rich.prompt import Confirm
 
 console = Console()
 
@@ -78,7 +77,6 @@ def handlePgpAdd(args, sops_file_override, keys):
                 console.print(f"[bold red]ERROR:[/] Could not import {key} from {server}: {e}.\nSkipping.")
                 continue
         valids.add(clean_key)
-
     _generic_handle_add('pgp', args, sops_file_override, valids)
 
 
@@ -107,7 +105,6 @@ def handlePgpRem(args, sops_file_override, keys):
                 keys_to_remove.add(clean_key)
             else:
                 console.print(f"[cyan]INFO:[/] Fingerprint: {key_to_check} not found in sops config. Skipping.")
-        
         _generic_handle_rem('pgp', args, sops_file_override, keys_to_remove)
 
     except Exception as e:
