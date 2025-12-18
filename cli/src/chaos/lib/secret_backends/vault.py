@@ -2,7 +2,6 @@ import sys
 from omegaconf import OmegaConf
 from rich.console import Console
 from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
-from rich.prompt import Confirm
 
 console = Console()
 

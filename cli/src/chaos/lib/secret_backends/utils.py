@@ -6,7 +6,6 @@ import sys
 import os
 from omegaconf import OmegaConf
 import subprocess
-from rich.prompt import Confirm
 
 
 console = Console()
@@ -228,11 +227,6 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
             console.print("Keys to remove:")
             for key in keys_to_remove:
                 console.print(f"  {key}")
-
-        confirm = True if ikwid else Confirm.ask("Are you sure you want to remove these keys?", default=False)
-        if not confirm:
-            console.print("Aborting.")
-            return
 
         rules_to_process = creation_rules
         if rule_index is not None:
