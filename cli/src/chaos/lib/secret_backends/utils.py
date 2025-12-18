@@ -10,13 +10,6 @@ import subprocess
 
 console = Console()
 
-def flatten(items):
-    for i in items:
-        if isinstance(i, (list, ListConfig)):
-            yield from flatten(i)
-        else:
-            yield i
-
 def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
@@ -36,6 +29,17 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         parts = team.split('.')
         company = parts[0]
         team = parts[1]
+        group = parts[2] if len(parts) > 2 else None
+
+        if not company:
+            console.print(f"[bold red]ERROR:[/] Company name cannot be empty in '{team}'.")
+            sys.exit(1)
+        if not team:
+            console.print(f"[bold red]ERROR:[/] Team name cannot be empty in '{team}'.")
+            sys.exit(1)
+        if group is not None and not group:
+            console.print(f"[bold red]ERROR:[/] Group name cannot be empty in '{team}'.")
+            sys.exit(1)
 
         if ".." in company or company.startswith("/"):
              console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
@@ -48,22 +52,34 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}'))
 
         if teamPath.exists():
+            sopsFile = teamPath / "sops-config.yml"
+            default_secrets_filename = "secrets/secrets.yml"
+            if group:
+                groupPath = f"secrets/{group}"
+                if not (teamPath / groupPath).exists():
+                    console.print(f"[bold red]ERROR:[/] Group directory for '{group}' not found at {teamPath / groupPath}.")
+                    sys.exit(1)
+                default_secrets_filename = f"{groupPath}/secrets.yml"
+            secretsFile = teamPath / default_secrets_filename
 
-            teamSops = teamPath / sops_file_override if sops_file_override else teamPath / "sops-config.yml"
-            teamSec = teamPath / f'secrets/{secrets_file_override}' if secrets_file_override else teamPath / f"secrets/secrets.yml"
 
-            if not teamSops.exists() or not teamSec.exists():
-                Console().print(f"[bold red]ERROR:[/] Either secrets file doesn't exist or sops file doesn't exist.")
-                sys.exit(1)
-            sopsFile = teamSops if teamSops.exists() else sopsFile
-            secretsFile = teamSec if teamSec.exists() else secretsFile
+            if sops_file_override:
+                if '..' in sops_file_override or sops_file_override.startswith('/'):
+                    console.print(f"[bold red]ERROR:[/] Invalid team sops file override '{sops_file_override}'.")
+                    sys.exit(1)
+                sopsFile = teamPath / sops_file_override
 
-            if secrets_file_override and ('..' in secrets_file_override or secrets_file_override.startswith('/')):
-                Console().print("[bold red]ERROR:[/]Team secrets file is invalid. Skipping.")
-                sys.exit(1)
-            if sops_file_override and ('..' in sops_file_override or sops_file_override.startswith('/')):
-                Console().print("[bold red]ERROR:[/]Team sops file is invalid. Skipping.")
-                sys.exit(1)
+            if secrets_file_override:
+                if '..' in secrets_file_override or secrets_file_override.startswith('/'):
+                    console.print(f"[bold red]ERROR:[/] Invalid team secrets file override '{secrets_file_override}'.")
+                    sys.exit(1)
+                if not group:
+                    secrets_temp = teamPath / "secrets" / secrets_file_override
+
+                else:
+                    secretsFile = teamPath / "secrets" / group / secrets_file_override
+
+            return str(secretsFile), str(sopsFile)
         else:
             console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
             sys.exit(1)
@@ -88,6 +104,13 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                 print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
 
     return secretsFile, sopsFile
+
+def flatten(items):
+    for i in items:
+        if isinstance(i, (list, ListConfig)):
+            yield from flatten(i)
+        else:
+            yield i
 
 def handleUpdateAllSecrets(args):
     console.print("\n[bold cyan]Starting key update for all secret files...[/]")
