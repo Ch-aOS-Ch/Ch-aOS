@@ -49,11 +49,13 @@ def argParsing():
 
     secEdit = secSubParser.add_parser('edit', help="Edit your secrets file.")
     secEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    secEdit.add_argument('-s', '--sops', help="Edit the sops file instead of the secrets file.", action='store_true')
     secEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secEdit.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
 
     secPrint = secSubParser.add_parser('print', help="Print your secrets to the screen. Be careful where you use this.")
     secPrint.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secPrint.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
     secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
@@ -85,9 +87,13 @@ def argParsing():
     rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
     rambleCreate.add_argument('target', help='The ramble/rambling to create (e.g., ramble.rambling)')
     rambleCreate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
+    rambleCreate.add_argument('-e', '--encrypt', action='store_true', help='Encrypt the rambling upon creation.')
+    rambleCreate.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
+    rambleCreate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
 
     rambleEdit = rambSubParser.add_parser('edit', help='Edit a rambling directly, whether encrypted or not.')
     rambleEdit.add_argument('target', help='The rambling you want to edit (e.g., ramble.rambling)')
+    rambleEdit.add_argument('-s', '--sops', help="Edit the sops file instead of the ramble file.", action='store_true')
     rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     rambleEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 

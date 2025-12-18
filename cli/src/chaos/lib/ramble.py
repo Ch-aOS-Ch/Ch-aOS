@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import os
 import sys
+import argparse
 
 console = Console()
 
@@ -253,6 +254,7 @@ def handleCreateRamble(args):
     ramble = args.target
     team = getattr(args, 'team', None)
     CONFIG_DIR = _get_ramble_dir(team)
+    shouldEncrypt = args.encrypt
 
     if '.' in ramble:
         parts = ramble.split('.', 1)
@@ -294,6 +296,14 @@ scripts:
             console.print(f'[bold red]ERROR: ramble editing failed: {e}')
             sys.exit(1)
 
+        if shouldEncrypt:
+            encryptArgs = argparse.Namespace()
+            encryptArgs.target = ramble
+            encryptArgs.keys = args.keys
+            encryptArgs.sops_file_override = getattr(args, 'sops_file_override', None)
+            encryptArgs.team = team
+            handleEncryptRamble(encryptArgs)
+
     else:
         if ".." in ramble or "/" in ramble:
             console.print(f"[bold red]ERROR:[/] Invalid format for journal")
@@ -333,6 +343,13 @@ scripts:
         except subprocess.CalledProcessError as e:
             console.print(f'[bold red]ERROR: ramble editing failed: {e}')
             sys.exit(1)
+        if shouldEncrypt:
+            encryptArgs = argparse.Namespace()
+            encryptArgs.target = ramble
+            encryptArgs.keys = args.keys
+            encryptArgs.sops_file_override = getattr(args, 'sops_file_override', None)
+            encryptArgs.team = team
+            handleEncryptRamble(encryptArgs)
 
     sys.exit(0)
 
@@ -361,8 +378,20 @@ def handleEditRamble(args):
     else:
         sops_file_override = global_config.get('sops_file')
 
-    def edit_file(file_path):
-        if not is_safe_path(file_path, team):
+    def edit_file(path, selected_file_name):
+        isSops = args.sops
+
+        file_path = None
+        if isSops:
+            if not sops_file_override:
+                console.print('[bold red]ERROR:[/] The --sops flag was used, but no sops configuration file was found.')
+                console.print("   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
+                sys.exit(1)
+            file_path = Path(sops_file_override)
+        else:
+            file_path = path / selected_file_name
+
+        if not isSops and not is_safe_path(file_path, team):
             sys.exit(1)
 
         is_encrypted = False
@@ -398,7 +427,7 @@ def handleEditRamble(args):
         else:
             editor = os.getenv('EDITOR', 'nano')
             try:
-                subprocess.run([editor, file_path], check=True)
+                subprocess.run([editor, str(file_path)], check=True)
             except FileNotFoundError:
                 console.print(f'[bold red]ERROR:[/] Editor `{editor}` not found. Please set your EDITOR environment variable.')
                 sys.exit(1)
@@ -424,7 +453,7 @@ def handleEditRamble(args):
             console.print(f'[bold red]ERROR:[/] Ramble page not found: {CONFIG_FILE_PATH}')
             sys.exit(1)
 
-        edit_file(CONFIG_FILE_PATH)
+        edit_file(path, f'{page}.yml')
         sys.exit(0)
 
     path = CONFIG_DIR / ramble
@@ -456,8 +485,7 @@ def handleEditRamble(args):
             indx = int(inp)
             if 1 <= indx <= len(entries):
                 selected_file_name = entries[indx - 1]
-                file_to_edit = path / selected_file_name
-                edit_file(file_to_edit)
+                edit_file(path, selected_file_name)
             else:
                 raise IndexError
         except (IndexError, ValueError):
