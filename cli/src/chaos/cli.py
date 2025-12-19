@@ -19,27 +19,31 @@ def main():
 
         match args.command:
             case 'team':
-                match args.team_commands:
-                    case 'list':
-                        from chaos.lib.team import listTeams
-                        listTeams(args)
-                    case 'activate':
-                        from chaos.lib.team import activateTeam
-                        activateTeam(args)
-                    case 'init':
-                        from chaos.lib.team import initTeam
-                        initTeam(args)
-                    case 'clone':
-                        from chaos.lib.team import cloneGitTeam
-                        cloneGitTeam(args)
-                    case 'deactivate':
-                        from chaos.lib.team import deactivateTeam
-                        deactivateTeam(args)
-                    case 'prune':
-                        from chaos.lib.team import pruneTeams
-                        pruneTeams(args)
-                    case _:
-                        Console().print("Unsupported team subcommand.")
+                try:
+                    match args.team_commands:
+                        case 'list':
+                            from chaos.lib.team import listTeams
+                            listTeams(args)
+                        case 'activate':
+                            from chaos.lib.team import activateTeam
+                            activateTeam(args)
+                        case 'init':
+                            from chaos.lib.team import initTeam
+                            initTeam(args)
+                        case 'clone':
+                            from chaos.lib.team import cloneGitTeam
+                            cloneGitTeam(args)
+                        case 'deactivate':
+                            from chaos.lib.team import deactivateTeam
+                            deactivateTeam(args)
+                        case 'prune':
+                            from chaos.lib.team import pruneTeams
+                            pruneTeams(args)
+                        case _:
+                            Console().print("Unsupported team subcommand.")
+                except (ValueError, FileNotFoundError, FileExistsError, RuntimeError, EnvironmentError) as e:
+                    Console().print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
 
             case 'explain':
                 from chaos.lib.handlers import handleExplain
@@ -67,30 +71,40 @@ def main():
                         handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
                     else:
                         print("No tags passed.")
+                except FileNotFoundError as e:
+                    Console().print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
                 except pyinfra_exceptions.PyinfraError as e:
                     print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
                     sys.exit(1)
 
             case 'secrets':
-                from chaos.lib.secrets import(
-                    handleRotateAdd,
-                    handleRotateRemove,
-                    listFp,
-                    handleSetShamir,
-                    handleSecEdit,
-                    handleSecPrint,
-                    handleSecCat
-                )
-                match args.secrets_commands:
-                    case 'rotate-add': handleRotateAdd(args)
-                    case 'rotate-rm': handleRotateRemove(args)
-                    case 'list': listFp(args)
-                    case 'edit': handleSecEdit(args)
-                    case 'shamir': handleSetShamir(args)
-                    case 'print': handleSecPrint(args)
-                    case 'cat': handleSecCat(args)
-                    case _:
-                        Console().print("Unsupported secrets subcommand.")
+                try:
+                    from chaos.lib.secrets import(
+                        handleRotateAdd,
+                        handleRotateRemove,
+                        listFp,
+                        handleSetShamir,
+                        handleSecEdit,
+                        handleSecPrint,
+                        handleSecCat
+                    )
+                    match args.secrets_commands:
+                        case 'export':
+                            from chaos.lib.secret_backends.op import opExportKeys
+                            opExportKeys(args)
+                        case 'rotate-add': handleRotateAdd(args)
+                        case 'rotate-rm': handleRotateRemove(args)
+                        case 'list': listFp(args)
+                        case 'edit': handleSecEdit(args)
+                        case 'shamir': handleSetShamir(args)
+                        case 'print': handleSecPrint(args)
+                        case 'cat': handleSecCat(args)
+                        case _:
+                            Console().print("Unsupported secrets subcommand.")
+                except (ValueError, FileNotFoundError, PermissionError, RuntimeError, EnvironmentError) as e:
+                    Console().print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
 
             case 'check':
                 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
@@ -111,42 +125,58 @@ def main():
                     hasattr(args, 'sops_file') and args.sops_file
                 ])
                 if is_setter_mode:
-                    setMode(args)
+                    try:
+                        setMode(args)
+                    except FileNotFoundError as e:
+                        Console().print(f"[bold red]ERROR:[/] {e}")
+                        sys.exit(1)
                     sys.exit(0)
 
             case 'ramble':
-                from chaos.lib.ramble import (
-                    handleCreateRamble, handleEditRamble, handleEncryptRamble,
-                    handleReadRamble, handleFindRamble, handleMoveRamble, handleDelRamble,
-                    handleUpdateEncryptRamble
-                )
-                match args.ramble_commands:
-                    case 'create': handleCreateRamble(args)
-                    case 'edit': handleEditRamble(args)
-                    case 'encrypt': handleEncryptRamble(args)
-                    case 'read': handleReadRamble(args)
-                    case 'find': handleFindRamble(args)
-                    case 'move': handleMoveRamble(args)
-                    case 'delete': handleDelRamble(args)
-                    case 'update': handleUpdateEncryptRamble(args)
-                    case _:
-                        Console().print("Unsupported ramble subcommand.")
+                try:
+                    from chaos.lib.ramble import (
+                        handleCreateRamble, handleEditRamble, handleEncryptRamble,
+                        handleReadRamble, handleFindRamble, handleMoveRamble, handleDelRamble,
+                        handleUpdateEncryptRamble
+                    )
+                    match args.ramble_commands:
+                        case 'create': handleCreateRamble(args)
+                        case 'edit': handleEditRamble(args)
+                        case 'encrypt': handleEncryptRamble(args)
+                        case 'read': handleReadRamble(args)
+                        case 'find': handleFindRamble(args)
+                        case 'move': handleMoveRamble(args)
+                        case 'delete': handleDelRamble(args)
+                        case 'update': handleUpdateEncryptRamble(args)
+                        case _:
+                            Console().print("Unsupported ramble subcommand.")
+                except (ValueError, FileNotFoundError, PermissionError, RuntimeError, FileExistsError) as e:
+                    Console().print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
 
             case 'init':
-                from chaos.lib.inits import initChobolo, initSecrets
-                match args.init_command:
-                    case 'chobolo': initChobolo(keys)
-                    case 'secrets': initSecrets()
-                    case _:
-                        Console().print("Unsupported init.")
+                try:
+                    from chaos.lib.inits import initChobolo, initSecrets
+                    match args.init_command:
+                        case 'chobolo': initChobolo(keys)
+                        case 'secrets': initSecrets()
+                        case _:
+                            Console().print("Unsupported init.")
+                except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
+                    Console().print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
             case _:
                 if args.generate_tab:
                     handleGenerateTab()
                     sys.exit(0)
 
                 elif args.edit_chobolo:
-                    from chaos.lib.tinyScript import runChoboloEdit
-                    runChoboloEdit(args.chobolo)
+                    try:
+                        from chaos.lib.tinyScript import runChoboloEdit
+                        runChoboloEdit(args.chobolo)
+                    except (ValueError, FileNotFoundError, RuntimeError) as e:
+                        Console().print(f"[bold red]ERROR:[/] {e}")
+                        sys.exit(1)
 
         sys.exit(0)
 
