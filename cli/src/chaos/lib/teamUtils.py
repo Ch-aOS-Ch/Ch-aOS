@@ -86,7 +86,7 @@ def _create_chaos_file(path, company: str, team: str, person: str|None, engine: 
     if not chaos_file.exists():
         chaosContent = {
             "company": company,
-            "team": team,
+            "teams": [team],
             "people": [person] if person else [],
             "engine": [engine] if engine != "both" else ["age", "gpg"]
         }
