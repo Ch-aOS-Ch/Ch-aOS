@@ -34,7 +34,7 @@ def argParsing():
 
     secSubParser = secParser.add_subparsers(dest="secrets_commands", help="Secret subcommands", required=True)
 
-    secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove PGP keys from your secrets.")
+    secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
     secRotateRemove.add_argument('keys', nargs="+", help="Keys to be removed.")
     secRotateRemove.add_argument('-i', '--index', type=int, help="Rule index to be used.")
@@ -42,7 +42,7 @@ def argParsing():
     secRotateRemove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     secRotateRemove.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
 
-    secList = secSubParser.add_parser('list',  help="Show all PGP keys inside your sops configuration.")
+    secList = secSubParser.add_parser('list',  help="Show all keys inside your sops configuration.")
     secList.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to list.")
     secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secList.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
@@ -73,7 +73,7 @@ def argParsing():
     secRotateAdd.add_argument('-i', '--index', type=int, help="Rule index to be used.")
     secRotateAdd.add_argument('-cr', '--create', action='store_true', help="If you want to create a new key group or not.")
     secRotateAdd.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
-    secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import PGP keys.")
+    secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import GPG keys.")
     secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
 
@@ -133,7 +133,7 @@ def argParsing():
     expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
-    checkParser = subParser.add_parser('check', help='Check and list roles, secrets, aliases and explanations')
+    checkParser = subParser.add_parser('check', help='Check and list roles, aliases and explanations')
     checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
 
