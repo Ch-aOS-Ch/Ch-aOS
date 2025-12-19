@@ -1,3 +1,4 @@
+from chaos.lib import team
 from chaos.lib.plugDiscovery import get_plugins
 import subprocess
 import argparse
@@ -32,7 +33,27 @@ def argParsing():
 
     secParser = subParser.add_parser('secrets', help="Manage your secrets.")
 
+    expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
+
+    checkParser = subParser.add_parser('check', help='Check and list roles, aliases and explanations')
+
+    setParser = subParser.add_parser('set', help='Set configuration files')
+
+    applyParser = subParser.add_parser('apply', help="Apply an available role")
+
+    initParser = subParser.add_parser('init', help="Let Ch-aOS handle the boiler plates!")
+
+    teamParser = subParser.add_parser('team', help="Manage your teams.")
+
     secSubParser = secParser.add_subparsers(dest="secrets_commands", help="Secret subcommands", required=True)
+
+    rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
+
+    setSubParser = setParser.add_subparsers(dest="set_command")
+
+    initSubParser = initParser.add_subparsers(dest='init_command', help='What to initialize', required=True)
+
+    teamSubParser = teamParser.add_subparsers(dest="team_commands", help="Team management commands", required=True)
 
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
@@ -84,7 +105,6 @@ def argParsing():
     secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     secShamir.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
 
-    rambSubParser = rambleParser.add_subparsers(dest="ramble_commands", help="Ramble subcommands", required=True)
 
     rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
     rambleCreate.add_argument('target', help='The ramble/rambling to create (e.g., ramble.rambling)')
@@ -129,16 +149,12 @@ def argParsing():
     rambleDel.add_argument('ramble', help='Your ramble')
     rambleDel.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
-    expParser = subParser.add_parser('explain', help="Explain a role topic or subtopic.")
     expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
-    checkParser = subParser.add_parser('check', help='Check and list roles, aliases and explanations')
     checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
 
-    setParser = subParser.add_parser('set', help='Set configuration files')
-    setSubParser = setParser.add_subparsers(dest="set_command")
 
     chParser = setSubParser.add_parser('chobolo', aliases=['c', 'ch'], help="Set default chobolo file")
     chParser.add_argument('chobolo_file', help="Chobolo file path")
@@ -149,7 +165,6 @@ def argParsing():
     sopsParser = setSubParser.add_parser('sops', aliases=['sop'], help="Set default sops file")
     sopsParser.add_argument('sops_file', help="Sops file path")
 
-    applyParser = subParser.add_parser('apply', help="Apply an available role")
     tags = applyParser.add_argument('tags', nargs='+', help="The tag(s) for the role(s) to be executed.")
 
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
@@ -160,13 +175,35 @@ def argParsing():
     applyParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     applyParser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
 
-    initParser = subParser.add_parser('init', help="Let Ch-aOS handle the boiler plates!")
+    teamPrune = teamSubParser.add_parser('prune', help="Prune unused teams from your configuration.")
+    teamPrune.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations.")
+    teamPrune.add_argument('companies', help="Companies to prune teams from, if not passed, will prune all companies.", nargs='*')
 
-    initSubParser = initParser.add_subparsers(dest='init_command', help='What to initialize', required=True)
+    listTeams = teamSubParser.add_parser('list', help="List all available teams.")
+    listTeams.add_argument('company', nargs='?', help="Company to filter teams, if not passed, will list all companies.")
+
+    # teamPersonParser = teamSubParser.add_parser('person-add', help="Add a person to a team.")
+    # teamPersonParser.add_argument('target', help="Target person in the format company.team.person")
+    # teamPersonParser.add_argument('type', choices=['age', 'gpg'], help="The type of key you want to add.")
+    # teamPersonParser.add_argument('keys', nargs='+', help="Keys to be added.")
+
+    teamClone = teamSubParser.add_parser('clone', help="Clone a team repository locally.")
+    teamClone.add_argument('target', help="Target team repository in the git format.")
+
+    teamInit = teamSubParser.add_parser('init', help="Initialize a team repository in the current folder.")
+    teamInit.add_argument('target', help="Target team in the format company.team.person")
+    teamInit.add_argument('path', help="Path where to initialize the team repository, if no path is given, current folder is used.", nargs='?')
+    teamInit.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations.")
+
+    teamActivate = teamSubParser.add_parser('activate', help="Activate a cloned team.")
+    teamActivate.add_argument('path', help="Path where the team repository is located.", nargs="?")
+
+    teamDeactivate = teamSubParser.add_parser('deactivate', help="deactivate a team.")
+    teamDeactivate.add_argument('company', help="Company of the team to be deactivated.")
+    teamDeactivate.add_argument('teams', help="Teams to be deactivated, if not passed, will try to remove all teams.", nargs="*")
+
     initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
-    teamInitParser = initSubParser.add_parser('team', help="Manage your teams.")
-    teamInitParser.add_argument('target', help="The team to initialize, in the format company.team or company.team.person")
 
     tags.completer = RolesCompleter()
 

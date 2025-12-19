@@ -18,6 +18,29 @@ def main():
         role_specs, ROLE_ALIASES, EXPLANATIONS, keys = get_plugins(args.update_plugins)
 
         match args.command:
+            case 'team':
+                match args.team_commands:
+                    case 'list':
+                        from chaos.lib.team import listTeams
+                        listTeams(args)
+                    case 'activate':
+                        from chaos.lib.team import activateTeam
+                        activateTeam(args)
+                    case 'init':
+                        from chaos.lib.team import initTeam
+                        initTeam(args)
+                    case 'clone':
+                        from chaos.lib.team import cloneGitTeam
+                        cloneGitTeam(args)
+                    case 'deactivate':
+                        from chaos.lib.team import deactivateTeam
+                        deactivateTeam(args)
+                    case 'prune':
+                        from chaos.lib.team import pruneTeams
+                        pruneTeams(args)
+                    case _:
+                        Console().print("Unsupported team subcommand.")
+
             case 'explain':
                 from chaos.lib.handlers import handleExplain
                 if args.topics:
@@ -110,11 +133,10 @@ def main():
                         Console().print("Unsupported ramble subcommand.")
 
             case 'init':
-                from chaos.lib.inits import initChobolo, initSecrets, initTeam
+                from chaos.lib.inits import initChobolo, initSecrets
                 match args.init_command:
                     case 'chobolo': initChobolo(keys)
                     case 'secrets': initSecrets()
-                    case 'team': initTeam(args)
                     case _:
                         Console().print("Unsupported init.")
             case _:

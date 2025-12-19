@@ -41,11 +41,12 @@ def _get_ramble_dir(team) -> Path:
              console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
              sys.exit(1)
 
-        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/ramblings/{person}'))
+        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/'))
 
         if not team_ramble_path.exists():
             console.print(f"[bold red]ERROR:[/] Team ramble directory for '{team}' not found at {team_ramble_path}.")
             sys.exit(1)
+        team_ramble_path = team_ramble_path / 'ramblings' / person
         return team_ramble_path
     return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
@@ -655,7 +656,6 @@ def handleFindRamble(args):
     search_term = getattr(args, 'find_term', None)
     required_tag = getattr(args, 'tag', None)
     results = []
-
 
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
