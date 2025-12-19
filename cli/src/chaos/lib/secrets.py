@@ -306,7 +306,11 @@ def handleSecCat(args):
             sys.exit(1)
 
     try:
-        sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+        isSops = args.sops
+        if not isSops:
+            sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+        else:
+            sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True)
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
         isJson = args.json
         for key in keys:
