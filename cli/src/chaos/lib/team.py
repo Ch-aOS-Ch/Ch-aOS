@@ -35,13 +35,18 @@ def initTeam(args):
     path = args.path
     ikwid = args.i_know_what_im_doing
 
-
     confirm = True if ikwid else Confirm.ask(f"Initialize secrets structure for team [bold]{team}[/] at company [bold]{company}[/]" + (f", person [bold]{person}[/]" if person else "") + "?", default=True)
     if not confirm:
         console.print("[yellow]Operation cancelled by user.[/]")
         sys.exit(0)
 
     teamDir = _validate_teamDir(path, company, team)
+
+    gitDir = teamDir / ".git"
+    if not gitDir.exists():
+        confirm = True if ikwid else Confirm.ask(f"The directory {teamDir} is not a git repository. Initialize a new git repository here?", default=False)
+        if confirm:
+            subprocess.run(["git", "init", str(teamDir)], check=True)
 
     teamDir.mkdir(parents=True, exist_ok=True)
 
