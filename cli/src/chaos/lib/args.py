@@ -182,10 +182,10 @@ def argParsing():
     listTeams = teamSubParser.add_parser('list', help="List all available teams.")
     listTeams.add_argument('company', nargs='?', help="Company to filter teams, if not passed, will list all companies.")
 
-    # teamPersonParser = teamSubParser.add_parser('person-add', help="Add a person to a team.")
-    # teamPersonParser.add_argument('target', help="Target person in the format company.team.person")
-    # teamPersonParser.add_argument('type', choices=['age', 'gpg'], help="The type of key you want to add.")
-    # teamPersonParser.add_argument('keys', nargs='+', help="Keys to be added.")
+    # TODO: teamPersonParser = teamSubParser.add_parser('person-add', help="Add a person to a team.")
+    # TODO: teamPersonParser.add_argument('target', help="Target person in the format company.team.person")
+    # TODO: teamPersonParser.add_argument('type', choices=['age', 'gpg'], help="The type of key you want to add.")
+    # TODO: teamPersonParser.add_argument('keys', nargs='+', help="Keys to be added.")
 
     teamClone = teamSubParser.add_parser('clone', help="Clone a team repository locally.")
     teamClone.add_argument('target', help="Target team repository in the git format.")
