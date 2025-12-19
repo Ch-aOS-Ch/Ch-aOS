@@ -62,6 +62,7 @@ def argParsing():
     secCat = secSubParser.add_parser("cat", help="Get the specified keys inside of your secrets file, nested or not.")
     secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
     secCat.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secCat.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
     secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
