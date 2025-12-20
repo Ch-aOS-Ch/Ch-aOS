@@ -16,6 +16,7 @@ dependencies = [
     "rich>=13.7.1",
     "hvac>=2.4.0",
     "requests>=2.32.4",
+    "gitpython>=3.1.45",
 ]
 
 [project.scripts]
