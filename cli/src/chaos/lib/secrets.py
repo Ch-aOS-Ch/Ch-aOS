@@ -203,7 +203,7 @@ def handleSetShamir(args):
 
 def handleSecEdit(args):
     team = args.team
-    # op, keyPath = args.from_op if args.from_op else (None, None)
+    bw, keyPath = args.from_bw if args.from_bw else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
@@ -223,10 +223,10 @@ def handleSecEdit(args):
             editor = os.getenv('EDITOR', 'nano')
             subprocess.run([editor, sopsFile], check=True)
         else:
-            # if op and keyPath:
-            #     from chaos.lib.secret_backends.op import opSopsEdit
-            #     opSopsEdit(args)
-            # else:
+            if bw and keyPath:
+                from chaos.lib.secret_backends.bw import bwSopsEdit
+                bwSopsEdit(args)
+            else:
                 subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
 
     except subprocess.CalledProcessError as e:
@@ -241,7 +241,7 @@ def handleSecEdit(args):
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
-    # op, keyPath = args.from_op if args.from_op else (None, None)
+    bw, keyPath = args.from_bw if args.from_bw else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
@@ -263,11 +263,11 @@ def handleSecPrint(args):
         if isSops:
             subprocess.run(['cat', sopsFile], check=True)
         else:
-            # if op and keyPath:
-            #     from chaos.lib.secret_backends.op import opSopsDec
-            #     sopsDecryptResult = opSopsDec(args)
-            #     print(sopsDecryptResult.stdout)
-            # else:
+            if bw and keyPath:
+                from chaos.lib.secret_backends.bw import bwSopsDec
+                sopsDecryptResult = bwSopsDec(args)
+                print(sopsDecryptResult.stdout)
+            else:
                 subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
@@ -277,7 +277,7 @@ def handleSecPrint(args):
 
 def handleSecCat(args):
     team = args.team
-    # op, keyPath = args.from_op if args.from_op else (None, None)
+    bw, keyPath = args.from_bw if args.from_bw else (None, None)
     sops_file_override = args.sops_file_override
     keys = args.keys
     secrets_file_override = args.secrets_file_override
@@ -295,10 +295,10 @@ def handleSecCat(args):
     try:
         isSops = args.sops
         if not isSops:
-            # if op and keyPath:
-            #     from chaos.lib.secret_backends.op import opSopsDec
-            #     sopsDecryptResult = opSopsDec(args)
-            # else:
+            if bw and keyPath:
+                from chaos.lib.secret_backends.bw import bwSopsDec
+                sopsDecryptResult = bwSopsDec(args)
+            else:
                 sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
         else:
             sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True)
@@ -324,7 +324,3 @@ def handleSecCat(args):
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
-
-def handleExportToOp(args):
-    from chaos.lib.secret_backends.op import opExportKeys
-    opExportKeys(args)

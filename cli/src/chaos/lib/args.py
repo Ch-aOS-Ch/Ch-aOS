@@ -54,13 +54,13 @@ def argParsing():
 
     teamSubParser = teamParser.add_subparsers(dest="team_commands", help="Team management commands", required=True)
 
-    # # secExport = secSubParser.add_parser('export', help="Export keys to an 1Password instance.")
-    # secExport.add_argument('key_type', choices=['age', 'gpg'], help="The type of key you want to export.")
-    # secExport.add_argument('op_url', help="1Password item URL where to export the key (format: op://vault/item).")
-    # secExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age keys, needs to be the file created by age-keygen).").completer = FilesCompleter()
-    # secExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
-    # secExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
-    # secExport.add_argument('-g', '--op-tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
+    secExport = secSubParser.add_parser('export', help="Export keys to a Bitwarden instance.")
+    secExport.add_argument('key_type', choices=['age', 'gpg'], help="The type of key you want to export.")
+    secExport.add_argument('item_name', help="Name of the Bitwarden item where to export the key.")
+    secExport.add_argument('--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
+    secExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age keys, needs to be the file created by age-keygen).").completer = FilesCompleter()
+    secExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+    secExport.add_argument('-g', '--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
 
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
@@ -80,14 +80,14 @@ def argParsing():
     secEdit.add_argument('-s', '--sops', help="Edit the sops file instead of the secrets file.", action='store_true')
     secEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secEdit.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    # secEdit.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in 1Password. KEY_TYPE must be either 'age' or 'gpg'.")
+    secEdit.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in Bitwarden. KEY_TYPE must be either 'age' or 'gpg'.")
 
     secPrint = secSubParser.add_parser('print', help="Print your secrets to the screen. Be careful where you use this.")
     secPrint.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
     secPrint.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
     secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    # secPrint.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in 1Password. KEY_TYPE must be either 'age' or 'gpg'.")
+    secPrint.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in Bitwarden. KEY_TYPE must be either 'age' or 'gpg'.")
 
     secCat = secSubParser.add_parser("cat", help="Get the specified keys inside of your secrets file, nested or not.")
     secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
@@ -96,7 +96,7 @@ def argParsing():
     secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
-    # secCat.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in 1Password. KEY_TYPE must be either 'age' or 'gpg'.")
+    secCat.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), default=None, help="Decrypt the secrets file by decrypting it with a key stored in Bitwarden. KEY_TYPE must be either 'age' or 'gpg'.")
 
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
     secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
