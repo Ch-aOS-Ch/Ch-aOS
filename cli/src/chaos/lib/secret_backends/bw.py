@@ -169,16 +169,21 @@ def bwExportKeys(args):
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
 
-    item_json = {
-        "name": item_name,
-        "notes": key_content,
-        "favorite": False,
-        "type": 2 # Secure Note
-    }
-    if collection_id:
-        item_json["collectionIds"] = [collection_id]
-
     try:
+        template_str = subprocess.run(
+            ['bw', 'get', 'template', 'item'],
+            capture_output=True, text=True, check=True
+        ).stdout
+        item_json = json.loads(template_str)
+
+        item_json["type"] = 2  # Secure Note
+        item_json["name"] = item_name
+        item_json["notes"] = key_content
+        item_json["favorite"] = False
+        item_json["secureNote"] = {"type": 0}
+        if collection_id:
+            item_json["collectionIds"] = [collection_id]
+
         encoded_item = subprocess.run(
             ['bw', 'encode'],
             input=json.dumps(item_json),
