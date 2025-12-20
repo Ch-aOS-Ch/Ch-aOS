@@ -4,8 +4,10 @@ from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from rich.console import Console
 import sys
 import os
+import re
 from omegaconf import OmegaConf
 import subprocess
+import json
 
 console = Console()
 
@@ -22,33 +24,27 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
     if team:
         if not '.' in team:
-            Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.group)")
-            sys.exit(1)
+            raise ValueError("Must set a company for your team. (company.team.group)")
 
         parts = team.split('.')
         company = parts[0]
-        team = parts[1]
+        team_name = parts[1]
         group = parts[2] if len(parts) > 2 else None
 
         if not company:
-            console.print(f"[bold red]ERROR:[/] Company name cannot be empty in '{team}'.")
-            sys.exit(1)
-        if not team:
-            console.print(f"[bold red]ERROR:[/] Team name cannot be empty in '{team}'.")
-            sys.exit(1)
+            raise ValueError(f"Company name cannot be empty in '{team}'.")
+        if not team_name:
+            raise ValueError(f"Team name cannot be empty in '{team}'.")
         if group is not None and not group:
-            console.print(f"[bold red]ERROR:[/] Group name cannot be empty in '{team}'.")
-            sys.exit(1)
+            raise ValueError(f"Group name cannot be empty in '{team}'.")
 
         if ".." in company or company.startswith("/"):
-             console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
-             sys.exit(1)
+             raise ValueError(f"Invalid company name '{company}'.")
 
-        if ".." in team or team.startswith("/"):
-             console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
-             sys.exit(1)
+        if ".." in team_name or team_name.startswith("/"):
+             raise ValueError(f"Invalid team name '{team_name}'.")
 
-        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}'))
+        teamPath = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team_name}'))
 
         if teamPath.exists():
             sopsFile = teamPath / "sops-config.yml"
@@ -56,13 +52,13 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             if group:
                 groupPath = f"secrets/{group}"
                 if not (teamPath / groupPath).exists():
-                    console.print(f"[bold red]ERROR:[/] Group directory for '{group}' not found at {teamPath / groupPath}.")
-                    sys.exit(1)
+                    raise FileNotFoundError(f"Group directory for '{group}' not found at {teamPath / groupPath}.")
                 default_secrets_filename = f"{groupPath}/secrets.yml"
             secretsFile = teamPath / default_secrets_filename
 
-
             if sops_file_override:
+                if '..' in sops_file_override or sops_file_override.startswith('/'):
+                    raise ValueError(f"Invalid team sops file override '{sops_file_override}'.")
                 override_path = (teamPath / sops_file_override).resolve(strict=False)
                 if not str(override_path).startswith(str(teamPath)):
                     console.print("[bold red]ERROR:[/] Path traversal detected.")
@@ -71,18 +67,15 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
             if secrets_file_override:
                 if '..' in secrets_file_override or secrets_file_override.startswith('/'):
-                    console.print(f"[bold red]ERROR:[/] Invalid team secrets file override '{secrets_file_override}'.")
-                    sys.exit(1)
+                    raise ValueError(f"Invalid team secrets file override '{secrets_file_override}'.")
                 if not group:
-                    secrets_temp = teamPath / "secrets" / secrets_file_override
-
+                    secretsFile = teamPath / "secrets" / secrets_file_override
                 else:
                     secretsFile = teamPath / "secrets" / group / secrets_file_override
 
-            return str(secretsFile), str(sopsFile)
+            return str(secretsFile), str(sopsFile), global_config
         else:
-            console.print(f"[bold red]ERROR:[/] Team directory for '{team}' not found at {teamPath}.")
-            sys.exit(1)
+            raise FileNotFoundError(f"Team directory for '{team_name}' not found at {teamPath}.")
 
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
@@ -103,7 +96,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             except Exception as e:
                 print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
 
-    return secretsFile, sopsFile
+    return secretsFile, sopsFile, global_config
 
 def flatten(items):
     for i in items:
@@ -119,13 +112,12 @@ def handleUpdateAllSecrets(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    main_secrets_file, sops_file_path = get_sops_files(sops_file_override, secrets_file_override, team)
+    main_secrets_file, sops_file_path, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if is_vault_in_use(sops_file_path):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            console.print(message)
-            sys.exit(1)
+            raise PermissionError(message)
 
     if not sops_file_path:
         console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
@@ -160,15 +152,13 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
         config_data = OmegaConf.load(sops_file_override)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
-            console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
-            sys.exit(1)
+            raise ValueError(f"No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
 
         rule_index = getattr(args, 'index', None)
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
-                sys.exit(1)
+                raise ValueError(f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
             rules_to_process = [creation_rules[rule_index]]
 
         if not create:
@@ -205,8 +195,7 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
             console.print(f"[bold green]Successfully updated sops config![/] New {key_type.upper()} key group created with keys: {list(valids)}")
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to load or save sops config file {sops_file_override}: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to load or save sops config file {sops_file_override}: {e}") from e
 
 def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_remove: set):
     rule_index = getattr(args, 'index', None)
@@ -231,8 +220,7 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
-                sys.exit(1)
+                raise ValueError(f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
             rules_to_process = [creation_rules[rule_index]]
 
         for rule in rules_to_process:
@@ -253,5 +241,67 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
         console.print(f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}")
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+
+def _build_op_keypath(key: str, loc: str) -> str:
+    match = re.match(r"op://([^/]+)/([^/]+)(?:/([^/]+))?", key)
+    if not match:
+        raise ValueError(f"Invalid 1Password key format: {key}. Expected format like 'op://vault/item'.")
+
+    vault, item, field_in_key = match.groups()
+
+    if field_in_key:
+        if loc and field_in_key != loc:
+            raise ValueError(
+                f"Path '{key}' already specifies a field ('{field_in_key}'), "
+                f"which conflicts with the provided location ('{loc}')."
+            )
+        return key
+
+    if not loc:
+        raise ValueError("A field location must be provided when the key path does not contain one.")
+
+    return f"op://{vault}/{item}/{loc}"
+
+def _reg_match_op_keypath(path: str) -> tuple[str, str, str|None]:
+    regMatch = re.match(r"op://([^/]+)/([^/]+)(?:/(.+))?", path)
+    if not regMatch:
+        raise ValueError(f"Invalid 1Password path format: {path}")
+    vault, title, field = regMatch.group(1), regMatch.group(2), regMatch.group(3)
+    return vault, title, field
+
+def _op_get_item(vault: str, title: str) -> dict | None:
+    try:
+        result = subprocess.run(
+            ["op", "item", "get", title, "--vault", vault, "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        item_data = result.stdout.strip()
+        if not item_data:
+            return None
+        return json.loads(item_data)
+
+    except subprocess.CalledProcessError as e:
+        if "isn't in vault" in e.stderr or "no item found" in e.stderr:
+            return None
+        raise RuntimeError(f"Error retrieving item from 1Password: {e.stderr.strip()}") from e
+
+def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: str) -> bool:
+    try:
+        field_args = []
+        for tag in tags:
+            field_args.extend(["--tag", tag])
+
+        field_args.extend([f"--field", f"{field}={key}"])
+        subprocess.run(
+            ["op", "item", "create", "--title", title, "--vault", vault, '--category=password'] + field_args,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        console.print(f"[green]INFO:[/] Successfully created item '{title}' in vault '{vault}'.")
+        return True
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e

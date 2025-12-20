@@ -29,8 +29,7 @@ def listAge(sops_file_override):
         return all_age_keys_in_config
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 def handleAgeAdd(args, sops_file_override, keys):
     valids = set()
@@ -72,5 +71,4 @@ def handleAgeRem(args, sops_file_override, keys):
         _generic_handle_rem('age', args, sops_file_override, keys_to_remove)
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e

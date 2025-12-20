@@ -38,7 +38,7 @@ def initTeam(args):
     confirm = True if ikwid else Confirm.ask(f"Initialize secrets structure for team [bold]{team}[/] at company [bold]{company}[/]" + (f", person [bold]{person}[/]" if person else "") + "?", default=True)
     if not confirm:
         console.print("[yellow]Operation cancelled by user.[/]")
-        sys.exit(0)
+        return
 
     teamDir = _validate_teamDir(path, company, team)
 
@@ -60,6 +60,8 @@ def initTeam(args):
     prodSecs.mkdir(parents=True, exist_ok=True)
 
     engine = _create_sops_config(teamDir, hasAge, choices, person, ikwid)
+    if engine is None:
+        return
 
     _create_chaos_file(path, company, team, person, engine)
 
@@ -74,12 +76,10 @@ def activateTeam(args):
     engines = chaosContent.get('engine')
 
     if not company or not team:
-        console.print(f"[bold red]ERROR:[/] .chaos.yml is missing 'company' or 'team' information.")
-        sys.exit(1)
+        raise ValueError(".chaos.yml is missing 'company' or 'team' information.")
 
     if not engines:
-        console.print(f"[bold red]ERROR:[/] .chaos.yml is missing 'engine' information.")
-        sys.exit(1)
+        raise ValueError(".chaos.yml is missing 'engine' information.")
 
     for engine in engines:
         if engine not in ["age", "gpg"]:
@@ -106,35 +106,26 @@ def cloneGitTeam(args):
 
     repo = args.target
     path = args.path
-
-    parsed = urlparse(repo)
-    if parsed.scheme not in ['https', 'git', 'ssh']:
-        console.print("[bold red]ERROR:[/] Invalid git URL scheme.")
-        sys.exit(1)
+    clone_dir = path if path else repo.split('/')[-1].replace('.git', '')
     try:
         if path:
             Repo.clone_from(repo, path)
         else:
             Repo.clone_from(repo, repo.split('/')[-1].replace('.git', ''))
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]ERROR:[/] Failed to clone repository '{repo}': {e}")
-        sys.exit(1)
-
-    clone_dir = path if path else repo.split('/')[-1].replace('.git', '')
+        raise RuntimeError(f"Failed to clone repository '{repo}': {e}") from e
 
     chaos_file_path = Path(clone_dir) / ".chaos.yml"
     if not chaos_file_path.is_file():
-        console.print(f"[bold red]ERROR:[/] .chaos.yml not found in the cloned repository. Removing cloned directory and exiting.")
         shutil.rmtree(clone_dir)
-        sys.exit(1)
+        raise FileNotFoundError(".chaos.yml not found in the cloned repository. Removed cloned directory.")
 
     chaosContent = _get_chaos_file(clone_dir)
     company = chaosContent.get('company')
     team = chaosContent.get('team')
     if not company or not team:
-        console.print(f"[bold red]ERROR:[/] .chaos.yml is missing 'company' or 'team' information. Removing cloned directory and exiting.")
         shutil.rmtree(clone_dir)
-        sys.exit(1)
+        raise ValueError(".chaos.yml is missing 'company' or 'team' information. Removed cloned directory.")
 
     base_path = Path(clone_dir).resolve()
     _ = _validate_teamDir(clone_dir, company, team)
@@ -187,8 +178,7 @@ def listTeams(args):
 def deactivateTeam(args):
     company = args.company
     if not company:
-        console.print("[bold red]ERROR:[/] Company name is required to deactivate.")
-        sys.exit(1)
+        raise ValueError("Company name is required to deactivate.")
 
     company_dir = Path.home() / ".local" / "share" / "chaos" / "teams" / company
     if not company_dir.is_dir():

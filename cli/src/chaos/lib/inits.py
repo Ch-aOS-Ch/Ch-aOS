@@ -45,16 +45,14 @@ def initChobolo(keys):
 
 def setupSshToAge():
     if not checkDep('ssh-to-age'):
-        console.print("[bold red]ERROR:[/] ssh-to-age is not installed. Please install it to use this feature.")
-        sys.exit(1)
+        raise EnvironmentError("ssh-to-age is not installed. Please install it to use this feature.")
 
     console.print("[cyan]Info:[/] Looking for SSH public keys in ~/.ssh")
     ssh_dir = Path(os.path.expanduser("~/.ssh"))
     public_keys = list(ssh_dir.glob("*.pub"))
 
     if not public_keys:
-        console.print("[bold red]ERROR:[/] No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
-        sys.exit(1)
+        raise FileNotFoundError("No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
 
     key_choices = [str(k) for k in public_keys]
     selected_key_path = Prompt.ask("Choose an SSH public key to use", choices=key_choices, default=key_choices[0])
@@ -71,16 +69,14 @@ def setupSshToAge():
         console.print("[bold green]Success![/] Derived age public key from your SSH key.")
         return "age", pubkey
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]ERROR:[/] Failed to convert SSH key to age key: {e.stderr.strip()}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to convert SSH key to age key: {e.stderr.strip()}") from e
 
 def setupAge():
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
 
     if not checkDep('age-keygen'):
-        console.print(f"[bold red]ERROR:[/] age-keygen not installed, please install it to use sops+age.")
-        sys.exit(1)
+        raise EnvironmentError("age-keygen not installed, please install it to use sops+age.")
 
     method_choices = ['generate']
     if checkDep('ssh-to-age'):
@@ -101,10 +97,9 @@ def setupAge():
             console.print("[cyan]Info:[/] Moving this key to a backup and creating a new age file.")
             timestamp = int(time.time())
             try:
-                subprocess.run(["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"])
+                subprocess.run(["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"], check=True)
             except subprocess.CalledProcessError as e:
-                console.print(f"[bold red]ERROR:[/] Could not backup existing key: {e}")
-                sys.exit(1)
+                raise RuntimeError(f"Could not backup existing key: {e}") from e
             try:
                 with open(ageFile, 'w') as f:
                     subprocess.run(['age-keygen'], stdout=f, check=True)
@@ -112,15 +107,13 @@ def setupAge():
                 pubkey = proc.stdout.strip()
                 console.print(f"[bold green]Success![/] generated new age key!")
             except subprocess.CalledProcessError as e:
-                console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-                sys.exit(1)
+                raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
         try:
             proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
             pubkey = proc.stdout.strip()
         except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-            sys.exit(1)
+            raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
     else:
         console.print("[cyan]Info:[/] No key found, generating a new one.")
@@ -133,8 +126,7 @@ def setupAge():
             pubkey = proc.stdout.strip()
             console.print(f"[bold green]Success![/] generated new age key!")
         except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-            sys.exit(1)
+            raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
     return "age", pubkey
 
@@ -167,48 +159,41 @@ Expire-Date: 0
                 break
 
         if not fingerprint:
-            raise Exception("Key generation finished, but fingerprint not found.")
+            raise RuntimeError("Key generation finished, but fingerprint not found.")
 
         return fingerprint
 
     except subprocess.CalledProcessError as e:
-        console.print("[bold red]ERROR:[/] GPG generation failed or was cancelled.")
-        sys.exit(1)
+        raise RuntimeError("GPG generation failed or was cancelled.") from e
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] {e}")
-        sys.exit(1)
+        raise e
     finally:
         if os.path.exists(tmpPath):
             os.unlink(tmpPath)
 
 def genGpgManual():
     try:
-        proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True)
+        proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True, check=True)
         output = proc.stdout
 
-    except subprocess.CalledProcessError:
-        console.print("[bold red]ERROR:[/] Failed to list GPG keys.")
-        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Failed to list GPG keys.") from e
 
     if "sec" not in output:
-        console.print("[bold yellow]No GPG secret keys found.[/]")
-        console.print("Please generate a GPG key manually using [bold]gpg --full-generate-key[/] or use [bold]age[/].")
-        sys.exit(1)
+        raise ValueError("No GPG secret keys found. Please generate a GPG key manually using 'gpg --full-generate-key' or use 'age'.")
 
     console.print(Panel(output, title="Available GPG Keys", border_style="cyan"))
     fingerprint = Prompt.ask("Enter the [bold]Fingerprint[/] (long hex string) of the key you want to use")
     fingerprint = fingerprint.replace(" ", "")
 
     if len(fingerprint) < 40:
-        console.print("[bold red]ERROR:[/] Invalid fingerprint length.")
-        sys.exit(1)
+        raise ValueError("Invalid fingerprint length.")
 
     return "pgp", fingerprint
 
 def setupGpg():
     if not checkDep('gpg'):
-        console.print("[bold red]ERROR:[/] Could not find gpg binary, please install gnupg and try again.")
-        sys.exit(1)
+        raise EnvironmentError("Could not find gpg binary, please install gnupg and try again.")
 
     console.print("[bold yellow]WARNING:[/] ALL your secrets are tied to your ~/.gnupg folder. DO NOT lose it or commit it, or you'll lose your secrets forever.")
     proc = subprocess.run(['gpg', '--list-secret-keys', '--with-colons'], capture_output=True, text=True)
@@ -228,20 +213,17 @@ def setupGpg():
 
         return "pgp", fingerprint
     else:
-        console.print("[cyan]Please, create a key manually then try again.[/]")
-        sys.exit(1)
+        raise RuntimeError("Operation cancelled by user.")
 
 def initSecrets():
     if not checkDep('sops'):
-        console.print("[bold red]CRITICAL:[/] sops is not installed. It is required for this software.")
-        sys.exit(1)
+        raise EnvironmentError("sops is not installed. It is required for this software.")
 
     hasAge = checkDep('age-keygen')
     hasGpg = checkDep('gpg')
 
     if not hasAge and not hasGpg:
-        console.print("[bold red]CRITICAL:[/] Neither gpg nor age installed, both are needed for secure secret handling.")
-        sys.exit(1)
+        raise EnvironmentError("Neither gpg nor age installed, both are needed for secure secret handling.")
 
     choices = []
     if hasAge:
@@ -269,7 +251,7 @@ def initSecrets():
     if sops_file.exists():
         if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
             console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
-            sys.exit(0)
+            return
 
     sops_content = {
         "creation_rules": [
@@ -277,7 +259,7 @@ def initSecrets():
                 "path_regex": "(.*)?secrets.*\\.yml$",
                 "key_groups" : [
                     {
-                        key: keyValue
+                        key: [keyValue]
                     }
                 ]
             },
@@ -285,7 +267,7 @@ def initSecrets():
                 "path_regex": ".*\\.local/share/chaos/ramblings/.*\\.yml$",
                 "key_groups" : [
                     {
-                        key: keyValue
+                        key: [keyValue]
                     }
                 ]
             },
@@ -326,10 +308,7 @@ def initSecrets():
         oc.save(conf, global_conf_path)
         console.print(f"[cyan]Info:[/] Updated global chaos config 'sops_file' path.")
 
-
     except subprocess.CalledProcessError as e:
-        console.print(f"Could not encrypt file {sec_file}: {e}")
+        raise RuntimeError(f"Could not encrypt file {sec_file}: {e}") from e
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
-        console.print("[dim]Hint: Check if your GPG key is imported or if age keys are correct.[/]")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to write config file: {e}\nHint: Check if your GPG key is imported or if age keys are correct.") from e
