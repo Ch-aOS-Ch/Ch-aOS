@@ -572,6 +572,7 @@ def handleEncryptRamble(args):
         try:
             result = subprocess.run(['sops', '--config', sops_file_override, '-d', str(fullPath)], capture_output=True, text=True, check=True)
             with tempfile.NamedTemporaryFile(mode='w', delete=False, dir=fullPath.parent, suffix=".yml") as tmp:
+                os.chmod(tmp.name, 0o600)
                 tmp.write(result.stdout)
                 tmpPath=tmp.name
         except FileNotFoundError:

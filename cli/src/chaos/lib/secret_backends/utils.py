@@ -63,8 +63,9 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
 
             if sops_file_override:
-                if '..' in sops_file_override or sops_file_override.startswith('/'):
-                    console.print(f"[bold red]ERROR:[/] Invalid team sops file override '{sops_file_override}'.")
+                override_path = (teamPath / sops_file_override).resolve(strict=False)
+                if not str(override_path).startswith(str(teamPath)):
+                    console.print("[bold red]ERROR:[/] Path traversal detected.")
                     sys.exit(1)
                 sopsFile = teamPath / sops_file_override
 

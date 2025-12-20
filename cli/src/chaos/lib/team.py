@@ -101,13 +101,21 @@ def activateTeam(args):
     _symlink_teamDir(company, base_path, team)
 
 def cloneGitTeam(args):
+    from git import Repo
+    from urllib.parse import urlparse
+
     repo = args.target
     path = args.path
+
+    parsed = urlparse(repo)
+    if parsed.scheme not in ['https', 'git', 'ssh']:
+        console.print("[bold red]ERROR:[/] Invalid git URL scheme.")
+        sys.exit(1)
     try:
         if path:
-            subprocess.run(["git", "clone", repo, path], check=True)
+            Repo.clone_from(repo, path)
         else:
-            subprocess.run(["git", "clone", repo], check=True)
+            Repo.clone_from(repo, repo.split('/')[-1].replace('.git', ''))
     except subprocess.CalledProcessError as e:
         console.print(f"[bold red]ERROR:[/] Failed to clone repository '{repo}': {e}")
         sys.exit(1)
