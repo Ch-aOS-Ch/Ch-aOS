@@ -1,6 +1,6 @@
 from chaos.lib.utils import checkDep
 from omegaconf import DictConfig, OmegaConf
-from typing import cast
+from typing import cast, Optional
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from pathlib import Path
@@ -17,18 +17,16 @@ def _validate_deps():
     hasPgp = checkDep('gpg')
 
     if not hasSops:
-        console.print("[bold red]CRITICAL:[/] sops is not installed. It is required for this software.")
-        sys.exit(1)
+        raise EnvironmentError("sops is not installed. It is required for this software.")
 
     if not (hasAge or hasPgp):
-        console.print("[bold red]CRITICAL:[/] Neither gpg nor age are installed. At least one is required for this functionality.")
-        sys.exit(1)
+        raise EnvironmentError("Neither gpg nor age are installed. At least one is required for this functionality.")
 
     return hasAge, hasPgp
 
 def _symlink_teamDir(company: str, base_path: Path, team: str):
     try:
-        src = base_path / company / team
+        src = base_path
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
 
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -38,18 +36,15 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
                 console.print(f"[bold green]Success![/] Team [bold]{team}[/] from company [bold]{company}[/] is already active.")
                 return
             else:
-                console.print(f"[bold red]ERROR:[/] Another project for team '{team}' in company '{company}' is already active from a different path.")
-                sys.exit(1)
+                raise FileExistsError(f"Another project for team '{team}' in company '{company}' is already active from a different path.")
         elif dest.exists():
-            console.print(f"[bold red]ERROR:[/] A file or directory already exists at the activation path: {dest}")
-            sys.exit(1)
+            raise FileExistsError(f"A file or directory already exists at the activation path: {dest}")
 
         dest.symlink_to(src, target_is_directory=True)
 
         console.print(f"[bold green]Success![/] Team [bold]{team}[/] from company [bold]{company}[/] activated at [dim]{dest}[/]")
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to activate team: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to activate team: {e}") from e
 
 def _validate_paths(args):
     batch = args.target
@@ -60,24 +55,19 @@ def _validate_paths(args):
     person = parts[2] if len(parts) == 3 else None
 
     if not '.' in batch:
-        Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.person)")
-        sys.exit(1)
+        raise ValueError("Must set a company for your team. (company.team.person)")
     if not team or not company:
-        console.print("[bold red]ERROR:[/] Must pass both team and company.")
-        sys.exit(1)
+        raise ValueError("Must pass both team and company.")
 
     if person:
         if ".." in person or person.startswith("/"):
-            console.print(f"[bold red]ERROR:[/] Invalid group name '{person}'.")
-            sys.exit(1)
+            raise ValueError(f"Invalid group name '{person}'.")
 
     if ".." in company or company.startswith("/"):
-         console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
-         sys.exit(1)
+         raise ValueError(f"Invalid company name '{company}'.")
 
     if ".." in team or team.startswith("/"):
-         console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
-         sys.exit(1)
+         raise ValueError(f"Invalid team name '{team}'.")
 
     return company, team, person
 
@@ -95,23 +85,21 @@ def _create_chaos_file(path, company: str, team: str, person: str|None, engine: 
 def _get_chaos_file(path) -> DictConfig:
     chaos_file = Path(os.path.join(os.getcwd())) / ".chaos.yml" if not path else Path(path) / ".chaos.yml"
     if not chaos_file.exists():
-        console.print("[bold red]ERROR:[/] No .chaos.yml file found in current directory.")
-        sys.exit(1)
+        raise FileNotFoundError("No .chaos.yml file found in current directory.")
 
     chaosContent = OmegaConf.load(chaos_file)
     chaosContent = cast(DictConfig, chaosContent)
-    if not chaosContent.company or not chaosContent.team or not chaosContent.engine:
-        console.print("[bold red]ERROR:[/] .chaos.yml file is missing required fields (company, team, engine).")
-        sys.exit(1)
+    if not chaosContent.get('company') or not chaosContent.get('team') or not chaosContent.get('engine'):
+        raise ValueError(".chaos.yml file is missing required fields (company, team, engine).")
 
     return chaosContent
 
-def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|None, ikwid) -> str:
+def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|None, ikwid) -> Optional[str]:
     sops_file = teamDir / "sops-config.yml"
     if sops_file.exists():
         if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
             console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
-            sys.exit(0)
+            return None
 
     default="age" if hasAge else "gpg"
     console.print(Panel("Chaos uses [bold]SOPS[/] for encryption.\nYou need to choose a backend engine to handle the keys.", title="Secrets Initialization", border_style="green"))
@@ -144,8 +132,7 @@ def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|N
         console.print("[bold yellow]WARNING:[/] Vault is not installed. Using vault is the more secure way to manage your secrets.")
         confirm = Confirm.ask("Do you wish to continue without vault?", default=False)
         if not confirm:
-            console.print("Operation cancelled. Please install vault and try again.")
-            sys.exit(1)
+            raise RuntimeError("Operation cancelled. Please install vault and try again.")
 
     if engine in ["gpg", "both"]:
         dev_key_groups.extend([
@@ -195,8 +182,7 @@ def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|N
         })
     
     if not engine in ["age", "gpg", "both"]:
-        console.print("Unsuported. Exiting.")
-        sys.exit(1)
+        raise ValueError(f"Unsupported engine: {engine}")
 
     sopsContent = {"creation_rules": rules}
 
@@ -207,8 +193,7 @@ def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|N
         console.print(f"[bold green]Success![/] SOPS configuration generated at: [dim]{sops_file}[/]")
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to write config file: {e}") from e
 
     return engine
 
@@ -227,12 +212,10 @@ def _validate_teamDir(path: str, company: str, team: str) -> Path:
         teamDir = Path(os.path.join(os.getcwd(), company, team))
     else:
         if '..' in path or path.startswith("/"):
-            console.print(f"[bold red]ERROR:[/] Invalid path '{path}'.")
-            sys.exit(1)
+            raise ValueError(f"Invalid path '{path}'.")
 
         if not Path(path).exists():
-            console.print(f"[bold red]ERROR:[/] Specified path '{path}' does not exist.")
-            sys.exit(1)
+            raise FileNotFoundError(f"Specified path '{path}' does not exist.")
 
         teamDir = Path(os.path.join(path, company, team))
     return teamDir

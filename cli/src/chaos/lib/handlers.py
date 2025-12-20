@@ -52,9 +52,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     userAliases = global_config.get('aliases', {})
 
     if not chobolo_path:
-        console_err.print("[bold red]ERROR:[/] No Ch-obolo passed")
-        console_err.print("   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos set chobolo /path/to/file.yml[/cyan]'.")
-        sys.exit(1)
+        raise FileNotFoundError("No Ch-obolo passed\n"
+                            "   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos set chobolo /path/to/file.yml[/cyan]'.")
 
     # -----------------------------
     # ---- Pyinfra Setup ----
@@ -201,7 +200,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                 for m in available_methods:
                     table.add_row(f"[cyan][italic]{m}[/][/]")
                 console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:")))
-                sys.exit(0)
+                return
 
             if hasattr(explainObj, methodName):
                 method = getattr(explainObj, methodName)
@@ -329,8 +328,7 @@ def setMode(args):
             global_config.chobolo_file = str(absolutePath)
             print(f"- Default Ch-obolo set to: {args.chobolo_file}")
         except FileNotFoundError:
-            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
-            sys.exit(1)
+            raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
     if hasattr(args, "secrets_file") and args.secrets_file:
         inputPath = Path(args.secrets_file)
         try:
@@ -338,8 +336,7 @@ def setMode(args):
             global_config.secrets_file = str(absolutePath)
             print(f"- Default secrets file set to: {args.secrets_file}")
         except FileNotFoundError:
-            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
-            sys.exit(1)
+            raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
     if hasattr(args, "sops_file") and args.sops_file:
         inputPath = Path(args.sops_file)
         try:
@@ -347,8 +344,7 @@ def setMode(args):
             global_config.sops_file = str(absolutePath)
             print(f"- Default sops file set to: {args.sops_file}")
         except FileNotFoundError:
-            print(f"ERROR: File not found in: {inputPath}", file=sys.stderr)
-            sys.exit(1)
+            raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
 
     OmegaConf.save(global_config, CONFIG_FILE_PATH)
     print("Configuration saved.")
