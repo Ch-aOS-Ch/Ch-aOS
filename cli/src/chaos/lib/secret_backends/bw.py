@@ -132,6 +132,7 @@ def bwExportKeys(args):
     fingerprint = args.fingerprint
     tags = args.bw_tags
     collection_id = args.collection_id
+    organization_id = args.organization_id
 
     key_content = ""
     if keyType == 'age':
@@ -176,9 +177,17 @@ def bwExportKeys(args):
         ).stdout
         item_json = json.loads(template_str)
 
-        item_json["type"] = 2  # Secure Note
+        item_json["type"] = 2
         item_json["name"] = item_name
         item_json["notes"] = key_content
+        if collection_id:
+            if not organization_id:
+                raise ValueError("When specifying a collection ID, an organization ID must also be provided.")
+            item_json["collectionIds"] = [collection_id]
+        if organization_id:
+            item_json["organizationId"] = organization_id
+        if tags:
+            item_json['fields'] = [tags]
         item_json["favorite"] = False
         item_json["secureNote"] = {"type": 0}
         if collection_id:
