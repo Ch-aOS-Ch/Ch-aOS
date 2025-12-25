@@ -130,7 +130,7 @@ def bwExportKeys(args):
         if not fingerprint: raise ValueError("A GPG fingerprint is required via --fingerprint.")
         if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-        key_content = exctract_gpg_keys(fingerprint)
+        key_content = extract_gpg_keys(fingerprint)
 
     else:
         raise ValueError(f"Unsupported key type: {keyType}")

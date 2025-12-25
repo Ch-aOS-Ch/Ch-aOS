@@ -1,5 +1,5 @@
 from typing import cast
-from chaos.lib.secret_backends.utils import _check_bws_status, exctract_gpg_keys, is_valid_age_secret_key, is_valid_vault_key, is_valid_age_key, is_valid_fp, extract_age_keys
+from chaos.lib.secret_backends.utils import _check_bws_status, extract_gpg_keys, is_valid_age_secret_key, is_valid_vault_key, is_valid_age_key, is_valid_fp, extract_age_keys
 from chaos.lib.secret_backends.utils import get_sops_files
 from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
@@ -46,7 +46,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
         raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
 def exportBwsGpgKey(key: str, project_id: str, fingerprint: str) -> None:
-    key_content = exctract_gpg_keys(fingerprint)
+    key_content = extract_gpg_keys(fingerprint)
 
     cmd = ['bws', 'secret', 'create', key, key_content, project_id]
     console.print(f"[green]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
