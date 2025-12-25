@@ -74,7 +74,7 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
             secKey = line
     return pubKey, secKey
 
-def exctract_gpg_keys(fingerprint: str) -> str:
+def extract_gpg_keys(fingerprint: str) -> str:
     try:
         result = subprocess.run(
             ["gpg", "--export-secret-keys", "--armor", fingerprint],
