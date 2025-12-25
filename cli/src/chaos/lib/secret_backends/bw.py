@@ -155,8 +155,6 @@ def bwExportKeys(args):
             item_json['fields'] = [tags]
         item_json["favorite"] = False
         item_json["secureNote"] = {"type": 0}
-        if collection_id:
-            item_json["collectionIds"] = [collection_id]
 
         encoded_item = subprocess.run(
             ['bw', 'encode'],
