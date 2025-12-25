@@ -55,13 +55,25 @@ def argParsing():
     teamSubParser = teamParser.add_subparsers(dest="team_commands", help="Team management commands", required=True)
 
     secExport = secSubParser.add_parser('export', help="Export keys to a Bitwarden instance.")
-    secExport.add_argument('key_type', choices=['age', 'gpg'], help="The type of key you want to export.")
-    secExport.add_argument('item_name', help="Name of the Bitwarden item where to export the key.")
-    secExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
-    secExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
-    secExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age keys, needs to be the file created by age-keygen).").completer = FilesCompleter()
-    secExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
-    secExport.add_argument('-g', '--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
+
+    secSubExport = secExport.add_subparsers(dest='export_commands', help="Secret export subcommands", required=True)
+
+    secBwsExport = secSubExport.add_parser('bws', help="Bitwarden Secrets CLI export options")
+    secBwsExport.add_argument('key_type', choices=['age', 'gpg'], help="The type of key you want to export.")
+    secBwsExport.add_argument('project_id', help="The Bitwarden project ID where to export the key.")
+    secBwsExport.add_argument('item_name', help="Name of the Bitwarden item where to export the key.")
+    secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age keys, needs to be the file created by age-keygen).").completer = FilesCompleter()
+    secBwsExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+
+    secBwExport = secSubExport.add_parser('bw', help="Bitwarden CLI export options")
+    secBwExport.add_argument('key_type', choices=['age', 'gpg'], help="The type of key you want to export.")
+    secBwExport.add_argument('item_name', help="Name of the Bitwarden item where to export the key.")
+    secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
+    secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
+    secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age keys, needs to be the file created by age-keygen).").completer = FilesCompleter()
+    secBwExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+    secBwExport.add_argument('-t', '--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
+
 
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")

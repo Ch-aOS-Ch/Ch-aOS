@@ -1,6 +1,7 @@
 from omegaconf import ListConfig
 from pathlib import Path
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
+from chaos.lib.utils import checkDep
 from rich.console import Console
 import sys
 import os
@@ -10,6 +11,87 @@ import subprocess
 import json
 
 console = Console()
+
+def is_valid_fp(fp):
+    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
+    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
+        return True
+    else:
+        return False
+
+def pgp_exists(fp):
+    try:
+        subprocess.run(
+            ['gpg', '--list-keys', fp],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def is_valid_age_key(pubKey: str) -> bool:
+    isValid = False
+    testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey) 
+    if testPub:
+        isValid = True
+    return isValid
+
+def is_valid_age_secret_key(secKey: str) -> bool:
+    isValid = False
+    testSec = re.fullmatch(r"AGE-SECRET-KEY-[a-z0-9]{58}", secKey) 
+    if testSec:
+        isValid = True
+    return isValid
+
+def is_valid_vault_key(key):
+    import hvac
+    import requests.exceptions
+    try:
+        client = hvac.Client(url=key)
+        seal_status = client.sys.read_seal_status()
+        if not seal_status:
+            return False, f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable."
+        if 'sealed' in seal_status['data']:
+            return True, f"Valid vault URI. Server status: {seal_status['data']['sealed']}."
+        else:
+            return False, f"Vault URI '{key}' is a reachable endpoint, but status check failed or returned unexpected data."
+    except requests.exceptions.MissingSchema:
+        return False, f"Vault URI '{key}' is an invalid URL format. Missing schema (e.g., 'https://')."
+    except requests.exceptions.ConnectionError:
+        return False, f"Vault URI '{key}' is a valid URL format but unreachable. Check network connectivity or if the Vault server is running."
+    except Exception as e:
+        return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
+
+def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
+    pubKey, secKey = None, None
+    for line in key_content.splitlines():
+        line = line.strip()
+        if line.startswith("# public key:"):
+            pubKey = line.split(":", 1)[1].strip()
+        if line.startswith("AGE-SECRET-KEY-"):
+            secKey = line
+    return pubKey, secKey
+
+def exctract_gpg_keys(fingerprint: str) -> str:
+    try:
+        result = subprocess.run(
+            ["gpg", "--export-secret-keys", "--armor", fingerprint],
+            capture_output=True, text=True, check=True
+        )
+        gpg_key = result.stdout.strip()
+        if not gpg_key: raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
+        key_content = f"# fingerprint: {fingerprint}\n{gpg_key}"
+
+        return key_content
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to export GPG secret key: {e.stderr.strip()}") from e
+    except FileNotFoundError:
+        raise RuntimeError("The 'gpg' CLI tool is not installed or not found in PATH.") from None
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
 def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
@@ -305,3 +387,28 @@ def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: st
         return True
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e
+
+def _check_bws_status():
+    if not checkDep("bws"):
+        raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
+    if not os.getenv("BWS_ACCESS_TOKEN"):
+        console.print("[bold yellow]Warning:[/] The 'BWS_ACCESS_TOKEN' environment variable is not set. The 'bws' command may fail if not authenticated.")
+
+def _check_bw_status():
+    if not checkDep("bw"):
+        raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
+
+    try:
+        status_result = subprocess.run(['bw', 'status'], capture_output=True, text=True, check=True)
+        status = json.loads(status_result.stdout)
+        if status['status'] == 'unlocked':
+            return True, "Bitwarden vault is unlocked."
+        elif status['status'] == 'locked':
+            raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
+        else: # "unauthenticated"
+            raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
+    except (json.JSONDecodeError, KeyError) as e:
+        raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
+
