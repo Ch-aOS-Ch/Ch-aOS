@@ -392,7 +392,7 @@ def _check_bws_status():
     if not checkDep("bws"):
         raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
     if not os.getenv("BWS_ACCESS_TOKEN"):
-        console.print("[bold yellow]Warning:[/] The 'BWS_ACCESS_TOKEN' environment variable is not set. The 'bws' command may fail if not authenticated.")
+        raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
 
 def _check_bw_status():
     if not checkDep("bw"):
@@ -411,4 +411,3 @@ def _check_bw_status():
         raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
     except (json.JSONDecodeError, KeyError) as e:
         raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
-

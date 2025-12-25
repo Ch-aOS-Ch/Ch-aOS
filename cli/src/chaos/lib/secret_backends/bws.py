@@ -1,4 +1,7 @@
+from typing import cast
 from chaos.lib.secret_backends.utils import _check_bws_status, exctract_gpg_keys, is_valid_age_secret_key, is_valid_vault_key, is_valid_age_key, is_valid_fp, extract_age_keys
+from chaos.lib.secret_backends.utils import get_sops_files
+from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
@@ -23,7 +26,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
     if not is_valid_age_key(pubKey): raise ValueError("The extracted public key from the age key file is not valid.")
     if not is_valid_age_secret_key(secKey): raise ValueError("The extracted secret key from the age key file is not valid.")
 
-    cmd = ['bws secret create', key, value, project_id]
+    cmd = ['bws', 'secret', 'create', key, value, project_id]
 
     console.print(f"[green]INFO:[/] Exporting age public key: {pubKey}")
     try:
@@ -45,7 +48,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
 def exportBwsGpgKey(key: str, project_id: str, fingerprint: str) -> None:
     key_content = exctract_gpg_keys(fingerprint)
 
-    cmd = ['bws secret create', key, key_content, project_id]
+    cmd = ['bws', 'secret', 'create', key, key_content, project_id]
     console.print(f"[green]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
 
     try:
@@ -92,6 +95,104 @@ def bwsExportKeys(args) -> None:
             if not is_valid_fp(fingerprint): raise ValueError("The provided GPG fingerprint is not valid.")
 
             exportBwsGpgKey(key, project_id, fingerprint)
-            
+
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
+
+def getBwsAgeKeys(item_id: str) -> tuple[str, str]:
+    try:
+        result = subprocess.run(
+            ['bws', 'secret', 'get', item_id],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        key_content = result.stdout.strip()
+        key_content = OmegaConf.create(key_content)
+        key_content = cast(str, cast(DictConfig, key_content).get('value'))
+        pubKey, secKey = extract_age_keys(key_content)
+
+        if not pubKey or not secKey:
+            raise ValueError("Could not extract both public and secret keys from Bitwarden item.")
+
+        return pubKey, secKey
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error retrieving age keys from Bitwarden: {e.stderr.strip()}") from e
+
+def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
+    try:
+        result = subprocess.run(
+            ['bws', 'secret', 'get', item_id],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        key_content = result.stdout.strip()
+        key_content = OmegaConf.create(key_content)
+        key_content = cast(str, cast(DictConfig, key_content).get('value'))
+        fingerprint = None
+        for line in key_content.splitlines():
+            if line.startswith("# fingerprint:"):
+                fingerprint = line.split(":", 1)[1].strip()
+                break
+
+        if not fingerprint:
+            raise ValueError("Could not extract GPG fingerprint from Bitwarden item.")
+
+        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
+            raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
+        return fingerprint, key_content
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
+
+def _setup_bws_env(item_id: str, keyType: str) -> dict[str, str]:
+    env = os.environ.copy()
+    match keyType:
+        case 'age':
+            _, secKey = getBwsAgeKeys(item_id)
+        case 'gpg':
+            _, secKey = getBwsGpgKeys(item_id)
+        case _:
+            raise ValueError(f"Unsupported key type: {keyType}")
+
+    env[f'SOPS_{keyType.upper()}_KEY'] = secKey
+
+    return env
+
+def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
+    item_id, keyType = args.from_bws
+    secrets_file_override = args.secrets_file_override
+    team = args.team
+    sops_file_override = args.sops_file_override
+
+    secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    env = _setup_bws_env(item_id, keyType)
+
+    try:
+        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error decrypting file with sops and Bitwarden: {e.stderr.strip()}") from e
+
+    if not result.stdout.strip():
+        raise ValueError(f"No output received from {secretsFile} file.")
+
+    return result
+
+def bwsSopsEdit(args) -> None:
+    item_id, keyType = args.from_bws
+    secrets_file_override = args.secrets_file_override
+    team = args.team
+    sops_file_override = args.sops_file_override
+
+    secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    env = _setup_bws_env(item_id, keyType)
+
+    try:
+        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        if e.returncode != 200: # 200 is sops' "no changes" exit code
+            raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e
