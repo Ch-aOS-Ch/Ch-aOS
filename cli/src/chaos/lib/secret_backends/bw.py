@@ -1,37 +1,19 @@
-import subprocess
-from rich.console import Console
-import os
-from pathlib import Path
-import json
+from chaos.lib.secret_backends.utils import exctract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import get_sops_files
+from rich.console import Console
+from pathlib import Path
+import subprocess
+import json
+import os
 
 console = Console()
-
-def _check_bw_status():
-    if not checkDep("bw"):
-        raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
-
-    try:
-        status_result = subprocess.run(['bw', 'status'], capture_output=True, text=True, check=True)
-        status = json.loads(status_result.stdout)
-        if status['status'] == 'unlocked':
-            return True, "Bitwarden vault is unlocked."
-        elif status['status'] == 'locked':
-            raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
-        else: # "unauthenticated"
-            raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
-    except (json.JSONDecodeError, KeyError) as e:
-        raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
 
 def _setup_bw_env(item_id: str, keyType: str) -> dict:
     env = os.environ.copy()
     if keyType == 'age':
-        _, secKey = getAgeKeys(item_id)
+        _, secKey = getBwAgeKeys(item_id)
     elif keyType == 'gpg':
-        _, secKey = getGpgKeys(item_id)
+        _, secKey = getBwGpgKeys(item_id)
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
     env[f'SOPS_{keyType.upper()}_KEY'] = secKey
@@ -53,18 +35,11 @@ def bwReadKey(item_id: str) -> str:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}") from e
 
-def getAgeKeys(item_id: str) -> tuple[str, str]:
+def getBwAgeKeys(item_id: str) -> tuple[str, str]:
     key_content = bwReadKey(item_id)
-    if not key_content:
-        raise ValueError("Retrieved key from Bitwarden is empty.")
+    if not key_content: raise ValueError("Retrieved key from Bitwarden is empty.")
 
-    pubKey, secKey = "", ""
-    for line in key_content.splitlines():
-        line = line.strip()
-        if line.startswith("# public key:"):
-            pubKey = line.split(":", 1)[1].strip()
-        if line.startswith("AGE-SECRET-KEY-"):
-            secKey = line
+    pubKey, secKey = extract_age_keys(key_content)
 
     if not pubKey:
         raise ValueError("Could not find a public key in the secret from Bitwarden. Expected a line starting with '# public key:'.")
@@ -73,7 +48,7 @@ def getAgeKeys(item_id: str) -> tuple[str, str]:
 
     return pubKey, secKey
 
-def getGpgKeys(item_id: str) -> tuple[str, str]:
+def getBwGpgKeys(item_id: str) -> tuple[str, str]:
     key_content = bwReadKey(item_id)
     if not key_content:
         raise ValueError("Retrieved GPG key from Bitwarden is empty.")
@@ -155,18 +130,8 @@ def bwExportKeys(args):
         if not fingerprint: raise ValueError("A GPG fingerprint is required via --fingerprint.")
         if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-        try:
-            result = subprocess.run(
-                ["gpg", "--export-secret-keys", "--armor", fingerprint],
-                capture_output=True, text=True, check=True
-            )
-            gpg_key = result.stdout.strip()
-            if not gpg_key: raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
-            key_content = f"# fingerprint: {fingerprint}\n{gpg_key}"
-            console.print(f"[green]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
+        key_content = exctract_gpg_keys(fingerprint)
 
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to export GPG secret key: {e.stderr.strip()}") from e
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
 
