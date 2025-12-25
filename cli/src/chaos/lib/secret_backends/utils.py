@@ -40,7 +40,7 @@ def is_valid_age_key(pubKey: str) -> bool:
 
 def is_valid_age_secret_key(secKey: str) -> bool:
     isValid = False
-    testSec = re.fullmatch(r"AGE-SECRET-KEY-[a-z0-9]{58}", secKey) 
+    testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) 
     if testSec:
         isValid = True
     return isValid

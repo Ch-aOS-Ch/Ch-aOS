@@ -1,5 +1,5 @@
 from typing import cast
-from chaos.lib.secret_backends.utils import _check_bws_status, exctract_gpg_keys, is_valid_vault_key, is_valid_age_key, is_valid_fp, extract_age_keys
+from chaos.lib.secret_backends.utils import _check_bws_status, exctract_gpg_keys, is_valid_age_secret_key, is_valid_vault_key, is_valid_age_key, is_valid_fp, extract_age_keys
 from chaos.lib.secret_backends.utils import get_sops_files
 from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
@@ -24,6 +24,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
 
     if not pubKey or not secKey: raise ValueError("Could not extract both public and secret keys from the provided age key file.")
     if not is_valid_age_key(pubKey): raise ValueError("The extracted public key from the age key file is not valid.")
+    if not is_valid_age_secret_key(secKey): raise ValueError("The extracted secret key from the age key file is not valid.")
 
     cmd = ['bws', 'secret', 'create', key, value, project_id]
 
