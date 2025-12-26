@@ -126,11 +126,17 @@ def opSopsEdit(args) -> None:
 def opExportKeys(args):
     keyType = args.key_type
     keyPath = args.keys
-    path = args.url
     fingerprint = args.fingerprint
-    loc = args.op_location
     tags = args.op_tags
     save_to_config = args.save_to_config
+
+    _, _, config = get_sops_files(None, None, None)
+    path = config.get('secret_providers', {}).get('op', {}).get(f'{keyType}_url', '')
+
+    if args.url:
+        path = args.url
+
+    loc = args.op_location
 
     vault, title, _ = _reg_match_op_keypath(path)
     if _op_get_item(vault, title) is not None:

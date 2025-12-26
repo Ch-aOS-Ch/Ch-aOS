@@ -106,9 +106,17 @@ def bwExportKeys(args):
     item_name = args.item_name
     fingerprint = args.fingerprint
     tags = args.bw_tags
-    collection_id = args.collection_id
-    organization_id = args.organization_id
     save_to_config = args.save_to_config
+
+    _, _, config = get_sops_files(None, None, None)
+
+    collection_id = config.get('secret_providers', {}).get('bw', {}).get('collection_id', '')
+    organization_id = config.get('secret_providers', {}).get('bw', {}).get('organization_id', '')
+
+    if args.collection_id:
+        collection_id = args.collection_id
+    if args.organization_id:
+        organization_id = args.organization_id
 
     key_content = ""
     if keyType == 'age':
