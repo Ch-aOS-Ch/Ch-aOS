@@ -164,6 +164,12 @@ def argParsing():
     rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     rambleEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
+    provider_group_edit_ramble = rambleEdit.add_mutually_exclusive_group()
+    provider_group_edit_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
+    provider_group_edit_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_edit_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_edit_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age' or 'gpg'.")
+
     rambleEncrypt = rambSubParser.add_parser('encrypt', help='Encrypt a rambling inside a ramble with sops.')
     rambleEncrypt.add_argument('target', help='The rambling you want to encrypt (e.g., ramble.rambling)')
     rambleEncrypt.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
@@ -174,6 +180,12 @@ def argParsing():
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
     rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
     rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
+
+    provider_group_read_ramble = rambleRead.add_mutually_exclusive_group()
+    provider_group_read_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
+    provider_group_read_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_read_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_read_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age' or 'gpg'.")
 
     rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
     rambleFind.add_argument('find_term', nargs='?', default=None, help='A keyword to search for in your rambles.')
