@@ -595,7 +595,7 @@ def handleFindRamble(args):
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         try:
-            data, text = _read_ramble_content(ramble_file, sops_file_override, team)
+            data, text = _read_ramble_content(ramble_file, sops_file_override, team, args)
             
             if required_tag:
                 tags = data.get('tags', [])
