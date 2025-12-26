@@ -6,6 +6,7 @@ from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 import subprocess
+import json
 import os
 
 console = Console()
@@ -17,7 +18,7 @@ def _get_age_key_content(key_path: Path) -> str:
         raise ValueError("The specified key file does not appear to be a valid age key.")
     return content
 
-def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
+def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
     value = _get_age_key_content(key_path)
     pubKey, secKey = extract_age_keys(value)
 
@@ -29,13 +30,20 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
 
     console.print(f"[green]INFO:[/] Exporting age public key: {pubKey}")
     try:
-        subprocess.run(
+        result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             check=True
         )
+        created_item = json.loads(result.stdout)
+        item_id = created_item.get("id")
+
         console.print(f"[green]Successfully exported age key '{key}' to Bitwarden.[/green]")
+
+        if save_to_config and item_id:
+            from chaos.lib.secret_backends.utils import _save_to_config
+            _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='age')
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error exporting age key to Bitwarden: {e.stderr.strip()}") from e
@@ -44,20 +52,26 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str) -> None:
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
-def exportBwsGpgKey(key: str, project_id: str, fingerprint: str) -> None:
+def exportBwsGpgKey(key: str, project_id: str, fingerprint: str, save_to_config: bool) -> None:
     key_content = extract_gpg_keys(fingerprint)
 
     cmd = ['bws', 'secret', 'create', key, key_content, project_id]
     console.print(f"[green]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
 
     try:
-        subprocess.run(
+        result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             check=True
         )
+        created_item = json.loads(result.stdout)
+        item_id = created_item.get("id")
         console.print(f"[green]Successfully exported GPG key '{key}' to Bitwarden.[/green]")
+
+        if save_to_config and item_id:
+            from chaos.lib.secret_backends.utils import _save_to_config
+            _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='gpg')
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -73,6 +87,7 @@ def bwsExportKeys(args) -> None:
     project_id = args.project_id
     key = args.item_name
     fingerprint = args.fingerprint
+    save_to_config = args.save_to_config
 
     if not keyType:
         raise ValueError("Key type must be specified for export.")
@@ -86,14 +101,14 @@ def bwsExportKeys(args) -> None:
             if not args.keys: raise ValueError("No age key path passed via --keys.")
             keyPath = Path(args.keys)
 
-            exportBwsAgeKey(keyPath, key, project_id)
+            exportBwsAgeKey(keyPath, key, project_id, save_to_config)
 
         case 'gpg':
             if not fingerprint: raise ValueError("A GPG fingerprint is required via --fingerprint.")
             if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
             if not is_valid_fp(fingerprint): raise ValueError("The provided GPG fingerprint is not valid.")
 
-            exportBwsGpgKey(key, project_id, fingerprint)
+            exportBwsGpgKey(key, project_id, fingerprint, save_to_config)
 
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
