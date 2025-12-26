@@ -108,6 +108,7 @@ def bwExportKeys(args):
     tags = args.bw_tags
     collection_id = args.collection_id
     organization_id = args.organization_id
+    save_to_config = args.save_to_config
 
     key_content = ""
     if keyType == 'age':
@@ -170,6 +171,7 @@ def bwExportKeys(args):
         ).stdout.strip()
 
         created_item = json.loads(created_item_json)
+        item_id = created_item.get("id")
 
         if tags:
             tag_json = {"tags": tags}
@@ -181,6 +183,10 @@ def bwExportKeys(args):
             subprocess.run(['bw', 'edit', 'item', created_item['id'], encoded_tags], check=True)
 
         console.print(f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item '{created_item['name']}' (ID: {created_item['id']}).")
+
+        if save_to_config and item_id:
+            from chaos.lib.secret_backends.utils import _save_to_config
+            _save_to_config(item_id=item_id, collection_id=collection_id, organization_id=organization_id, backend='bw', keyType=keyType)
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error creating item in Bitwarden: {e.stderr.strip()}") from e

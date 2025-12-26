@@ -1,4 +1,4 @@
-from omegaconf import ListConfig
+from omegaconf import ListConfig, DictConfig
 from pathlib import Path
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.utils import checkDep
@@ -223,6 +223,115 @@ def handleUpdateAllSecrets(args):
     console.print("\n[bold cyan]Updating ramble files...[/]")
     from chaos.lib.ramble import handleUpdateEncryptRamble
     handleUpdateEncryptRamble(args)
+def _save_to_config(
+    project_id: str = '',
+    item_id: str = '',
+    backend: str = '',
+    organization_id: str = '',
+    collection_id: str = '',
+    keyType: str = '',
+    field: str = '',
+    item_url: str = ''
+) -> None:
+    config_path = Path.home() / ".config/chaos/config.yml"
+    config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
+
+    if 'secret_providers' not in config:
+        config.secret_providers = OmegaConf.create()
+
+    match backend:
+        case 'bws':
+            if 'bws' not in config.secret_providers:
+                config.secret_providers.bws = OmegaConf.create()
+
+            config.secret_providers.bws.project_id = project_id
+
+            id_key = f"{keyType}_id"
+            config.secret_providers.bws[id_key] = item_id
+
+        case 'bw':
+            if 'secret_providers' not in config:
+                config.secret_providers = OmegaConf.create()
+
+            if 'bw' not in config.secret_providers:
+                config.secret_providers.bw = OmegaConf.create()
+
+            if organization_id:
+                config.secret_providers.bw.organization_id = organization_id
+
+            if collection_id:
+                config.secret_providers.bw.collection_id = collection_id
+
+            id_key = f"{keyType}_id"
+            config.secret_providers.bw[id_key] = item_id
+
+        case 'op':
+            if 'secret_providers' not in config:
+                config.secret_providers = OmegaConf.create()
+
+            if 'op' not in config.secret_providers:
+                config.secret_providers.op = OmegaConf.create()
+
+            if field:
+                config.secret_providers.op.field = field
+
+            url_key = f"{keyType}_url"
+            config.secret_providers.op[url_key] = item_url
+
+def _handle_provider_arg(args, config: DictConfig):
+    if not hasattr(args, 'provider') or args.provider is None:
+        return args
+
+    if not config or 'secret_providers' not in config:
+        raise FileNotFoundError("Could not find 'secret_providers' in ~/.config/chaos/config.yml.")
+
+    providers_config = config.secret_providers
+    provider_name = args.provider
+
+    if provider_name == 'default':
+        provider_name = providers_config.get('default')
+        if not provider_name:
+            raise ValueError("A default provider is requested, but 'default' is not set in secret_providers config.")
+
+    if '.' not in provider_name:
+        raise ValueError(f"Invalid provider format: '{provider_name}'. Expected 'backend.key_type' (e.g., 'bw.age').")
+
+    backend, key_type = provider_name.split('.', 1)
+
+    if backend not in providers_config:
+        raise ValueError(f"Provider backend '{backend}' not found in secret_providers config.")
+
+    backend_config = providers_config[backend]
+    id_key = f"{key_type}_id"
+    url_key = f"{key_type}_url"
+
+    match backend:
+        case "bw":
+            if id_key not in backend_config:
+                raise ValueError(f"'{id_key}' not found for 'bw' provider in secret_providers config.")
+
+            item_id = backend_config[id_key]
+            args.from_bw = (item_id, key_type)
+
+        case "bws":
+            if id_key not in backend_config:
+                raise ValueError(f"'{id_key}' not found for 'bws' provider in secret_providers config.")
+
+            item_id = backend_config[id_key]
+            args.from_bws = (item_id, key_type)
+
+        case "op":
+            if url_key not in backend_config:
+                raise ValueError(f"'{url_key}' not found for 'op' provider in secret_providers config.")
+
+            item_url = backend_config[url_key]
+            args.from_op = (item_url, key_type)
+
+        case _:
+            raise ValueError(f"Unsupported provider backend: '{backend}'.")
+
+    args.provider = None
+    return args
 
 def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: set):
     if not valids:
