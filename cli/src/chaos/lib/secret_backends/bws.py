@@ -84,10 +84,16 @@ def bwsExportKeys(args) -> None:
     _check_bws_status()
 
     keyType = args.key_type
-    project_id = args.project_id
     key = args.item_name
     fingerprint = args.fingerprint
     save_to_config = args.save_to_config
+
+    _,_, config = get_sops_files(None, None, None)
+
+    project_id = config.get('secret_providers', {}).get('bws', {}).get('project_id', '')
+
+    if args.project_id:
+        project_id = args.project_id
 
     if not keyType:
         raise ValueError("Key type must be specified for export.")
