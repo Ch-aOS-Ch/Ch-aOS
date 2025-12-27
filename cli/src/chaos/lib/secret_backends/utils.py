@@ -498,12 +498,12 @@ def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: st
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e
 
-def _check_bws_status():
+def _check_bws_status() -> bool:
     if not checkDep("bws"):
         raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
     if not os.getenv("BWS_ACCESS_TOKEN"):
         raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
-
+    return True
 def _check_bw_status():
     if not checkDep("bw"):
         raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
