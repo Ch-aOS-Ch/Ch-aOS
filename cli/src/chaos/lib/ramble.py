@@ -102,6 +102,8 @@ def _read_ramble_content(ramble_path, sops_config, team, args):
                 )
                 decrypted_text = result.stdout
 
+            if decrypted_text is None:
+                raise RuntimeError("Failed to decrypt ramble content")
             ramble_data = OmegaConf.create(decrypted_text)
             return ramble_data, decrypted_text
         else:
