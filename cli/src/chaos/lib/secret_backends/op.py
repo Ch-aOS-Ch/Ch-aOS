@@ -126,10 +126,17 @@ def opSopsEdit(args) -> None:
 def opExportKeys(args):
     keyType = args.key_type
     keyPath = args.keys
-    path = args.op_url
     fingerprint = args.fingerprint
-    loc = args.op_location
     tags = args.op_tags
+    save_to_config = args.save_to_config
+
+    _, _, config = get_sops_files(None, None, None)
+    path = config.get('secret_providers', {}).get('op', {}).get(f'{keyType}_url', '')
+
+    if args.url:
+        path = args.url
+
+    loc = args.op_location
 
     vault, title, _ = _reg_match_op_keypath(path)
     if _op_get_item(vault, title) is not None:
@@ -192,3 +199,12 @@ def opExportKeys(args):
         console.print(f"[green]INFO:[/] Successfully exported GPG key for fingerprint to 1Password: {fingerprint}")
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
+
+    if save_to_config:
+        from chaos.lib.secret_backends.utils import _save_to_config
+        _save_to_config(
+            backend='op',
+            keyType=keyType,
+            item_url=path,
+            field=loc
+        )

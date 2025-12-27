@@ -1,6 +1,7 @@
-from omegaconf import ListConfig
+from omegaconf import ListConfig, DictConfig
 from pathlib import Path
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
+from chaos.lib.utils import checkDep
 from rich.console import Console
 import sys
 import os
@@ -10,6 +11,87 @@ import subprocess
 import json
 
 console = Console()
+
+def is_valid_fp(fp):
+    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
+    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
+        return True
+    else:
+        return False
+
+def pgp_exists(fp):
+    try:
+        subprocess.run(
+            ['gpg', '--list-keys', fp],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def is_valid_age_key(pubKey: str) -> bool:
+    isValid = False
+    testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey) 
+    if testPub:
+        isValid = True
+    return isValid
+
+def is_valid_age_secret_key(secKey: str) -> bool:
+    isValid = False
+    testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) 
+    if testSec:
+        isValid = True
+    return isValid
+
+def is_valid_vault_key(key):
+    import hvac
+    import requests.exceptions
+    try:
+        client = hvac.Client(url=key)
+        seal_status = client.sys.read_seal_status()
+        if not seal_status:
+            return False, f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable."
+        if 'sealed' in seal_status['data']:
+            return True, f"Valid vault URI. Server status: {seal_status['data']['sealed']}."
+        else:
+            return False, f"Vault URI '{key}' is a reachable endpoint, but status check failed or returned unexpected data."
+    except requests.exceptions.MissingSchema:
+        return False, f"Vault URI '{key}' is an invalid URL format. Missing schema (e.g., 'https://')."
+    except requests.exceptions.ConnectionError:
+        return False, f"Vault URI '{key}' is a valid URL format but unreachable. Check network connectivity or if the Vault server is running."
+    except Exception as e:
+        return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
+
+def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
+    pubKey, secKey = None, None
+    for line in key_content.splitlines():
+        line = line.strip()
+        if line.startswith("# public key:"):
+            pubKey = line.split(":", 1)[1].strip()
+        if line.startswith("AGE-SECRET-KEY-"):
+            secKey = line
+    return pubKey, secKey
+
+def extract_gpg_keys(fingerprint: str) -> str:
+    try:
+        result = subprocess.run(
+            ["gpg", "--export-secret-keys", "--armor", fingerprint],
+            capture_output=True, text=True, check=True
+        )
+        gpg_key = result.stdout.strip()
+        if not gpg_key: raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
+        key_content = f"# fingerprint: {fingerprint}\n{gpg_key}"
+
+        return key_content
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to export GPG secret key: {e.stderr.strip()}") from e
+    except FileNotFoundError:
+        raise RuntimeError("The 'gpg' CLI tool is not installed or not found in PATH.") from None
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
 def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
@@ -141,6 +223,119 @@ def handleUpdateAllSecrets(args):
     console.print("\n[bold cyan]Updating ramble files...[/]")
     from chaos.lib.ramble import handleUpdateEncryptRamble
     handleUpdateEncryptRamble(args)
+def _save_to_config(
+    project_id: str = '',
+    item_id: str = '',
+    backend: str = '',
+    organization_id: str = '',
+    collection_id: str = '',
+    keyType: str = '',
+    field: str = '',
+    item_url: str = ''
+) -> None:
+    config_path = Path.home() / ".config/chaos/config.yml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
+
+    if 'secret_providers' not in config:
+        config.secret_providers = OmegaConf.create()
+
+    match backend:
+        case 'bws':
+            if 'bws' not in config.secret_providers:
+                config.secret_providers.bws = OmegaConf.create()
+
+            config.secret_providers.bws.project_id = project_id
+
+            id_key = f"{keyType}_id"
+            config.secret_providers.bws[id_key] = item_id
+
+        case 'bw':
+            if 'secret_providers' not in config:
+                config.secret_providers = OmegaConf.create()
+
+            if 'bw' not in config.secret_providers:
+                config.secret_providers.bw = OmegaConf.create()
+
+            if organization_id:
+                config.secret_providers.bw.organization_id = organization_id
+
+            if collection_id:
+                config.secret_providers.bw.collection_id = collection_id
+
+            id_key = f"{keyType}_id"
+            config.secret_providers.bw[id_key] = item_id
+
+        case 'op':
+            if 'secret_providers' not in config:
+                config.secret_providers = OmegaConf.create()
+
+            if 'op' not in config.secret_providers:
+                config.secret_providers.op = OmegaConf.create()
+
+            if field:
+                config.secret_providers.op.field = field
+
+            url_key = f"{keyType}_url"
+            config.secret_providers.op[url_key] = item_url
+
+    # Ensure the configuration directory exists and persist the updated config to disk.
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    OmegaConf.save(config, config_path)
+def _handle_provider_arg(args, config: DictConfig):
+    if not hasattr(args, 'provider') or args.provider is None:
+        return args
+
+    if not config or 'secret_providers' not in config:
+        raise FileNotFoundError("Could not find 'secret_providers' in ~/.config/chaos/config.yml.")
+
+    providers_config = config.secret_providers
+    provider_name = args.provider
+
+    if provider_name == 'default':
+        provider_name = providers_config.get('default')
+        if not provider_name:
+            raise ValueError("A default provider is requested, but 'default' is not set in secret_providers config.")
+
+    if '.' not in provider_name:
+        raise ValueError(f"Invalid provider format: '{provider_name}'. Expected 'backend.key_type' (e.g., 'bw.age').")
+
+    backend, key_type = provider_name.split('.', 1)
+
+    if backend not in providers_config:
+        raise ValueError(f"Provider backend '{backend}' not found in secret_providers config.")
+
+    backend_config = providers_config[backend]
+    id_key = f"{key_type}_id"
+    url_key = f"{key_type}_url"
+
+    match backend:
+        case "bw":
+            if id_key not in backend_config:
+                raise ValueError(f"'{id_key}' not found for 'bw' provider in secret_providers config.")
+
+            item_id = backend_config[id_key]
+            args.from_bw = (item_id, key_type)
+
+        case "bws":
+            if id_key not in backend_config:
+                raise ValueError(f"'{id_key}' not found for 'bws' provider in secret_providers config.")
+
+            item_id = backend_config[id_key]
+            args.from_bws = (item_id, key_type)
+
+        case "op":
+            if url_key not in backend_config:
+                raise ValueError(f"'{url_key}' not found for 'op' provider in secret_providers config.")
+
+            item_url = backend_config[url_key]
+            args.from_op = (item_url, key_type)
+
+        case _:
+            raise ValueError(f"Unsupported provider backend: '{backend}'.")
+
+    args.provider = None
+    return args
 
 def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: set):
     if not valids:
@@ -305,3 +500,29 @@ def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: st
         return True
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e
+
+def _check_bws_status() -> bool:
+    if not checkDep("bws"):
+        raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
+    if not os.getenv("BWS_ACCESS_TOKEN"):
+        raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
+    return True
+def _check_bw_status():
+    if not checkDep("bw"):
+        raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
+
+    try:
+        status_result = subprocess.run(['bw', 'status'], capture_output=True, text=True, check=True)
+        status = json.loads(status_result.stdout)
+        if status['status'] == 'unlocked':
+            return True, "Bitwarden vault is unlocked."
+        elif status['status'] == 'locked':
+            raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
+        elif status['status'] == 'unauthenticated':
+            raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
+        else:
+            raise PermissionError(f"Bitwarden vault is not accessible. Current status: {status['status']}")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
+    except (json.JSONDecodeError, KeyError) as e:
+        raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
