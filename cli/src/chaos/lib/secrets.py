@@ -261,7 +261,7 @@ def handleSecPrint(args):
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
-    
+
     args = _handle_provider_arg(args, global_config)
 
     bw, bw_keyType = (None, None)

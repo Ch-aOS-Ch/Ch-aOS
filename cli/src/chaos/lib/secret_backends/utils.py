@@ -520,3 +520,45 @@ def _check_bw_status():
         raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
     except (json.JSONDecodeError, KeyError) as e:
         raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
+
+def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
+    if not checkDep("sops"):
+        raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
+
+    args = _handle_provider_arg(args, config)
+
+    bw, bw_keyType = (None, None)
+    bws, bws_keyType = (None, None)
+    op, op_keyType = (None, None)
+
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        bw, bw_keyType = args.from_bw
+    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        bws, bws_keyType = args.from_bws
+    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        op, op_keyType = args.from_op
+
+    if is_vault_in_use(sops_file):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            raise PermissionError(message)
+
+    try:
+        if bws and bws_keyType:
+            from chaos.lib.secret_backends.bws import bwsSopsDec
+            sopsDecryptResult = bwsSopsDec(args)
+        elif bw and bw_keyType:
+            from chaos.lib.secret_backends.bw import bwSopsDec
+            sopsDecryptResult = bwSopsDec(args)
+        elif op and op_keyType:
+            from chaos.lib.secret_backends.op import opSopsDec
+            sopsDecryptResult = opSopsDec(args)
+        else:
+            sopsDecryptResult = subprocess.run(['sops', '--config', sops_file, '--decrypt', secrets_file], check=True, capture_output=True, text=True)
+
+        return sopsDecryptResult.stdout
+    except subprocess.CalledProcessError as e:
+        details = e.stderr.decode() if e.stderr else "No output."
+        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
+    except FileNotFoundError as e:
+        raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
