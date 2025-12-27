@@ -160,8 +160,6 @@ def bwExportKeys(args):
             item_json["collectionIds"] = [collection_id]
         if organization_id:
             item_json["organizationId"] = organization_id
-        if tags:
-            item_json['fields'] = [tags]
         item_json["favorite"] = False
         item_json["secureNote"] = {"type": 0}
 
