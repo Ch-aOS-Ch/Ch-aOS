@@ -227,9 +227,17 @@ def argParsing():
     applyParser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")
     applyParser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly.")
     applyParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
+    applyParser.add_argument('-s', '--secrets', action='store_true', help="Signal that a secret-having role is being used and decryption is needed.")
     applyParser.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
     applyParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    applyParser.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     applyParser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
+
+    provider_group_apply = applyParser.add_mutually_exclusive_group()
+    provider_group_apply.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
+    provider_group_apply.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_apply.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group_apply.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age' or 'gpg'.")
 
     teamPrune = teamSubParser.add_parser('prune', help="Prune unused teams from your configuration.")
     teamPrune.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations.")
