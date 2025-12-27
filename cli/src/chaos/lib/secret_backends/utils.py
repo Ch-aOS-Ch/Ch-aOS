@@ -279,6 +279,9 @@ def _save_to_config(
             url_key = f"{keyType}_url"
             config.secret_providers.op[url_key] = item_url
 
+    # Ensure the configuration directory exists and persist the updated config to disk.
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    OmegaConf.save(config, config_path)
 def _handle_provider_arg(args, config: DictConfig):
     if not hasattr(args, 'provider') or args.provider is None:
         return args
