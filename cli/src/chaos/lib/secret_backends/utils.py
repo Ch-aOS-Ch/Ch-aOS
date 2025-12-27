@@ -234,6 +234,7 @@ def _save_to_config(
     item_url: str = ''
 ) -> None:
     config_path = Path.home() / ".config/chaos/config.yml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
 
     if 'secret_providers' not in config:
