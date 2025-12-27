@@ -514,8 +514,10 @@ def _check_bw_status():
             return True, "Bitwarden vault is unlocked."
         elif status['status'] == 'locked':
             raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
-        else: # "unauthenticated"
+        elif status['status'] == 'unauthenticated':
             raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
+        else:
+            raise PermissionError(f"Bitwarden vault is not accessible. Current status: {status['status']}")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
     except (json.JSONDecodeError, KeyError) as e:
