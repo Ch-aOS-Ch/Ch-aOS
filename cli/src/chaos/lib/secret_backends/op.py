@@ -7,9 +7,10 @@ from chaos.lib.secret_backends.utils import _build_op_keypath, get_sops_files, _
 
 console = Console()
 
-def _setup_op_env(url: str, keyType: str) -> dict:
+def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], int]:
     path = url
 
+    r, w = os.pipe()
     env = os.environ.copy()
     if keyType == 'age':
         _, secKey = getAgeKeys(path)
@@ -17,8 +18,14 @@ def _setup_op_env(url: str, keyType: str) -> dict:
         _, secKey = getGpgKeys(path)
     else:
         raise ValueError(f"Unsupported key type.")
-    env[f'SOPS_{keyType.upper()}_KEY'] = secKey
-    return env
+    try:
+        os.write(w, secKey.encode())
+        os.fchmod(w, 0o600)
+        os.close(w)
+        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r}"
+    except Exception as e:
+        raise RuntimeError(f"Error setting up environment for sops decryption: {str(e)}") from e
+    return env, r
 
 def opReadKey(path: str, loc: str | None = None) -> str:
     if not checkDep("op"):
@@ -96,12 +103,17 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env = _setup_op_env(url, keyType)
+    env, r = _setup_op_env(url, keyType)
 
     try:
-        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True)
+        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops: {e.stderr.strip()}") from e
+    finally:
+        try:
+            os.close(r)
+        except OSError:
+            pass
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -114,14 +126,19 @@ def opSopsEdit(args) -> None:
     team = args.team
     sops_file_override = args.sops_file_override
 
-    env = _setup_op_env(url, keyType)
+    env, r = _setup_op_env(url, keyType)
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True)
+        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True, pass_fds=(r,))
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error editing file with sops: {e.stderr.strip()}") from e
+    finally:
+        try:
+            os.close(r)
+        except OSError:
+            pass
 
 def opExportKeys(args):
     keyType = args.key_type

@@ -167,7 +167,8 @@ def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
 
-def _setup_bws_env(item_id: str, keyType: str) -> dict[str, str]:
+def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], int]:
+    r, w = os.pipe()
     env = os.environ.copy()
     match keyType:
         case 'age':
@@ -177,9 +178,15 @@ def _setup_bws_env(item_id: str, keyType: str) -> dict[str, str]:
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
-    env[f'SOPS_{keyType.upper()}_KEY'] = secKey
+    try:
+        os.write(w, secKey.encode())
+        os.fchmod(w, 0o600)
+        os.close(w)
+        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r}"
+    except Exception as e:
+        raise RuntimeError(f"Error setting up environment for sops decryption: {str(e)}") from e
 
-    return env
+    return env, r
 
 def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bws
@@ -189,12 +196,17 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env = _setup_bws_env(item_id, keyType)
+    env, r = _setup_bws_env(item_id, keyType)
 
     try:
-        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True)
+        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops and Bitwarden: {e.stderr.strip()}") from e
+    finally:
+        try:
+            os.close(r)
+        except OSError:
+            pass
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -209,10 +221,15 @@ def bwsSopsEdit(args) -> None:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env = _setup_bws_env(item_id, keyType)
+    env, r = _setup_bws_env(item_id, keyType)
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True)
+        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True, pass_fds=(r,))
     except subprocess.CalledProcessError as e:
         if e.returncode != 200: # 200 is sops' "no changes" exit code
             raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e
+    finally:
+        try:
+            os.close(r)
+        except OSError:
+            pass
