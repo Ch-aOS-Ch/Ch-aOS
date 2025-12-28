@@ -1,31 +1,41 @@
+import shlex
 import subprocess
 from rich.console import Console
 import os
 from pathlib import Path
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import _build_op_keypath, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item
+from chaos.lib.secret_backends.utils import _build_op_keypath, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe
 
 console = Console()
 
-def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], int]:
+def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], str]:
     path = url
-
-    r, w = os.pipe()
     env = os.environ.copy()
+    fds_to_pass: list[int] = []
+    secKey = None
+    prefix = ''
+
     if keyType == 'age':
         _, secKey = getAgeKeys(path)
     elif keyType == 'gpg':
         _, secKey = getGpgKeys(path)
+    elif keyType == 'vault':
+        vault_addr, vault_token = getOpVaultKeys(path)
+        r_addr = setup_pipe(vault_addr)
+        r_token = setup_pipe(vault_token)
+        fds_to_pass.extend([r_addr, r_token])
+        prefix = (f'read VAULT_ADDR </dev/fd/{r_addr};'
+                f'read VAULT_TOKEN </dev/fd/{r_token};'
+                'export VAULT_ADDR VAULT_TOKEN;')
     else:
-        raise ValueError(f"Unsupported key type.")
-    try:
-        os.write(w, secKey.encode())
-        os.fchmod(w, 0o600)
-        os.close(w)
-        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r}"
-    except Exception as e:
-        raise RuntimeError(f"Error setting up environment for sops decryption: {str(e)}") from e
-    return env, r
+        raise ValueError(f"Unsupported key type: {keyType}")
+
+    if secKey:
+        r_secKey = setup_pipe(secKey)
+        fds_to_pass.append(r_secKey)
+        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+
+    return env, fds_to_pass, prefix
 
 def opReadKey(path: str, loc: str | None = None) -> str:
     if not checkDep("op"):
@@ -95,6 +105,21 @@ def getGpgKeys(path) -> tuple[str, str]:
 
     return fingerprint, secKey
 
+def getOpVaultKeys(path: str) -> tuple[str, str]:
+    key_content = opReadKey(path)
+
+    vault_addr, vault_token = None, None
+    for line in key_content.splitlines():
+        if line.startswith("# Vault Address:"):
+            vault_addr = line.split("::", 1)[1].strip()
+        if line.startswith("Vault Key:"):
+            vault_token = line.split(":", 1)[1].strip()
+
+    if not vault_addr or not vault_token:
+        raise ValueError("Could not extract both Vault address and token from 1Password item.")
+
+    return vault_addr, vault_token
+
 def opSopsDec(args) -> subprocess.CompletedProcess[str]:
     url, keyType = args.from_op
     team = args.team
@@ -103,17 +128,20 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, r = _setup_op_env(url, keyType)
+    env, fds, prefix = _setup_op_env(url, keyType)
+    cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
+    cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
+        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for r in fds:
+            try:
+                os.close(r)
+            except OSError:
+                pass
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -126,19 +154,22 @@ def opSopsEdit(args) -> None:
     team = args.team
     sops_file_override = args.sops_file_override
 
-    env, r = _setup_op_env(url, keyType)
-
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+    env, fds, prefix = _setup_op_env(url, keyType)
+    cmd = f"sops --config {sopsFile} {secretsFile}"
+    cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True, pass_fds=(r,))
+        subprocess.run(cmd, env=env, check=True, pass_fds=fds)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error editing file with sops: {e.stderr.strip()}") from e
+        if e.returncode != 200: # 200 is sops' "no changes" exit code
+            raise RuntimeError(f"Error editing file with sops: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for r in fds:
+            try:
+                os.close(r)
+            except OSError:
+                pass
 
 def opExportKeys(args):
     keyType = args.key_type
@@ -214,6 +245,20 @@ def opExportKeys(args):
         _op_create_item(vault, title, loc, tags, key_with_comment)
 
         console.print(f"[green]INFO:[/] Successfully exported GPG key for fingerprint to 1Password: {fingerprint}")
+
+    elif keyType == 'vault':
+        vaultAddr = args.vault_addr
+        if not keyPath: raise ValueError("No Vault key path passed via --keys.")
+        if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
+        keyPath = Path(keyPath).expanduser()
+
+        key_content = setup_vault_keys(vaultAddr, keyPath)
+
+        if not all([key_content, path, loc]):
+            raise ValueError("Missing required parameters for exporting keys to 1Password.")
+
+        _op_create_item(vault, title, loc, tags, key_content)
+        console.print(f"[green]INFO:[/] Successfully exported vault token to 1Password.")
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
 

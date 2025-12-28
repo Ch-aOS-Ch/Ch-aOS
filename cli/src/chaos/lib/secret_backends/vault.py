@@ -1,6 +1,6 @@
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, is_valid_vault_key
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, _is_valid_vault_key
 
 console = Console()
 
@@ -30,7 +30,7 @@ def handleVaultAdd(args, sops_file_override, keys):
     valids = set()
     for key in keys:
         clean_key = key.strip()
-        is_valid, message = is_valid_vault_key(clean_key)
+        is_valid, message = _is_valid_vault_key(clean_key)
         if is_valid:
             console.print(f"[green]INFO:[/] {message}")
             valids.add(clean_key)

@@ -1,30 +1,43 @@
-from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys
+import shlex
+from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe
 from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 import subprocess
 import json
 import os
+from omegaconf import OmegaConf, DictConfig
+from typing import cast
 
 console = Console()
 
-def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], int]:
-    r, w = os.pipe()
+def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str]:
     env = os.environ.copy()
+    fds_to_pass: list[int] = []
+    secKey = None
+    prefix = ''
+
     if keyType == 'age':
         _, secKey = getBwAgeKeys(item_id)
     elif keyType == 'gpg':
         _, secKey = getBwGpgKeys(item_id)
+    elif keyType == 'vault':
+        vault_addr, vault_token = getBwVaultKeys(item_id)
+        r_addr = setup_pipe(vault_addr)
+        r_token = setup_pipe(vault_token)
+        fds_to_pass.extend([r_addr, r_token])
+        prefix = (f'read VAULT_ADDR </dev/fd/{r_addr};'
+                f'read VAULT_TOKEN </dev/fd/{r_token};'
+                'export VAULT_ADDR VAULT_TOKEN;')
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
-    try:
-        os.write(w, secKey.encode())
-        os.fchmod(w, 0o600)
-        os.close(w)
-        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r}"
-    except Exception as e:
-        raise RuntimeError(f"Error setting up environment for sops decryption: {str(e)}") from e
-    return env, r
+
+    if secKey:
+        r_secKey = setup_pipe(secKey)
+        fds_to_pass.append(r_secKey)
+        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+
+    return env, fds_to_pass, prefix
 
 def bwReadKey(item_id: str) -> str:
     _check_bw_status()
@@ -55,6 +68,21 @@ def getBwAgeKeys(item_id: str) -> tuple[str, str]:
 
     return pubKey, secKey
 
+def getBwVaultKeys(item_id: str) -> tuple[str, str]:
+    key_content = bwReadKey(item_id)
+
+    vault_addr, vault_token = None, None
+    for line in key_content.splitlines():
+        if line.startswith("# Vault Address:"):
+            vault_addr = line.split("::", 1)[1].strip()
+        if line.startswith("Vault Key:"):
+            vault_token = line.split(":", 1)[1].strip()
+
+    if not vault_addr or not vault_token:
+        raise ValueError("Could not extract both Vault address and token from Bitwarden item.")
+
+    return vault_addr, vault_token
+
 def getBwGpgKeys(item_id: str) -> tuple[str, str]:
     key_content = bwReadKey(item_id)
     if not key_content:
@@ -79,17 +107,20 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
     sops_file_override = args.sops_file_override
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-    env, r = _setup_bw_env(item_id, keyType)
+    env, fds, prefix = _setup_bw_env(item_id, keyType)
+    cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
+    cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
+        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops and Bitwarden: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for r in fds:
+            try:
+                os.close(r)
+            except OSError:
+                pass
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -103,18 +134,21 @@ def bwSopsEdit(args) -> None:
     sops_file_override = args.sops_file_override
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-    env, r = _setup_bw_env(item_id, keyType)
+    env, fds, prefix = _setup_bw_env(item_id, keyType)
+    cmd = f"sops --config {sopsFile} {secretsFile}"
+    cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
+        subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds)
     except subprocess.CalledProcessError as e:
         if e.returncode != 200: # 200 is sops' "no changes" exit code
             raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for r in fds:
+            try:
+                os.close(r)
+            except OSError:
+                pass
 
 def bwExportKeys(args):
     _check_bw_status()
@@ -157,6 +191,14 @@ def bwExportKeys(args):
         if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
         key_content = extract_gpg_keys(fingerprint)
+
+    elif keyType == 'vault':
+        vaultAddr = args.vault_addr
+        if not keyPath: raise ValueError("No Vault key path passed via --keys.")
+        if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
+        keyPath = Path(keyPath).expanduser()
+
+        key_content = setup_vault_keys(vaultAddr, keyPath)
 
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
