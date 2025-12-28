@@ -1,11 +1,11 @@
 from typing import cast
-from chaos.lib.secret_backends.utils import _check_bws_status, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, is_valid_fp, extract_age_keys
-from chaos.lib.secret_backends.utils import get_sops_files
+from chaos.lib.secret_backends.utils import _check_bws_status, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, is_valid_fp, extract_age_keys, setup_vault_keys, setup_pipe, get_sops_files
 from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 import subprocess
+import shlex
 import json
 import os
 
@@ -28,7 +28,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: b
 
     cmd = ['bws', 'secret', 'create', key, value, project_id]
 
-    console.print(f"[green]INFO:[/] Exporting age public key: {pubKey}")
+    console.print(f"[cyan]INFO:[/] Exporting age public key: {pubKey}")
     try:
         result = subprocess.run(
             cmd,
@@ -39,7 +39,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: b
         created_item = json.loads(result.stdout)
         item_id = created_item.get("id")
 
-        console.print(f"[green]Successfully exported age key '{key}' to Bitwarden.[/green]")
+        console.print(f"[green]Successfully exported age key '{key}' to Bitwarden with id {item_id}[/green]")
 
         if save_to_config and item_id:
             from chaos.lib.secret_backends.utils import _save_to_config
@@ -56,7 +56,7 @@ def exportBwsGpgKey(key: str, project_id: str, fingerprint: str, save_to_config:
     key_content = extract_gpg_keys(fingerprint)
 
     cmd = ['bws', 'secret', 'create', key, key_content, project_id]
-    console.print(f"[green]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
+    console.print(f"[cyan]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
 
     try:
         result = subprocess.run(
@@ -67,11 +67,38 @@ def exportBwsGpgKey(key: str, project_id: str, fingerprint: str, save_to_config:
         )
         created_item = json.loads(result.stdout)
         item_id = created_item.get("id")
-        console.print(f"[green]Successfully exported GPG key '{key}' to Bitwarden.[/green]")
+        console.print(f"[green]Successfully exported GPG key '{key}' to Bitwarden with id {item_id}[/green]")
 
         if save_to_config and item_id:
             from chaos.lib.secret_backends.utils import _save_to_config
             _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='gpg')
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
+    except FileNotFoundError:
+        raise RuntimeError("Bitwarden Secrets CLI ('bws') is not installed or not found in PATH.") from None
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
+
+def exportBwsVaultKey(keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
+    key_content = setup_vault_keys(vaultAddr, keyPath)
+    cmd = ['bws', 'secret', 'create', key, key_content, project_id]
+    console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        created_item = json.loads(result.stdout)
+        item_id = created_item.get("id")
+        console.print(f"[green]Successfully exported Vault key '{key}' to Bitwarden with id {item_id}[/green]")
+
+        if save_to_config and item_id:
+            from chaos.lib.secret_backends.utils import _save_to_config
+            _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='vault')
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -116,6 +143,13 @@ def bwsExportKeys(args) -> None:
 
             exportBwsGpgKey(key, project_id, fingerprint, save_to_config)
 
+        case 'vault':
+            vaultAddr = args.vault_addr
+            keyPath = Path(args.keys)
+            if not keyPath: raise ValueError("No Vault key path passed via --keys.")
+            if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
+
+            exportBwsVaultKey(keyPath, vaultAddr, key, project_id, save_to_config)
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
@@ -167,26 +201,61 @@ def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
 
-def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], int]:
-    r, w = os.pipe()
+def getBwsVaultKey(item_id: str) -> tuple[str, str]:
+    try:
+        result = subprocess.run(
+            ['bws', 'secret', 'get', item_id],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        key_content = result.stdout.strip()
+        key_content = OmegaConf.create(key_content)
+        key_content = cast(str, cast(DictConfig, key_content).get('value'))
+
+        vault_addr, vault_token = None, None
+        for line in key_content.splitlines():
+            if line.startswith("# Vault Address:"):
+                vault_addr = line.split("::", 1)[1].strip()
+            if line.startswith("Vault Key:"):
+                vault_token = line.split(":", 1)[1].strip()
+
+        if not vault_addr or not vault_token:
+            raise ValueError("Could not extract both Vault address and token from Bitwarden item.")
+
+        return vault_addr, vault_token
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error retrieving Vault keys from Bitwarden: {e.stderr.strip()}") from e
+
+def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str]:
     env = os.environ.copy()
+    fds_to_pass: list[int] = []
+    secKey = None
+    prefix = ''
+
     match keyType:
         case 'age':
             _, secKey = getBwsAgeKeys(item_id)
         case 'gpg':
             _, secKey = getBwsGpgKeys(item_id)
+        case 'vault':
+            vault_addr, vault_token = getBwsVaultKey(item_id)
+            r_addr = setup_pipe(vault_addr)
+            r_token = setup_pipe(vault_token)
+            fds_to_pass.extend([r_addr, r_token])
+            prefix = (f'read VAULT_ADDR </dev/fd/{r_addr};'
+                    f'read VAULT_TOKEN </dev/fd/{r_token};'
+                    'export VAULT_ADDR VAULT_TOKEN;')
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
-    try:
-        os.write(w, secKey.encode())
-        os.fchmod(w, 0o600)
-        os.close(w)
-        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r}"
-    except Exception as e:
-        raise RuntimeError(f"Error setting up environment for sops decryption: {str(e)}") from e
+    if secKey:
+        r_secKey = setup_pipe(secKey)
+        fds_to_pass.append(r_secKey)
+        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r_secKey}"
 
-    return env, r
+    return env, fds_to_pass, prefix
 
 def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bws
@@ -196,17 +265,21 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, r = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix = _setup_bws_env(item_id, keyType)
+
+    cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
+    cmd = f"{prefix}{cmd}" if prefix else cmd
 
     try:
-        result = subprocess.run(['sops', '--config', sopsFile, '-d', secretsFile], env=env, check=True, capture_output=True, text=True, pass_fds=(r,))
+        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds_to_pass, shell=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops and Bitwarden: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for fd in fds_to_pass:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -221,15 +294,19 @@ def bwsSopsEdit(args) -> None:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, r = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix = _setup_bws_env(item_id, keyType)
+
+    cmd = f"sops --config {shlex.quote(str(sopsFile))} {shlex.quote(str(secretsFile))}"
+    cmd = f"{prefix}{cmd}" if prefix else cmd
 
     try:
-        subprocess.run(['sops', '--config', sopsFile, secretsFile], env=env, check=True, pass_fds=(r,))
+        subprocess.run(cmd, env=env, check=True, pass_fds=fds_to_pass, shell=True)
     except subprocess.CalledProcessError as e:
-        if e.returncode != 200: # 200 is sops' "no changes" exit code
+        if e.returncode != 200:
             raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e
     finally:
-        try:
-            os.close(r)
-        except OSError:
-            pass
+        for fd in fds_to_pass:
+            try:
+                os.close(fd)
+            except OSError:
+                pass

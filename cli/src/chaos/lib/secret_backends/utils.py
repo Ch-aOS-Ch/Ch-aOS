@@ -45,7 +45,26 @@ def is_valid_age_secret_key(secKey: str) -> bool:
         isValid = True
     return isValid
 
-def is_valid_vault_key(key):
+def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
+    if not checkDep("vault"): raise EnvironmentError("The 'vault' CLI tool is required but not found in PATH.")
+    with open(keyPath, 'r') as f:
+        key = f.read().strip()
+    if not _is_valid_vault_key(key): raise ValueError("The provided Vault key does not appear to be valid.")
+    if not key.startswith('hvs.'): raise ValueError('The provided Vault key does not appear to be a valid HCP Vault URI (must start with "hvs.").')
+
+    key_content = f"""# Vault Address:: {vaultAddr}
+Vault Key: {key}
+"""
+    return key_content
+
+def setup_pipe(token: str) -> int:
+    r, w = os.pipe()
+    os.write(w, token.encode())
+    os.fchmod(w, 0o600)
+    os.close(w)
+    return r
+
+def _is_valid_vault_key(key):
     import hvac
     import requests.exceptions
     try:
@@ -223,6 +242,7 @@ def handleUpdateAllSecrets(args):
     console.print("\n[bold cyan]Updating ramble files...[/]")
     from chaos.lib.ramble import handleUpdateEncryptRamble
     handleUpdateEncryptRamble(args)
+
 def _save_to_config(
     project_id: str = '',
     item_id: str = '',
@@ -231,7 +251,7 @@ def _save_to_config(
     collection_id: str = '',
     keyType: str = '',
     field: str = '',
-    item_url: str = ''
+    item_url: str = '',
 ) -> None:
     config_path = Path.home() / ".config/chaos/config.yml"
     config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
@@ -277,6 +297,8 @@ def _save_to_config(
 
             url_key = f"{keyType}_url"
             config.secret_providers.op[url_key] = item_url
+
+    OmegaConf.save(config, config_path)
 
 def _handle_provider_arg(args, config: DictConfig):
     if not hasattr(args, 'provider') or args.provider is None:
