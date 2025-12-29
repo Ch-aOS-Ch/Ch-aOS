@@ -3,18 +3,18 @@ from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 import subprocess
+import tempfile
 import json
 import os
-from omegaconf import OmegaConf, DictConfig
-from typing import cast
 
 console = Console()
 
-def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str]:
+def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None]:
     env = os.environ.copy()
     fds_to_pass: list[int] = []
     secKey = None
     prefix = ''
+    gnupghome = None
 
     if keyType == 'age':
         _, secKey = getBwAgeKeys(item_id)
@@ -31,12 +31,29 @@ def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int]
     else:
         raise ValueError(f"Unsupported key type: {keyType}")
 
-    if secKey:
+    if secKey and keyType == 'age':
         r_secKey = setup_pipe(secKey)
         fds_to_pass.append(r_secKey)
-        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+        env[f'SOPS_AGE_KEY_FILE'] = f"/dev/fd/{r_secKey}"
 
-    return env, fds_to_pass, prefix
+    if secKey and keyType == 'gpg':
+        gnupghome = tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-')
+        env['GNUPGHOME'] = gnupghome.name
+        import_cmd = ['gpg', '--batch', '--import']
+        try:
+            subprocess.run(
+                import_cmd,
+                input=secKey,
+                env=env,
+                text=True,
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            gnupghome.cleanup()
+            raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+
+    return env, fds_to_pass, prefix, gnupghome
 
 def bwReadKey(item_id: str) -> str:
     _check_bw_status()
@@ -92,10 +109,15 @@ def getBwGpgKeys(item_id: str) -> tuple[str, str]:
         if line.startswith("# fingerprint:"):
             fingerprint = line.split(":", 1)[1].strip()
             break
-    secKey = key_content
 
-    if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in secKey:
+    if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
         raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
+
+    noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
+    secKey = f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
+{noHeadersSecKey}
+-----END PGP PRIVATE KEY BLOCK-----
+"""
 
     return fingerprint, secKey
 
@@ -106,7 +128,7 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
     sops_file_override = args.sops_file_override
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-    env, fds, prefix = _setup_bw_env(item_id, keyType)
+    env, fds, prefix, gnupghome = _setup_bw_env(item_id, keyType)
     cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
@@ -121,6 +143,12 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
             except OSError:
                 pass
 
+        if gnupghome:
+            try:
+                gnupghome.cleanup()
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
+
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
 
@@ -133,7 +161,7 @@ def bwSopsEdit(args) -> None:
     sops_file_override = args.sops_file_override
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-    env, fds, prefix = _setup_bw_env(item_id, keyType)
+    env, fds, prefix, gnupghome = _setup_bw_env(item_id, keyType)
     cmd = f"sops --config {sopsFile} {secretsFile}"
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
@@ -148,6 +176,12 @@ def bwSopsEdit(args) -> None:
                 os.close(r)
             except OSError:
                 pass
+
+        if gnupghome:
+            try:
+                gnupghome.cleanup()
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
 
 def bwExportKeys(args):
     _check_bw_status()

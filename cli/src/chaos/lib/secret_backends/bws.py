@@ -8,6 +8,7 @@ import subprocess
 import shlex
 import json
 import os
+import tempfile
 
 console = Console()
 
@@ -196,7 +197,13 @@ def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
 
         if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
             raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
-        return fingerprint, key_content
+
+        noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
+        secKey = f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
+{noHeadersSecKey}
+-----END PGP PRIVATE KEY BLOCK-----
+"""
+        return fingerprint, secKey
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
@@ -228,11 +235,12 @@ def getBwsVaultKey(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving Vault keys from Bitwarden: {e.stderr.strip()}") from e
 
-def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str]:
+def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None]:
     env = os.environ.copy()
     fds_to_pass: list[int] = []
     secKey = None
     prefix = ''
+    gnupghome = None
 
     match keyType:
         case 'age':
@@ -250,12 +258,29 @@ def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
-    if secKey:
+    if secKey and keyType == 'age':
         r_secKey = setup_pipe(secKey)
         fds_to_pass.append(r_secKey)
-        env[f'SOPS_{keyType.upper()}_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+        env[f'SOPS_AGE_KEY_FILE'] = f"/dev/fd/{r_secKey}"
 
-    return env, fds_to_pass, prefix
+    if secKey and keyType == 'gpg':
+        gnupghome = tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-')
+        env['GNUPGHOME'] = gnupghome.name
+        import_cmd = ['gpg', '--batch', '--import']
+        try:
+            subprocess.run(
+                import_cmd,
+                input=secKey,
+                env=env,
+                text=True,
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            gnupghome.cleanup()
+            raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+
+    return env, fds_to_pass, prefix, gnupghome
 
 def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bws
@@ -265,7 +290,7 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, fds_to_pass, prefix = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix, gnupghome = _setup_bws_env(item_id, keyType)
 
     cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix}{cmd}" if prefix else cmd
@@ -281,6 +306,12 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
             except OSError:
                 pass
 
+        if gnupghome:
+            try:
+                gnupghome.cleanup()
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
+
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
 
@@ -294,7 +325,7 @@ def bwsSopsEdit(args) -> None:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, fds_to_pass, prefix = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix, gnupghome = _setup_bws_env(item_id, keyType)
 
     cmd = f"sops --config {shlex.quote(str(sopsFile))} {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix}{cmd}" if prefix else cmd
@@ -310,3 +341,9 @@ def bwsSopsEdit(args) -> None:
                 os.close(fd)
             except OSError:
                 pass
+
+        if gnupghome:
+            try:
+                gnupghome.cleanup()
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
