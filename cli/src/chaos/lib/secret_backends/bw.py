@@ -159,7 +159,7 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
-        
+
         if agePath:
             try:
                 os.remove(agePath)
@@ -199,7 +199,7 @@ def bwSopsEdit(args) -> None:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
-        
+
         if agePath:
             try:
                 os.remove(agePath)

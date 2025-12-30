@@ -37,7 +37,7 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
     if secKey and keyType == 'age':
         if not key_content:
             raise ValueError("No age key content retrieved from 1Password.")
-        
+
         from chaos.lib.secret_backends.utils import conc_age_keys
         secKeyConc = conc_age_keys(key_content)
 
@@ -185,7 +185,7 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
-        
+
         if agePath:
             try:
                 os.remove(agePath)
