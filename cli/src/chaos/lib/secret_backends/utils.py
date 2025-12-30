@@ -1,3 +1,4 @@
+import shutil
 from omegaconf import ListConfig, DictConfig
 from pathlib import Path
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
@@ -9,8 +10,63 @@ import re
 from omegaconf import OmegaConf
 import subprocess
 import json
+import tempfile
 
 console = Console()
+
+def setup_gpg_keys(gnupghome: tempfile.TemporaryDirectory) -> None:
+    actualGnupgHome_path = Path(os.getenv("GNUPGHOME", str(Path.home() / ".gnupg")))
+    temp_gnupg_path = Path(gnupghome.name)
+
+    if not actualGnupgHome_path.exists():
+        return
+
+    srcPriv = actualGnupgHome_path / "private-keys-v1.d"
+    detstPriv = temp_gnupg_path / "private-keys-v1.d"
+
+    try:
+        shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
+        os.chmod(detstPriv, 0o700)
+
+    except Exception as e:
+        console.print(f"[bold yellow]Warning:[/] Could not fully prepare temporary GPG directory: {e}")
+
+    pubKeyDump = temp_gnupg_path / "host_pubkeys.gpg"
+
+    try:
+        with open(pubKeyDump, 'wb') as f:
+            subprocess.run(['gpg', '--export'], stdout=f, check=True, stderr=subprocess.DEVNULL)
+
+    except subprocess.CalledProcessError as e:
+        console.print(f"[bold yellow]Warning:[/] Could not export public GPG keys: {e}")
+        return
+
+    temp_env = os.environ.copy()
+    temp_env['GNUPGHOME'] = str(temp_gnupg_path)
+    try:
+        subprocess.run(['gpg', '--batch', '--import', str(pubKeyDump)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=temp_env)
+    except subprocess.CalledProcessError as e:
+        console.print(f"[bold yellow]Warning:[/] Could not import public GPG keys into temporary GNUPGHOME: {e}")
+        return
+
+    src_trust = actualGnupgHome_path / "trustdb.gpg"
+    if src_trust.exists():
+        try:
+            shutil.copy2(src_trust, temp_gnupg_path / "trustdb.gpg")
+        except:
+            pass
+
+def conc_age_keys(secKey: str) -> str:
+    sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
+    if not sops_file_env or not Path(sops_file_env).exists():
+        return secKey
+
+    with open(sops_file_env, 'r') as f:
+        existing_keys_content = f.read()
+
+    concResult = existing_keys_content.strip() + "\n" + secKey
+
+    return concResult
 
 def is_valid_fp(fp):
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
