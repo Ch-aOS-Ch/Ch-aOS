@@ -9,16 +9,18 @@ import tempfile
 
 console = Console()
 
-def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None]:
+def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     path = url
     env = os.environ.copy()
     fds_to_pass: list[int] = []
     secKey = None
     prefix = ''
     gnupghome = None
+    key_content = None
+    age_temp_path = None
 
     if keyType == 'age':
-        _, secKey = getAgeKeys(path)
+        _, secKey, key_content = getAgeKeys(path)
     elif keyType == 'gpg':
         _, secKey = getGpgKeys(path)
     elif keyType == 'vault':
@@ -33,14 +35,26 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
         raise ValueError(f"Unsupported key type: {keyType}")
 
     if secKey and keyType == 'age':
-        r_secKey = setup_pipe(secKey)
-        fds_to_pass.append(r_secKey)
-        env[f'SOPS_AGE_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+        if not key_content:
+            raise ValueError("No age key content retrieved from 1Password.")
+        
+        from chaos.lib.secret_backends.utils import conc_age_keys
+        secKeyConc = conc_age_keys(key_content)
+
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', dir='/dev/shm', prefix='chaos-age-key-') as temp_age_file:
+            temp_age_file.write(secKeyConc)
+            if not secKeyConc.endswith('\n'):
+                temp_age_file.write('\n')
+            age_temp_path = temp_age_file.name
+
+        env['SOPS_AGE_KEY_FILE'] = age_temp_path
 
     if secKey and keyType == 'gpg':
+        from chaos.lib.secret_backends.utils import setup_gpg_keys
         gnupghome = tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-')
         env['GNUPGHOME'] = gnupghome.name
         import_cmd = ['gpg', '--batch', '--import']
+        setup_gpg_keys(gnupghome)
         try:
             subprocess.run(
                 import_cmd,
@@ -54,7 +68,7 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
             gnupghome.cleanup()
             raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
 
-    return env, fds_to_pass, prefix, gnupghome
+    return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
 def opReadKey(path: str, loc: str | None = None) -> str:
     if not checkDep("op"):
@@ -81,7 +95,7 @@ def opReadKey(path: str, loc: str | None = None) -> str:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error reading secret from 1Password: {e.stderr.strip()}") from e
 
-def getAgeKeys(path) -> tuple[str, str]:
+def getAgeKeys(path) -> tuple[str, str, str]:
     key_content = opReadKey(path)
 
     if not key_content:
@@ -103,7 +117,7 @@ def getAgeKeys(path) -> tuple[str, str]:
     if not secKey:
         raise ValueError("Could not find a secret key in the secret from 1Password. Expected a line starting with 'AGE-SECRET-KEY-'.")
 
-    return pubKey, secKey
+    return pubKey, secKey, key_content
 
 def getGpgKeys(path) -> tuple[str, str]:
     key_content = opReadKey(path)
@@ -151,12 +165,12 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, fds, prefix, gnupghome = _setup_op_env(url, keyType)
+    env, fds, prefix, gnupghome, agePath = _setup_op_env(url, keyType)
     cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds)
+        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds, shell=bool(prefix))
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops: {e.stderr.strip()}") from e
     finally:
@@ -171,6 +185,12 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
+        
+        if agePath:
+            try:
+                os.remove(agePath)
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
 
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
@@ -184,12 +204,12 @@ def opSopsEdit(args) -> None:
     sops_file_override = args.sops_file_override
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-    env, fds, prefix, gnupghome = _setup_op_env(url, keyType)
+    env, fds, prefix, gnupghome, agePath = _setup_op_env(url, keyType)
     cmd = f"sops --config {sopsFile} {secretsFile}"
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        subprocess.run(cmd, env=env, check=True, pass_fds=fds)
+        subprocess.run(cmd, env=env, check=True, pass_fds=fds, shell=bool(prefix))
     except subprocess.CalledProcessError as e:
         if e.returncode != 200: # 200 is sops' "no changes" exit code
             raise RuntimeError(f"Error editing file with sops: {e.stderr.strip()}") from e
@@ -205,6 +225,12 @@ def opSopsEdit(args) -> None:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
+
+        if agePath:
+            try:
+                os.remove(agePath)
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
 
 def opExportKeys(args):
     keyType = args.key_type

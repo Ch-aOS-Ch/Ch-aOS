@@ -154,7 +154,7 @@ def bwsExportKeys(args) -> None:
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
-def getBwsAgeKeys(item_id: str) -> tuple[str, str]:
+def getBwsAgeKeys(item_id: str) -> tuple[str, str, str]:
     try:
         result = subprocess.run(
             ['bws', 'secret', 'get', item_id],
@@ -170,7 +170,7 @@ def getBwsAgeKeys(item_id: str) -> tuple[str, str]:
         if not pubKey or not secKey:
             raise ValueError("Could not extract both public and secret keys from Bitwarden item.")
 
-        return pubKey, secKey
+        return pubKey, secKey, key_content
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving age keys from Bitwarden: {e.stderr.strip()}") from e
@@ -235,16 +235,18 @@ def getBwsVaultKey(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving Vault keys from Bitwarden: {e.stderr.strip()}") from e
 
-def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None]:
+def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     env = os.environ.copy()
     fds_to_pass: list[int] = []
     secKey = None
     prefix = ''
     gnupghome = None
+    key_content = None
+    age_temp_path = None
 
     match keyType:
         case 'age':
-            _, secKey = getBwsAgeKeys(item_id)
+            _, secKey, key_content = getBwsAgeKeys(item_id)
         case 'gpg':
             _, secKey = getBwsGpgKeys(item_id)
         case 'vault':
@@ -259,14 +261,26 @@ def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int
             raise ValueError(f"Unsupported key type: {keyType}")
 
     if secKey and keyType == 'age':
-        r_secKey = setup_pipe(secKey)
-        fds_to_pass.append(r_secKey)
-        env[f'SOPS_AGE_KEY_FILE'] = f"/dev/fd/{r_secKey}"
+        if not key_content:
+            raise ValueError("No age key content retrieved from Bitwarden.")
+
+        from chaos.lib.secret_backends.utils import conc_age_keys
+        secKeyConc = conc_age_keys(key_content)
+
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', dir='/dev/shm', prefix='chaos-age-key-') as temp_age_file:
+            temp_age_file.write(secKeyConc)
+            if not secKeyConc.endswith('\n'):
+                temp_age_file.write('\n')
+            age_temp_path = temp_age_file.name
+
+        env[f'SOPS_AGE_KEY_FILE'] = age_temp_path
 
     if secKey and keyType == 'gpg':
+        from chaos.lib.secret_backends.utils import setup_gpg_keys
         gnupghome = tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-')
         env['GNUPGHOME'] = gnupghome.name
         import_cmd = ['gpg', '--batch', '--import']
+        setup_gpg_keys(gnupghome)
         try:
             subprocess.run(
                 import_cmd,
@@ -280,7 +294,7 @@ def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int
             gnupghome.cleanup()
             raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
 
-    return env, fds_to_pass, prefix, gnupghome
+    return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
 def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bws
@@ -290,7 +304,7 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, fds_to_pass, prefix, gnupghome = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix, gnupghome, agePath = _setup_bws_env(item_id, keyType)
 
     cmd = f"sops --config {shlex.quote(str(sopsFile))} -d {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix}{cmd}" if prefix else cmd
@@ -312,6 +326,12 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
 
+        if agePath:
+            try:
+                os.remove(agePath)
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
+
     if not result.stdout.strip():
         raise ValueError(f"No output received from {secretsFile} file.")
 
@@ -325,7 +345,7 @@ def bwsSopsEdit(args) -> None:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    env, fds_to_pass, prefix, gnupghome = _setup_bws_env(item_id, keyType)
+    env, fds_to_pass, prefix, gnupghome, agePath = _setup_bws_env(item_id, keyType)
 
     cmd = f"sops --config {shlex.quote(str(sopsFile))} {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix}{cmd}" if prefix else cmd
@@ -347,3 +367,9 @@ def bwsSopsEdit(args) -> None:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
+
+        if agePath:
+            try:
+                os.remove(agePath)
+            except OSError:
+                console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
