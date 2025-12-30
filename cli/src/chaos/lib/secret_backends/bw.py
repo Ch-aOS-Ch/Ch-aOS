@@ -1,4 +1,13 @@
 from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe, setup_gpg_keys
+from chaos.lib.utils import checkDep
+import os
+import tempfile
+import subprocess
+import shlex
+import json
+from pathlib import Path
+from rich.console import Console
+console = Console()
 
 def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     env = os.environ.copy()
@@ -152,7 +161,7 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
-        
+
         if agePath:
             try:
                 os.remove(agePath)
@@ -192,7 +201,7 @@ def bwSopsEdit(args) -> None:
                 gnupghome.cleanup()
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary GNUPGHOME directory {gnupghome.name}")
-        
+
         if agePath:
             try:
                 os.remove(agePath)
