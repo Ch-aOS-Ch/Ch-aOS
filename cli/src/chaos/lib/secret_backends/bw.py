@@ -144,7 +144,7 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds, shell=bool(prefix))
+        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True, pass_fds=fds, shell=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error decrypting file with sops and Bitwarden: {e.stderr.strip()}") from e
     finally:
@@ -179,11 +179,11 @@ def bwSopsEdit(args) -> None:
 
     secretsFile, sopsFile, _ = get_sops_files(sops_file_override, secrets_file_override, team)
     env, fds, prefix, gnupghome, agePath = _setup_bw_env(item_id, keyType)
-    cmd = f"sops --config {sopsFile} {secretsFile}"
+    cmd = f"sops --config {shlex.quote(str(sopsFile))} {shlex.quote(str(secretsFile))}"
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        subprocess.run(cmd, env=env, check=True, pass_fds=fds, shell=bool(prefix))
+        subprocess.run(cmd, env=env, check=True, pass_fds=fds, shell=True)
     except subprocess.CalledProcessError as e:
         if e.returncode != 200: # 200 is sops' "no changes" exit code
             raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e
