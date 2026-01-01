@@ -4,7 +4,7 @@ from rich.console import Console
 import os
 from pathlib import Path
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import _build_op_keypath, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe
+from chaos.lib.secret_backends.utils import _build_op_keypath, decompress, extract_gpg_keys, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe
 import tempfile
 
 console = Console()
@@ -23,6 +23,7 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
         _, secKey, key_content = getAgeKeys(path)
     elif keyType == 'gpg':
         _, secKey = getGpgKeys(path)
+        secKey = decompress(secKey)
     elif keyType == 'vault':
         vault_addr, vault_token = getOpVaultKeys(path)
         r_addr = setup_pipe(vault_addr)
@@ -125,22 +126,19 @@ def getGpgKeys(path) -> tuple[str, str]:
     if not key_content:
         raise ValueError("Retrieved GPG key from 1Password is empty.")
 
-    fingerprint = ""
+    fingerprints = ""
     for line in key_content.splitlines():
-        if line.startswith("# fingerprint:"):
-            fingerprint = line.split(":", 1)[1].strip()
+        if line.startswith("# fingerprints:"):
+            fingerprints = line.split(":", 1)[1].strip()
             break
 
     if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
         raise ValueError("The secret read from 1Password does not appear to be a GPG private key block.")
 
     noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-    secKey = f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
-{noHeadersSecKey}
------END PGP PRIVATE KEY BLOCK-----
-"""
+    secKey = f"{noHeadersSecKey}"
 
-    return fingerprint, secKey
+    return fingerprints, secKey
 
 def getOpVaultKeys(path: str) -> tuple[str, str]:
     key_content = opReadKey(path)
@@ -235,7 +233,7 @@ def opSopsEdit(args) -> None:
 def opExportKeys(args):
     keyType = args.key_type
     keyPath = args.keys
-    fingerprint = args.fingerprint
+    fingerprints = args.fingerprints
     tags = args.op_tags
     save_to_config = args.save_to_config
 
@@ -278,34 +276,20 @@ def opExportKeys(args):
             console.print(f"[green]INFO:[/] Successfully exported {keyType} public key to 1Password: {pubkey}")
 
     elif keyType == 'gpg':
-        if not fingerprint:
-            raise ValueError("A GPG fingerprint is required. Please provide it with --fingerprint.")
+        if not fingerprints:
+            raise ValueError("At least one GPG fingerprint is required. Please provide it with --fingerprints.")
 
         if not checkDep("gpg"):
             raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-        try:
-            result = subprocess.run(
-                ["gpg", "--export-secret-keys", "--armor", fingerprint],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            key_content = result.stdout.strip()
-            if not key_content:
-                raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
+        key_content = extract_gpg_keys(fingerprints)
 
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to export GPG secret key: {e.stderr.strip()}") from e
-
-        key_with_comment = f"# fingerprint: {fingerprint}\n{key_content}"
-
-        if not all([key_with_comment, path, loc]):
+        if not all([key_content, path, loc]):
             raise ValueError("Missing required parameters for exporting keys to 1Password.")
 
-        _op_create_item(vault, title, loc, tags, key_with_comment)
+        _op_create_item(vault, title, loc, tags, key_content)
 
-        console.print(f"[green]INFO:[/] Successfully exported GPG key for fingerprint to 1Password: {fingerprint}")
+        console.print(f"[green]INFO:[/] Successfully exported GPG keys for to 1Password: '{', '.join(fingerprints)}'")
 
     elif keyType == 'vault':
         vaultAddr = args.vault_addr

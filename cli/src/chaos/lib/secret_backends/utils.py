@@ -11,6 +11,8 @@ from omegaconf import OmegaConf
 import subprocess
 import json
 import tempfile
+import zlib
+import base64
 
 console = Console()
 
@@ -149,15 +151,19 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
             secKey = line
     return pubKey, secKey
 
-def extract_gpg_keys(fingerprint: str) -> str:
+def extract_gpg_keys(fingerprints: list[str]) -> str:
     try:
         result = subprocess.run(
-            ["gpg", "--export-secret-keys", "--armor", fingerprint],
-            capture_output=True, text=True, check=True
+            ["gpg", "--export-secret-keys"] + fingerprints,
+            capture_output=True, check=True
         )
-        gpg_key = result.stdout.strip()
+        gpg_key: bytes = result.stdout
         if not gpg_key: raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
-        key_content = f"# fingerprint: {fingerprint}\n{gpg_key}"
+        encoded_gpg: str = compress(gpg_key)
+        key_content = f"""# fingerprints: {fingerprints}
+----- BEGIN PGP PRIVATE KEY BLOCK -----
+{encoded_gpg}
+----- END PGP PRIVATE KEY BLOCK -----"""
 
         return key_content
 
@@ -167,6 +173,22 @@ def extract_gpg_keys(fingerprint: str) -> str:
         raise RuntimeError("The 'gpg' CLI tool is not installed or not found in PATH.") from None
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
+
+def compress(data: bytes) -> str:
+    try:
+        compressed_data = zlib.compress(data, level=9)
+        encoded_data = base64.b85encode(compressed_data).decode('utf-8')
+    except Exception as e:
+        raise RuntimeError(f"Failed to compress and encode data: {e}") from e
+    return encoded_data
+
+def decompress(encoded_data: str) -> bytes:
+    try:
+        compressed_data = base64.b85decode(encoded_data.encode('utf-8'))
+        data = zlib.decompress(compressed_data)
+        return data
+    except Exception as e:
+        raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
 
 def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
