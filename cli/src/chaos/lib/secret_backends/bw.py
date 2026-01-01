@@ -59,13 +59,12 @@ def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int]
                 import_cmd,
                 input=secKey,
                 env=env,
-                text=True,
                 check=True,
                 capture_output=True
             )
         except subprocess.CalledProcessError as e:
             gnupghome.cleanup()
-            raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+            raise RuntimeError(f"Error importing GPG key: {e.stderr.decode().strip()}") from e
 
     return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
@@ -128,7 +127,7 @@ def getBwGpgKeys(item_id: str) -> tuple[str, str]:
         raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
 
     noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-    secKey = f"{noHeadersSecKey}"
+    secKey = noHeadersSecKey.strip()
 
     return fingerprints, secKey
 

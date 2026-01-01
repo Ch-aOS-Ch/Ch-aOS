@@ -161,9 +161,9 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
         if not gpg_key: raise ValueError("No output from 'gpg --export-secret-keys'. Is the fingerprint correct?")
         encoded_gpg: str = compress(gpg_key)
         key_content = f"""# fingerprints: {fingerprints}
------ BEGIN PGP PRIVATE KEY BLOCK -----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
 {encoded_gpg}
------ END PGP PRIVATE KEY BLOCK -----"""
+-----END PGP PRIVATE KEY BLOCK-----"""
 
         return key_content
 
