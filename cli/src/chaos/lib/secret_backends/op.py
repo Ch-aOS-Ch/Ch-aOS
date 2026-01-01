@@ -4,7 +4,7 @@ from rich.console import Console
 import os
 from pathlib import Path
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import _build_op_keypath, decompress, extract_gpg_keys, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe
+from chaos.lib.secret_backends.utils import _build_op_keypath, decompress, extract_gpg_keys, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe, _import_age_keys, _import_gpg_keys, _import_vault_keys
 import tempfile
 
 console = Console()
@@ -314,3 +314,40 @@ def opExportKeys(args):
             item_url=path,
             field=loc
         )
+
+def opImportKeys(args):
+    keyType = args.key_type
+    url = args.url
+    loc = args.op_location
+    if not keyType:
+        raise ValueError("Key type must be specified for import.")
+    if not url:
+        raise ValueError("Item ID must be specified for import.")
+
+    if keyType == 'age':
+        pubKey, secKey, key_content = getAgeKeys(url)
+        console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
+        console.print(f"Public Key: [bold]{pubKey}[/bold]")
+        console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+        _import_age_keys(key_content)
+
+    elif keyType == 'gpg':
+        fingerprints, secKey = getGpgKeys(url)
+        console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
+        console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+        _import_gpg_keys(secKey)
+
+    elif keyType == 'vault':
+        vault_addr, vault_token = getOpVaultKeys(url)
+        console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
+        console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+        console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+        key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+        _import_vault_keys(key_content)
+
+    else:
+        raise ValueError(f"Unsupported key type: {keyType}")

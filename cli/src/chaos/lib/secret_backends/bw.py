@@ -1,4 +1,4 @@
-from chaos.lib.secret_backends.utils import decompress, extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe, setup_gpg_keys
+from chaos.lib.secret_backends.utils import decompress, extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe, setup_gpg_keys, _import_age_keys, _import_gpg_keys, _import_vault_keys
 from chaos.lib.utils import checkDep
 import os
 import tempfile
@@ -312,3 +312,40 @@ def bwExportKeys(args):
         raise RuntimeError(f"Error creating item in Bitwarden: {e.stderr.strip()}") from e
     except (json.JSONDecodeError, KeyError) as e:
         raise RuntimeError(f"Failed to parse Bitwarden output: {e}") from e
+
+def bwImportKeys(args):
+    _check_bw_status()
+    keyType = args.key_type
+    item_id = args.item_id
+    if not keyType:
+        raise ValueError("Key type must be specified for import.")
+    if not item_id:
+        raise ValueError("Item ID must be specified for import.")
+    match keyType:
+        case 'age':
+            pubKey, secKey, key_content = getBwAgeKeys(item_id)
+            console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
+            console.print(f"Public Key: [bold]{pubKey}[/bold]")
+            console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+            _import_age_keys(key_content)
+
+        case 'gpg':
+            fingerprints, secKey = getBwGpgKeys(item_id)
+            console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
+            console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+            _import_gpg_keys(secKey)
+
+        case 'vault':
+            vault_addr, vault_token = getBwVaultKeys(item_id)
+            console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
+            console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+            console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+            key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+            _import_vault_keys(key_content)
+
+        case _:
+            raise ValueError(f"Unsupported key type: {keyType}")

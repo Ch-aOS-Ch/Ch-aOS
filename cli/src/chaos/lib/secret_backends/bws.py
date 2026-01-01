@@ -1,5 +1,6 @@
 from typing import cast
-from chaos.lib.secret_backends.utils import _check_bws_status, decompress, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, is_valid_fp, extract_age_keys, setup_vault_keys, setup_pipe, get_sops_files
+
+from chaos.lib.secret_backends.utils import _check_bws_status, decompress, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, extract_age_keys, setup_vault_keys, setup_pipe, get_sops_files, _import_gpg_keys, _import_age_keys, _import_vault_keys
 from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
 from rich.console import Console
@@ -369,3 +370,40 @@ def bwsSopsEdit(args) -> None:
                 os.remove(agePath)
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
+
+def bwsImportKeys(args) -> None:
+    _check_bws_status()
+    keyType = args.key_type
+    item_id = args.item_id
+    if not keyType:
+        raise ValueError("Key type must be specified for import.")
+    if not item_id:
+        raise ValueError("Item ID must be specified for import.")
+    match keyType:
+        case 'age':
+            pubKey, secKey, key_content = getBwsAgeKeys(item_id)
+            console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
+            console.print(f"Public Key: [bold]{pubKey}[/bold]")
+            console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+            _import_age_keys(key_content)
+
+        case 'gpg':
+            fingerprints, secKey = getBwsGpgKeys(item_id)
+            console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
+            console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+            _import_gpg_keys(secKey)
+
+        case 'vault':
+            vault_addr, vault_token = getBwsVaultKey(item_id)
+            console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
+            console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+            console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+            key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+            _import_vault_keys(key_content)
+
+        case _:
+            raise ValueError(f"Unsupported key type: {keyType}")

@@ -1,6 +1,8 @@
 import shutil
 from omegaconf import ListConfig, DictConfig
 from pathlib import Path
+
+from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.utils import checkDep
 from rich.console import Console
@@ -662,3 +664,44 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
+
+def _import_age_keys(key_content: str) -> None:
+    currentPathAgeFile = Path.cwd() / "keys.txt"
+
+    if currentPathAgeFile.exists():
+        console.print(f"[yellow]WARNING:[/] A 'keys.txt' file already exists in the current directory. It will be overwritten.")
+        confirm = Confirm.ask("Do you want to proceed?", default=False)
+
+        if not confirm:
+            console.print("Operation cancelled by user.")
+            return
+
+    with currentPathAgeFile.open('w') as f:
+        f.write(key_content)
+        if not key_content.endswith('\n'):
+            f.write('\n')
+
+def _import_gpg_keys(secKey: str) -> None:
+        decompressedKey = decompress(secKey)
+
+        try:
+            import_cmd = ['gpg', '--batch', '--import']
+            subprocess.run(
+                import_cmd,
+                input=decompressedKey,
+                check=True,
+                capture_output=True,
+            )
+            console.print(f"[green]GPG key imported into your local GPG keyring successfully.[/green]")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+
+def _import_vault_keys(key_content: str) -> None:
+    currentPathVaultFile = Path.cwd() / "vault_key.txt"
+
+    with currentPathVaultFile.open('w') as f:
+        f.write(key_content)
+
+
+
+
