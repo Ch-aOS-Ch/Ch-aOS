@@ -1,4 +1,4 @@
-from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe, setup_gpg_keys
+from chaos.lib.secret_backends.utils import decompress, extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_vault_keys, setup_pipe, setup_gpg_keys
 from chaos.lib.utils import checkDep
 import os
 import tempfile
@@ -22,6 +22,7 @@ def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int]
         _, secKey, key_content = getBwAgeKeys(item_id)
     elif keyType == 'gpg':
         _, secKey = getBwGpgKeys(item_id)
+        secKey = decompress(secKey)
     elif keyType == 'vault':
         vault_addr, vault_token = getBwVaultKeys(item_id)
         r_addr = setup_pipe(vault_addr)
@@ -117,22 +118,19 @@ def getBwGpgKeys(item_id: str) -> tuple[str, str]:
     if not key_content:
         raise ValueError("Retrieved GPG key from Bitwarden is empty.")
 
-    fingerprint = ""
+    fingerprints = ""
     for line in key_content.splitlines():
-        if line.startswith("# fingerprint:"):
-            fingerprint = line.split(":", 1)[1].strip()
+        if line.startswith("# fingerprints:"):
+            fingerprints = line.split(":", 1)[1].strip()
             break
 
     if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
         raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
 
     noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-    secKey = f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
-{noHeadersSecKey}
------END PGP PRIVATE KEY BLOCK-----
-"""
+    secKey = f"{noHeadersSecKey}"
 
-    return fingerprint, secKey
+    return fingerprints, secKey
 
 def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bw
@@ -213,7 +211,7 @@ def bwExportKeys(args):
     keyType = args.key_type
     keyPath = args.keys
     item_name = args.item_name
-    fingerprint = args.fingerprint
+    fingerprints = args.fingerprints
     tags = args.bw_tags
     save_to_config = args.save_to_config
 
@@ -245,10 +243,10 @@ def bwExportKeys(args):
         console.print(f"[green]INFO:[/] Exporting age public key: {pubkey}")
 
     elif keyType == 'gpg':
-        if not fingerprint: raise ValueError("A GPG fingerprint is required via --fingerprint.")
+        if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
         if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-        key_content = extract_gpg_keys(fingerprint)
+        key_content = extract_gpg_keys(fingerprints)
 
     elif keyType == 'vault':
         vaultAddr = args.vault_addr

@@ -1,5 +1,5 @@
 from typing import cast
-from chaos.lib.secret_backends.utils import _check_bws_status, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, is_valid_fp, extract_age_keys, setup_vault_keys, setup_pipe, get_sops_files
+from chaos.lib.secret_backends.utils import _check_bws_status, decompress, extract_gpg_keys, is_valid_age_secret_key, is_valid_age_key, is_valid_fp, extract_age_keys, setup_vault_keys, setup_pipe, get_sops_files
 from omegaconf import DictConfig, OmegaConf
 from chaos.lib.utils import checkDep
 from rich.console import Console
@@ -53,11 +53,11 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: b
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
-def exportBwsGpgKey(key: str, project_id: str, fingerprint: str, save_to_config: bool) -> None:
-    key_content = extract_gpg_keys(fingerprint)
+def exportBwsGpgKey(key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
+    key_content = extract_gpg_keys(fingerprints)
 
     cmd = ['bws', 'secret', 'create', key, key_content, project_id]
-    console.print(f"[cyan]INFO:[/] Exporting GPG key for fingerprint: {fingerprint}")
+    console.print(f"[cyan]INFO:[/] Exporting GPG key for fingerprints: {', '.join(fingerprints)}")
 
     try:
         result = subprocess.run(
@@ -113,7 +113,7 @@ def bwsExportKeys(args) -> None:
 
     keyType = args.key_type
     key = args.item_name
-    fingerprint = args.fingerprint
+    fingerprints = args.fingerprints
     save_to_config = args.save_to_config
 
     _,_, config = get_sops_files(None, None, None)
@@ -138,11 +138,10 @@ def bwsExportKeys(args) -> None:
             exportBwsAgeKey(keyPath, key, project_id, save_to_config)
 
         case 'gpg':
-            if not fingerprint: raise ValueError("A GPG fingerprint is required via --fingerprint.")
+            if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
             if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
-            if not is_valid_fp(fingerprint): raise ValueError("The provided GPG fingerprint is not valid.")
 
-            exportBwsGpgKey(key, project_id, fingerprint, save_to_config)
+            exportBwsGpgKey(key, project_id, fingerprints, save_to_config)
 
         case 'vault':
             vaultAddr = args.vault_addr
@@ -186,24 +185,21 @@ def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
         key_content = result.stdout.strip()
         key_content = OmegaConf.create(key_content)
         key_content = cast(str, cast(DictConfig, key_content).get('value'))
-        fingerprint = None
+        fingerprints = None
         for line in key_content.splitlines():
-            if line.startswith("# fingerprint:"):
-                fingerprint = line.split(":", 1)[1].strip()
+            if line.startswith("# fingerprints:"):
+                fingerprints = line.split(":", 1)[1].strip()
                 break
 
-        if not fingerprint:
+        if not fingerprints:
             raise ValueError("Could not extract GPG fingerprint from Bitwarden item.")
 
         if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
             raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
 
         noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-        secKey = f"""-----BEGIN PGP PRIVATE KEY BLOCK-----
-{noHeadersSecKey}
------END PGP PRIVATE KEY BLOCK-----
-"""
-        return fingerprint, secKey
+        secKey = f"{noHeadersSecKey}"
+        return fingerprints, secKey
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
@@ -249,6 +245,7 @@ def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int
             _, secKey, key_content = getBwsAgeKeys(item_id)
         case 'gpg':
             _, secKey = getBwsGpgKeys(item_id)
+            secKey = decompress(secKey)
         case 'vault':
             vault_addr, vault_token = getBwsVaultKey(item_id)
             r_addr = setup_pipe(vault_addr)

@@ -64,7 +64,7 @@ def argParsing():
     secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
     secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
     secBwsExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secBwsExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+    secBwsExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
     secBwsExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
 
     secBwExport = secSubExport.add_parser('bw', help="Bitwarden CLI export options")
@@ -74,7 +74,7 @@ def argParsing():
     secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
     secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
     secBwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secBwExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+    secBwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
     secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
     secBwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
 
@@ -84,7 +84,7 @@ def argParsing():
     secOpExport.add_argument('-u', '--url', help="1Password item URL where to export the key (format: op://vault/item).")
     secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
     secOpExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secOpExport.add_argument('-f', '--fingerprint', help="GPG Fingerprint to be exported (required for gpg keys).")
+    secOpExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
     secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
     secOpExport.add_argument('-g', '--tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
     secOpExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the 1Password item URL to the chaos config file.")
