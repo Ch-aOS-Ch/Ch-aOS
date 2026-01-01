@@ -61,7 +61,6 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
                 import_cmd,
                 input=secKey,
                 env=env,
-                text=True,
                 check=True,
                 capture_output=True
             )
@@ -136,7 +135,7 @@ def getGpgKeys(path) -> tuple[str, str]:
         raise ValueError("The secret read from 1Password does not appear to be a GPG private key block.")
 
     noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-    secKey = f"{noHeadersSecKey}"
+    secKey = noHeadersSecKey.strip()
 
     return fingerprints, secKey
 
