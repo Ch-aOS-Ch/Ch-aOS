@@ -88,17 +88,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     # ----- args -----
     commonArgs = (state, host, chobolo_path, skip)
-    secArgs = commonArgs + (
-        secrets_file_override,
-        sops_file_override,
-        args
-    )
 
     SEC_HAVING_ROLES=['users', 'secrets']
-    if enabledSecPlugins:
-        confirm = True if skip else Confirm.ask(f"You are about to use external plugins as Secret having plugins:\n[bold yellow]{enabledSecPlugins}[/]\nAre you sure you want to continue?", default=False)
-        if confirm:
-            SEC_HAVING_ROLES.extend(enabledSecPlugins)
 
     SEC_HAVING_ROLES = set(SEC_HAVING_ROLES)
 
@@ -118,6 +109,38 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
             normalized_tag = tag
         if normalized_tag in ROLES_DISPATCHER:
             if normalized_tag in SEC_HAVING_ROLES:
+                confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
+                if not confirm:
+                    continue
+                decrypted_secrets = ()
+                decrypt = args.secrets
+                if decrypt:
+                    from chaos.lib.secret_backends.utils import decrypt_secrets
+                    decrypted_secrets = decrypt_secrets(
+                        secrets_file_override,
+                        sops_file_override,
+                        global_config,
+                        args
+                    )
+
+                if not decrypted_secrets:
+                    confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
+                    if not confirm:
+                        continue
+
+                    from chaos.lib.secret_backends.utils import decrypt_secrets
+                    decrypted_secrets = decrypt_secrets(
+                        secrets_file_override,
+                        sops_file_override,
+                        global_config,
+                        args
+                    )
+
+                if isinstance(decrypted_secrets, str):
+                    secArgs = commonArgs + (decrypted_secrets,)
+                else:
+                    secArgs = commonArgs + decrypted_secrets
+
                 ROLES_DISPATCHER[normalized_tag](*secArgs)
             elif normalized_tag == 'packages':
                 mode = ''

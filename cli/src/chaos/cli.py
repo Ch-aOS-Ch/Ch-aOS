@@ -90,9 +90,28 @@ def main():
                         handleSecCat
                     )
                     match args.secrets_commands:
-                        #case 'export':
-                        #    from chaos.lib.secret_backends.op import opExportKeys
-                        #    opExportKeys(args)
+                        case 'export':
+                            match args.export_commands:
+                                case 'bw':
+                                    from chaos.lib.secret_backends.bw import bwExportKeys
+                                    bwExportKeys(args)
+                                case 'bws':
+                                    from chaos.lib.secret_backends.bws import bwsExportKeys
+                                    bwsExportKeys(args)
+                                case 'op':
+                                    from chaos.lib.secret_backends.op import opExportKeys
+                                    opExportKeys(args)
+                        case 'import':
+                            match args.import_commands:
+                                case 'bw':
+                                    from chaos.lib.secret_backends.bw import bwImportKeys
+                                    bwImportKeys(args)
+                                case 'bws':
+                                    from chaos.lib.secret_backends.bws import bwsImportKeys
+                                    bwsImportKeys(args)
+                                case 'op':
+                                    from chaos.lib.secret_backends.op import opImportKeys
+                                    opImportKeys(args)
                         case 'rotate-add': handleRotateAdd(args)
                         case 'rotate-rm': handleRotateRemove(args)
                         case 'list': listFp(args)
