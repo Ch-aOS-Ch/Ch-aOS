@@ -1,30 +1,13 @@
-import re
 import subprocess
-import sys
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, is_valid_fp, pgp_exists
 
 console = Console()
 
-def is_valid_fp(fp):
-    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
-        return True
-    else:
-        return False
-
-def pgp_exists(fp):
-    try:
-        subprocess.run(
-            ['gpg', '--list-keys', fp],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
+"""
+GPG specific handlers for add/rem/list
+"""
 
 def listPgp(sops_file_override):
     try:
@@ -46,8 +29,7 @@ def listPgp(sops_file_override):
         return all_pgp_keys_in_config
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 def handlePgpAdd(args, sops_file_override, keys):
     server = args.pgp_server
@@ -79,7 +61,6 @@ def handlePgpAdd(args, sops_file_override, keys):
         valids.add(clean_key)
     _generic_handle_add('pgp', args, sops_file_override, valids)
 
-
 def handlePgpRem(args, sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
@@ -108,5 +89,4 @@ def handlePgpRem(args, sops_file_override, keys):
         _generic_handle_rem('pgp', args, sops_file_override, keys_to_remove)
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e

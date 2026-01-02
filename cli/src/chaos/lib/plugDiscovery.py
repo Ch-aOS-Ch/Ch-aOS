@@ -5,6 +5,11 @@ from importlib.metadata import entry_points
 from importlib import import_module
 from pathlib import Path
 
+"""
+Module for discovering and loading Ch-aOS plugins.
+"""
+
+"This helps with CHAOS_DEV_PATH for plugin development"
 pluginDevPath = os.getenv('CHAOS_DEV_PATH', None)
 if pluginDevPath:
     absPath = os.path.abspath(pluginDevPath)
@@ -13,6 +18,18 @@ if pluginDevPath:
     else:
         print(f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr)
 
+
+"""
+Discover and load Ch-aOS plugins from specified directories and cache the results.
+
+Helps with performance through caching discovered plugins.
+
+Current Plugin Capabilities:
+Roles: Define new chaos roles for applying and managing an OS.
+Aliases: Define new aliases for existing roles.
+Keys: Define new keys for existing roles, allowing for better `chaos init chobolo`.
+Explanations: Define explanations for existing roles, enhancing user understanding.
+"""
 def get_plugins(update_cache=False):
     plugin_dirs = [
         Path.home() / ".local/share/chaos/plugins",
@@ -29,7 +46,7 @@ def get_plugins(update_cache=False):
                 whl_path = str(whl.resolve())
 
                 if whl_path not in sys.path:
-                    sys.path.insert(0, whl_path) 
+                    sys.path.insert(0, whl_path)
 
             except Exception as e:
                 print(f"Warning: Could not load plugin wheel '{whl}': {e}", file=sys.stderr)
@@ -82,6 +99,9 @@ def get_plugins(update_cache=False):
 
     return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys
 
+"""
+Load role functions based on their specifications.
+"""
 def load_roles(roles_spec):
     loaded_roles = {}
     for name, spec in roles_spec.items():
@@ -93,6 +113,7 @@ def load_roles(roles_spec):
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
 
+"""Load a key based on its specification."""
 def loadList(spec):
     try:
         moduleName, obj = spec.split(':', 1)

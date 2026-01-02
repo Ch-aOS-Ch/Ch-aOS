@@ -2,27 +2,35 @@ from io import StringIO
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import get_sops_files
+from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
 import os
-import sys
 import math
 import subprocess
 
 console = Console()
 
+"""
+Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 
+Better than ansible vault, like a bowss (jk).
+"""
+
+"""
+Adds a new key to the sops config file and (if -u), updates all secrets.
+
+Check secret_backends/utils.py for shared functions + their docs.
+"""
 def handleRotateAdd(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
     if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
-        sys.exit(1)
+        raise FileNotFoundError("No sops config file found.")
 
     match args.type:
         case 'pgp':
@@ -35,8 +43,7 @@ def handleRotateAdd(args):
             from chaos.lib.secret_backends.vault import handleVaultAdd
             handleVaultAdd(args, sops_file_override, keys)
         case _:
-            console.print("No available type passed. Exiting.")
-            return
+            raise ValueError("No available type passed.")
     ikwid = args.i_know_what_im_doing
 
     confirm = True if ikwid else False
@@ -44,18 +51,18 @@ def handleRotateAdd(args):
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
+"""Removes a key from the sops config file and (if -u), updates all secrets."""
 def handleRotateRemove(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     keys = args.keys
 
     if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
-        sys.exit(1)
+        raise FileNotFoundError("No sops config file found.")
 
     ikwid = args.i_know_what_im_doing
     match args.type:
@@ -69,13 +76,13 @@ def handleRotateRemove(args):
             from chaos.lib.secret_backends.vault import handleVaultRem
             handleVaultRem(args, sops_file_override, keys)
         case _:
-            console.print("No available type passed. Exiting.")
-            return
+            raise ValueError("No available type passed.")
     confirm = True if ikwid else False
     if confirm:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
+"""Lists all keys of a certain type from the sops config file."""
 def listFp(args):
     from rich.panel import Panel
     from itertools import zip_longest
@@ -85,11 +92,10 @@ def listFp(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
-        sys.exit(1)
+        raise FileNotFoundError("No sops config file found.")
 
     match args.type:
         case 'pgp':
@@ -102,8 +108,7 @@ def listFp(args):
             from chaos.lib.secret_backends.vault import listVault
             results = listVault(sops_file_override)
         case _:
-            console.print("No available type passed. Exiting.")
-            return
+            raise ValueError("No available type passed.")
 
     if results != None:
         items = sorted(results)
@@ -139,20 +144,19 @@ def listFp(args):
 
             console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
 
+"""Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    _, sops_file_override = get_sops_files(sops_file_override, secrets_file_override, team)
+    _, sops_file_override, _ = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if not sops_file_override:
-        console.print("[bold red]ERROR:[/] No sops config file found. Exiting")
-        sys.exit(1)
+        raise FileNotFoundError("No sops config file found.")
 
     if not os.path.exists(sops_file_override):
-        console.print(f"[bold red]ERROR:[/] Sops config file does not exist at path: {sops_file_override}")
-        sys.exit(1)
+        raise FileNotFoundError(f"Sops config file does not exist at path: {sops_file_override}")
 
     threshold: int = args.share
     rule_index: int = args.index
@@ -163,12 +167,10 @@ def handleSetShamir(args):
         creation_rules = config_data.get('creation_rules')
 
         if not creation_rules:
-            console.print(f"[bold red]ERROR:[/] No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold.")
-            sys.exit(1)
+            raise ValueError(f"No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold.")
 
         if not (0 <= rule_index < len(creation_rules)):
-            console.print(f"[bold red]ERROR:[/] Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
-            sys.exit(1)
+            raise ValueError(f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}.")
 
         rule = creation_rules[rule_index]
         key_groups = rule.get('key_groups', [])
@@ -194,12 +196,10 @@ def handleSetShamir(args):
             return
 
         if num_key_groups < 2:
-            console.print(f"[bold red]ERROR:[/] Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined.")
-            sys.exit(1)
+            raise ValueError(f"Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined.")
 
         if not (1 <= threshold <= num_key_groups):
-            console.print(f"[bold red]ERROR:[/] Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups}).")
-            sys.exit(1)
+            raise ValueError(f"Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups}).")
 
         rule['shamir_threshold'] = threshold
 
@@ -213,104 +213,179 @@ def handleSetShamir(args):
             handleUpdateAllSecrets(args)
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
+"""Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
     team = args.team
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
-    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+    secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    args = _handle_provider_arg(args, global_config)
+
+    bw, bw_keyType = (None, None)
+    bws, bws_keyType = (None, None)
+    op, op_keyType = (None, None)
+
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        bw, bw_keyType = args.from_bw
+    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        bws, bws_keyType = args.from_bws
+    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        op, op_keyType = args.from_op
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            console.print(message)
-            sys.exit(1)
+            raise PermissionError(message)
 
     if not secretsFile or not sopsFile:
-        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("SOPS check requires both secrets file and sops config file paths.\n"
+                            "       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'.")
 
     try:
         isSops = args.sops
         if isSops:
             editor = os.getenv('EDITOR', 'nano')
             subprocess.run([editor, sopsFile], check=True)
+        elif bws and bws_keyType:
+            from chaos.lib.secret_backends.bws import bwsSopsEdit
+            bwsSopsEdit(args)
+        elif bw and bw_keyType:
+            from chaos.lib.secret_backends.bw import bwSopsEdit
+            bwSopsEdit(args)
+        elif op and op_keyType:
+            from chaos.lib.secret_backends.op import opSopsEdit
+            opSopsEdit(args)
         else:
             subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
-    except subprocess.CalledProcessError as e:
-        if e.returncode == 200:
-            print("File has not changed, exiting.")
-            sys.exit(0)
-        else:
-            print(f"ERROR: SOPS editing failed with exit code {e.returncode}.", file=sys.stderr)
-            sys.exit(1)
-    except FileNotFoundError:
-        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
-        sys.exit(1)
 
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 200: # sops exit code for no changes
+            console.print("File has not changed, exiting.")
+            return
+        else:
+            raise RuntimeError(f"SOPS editing failed with exit code {e.returncode}.") from e
+    except FileNotFoundError as e:
+        raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
+
+"""Prints the decrypted secrets file to stdout."""
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
-    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+    secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    args = _handle_provider_arg(args, global_config)
+
+    bw, bw_keyType = (None, None)
+    bws, bws_keyType = (None, None)
+    op, op_keyType = (None, None)
+
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        bw, bw_keyType = args.from_bw
+    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        bws, bws_keyType = args.from_bws
+    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        op, op_keyType = args.from_op
 
     if not isSops:
         if not secretsFile:
-            print("ERROR: SOPS check requires a secrets file path.", file=sys.stderr)
-            print("       Configure one using 'chaos set secrets', or pass it with '-sf'.", file=sys.stderr)
-            sys.exit(1)
+            raise FileNotFoundError("SOPS check requires a secrets file path.\n"
+                                "       Configure one using 'chaos set secrets', or pass it with '-sf'.")
     if not sopsFile:
-        print("ERROR: SOPS check requires a sops config file path.", file=sys.stderr)
-        print("       Configure one using 'chaos set sops', or pass it with '-ss'.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("SOPS check requires a sops config file path.\n"
+                            "       Configure one using 'chaos set sops', or pass it with '-ss'.")
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            console.print(message)
-            sys.exit(1)
+            raise PermissionError(message)
 
     try:
         if isSops:
             subprocess.run(['cat', sopsFile], check=True)
+        elif bws and bws_keyType:
+            from chaos.lib.secret_backends.bws import bwsSopsDec
+            sopsDecryptResult = bwsSopsDec(args)
+            print(sopsDecryptResult.stdout)
+        elif bw and bw_keyType:
+            from chaos.lib.secret_backends.bw import bwSopsDec
+            sopsDecryptResult = bwSopsDec(args)
+            print(sopsDecryptResult.stdout)
+        elif op and op_keyType:
+            from chaos.lib.secret_backends.op import opSopsDec
+            sopsDecryptResult = opSopsDec(args)
+            print(sopsDecryptResult.stdout)
         else:
-            subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+            # if op and keyPath:
+            #     from chaos.lib.secret_backends.op import opSopsDec
+            #     sopsDecryptResult = opSopsDec(args)
+            #     print(sopsDecryptResult.stdout)
+            # else:
+                subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
     except subprocess.CalledProcessError as e:
-        print("ERROR: SOPS decryption failed.")
-        print("Details:", e.stderr.decode() if e.stderr else "No output.")
-        sys.exit(1)
-    except FileNotFoundError:
-        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
-        sys.exit(1)
+        details = e.stderr.decode() if e.stderr else "No output."
+        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
+    except FileNotFoundError as e:
+        raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
+"""Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
     team = args.team
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     keys = args.keys
     secrets_file_override = args.secrets_file_override
-    secretsFile, sopsFile = get_sops_files(sops_file_override, secrets_file_override, team)
+    secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    args = _handle_provider_arg(args, global_config)
+
+    bw, bw_keyType = (None, None)
+    bws, bws_keyType = (None, None)
+    op, op_keyType = (None, None)
+
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        bw, bw_keyType = args.from_bw
+    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        bws, bws_keyType = args.from_bws
+    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        op, op_keyType = args.from_op
 
     if not secretsFile or not sopsFile:
-        print("ERROR: SOPS check requires both secrets file and sops config file paths.", file=sys.stderr)
-        print("       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("SOPS check requires both secrets file and sops config file paths.\n"
+                            "       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.")
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            console.print(message)
-            sys.exit(1)
+            raise PermissionError(message)
 
     try:
         isSops = args.sops
+        sopsDecryptResult = None
         if not isSops:
-            sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+            if bws and bws_keyType:
+                from chaos.lib.secret_backends.bws import bwsSopsDec
+                sopsDecryptResult = bwsSopsDec(args)
+            elif bw and bw_keyType:
+                from chaos.lib.secret_backends.bw import bwSopsDec
+                sopsDecryptResult = bwSopsDec(args)
+            elif op and op_keyType:
+                from chaos.lib.secret_backends.op import opSopsDec
+                sopsDecryptResult = opSopsDec(args)
+            else:
+                sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
         else:
             sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True)
+
+        if sopsDecryptResult is None:
+            raise RuntimeError("SOPS decryption result is None. This should not happen.")
+
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
         isJson = args.json
         for key in keys:
@@ -329,9 +404,7 @@ def handleSecCat(args):
                 output_value = str(value)
                 print(f"{key}: {output_value}")
     except subprocess.CalledProcessError as e:
-        print("ERROR: SOPS decryption failed.")
-        print("Details:", e.stderr if e.stderr else "No output.")
-        sys.exit(1)
-    except FileNotFoundError:
-        print("ERROR: 'sops' command not found. Please ensure sops is installed and in your PATH.", file=sys.stderr)
-        sys.exit(1)
+        details = e.stderr if e.stderr else "No output."
+        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
+    except FileNotFoundError as e:
+        raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e

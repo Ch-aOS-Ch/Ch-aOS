@@ -1,26 +1,23 @@
 from omegaconf import OmegaConf as oc
 from chaos.lib.plugDiscovery import loadList
+from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
-
-import shutil
 import yaml
 import time
 import subprocess
 import tempfile
-import sys
 import os
 
 console = Console()
 
-def checkDep(bin):
-    path = shutil.which(bin)
-    if path is None:
-        return False
-    return True
+"""
+Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
+"""
 
+"Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
 def initChobolo(keys):
     finalConf = oc.create()
     addedKeys = set()
@@ -49,18 +46,21 @@ def initChobolo(keys):
 
 # -------------- SECRET INITING -------------
 
+"""
+Setup age keys using ssh-to-age conversion.
+
+Deps: ssh-to-age
+"""
 def setupSshToAge():
     if not checkDep('ssh-to-age'):
-        console.print("[bold red]ERROR:[/] ssh-to-age is not installed. Please install it to use this feature.")
-        sys.exit(1)
+        raise EnvironmentError("ssh-to-age is not installed. Please install it to use this feature.")
 
     console.print("[cyan]Info:[/] Looking for SSH public keys in ~/.ssh")
     ssh_dir = Path(os.path.expanduser("~/.ssh"))
     public_keys = list(ssh_dir.glob("*.pub"))
 
     if not public_keys:
-        console.print("[bold red]ERROR:[/] No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
-        sys.exit(1)
+        raise FileNotFoundError("No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
 
     key_choices = [str(k) for k in public_keys]
     selected_key_path = Prompt.ask("Choose an SSH public key to use", choices=key_choices, default=key_choices[0])
@@ -77,16 +77,19 @@ def setupSshToAge():
         console.print("[bold green]Success![/] Derived age public key from your SSH key.")
         return "age", pubkey
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]ERROR:[/] Failed to convert SSH key to age key: {e.stderr.strip()}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to convert SSH key to age key: {e.stderr.strip()}") from e
 
+"""
+Setup Age keys for Sops encryption.
+
+deps: age-keygen
+"""
 def setupAge():
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
 
     if not checkDep('age-keygen'):
-        console.print(f"[bold red]ERROR:[/] age-keygen not installed, please install it to use sops+age.")
-        sys.exit(1)
+        raise EnvironmentError("age-keygen not installed, please install it to use sops+age.")
 
     method_choices = ['generate']
     if checkDep('ssh-to-age'):
@@ -107,10 +110,9 @@ def setupAge():
             console.print("[cyan]Info:[/] Moving this key to a backup and creating a new age file.")
             timestamp = int(time.time())
             try:
-                subprocess.run(["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"])
+                subprocess.run(["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"], check=True)
             except subprocess.CalledProcessError as e:
-                console.print(f"[bold red]ERROR:[/] Could not backup existing key: {e}")
-                sys.exit(1)
+                raise RuntimeError(f"Could not backup existing key: {e}") from e
             try:
                 with open(ageFile, 'w') as f:
                     subprocess.run(['age-keygen'], stdout=f, check=True)
@@ -118,15 +120,13 @@ def setupAge():
                 pubkey = proc.stdout.strip()
                 console.print(f"[bold green]Success![/] generated new age key!")
             except subprocess.CalledProcessError as e:
-                console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-                sys.exit(1)
+                raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
         try:
             proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
             pubkey = proc.stdout.strip()
         except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-            sys.exit(1)
+            raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
     else:
         console.print("[cyan]Info:[/] No key found, generating a new one.")
@@ -139,11 +139,17 @@ def setupAge():
             pubkey = proc.stdout.strip()
             console.print(f"[bold green]Success![/] generated new age key!")
         except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] failed to generate new age key: {e}")
-            sys.exit(1)
+            raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
     return "age", pubkey
 
+"""
+Generate GPG key in batch mode using provided name and email.
+
+Uses the best practices for key generation with EdDSA and Curve25519.
+
+deps: gpg
+"""
 def genBatchGpg(name, email):
     batch = f"""
 Key-Type: EdDSA
@@ -173,48 +179,45 @@ Expire-Date: 0
                 break
 
         if not fingerprint:
-            raise Exception("Key generation finished, but fingerprint not found.")
+            raise RuntimeError("Key generation finished, but fingerprint not found.")
 
         return fingerprint
 
     except subprocess.CalledProcessError as e:
-        console.print("[bold red]ERROR:[/] GPG generation failed or was cancelled.")
-        sys.exit(1)
+        raise RuntimeError("GPG generation failed or was cancelled.") from e
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] {e}")
-        sys.exit(1)
+        raise e
     finally:
         if os.path.exists(tmpPath):
             os.unlink(tmpPath)
 
+"""
+Lists all existing GPG secret keys and prompts user to select one by fingerprint.
+"""
 def genGpgManual():
     try:
-        proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True)
+        proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True, check=True)
         output = proc.stdout
 
-    except subprocess.CalledProcessError:
-        console.print("[bold red]ERROR:[/] Failed to list GPG keys.")
-        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Failed to list GPG keys.") from e
 
     if "sec" not in output:
-        console.print("[bold yellow]No GPG secret keys found.[/]")
-        console.print("Please generate a GPG key manually using [bold]gpg --full-generate-key[/] or use [bold]age[/].")
-        sys.exit(1)
+        raise ValueError("No GPG secret keys found. Please generate a GPG key manually using 'gpg --full-generate-key' or use 'age'.")
 
     console.print(Panel(output, title="Available GPG Keys", border_style="cyan"))
     fingerprint = Prompt.ask("Enter the [bold]Fingerprint[/] (long hex string) of the key you want to use")
     fingerprint = fingerprint.replace(" ", "")
 
     if len(fingerprint) < 40:
-        console.print("[bold red]ERROR:[/] Invalid fingerprint length.")
-        sys.exit(1)
+        raise ValueError("Invalid fingerprint length.")
 
     return "pgp", fingerprint
 
+"Setup GPG keys for Sops encryption."
 def setupGpg():
     if not checkDep('gpg'):
-        console.print("[bold red]ERROR:[/] Could not find gpg binary, please install gnupg and try again.")
-        sys.exit(1)
+        raise EnvironmentError("Could not find gpg binary, please install gnupg and try again.")
 
     console.print("[bold yellow]WARNING:[/] ALL your secrets are tied to your ~/.gnupg folder. DO NOT lose it or commit it, or you'll lose your secrets forever.")
     proc = subprocess.run(['gpg', '--list-secret-keys', '--with-colons'], capture_output=True, text=True)
@@ -234,20 +237,18 @@ def setupGpg():
 
         return "pgp", fingerprint
     else:
-        console.print("[cyan]Please, create a key manually then try again.[/]")
-        sys.exit(1)
+        raise RuntimeError("Operation cancelled by user.")
 
+"Main Entry point for initializing secrets management with SOPS."
 def initSecrets():
     if not checkDep('sops'):
-        console.print("[bold red]CRITICAL:[/] sops is not installed. It is required for this software.")
-        sys.exit(1)
+        raise EnvironmentError("sops is not installed. It is required for this software.")
 
     hasAge = checkDep('age-keygen')
     hasGpg = checkDep('gpg')
 
     if not hasAge and not hasGpg:
-        console.print("[bold red]CRITICAL:[/] Neither gpg nor age installed, both are needed for secure secret handling.")
-        sys.exit(1)
+        raise EnvironmentError("Neither gpg nor age installed, both are needed for secure secret handling.")
 
     choices = []
     if hasAge:
@@ -275,7 +276,7 @@ def initSecrets():
     if sops_file.exists():
         if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
             console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
-            sys.exit(0)
+            return
 
     sops_content = {
         "creation_rules": [
@@ -283,7 +284,7 @@ def initSecrets():
                 "path_regex": "(.*)?secrets.*\\.yml$",
                 "key_groups" : [
                     {
-                        key: keyValue
+                        key: [keyValue]
                     }
                 ]
             },
@@ -291,7 +292,7 @@ def initSecrets():
                 "path_regex": ".*\\.local/share/chaos/ramblings/.*\\.yml$",
                 "key_groups" : [
                     {
-                        key: keyValue
+                        key: [keyValue]
                     }
                 ]
             },
@@ -332,227 +333,7 @@ def initSecrets():
         oc.save(conf, global_conf_path)
         console.print(f"[cyan]Info:[/] Updated global chaos config 'sops_file' path.")
 
-
     except subprocess.CalledProcessError as e:
-        console.print(f"Could not encrypt file {sec_file}: {e}")
+        raise RuntimeError(f"Could not encrypt file {sec_file}: {e}") from e
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
-        console.print("[dim]Hint: Check if your GPG key is imported or if age keys are correct.[/]")
-        sys.exit(1)
-
-# ------------- team-secret initing --------------
-
-def initTeam(args):
-    hasAge = checkDep('age-keygen')
-    hasSops = checkDep('sops')
-    hasPgp = checkDep('gpg')
-    hasVault = checkDep('vault')
-
-    if not hasSops:
-        console.print("[bold red]CRITICAL:[/] sops is not installed. It is required for this software.")
-        sys.exit(1)
-
-    if not hasVault:
-        console.print("[bold red]CRITICAL:[/] vault is not installed. It is required for this functionality.")
-        sys.exit(1)
-
-    if not (hasAge or hasPgp):
-        console.print("[bold red]CRITICAL:[/] Neither gpg nor age are installed. At least one is required for this functionality.")
-        sys.exit(1)
-
-    choices = []
-
-    if hasAge:
-        choices.append('age')
-    if hasPgp:
-        choices.append('gpg')
-    if hasPgp and hasAge:
-        choices.append('both')
-
-    batch = args.target
-
-    if not '.' in batch:
-        Console().print("[bold red]ERROR:[/] Must set a company for your team. (company.team.group)")
-        sys.exit(1)
-
-    parts = batch.split('.')
-    company = parts[0]
-    team = parts[1]
-    person = parts[2] if len(parts) == 3 else None
-
-    if not team or not company:
-        console.print("[bold red]ERROR:[/] Must pass both team and company.")
-        sys.exit(1)
-
-    if person:
-        if ".." in person or person.startswith("/"):
-            console.print(f"[bold red]ERROR:[/] Invalid group name '{person}'.")
-            sys.exit(1)
-
-    if ".." in company or company.startswith("/"):
-         console.print(f"[bold red]ERROR:[/] Invalid company name '{company}'.")
-         sys.exit(1)
-
-    if ".." in team or team.startswith("/"):
-         console.print(f"[bold red]ERROR:[/] Invalid team name '{team}'.")
-         sys.exit(1)
-
-
-    teamDir = Path(os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team}"))
-    teamDir.mkdir(parents=True, exist_ok=True)
-
-    rambleTeamDir = teamDir / f"ramblings/{person}" if person else teamDir / "ramblings"
-    rambleTeamDir.mkdir(parents=True, exist_ok=True)
-
-    secretsTeamDir = teamDir / "secrets"
-    devSecs = secretsTeamDir / "dev"
-    devSecs.mkdir(parents=True, exist_ok=True)
-    prodSecs = secretsTeamDir / "prod"
-    prodSecs.mkdir(parents=True, exist_ok=True)
-
-    sops_file = teamDir / "sops-config.yml"
-
-    if sops_file.exists():
-        if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
-            console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
-            sys.exit(0)
-
-    default="age" if hasAge else "gpg"
-    console.print(Panel("Chaos uses [bold]SOPS[/] for encryption.\nYou need to choose a backend engine to handle the keys.", title="Secrets Initialization", border_style="green"))
-    engine = Prompt.ask("Choose encryption engine", choices=choices, default=default)
-
-    sopsContent = {}
-    match engine:
-        case "age":
-            rules = [
-                {
-                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups": [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                },
-                {
-                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 4,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
-                        { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                }
-            ]
-            if person:
-                rules.append({
-                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                })
-            sopsContent = {"creation_rules": rules}
-
-        case "gpg":
-            rules = [
-                {
-                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups": [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
-                    ]
-                },
-                {
-                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 4,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
-                        { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
-                    ]
-                }
-            ]
-            if person:
-                rules.append({
-                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] }
-                    ]
-                })
-            sopsContent = {"creation_rules": rules}
-
-        case "both":
-            rules = [
-                {
-                    "path_regex": "(.*)?secrets/dev/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups": [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "pgp": [ "YOUR-TEAM-UNIFIED-PGP-KEYS" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
-                        { "age": [ "YOUR-TEAM-UNIFIED-AGE-KEYS" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                },
-                {
-                    "path_regex": "(.*)?secrets/prod/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 4,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-SECURITY-TEAM-URI-INSTANCE" ] },
-                        { "hc_vault": [ "VAULT-COMPLIANCE-TEAM-URI-INSTANCE" ] },
-                        { "pgp": [ "EACH-OF-YOUR-TEAM-MEMBERS-PGP-KEYS" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
-                        { "age": [ "EACH-OF-YOUR-TEAM-MEMBERS-AGE-KEYS" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                }
-            ]
-            if person:
-                rules.append({
-                    "path_regex": f".*ramblings/{person}/.*\\.(ya?ml|json|env)",
-                    "shamir_threshold": 3,
-                    "key_groups" : [
-                        { "hc_vault": [ "VAULT-TEAM-URI-INSTANCE." ] },
-                        { "hc_vault": [ "VAULT-COMPANY-URI-INSTANCE" ] },
-                        { "pgp": [ f"YOUR-TEAM-MEMBER-PGP-KEY" ] },
-                        { "pgp": [ "BACKUP-PGP-KEYS" ] },
-                        { "age": [ f"YOUR-TEAM-MEMBER-AGE-KEY" ] },
-                        { "age": [ "BACKUP-AGE-KEYS" ] }
-                    ]
-                })
-            sopsContent = {"creation_rules": rules}
-        case _:
-            console.print("Unsuported. Exiting.")
-            sys.exit(1)
-
-    try:
-        with open(sops_file, 'w') as f:
-            yaml.dump(sopsContent, f, default_flow_style=False)
-
-        console.print(f"[bold green]Success![/] SOPS configuration generated at: [dim]{sops_file}[/]")
-
-    except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to write config file: {e}")
-        sys.exit(1)
-
+        raise RuntimeError(f"Failed to write config file: {e}\nHint: Check if your GPG key is imported or if age keys are correct.") from e

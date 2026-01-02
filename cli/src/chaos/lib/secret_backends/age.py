@@ -1,13 +1,12 @@
-import re
-import sys
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, is_valid_age_key
 
 console = Console()
 
-def is_valid_age_key(key):
-    return re.fullmatch(r"age1[a-z0-9]{58}", key)
+"""
+AGE specific handlers for add/rem/list
+"""
 
 def listAge(sops_file_override):
     try:
@@ -29,8 +28,7 @@ def listAge(sops_file_override):
         return all_age_keys_in_config
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 def handleAgeAdd(args, sops_file_override, keys):
     valids = set()
@@ -72,5 +70,4 @@ def handleAgeRem(args, sops_file_override, keys):
         _generic_handle_rem('age', args, sops_file_override, keys_to_remove)
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e

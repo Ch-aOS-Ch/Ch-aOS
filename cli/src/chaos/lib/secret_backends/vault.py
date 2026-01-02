@@ -1,28 +1,12 @@
-import sys
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, _is_valid_vault_key
 
 console = Console()
 
-def is_valid_vault_key(key):
-    import hvac
-    import requests.exceptions
-    try:
-        client = hvac.Client(url=key)
-        seal_status = client.sys.read_seal_status()
-        if not seal_status:
-            return False, f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable."
-        if 'sealed' in seal_status['data']:
-            return True, f"Valid vault URI. Server status: {seal_status['data']['sealed']}."
-        else:
-            return False, f"Vault URI '{key}' is a reachable endpoint, but status check failed or returned unexpected data."
-    except requests.exceptions.MissingSchema:
-        return False, f"Vault URI '{key}' is an invalid URL format. Missing schema (e.g., 'https://')."
-    except requests.exceptions.ConnectionError:
-        return False, f"Vault URI '{key}' is a valid URL format but unreachable. Check network connectivity or if the Vault server is running."
-    except Exception as e:
-        return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
+"""
+Vault specific handlers for add/rem/list
+"""
 
 def listVault(sops_file_override):
     try:
@@ -44,21 +28,20 @@ def listVault(sops_file_override):
         return all_vault_keys_in_config
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 def handleVaultAdd(args, sops_file_override, keys):
     valids = set()
     for key in keys:
         clean_key = key.strip()
-        is_valid, message = is_valid_vault_key(clean_key)
+        is_valid, message = _is_valid_vault_key(clean_key)
         if is_valid:
             console.print(f"[green]INFO:[/] {message}")
             valids.add(clean_key)
         else:
             console.print(f"[bold red]ERROR:[/] {message} Skipping key '{key}'.")
             continue
-    
+
     _generic_handle_add('vault', args, sops_file_override, valids)
 
 def handleVaultRem(args, sops_file_override, keys):
@@ -87,5 +70,4 @@ def handleVaultRem(args, sops_file_override, keys):
         _generic_handle_rem('vault', args, sops_file_override, keys_to_remove)
 
     except Exception as e:
-        console.print(f"[bold red]ERROR:[/] Failed to update sops config file: {e}")
-        sys.exit(1)
+        raise RuntimeError(f"Failed to update sops config file: {e}") from e
