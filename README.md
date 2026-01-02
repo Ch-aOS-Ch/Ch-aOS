@@ -9,6 +9,7 @@
 ## How does it work?
 
 - The chaos CLI uses Python, Pyinfra and OmegaConf as it's main engine, allowing for a declarative paradigm approach in a simpler way.
+- It also uses sops as its main encryption engine, orchestrating multiple of sops' commands and configurations in order to provide a safe environment.
 - It allows for modularity through plugins, meaning that you can extend it's functionality by adding new plugins to it, either made by me or by the community.
 - My plugins include: Ch-aronte (an Arch Linux core), chaos-dots (a dotfile manager), and chaos-secrets, a secrets templater that uses jinja2 for sops.
 
