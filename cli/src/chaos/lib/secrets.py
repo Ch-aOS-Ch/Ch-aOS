@@ -218,6 +218,7 @@ def handleSetShamir(args):
 """Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
     team = args.team
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
@@ -274,6 +275,7 @@ def handleSecEdit(args):
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
@@ -320,7 +322,12 @@ def handleSecPrint(args):
             sopsDecryptResult = opSopsDec(args)
             print(sopsDecryptResult.stdout)
         else:
-            subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+            # if op and keyPath:
+            #     from chaos.lib.secret_backends.op import opSopsDec
+            #     sopsDecryptResult = opSopsDec(args)
+            #     print(sopsDecryptResult.stdout)
+            # else:
+                subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
@@ -330,6 +337,7 @@ def handleSecPrint(args):
 """Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
     team = args.team
+    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     keys = args.keys
     secrets_file_override = args.secrets_file_override
