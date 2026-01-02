@@ -4,11 +4,18 @@ from rich.console import Console
 import os
 from pathlib import Path
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import _build_op_keypath, decompress, extract_gpg_keys, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe
+from chaos.lib.secret_backends.utils import _build_op_keypath, decompress, extract_gpg_keys, get_sops_files, _reg_match_op_keypath, _op_get_item, _op_create_item, setup_vault_keys, setup_pipe, _import_age_keys, _import_gpg_keys, _import_vault_keys
 import tempfile
 
 console = Console()
 
+"""1Password secret backend for Chaos. HEAVILY inspired by https://github.com/natrontech/sops-age-op"""
+
+"""
+Creates the temporary environment for 1Password keys based on the provided item ID and key type.
+
+Allows for ephemeral setup of age, gpg, or vault keys retrieved from 1Password.
+"""
 def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     path = url
     env = os.environ.copy()
@@ -70,6 +77,7 @@ def _setup_op_env(url: str, keyType: str) -> tuple[dict[str, str], list[int], st
 
     return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
+"""Reads the secret key content from a 1Password item by its URL + path."""
 def opReadKey(path: str, loc: str | None = None) -> str:
     if not checkDep("op"):
         raise EnvironmentError("The 'op' CLI tool is required but not found in PATH.")
@@ -95,6 +103,7 @@ def opReadKey(path: str, loc: str | None = None) -> str:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error reading secret from 1Password: {e.stderr.strip()}") from e
 
+"""Extracts age keys from a 1Password item."""
 def getAgeKeys(path) -> tuple[str, str, str]:
     key_content = opReadKey(path)
 
@@ -119,6 +128,7 @@ def getAgeKeys(path) -> tuple[str, str, str]:
 
     return pubKey, secKey, key_content
 
+"""Extracts GPG keys from a 1Password item."""
 def getGpgKeys(path) -> tuple[str, str]:
     key_content = opReadKey(path)
 
@@ -139,6 +149,7 @@ def getGpgKeys(path) -> tuple[str, str]:
 
     return fingerprints, secKey
 
+"""Extracts Vault keys from a 1Password item."""
 def getOpVaultKeys(path: str) -> tuple[str, str]:
     key_content = opReadKey(path)
 
@@ -154,6 +165,7 @@ def getOpVaultKeys(path: str) -> tuple[str, str]:
 
     return vault_addr, vault_token
 
+"""Decrypts a sops-encrypted file using keys retrieved from 1Password."""
 def opSopsDec(args) -> subprocess.CompletedProcess[str]:
     url, keyType = args.from_op
     team = args.team
@@ -194,6 +206,7 @@ def opSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     return result
 
+"""Opens a sops-encrypted file for editing using keys retrieved from 1Password."""
 def opSopsEdit(args) -> None:
     url, keyType = args.from_op
     secrets_file_override = args.secrets_file_override
@@ -229,6 +242,7 @@ def opSopsEdit(args) -> None:
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
 
+"""Exports keys to a 1Password item."""
 def opExportKeys(args):
     keyType = args.key_type
     keyPath = args.keys
@@ -314,3 +328,41 @@ def opExportKeys(args):
             item_url=path,
             field=loc
         )
+
+"""Imports keys from a 1Password item."""
+def opImportKeys(args):
+    keyType = args.key_type
+    url = args.url
+    loc = args.op_location
+    if not keyType:
+        raise ValueError("Key type must be specified for import.")
+    if not url:
+        raise ValueError("Item ID must be specified for import.")
+
+    if keyType == 'age':
+        pubKey, secKey, key_content = getAgeKeys(url)
+        console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
+        console.print(f"Public Key: [bold]{pubKey}[/bold]")
+        console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+        _import_age_keys(key_content)
+
+    elif keyType == 'gpg':
+        fingerprints, secKey = getGpgKeys(url)
+        console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
+        console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+        _import_gpg_keys(secKey)
+
+    elif keyType == 'vault':
+        vault_addr, vault_token = getOpVaultKeys(url)
+        console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
+        console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+        console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+        key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+        _import_vault_keys(key_content)
+
+    else:
+        raise ValueError(f"Unsupported key type: {keyType}")

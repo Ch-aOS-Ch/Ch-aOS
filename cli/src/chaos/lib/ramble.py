@@ -13,11 +13,21 @@ import math
 import shutil
 import tempfile
 import os
-import sys
 import argparse
 
 console = Console()
 
+"""
+Module for managing ramble journals and pages.
+
+Yeah, it's like a personal wiki or knowledge base, weird for a DevOps tool right? LMAO
+Amazing for keeping track of random knowledge, scripts, concepts, and ideas related to chaos engineering and system administration.
+Also, great for documenting secrets management strategies, configurations, and best practices.
+"""
+
+"""
+Validates and returns the ramble directory with the support for teams.
+"""
 def _get_ramble_dir(team) -> Path:
     if team:
         if not '.' in team:
@@ -46,6 +56,9 @@ def _get_ramble_dir(team) -> Path:
         return team_ramble_path
     return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
+"""
+Validates that the target path is within the ramble directory to prevent path traversal.
+"""
 def is_safe_path(target_path: Path, team) -> bool:
     try:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
@@ -59,6 +72,9 @@ def is_safe_path(target_path: Path, team) -> bool:
     except Exception as e:
         raise RuntimeError(f"Secure validation failed: {e}") from e
 
+"""
+Reads the content of a ramble file, handling decryption if necessary.
+"""
 def _read_ramble_content(ramble_path, sops_config, team, args):
     is_safe_path(ramble_path, team)
 
@@ -117,7 +133,11 @@ def _read_ramble_content(ramble_path, sops_config, team, args):
     except Exception as e:
         raise RuntimeError(f'Could not read or parse ramble file: {ramble_path}\n{e}') from e
 
+"""
+Prints the ramble content in a formatted manner.
 
+Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
+"""
 def _print_ramble(ramble_path, sops_config, target_name, team, args):
     from rich.panel import Panel
     from rich.syntax import Syntax
@@ -191,6 +211,9 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args):
         )
     )
 
+"""
+Handles the ambiguity of ramble targets, allowing for listing pages or reading specific pages.
+"""
 def _process_ramble_target(target, sops_file_override, team, args):
     from rich.table import Table
     from rich.panel import Panel
@@ -247,6 +270,11 @@ def _process_ramble_target(target, sops_file_override, team, args):
         full_path = path / f'{page}.yml'
         _print_ramble(full_path, sops_file_override, target, team, args)
 
+"""
+Creates a new ramble journal or page, and opens it in the user's editor.
+
+If the ramble passed does not include a dot, the journal name is used for both the journal and page.
+"""
 def handleCreateRamble(args):
     ramble = args.target
     team = getattr(args, 'team', None)
@@ -343,6 +371,7 @@ scripts:
             handleEncryptRamble(encryptArgs)
     return
 
+"""Edits an existing ramble journal or page, handling decryption if necessary."""
 def handleEditRamble(args):
     from rich.table import Table
     from rich.panel import Panel
@@ -481,6 +510,12 @@ def handleEditRamble(args):
     else:
         console.print("No page selected. Exiting.")
 
+"""
+Encrypts specified keys in a ramble page using sops.
+
+If -k not passed, encrypts everything except base keys.
+The tags key is never encrypted, helping to optimize searching.
+"""
 def handleEncryptRamble(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -558,6 +593,9 @@ def handleEncryptRamble(args):
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f'Ramble encryption/decryption failed: {e}') from e
 
+"""
+Handles the display of the ramble content.
+"""
 def handleReadRamble(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -573,6 +611,11 @@ def handleReadRamble(args):
     for target in args.targets:
         _process_ramble_target(target, sops_file_override, team, args)
 
+"""
+Searches for rambles containing a specific term, optionally filtered by tag.
+
+If nothing passed, lists all rambles.
+"""
 def handleFindRamble(args):
     from rich.table import Table
     from rich.panel import Panel
@@ -638,6 +681,7 @@ def handleFindRamble(args):
             table.add_row(*styled_row)
         console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
 
+"Moves or renames a ramble journal or page."
 def handleMoveRamble(args):
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
@@ -689,6 +733,7 @@ def handleMoveRamble(args):
         new_ramble_name = f"{new}.{source_path.stem}"
         console.print(f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]")
 
+"Deletes a ramble journal or page after confirmation."
 def handleDelRamble(args):
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
@@ -723,6 +768,7 @@ def handleDelRamble(args):
         else:
             console.print("[green]Alright![/] Aborting.")
 
+"Updates encryption keys for all encrypted rambles in the ramble directory."
 def handleUpdateEncryptRamble(args):
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)

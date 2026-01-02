@@ -6,6 +6,16 @@ from rich.console import Console
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
 
+"""
+Ok so, this is the main CLI entrypoint for this project. Yeah, ik it's a lot of match cases, but this is intentional.
+This allows us to have a very clear, explicit mapping of commands, subcommands, and their prerequisites.
+
+To add a new command, simply add a new case to the main match statement, import the modules INSIDE the case, add a try/except and call the functions.
+If a command has subcommands, add a NESTED match statement inside the case for that command, DO NOT create sepparate functions for each subcommand, let's keep them all together for clarity.
+
+Keep this file AS EXPLICIT as possible, avoid abstractions that hide the control flux, as removing commands is way more important than adding them.
+"""
+
 def main():
 
     try:
@@ -59,6 +69,10 @@ def main():
                 from typing import cast
                 from omegaconf import DictConfig
 
+                """
+                The apply command needs some special handling, as it is the main entry point for OS orchestration.
+                We load the roles, handle verbosity, and then pass control to the orchestration handler.
+                """
                 try:
                     ROLES_DISPATCHER = load_roles(role_specs)
                     ikwid = args.i_know_what_im_doing
@@ -98,6 +112,20 @@ def main():
                                 case 'bws':
                                     from chaos.lib.secret_backends.bws import bwsExportKeys
                                     bwsExportKeys(args)
+                                case 'op':
+                                    from chaos.lib.secret_backends.op import opExportKeys
+                                    opExportKeys(args)
+                        case 'import':
+                            match args.import_commands:
+                                case 'bw':
+                                    from chaos.lib.secret_backends.bw import bwImportKeys
+                                    bwImportKeys(args)
+                                case 'bws':
+                                    from chaos.lib.secret_backends.bws import bwsImportKeys
+                                    bwsImportKeys(args)
+                                case 'op':
+                                    from chaos.lib.secret_backends.op import opImportKeys
+                                    opImportKeys(args)
                         case 'rotate-add': handleRotateAdd(args)
                         case 'rotate-rm': handleRotateRemove(args)
                         case 'list': listFp(args)

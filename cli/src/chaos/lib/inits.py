@@ -5,16 +5,19 @@ from rich.console import Console
 from pathlib import Path
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
-
 import yaml
 import time
 import subprocess
 import tempfile
-import sys
 import os
 
 console = Console()
 
+"""
+Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
+"""
+
+"Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
 def initChobolo(keys):
     finalConf = oc.create()
     addedKeys = set()
@@ -43,6 +46,11 @@ def initChobolo(keys):
 
 # -------------- SECRET INITING -------------
 
+"""
+Setup age keys using ssh-to-age conversion.
+
+Deps: ssh-to-age
+"""
 def setupSshToAge():
     if not checkDep('ssh-to-age'):
         raise EnvironmentError("ssh-to-age is not installed. Please install it to use this feature.")
@@ -71,6 +79,11 @@ def setupSshToAge():
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to convert SSH key to age key: {e.stderr.strip()}") from e
 
+"""
+Setup Age keys for Sops encryption.
+
+deps: age-keygen
+"""
 def setupAge():
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
@@ -130,6 +143,13 @@ def setupAge():
 
     return "age", pubkey
 
+"""
+Generate GPG key in batch mode using provided name and email.
+
+Uses the best practices for key generation with EdDSA and Curve25519.
+
+deps: gpg
+"""
 def genBatchGpg(name, email):
     batch = f"""
 Key-Type: EdDSA
@@ -171,6 +191,9 @@ Expire-Date: 0
         if os.path.exists(tmpPath):
             os.unlink(tmpPath)
 
+"""
+Lists all existing GPG secret keys and prompts user to select one by fingerprint.
+"""
 def genGpgManual():
     try:
         proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True, check=True)
@@ -191,6 +214,7 @@ def genGpgManual():
 
     return "pgp", fingerprint
 
+"Setup GPG keys for Sops encryption."
 def setupGpg():
     if not checkDep('gpg'):
         raise EnvironmentError("Could not find gpg binary, please install gnupg and try again.")
@@ -215,6 +239,7 @@ def setupGpg():
     else:
         raise RuntimeError("Operation cancelled by user.")
 
+"Main Entry point for initializing secrets management with SOPS."
 def initSecrets():
     if not checkDep('sops'):
         raise EnvironmentError("sops is not installed. It is required for this software.")

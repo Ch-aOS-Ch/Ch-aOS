@@ -3,7 +3,6 @@ from rich.prompt import Confirm
 from rich.panel import Panel
 from rich.table import Table
 from rich.align import Align
-import sys
 import math
 from itertools import zip_longest
 from pathlib import Path
@@ -11,6 +10,7 @@ import subprocess
 import shutil
 
 from chaos.lib.utils import checkDep
+"""Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 from chaos.lib.teamUtils import (
     _validate_deps,
     _get_choices,
@@ -26,6 +26,16 @@ import os
 
 console = Console()
 
+"""
+Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
+"""
+
+"""
+Initializes a new team structure with the specified parameters.
+
+Check the corresponding functions in teamUtils.py for detailed implementations of each step.
++ the documentation there.
+"""
 def initTeam(args):
     hasAge, hasPgp = _validate_deps()
     choices = _get_choices(hasAge, hasPgp)
@@ -68,6 +78,9 @@ def initTeam(args):
     base_path = Path(path).resolve() if path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
+"""
+Activates a team by reading the .chaos.yml file and creating necessary symlinks.
+"""
 def activateTeam(args):
     path = args.path
     chaosContent = _get_chaos_file(path)
@@ -100,6 +113,11 @@ def activateTeam(args):
     base_path = Path(args.path).resolve() if args.path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
+"""
+Clones a git repository and activates the team if valid.
+
+Validity = presence of .chaos.yml with required fields.
+"""
 def cloneGitTeam(args):
     from git import Repo
     from urllib.parse import urlparse
@@ -131,6 +149,7 @@ def cloneGitTeam(args):
     _ = _validate_teamDir(clone_dir, company, team)
     _symlink_teamDir(company, base_path, team)
 
+"""Lists all activated teams, optionally filtered by company."""
 def listTeams(args):
     company = args.company
     baseDir = Path(f"~/.local/share/chaos/teams/{company}").expanduser() if company else Path(f"~/.local/share/chaos/teams").expanduser()
@@ -175,6 +194,7 @@ def listTeams(args):
 
         console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found teams:[/][/]")), justify="center")
 
+"""Deactivates specified teams or all teams for a company."""
 def deactivateTeam(args):
     company = args.company
     if not company:
@@ -230,6 +250,7 @@ def deactivateTeam(args):
     except OSError:
         pass
 
+"""Prunes stale team symlinks that point to non-existent directories."""
 def pruneTeams(args):
     confirm = True if args.i_know_what_im_doing else Confirm.ask("Prune stale team symlinks? This may take some time.", default=False)
     if not confirm:

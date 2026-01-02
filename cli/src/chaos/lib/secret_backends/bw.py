@@ -7,6 +7,15 @@ import tempfile
 import json
 import os
 
+"""
+Module that handles bw (Bitwarden) secret backend operations for Chaos.
+"""
+
+"""
+Creates the temporary environment for Bitwarden keys based on the provided item ID and key type.
+
+Allows for ephemeral setup of age, gpg, or vault keys retrieved from Bitwarden.
+"""
 def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     env = os.environ.copy()
     fds_to_pass: list[int] = []
@@ -66,6 +75,7 @@ def _setup_bw_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int]
 
     return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
+"""Reads the secret key content from a Bitwarden item by its ID."""
 def bwReadKey(item_id: str) -> str:
     _check_bw_status()
     try:
@@ -82,6 +92,7 @@ def bwReadKey(item_id: str) -> str:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}") from e
 
+"""Retrieves age keys from a Bitwarden item by its ID."""
 def getBwAgeKeys(item_id: str) -> tuple[str, str, str]:
     key_content = bwReadKey(item_id)
     if not key_content: raise ValueError("Retrieved key from Bitwarden is empty.")
@@ -95,6 +106,7 @@ def getBwAgeKeys(item_id: str) -> tuple[str, str, str]:
 
     return pubKey, secKey, key_content
 
+"""Retrieves Vault keys from a Bitwarden item by its ID."""
 def getBwVaultKeys(item_id: str) -> tuple[str, str]:
     key_content = bwReadKey(item_id)
 
@@ -110,6 +122,7 @@ def getBwVaultKeys(item_id: str) -> tuple[str, str]:
 
     return vault_addr, vault_token
 
+"""Retrieves GPG keys from a Bitwarden item by its ID."""
 def getBwGpgKeys(item_id: str) -> tuple[str, str]:
     key_content = bwReadKey(item_id)
     if not key_content:
@@ -129,6 +142,7 @@ def getBwGpgKeys(item_id: str) -> tuple[str, str]:
 
     return fingerprints, secKey
 
+"""Decrypts a SOPS-encrypted file using Bitwarden-stored, locally ephemeral keys."""
 def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bw
     secrets_file_override = args.secrets_file_override
@@ -168,6 +182,7 @@ def bwSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     return result
 
+"""Allows for editing a SOPS-encrypted file using Bitwarden-stored, locally ephemeral keys."""
 def bwSopsEdit(args) -> None:
     item_id, keyType = args.from_bw
     secrets_file_override = args.secrets_file_override
@@ -203,6 +218,11 @@ def bwSopsEdit(args) -> None:
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
 
+"""
+Exports keys to Bitwarden by creating a new item with the key content in the notes field.
+
+Note: gpg keys need to be compressed using zlib+b85 to fit within Bitwarden's item size limits.
+"""
 def bwExportKeys(args):
     _check_bw_status()
     keyType = args.key_type
@@ -312,3 +332,41 @@ def bwExportKeys(args):
         raise RuntimeError(f"Error creating item in Bitwarden: {e.stderr.strip()}") from e
     except (json.JSONDecodeError, KeyError) as e:
         raise RuntimeError(f"Failed to parse Bitwarden output: {e}") from e
+
+"""Imports keys from Bitwarden into local key stores."""
+def bwImportKeys(args):
+    _check_bw_status()
+    keyType = args.key_type
+    item_id = args.item_id
+    if not keyType:
+        raise ValueError("Key type must be specified for import.")
+    if not item_id:
+        raise ValueError("Item ID must be specified for import.")
+    match keyType:
+        case 'age':
+            pubKey, secKey, key_content = getBwAgeKeys(item_id)
+            console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
+            console.print(f"Public Key: [bold]{pubKey}[/bold]")
+            console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+            _import_age_keys(key_content)
+
+        case 'gpg':
+            fingerprints, secKey = getBwGpgKeys(item_id)
+            console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
+            console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+            _import_gpg_keys(secKey)
+
+        case 'vault':
+            vault_addr, vault_token = getBwVaultKeys(item_id)
+            console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
+            console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+            console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+            key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+            _import_vault_keys(key_content)
+
+        case _:
+            raise ValueError(f"Unsupported key type: {keyType}")

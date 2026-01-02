@@ -3,6 +3,9 @@ import subprocess
 import argparse
 from argcomplete.completers import FilesCompleter
 
+"""
+gets the argument parser for chaos
+"""
 class RolesCompleter:
     def __init__(self):
         self._roles = None
@@ -16,6 +19,11 @@ class RolesCompleter:
         all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
+"""
+creates the argument parser for chaos
+
+KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO BE EASY.
+"""
 def argParsing():
     parser = argparse.ArgumentParser(
         description="chaos system manager.",
@@ -54,7 +62,7 @@ def argParsing():
 
     teamSubParser = teamParser.add_subparsers(dest="team_commands", help="Team management commands", required=True)
 
-    secExport = secSubParser.add_parser('export', help="Export keys to a Bitwarden instance.")
+    secExport = secSubParser.add_parser('export', help="Export keys to a Password Manager.")
 
     secSubExport = secExport.add_subparsers(dest='export_commands', help="Secret export subcommands", required=True)
 
@@ -78,7 +86,6 @@ def argParsing():
     secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
     secBwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
 
-
     secOpExport = secSubExport.add_parser('op', help="1Password CLI export options")
     secOpExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
     secOpExport.add_argument('-u', '--url', help="1Password item URL where to export the key (format: op://vault/item).")
@@ -88,6 +95,22 @@ def argParsing():
     secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
     secOpExport.add_argument('-g', '--tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
     secOpExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the 1Password item URL to the chaos config file.")
+
+    secImport = secSubParser.add_parser('import', help="Import keys from a Password Manager.")
+
+    secSubImport = secImport.add_subparsers(dest='import_commands', help="Secret import subcommands", required=True)
+
+    secBwsImport = secSubImport.add_parser('bws', help="Bitwarden Secrets CLI import options")
+    secBwsImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+    secBwsImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+
+    secBwImport = secSubImport.add_parser('bw', help="Bitwarden CLI import options")
+    secBwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+    secBwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+
+    secOpImport = secSubImport.add_parser('op', help="1Password CLI import options")
+    secOpImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+    secOpImport.add_argument('-u', '--url', help="1Password item URL to import the key from (format: op://vault/item).")
 
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
@@ -276,5 +299,6 @@ def argParsing():
 
     return parser
 
+"""Handles the -t/--generate-tab argument, generating the tab-completion script"""
 def handleGenerateTab():
     subprocess.run(['register-python-argcomplete', 'chaos'])
