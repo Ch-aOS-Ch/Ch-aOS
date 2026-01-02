@@ -1,30 +1,9 @@
-import re
 import subprocess
-import sys
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, is_valid_fp, pgp_exists
 
 console = Console()
-
-def is_valid_fp(fp):
-    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
-        return True
-    else:
-        return False
-
-def pgp_exists(fp):
-    try:
-        subprocess.run(
-            ['gpg', '--list-keys', fp],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
 
 def listPgp(sops_file_override):
     try:
@@ -77,7 +56,6 @@ def handlePgpAdd(args, sops_file_override, keys):
                 continue
         valids.add(clean_key)
     _generic_handle_add('pgp', args, sops_file_override, valids)
-
 
 def handlePgpRem(args, sops_file_override, keys):
     try:
