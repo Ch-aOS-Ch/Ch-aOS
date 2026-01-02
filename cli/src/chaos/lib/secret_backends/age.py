@@ -1,13 +1,12 @@
-import re
-import sys
 from omegaconf import OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem
+from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, is_valid_age_key
 
 console = Console()
 
-def is_valid_age_key(key):
-    return re.fullmatch(r"age1[a-z0-9]{58}", key)
+"""
+AGE specific handlers for add/rem/list
+"""
 
 def listAge(sops_file_override):
     try:

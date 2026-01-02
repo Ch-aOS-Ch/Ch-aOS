@@ -5,15 +5,22 @@ from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
-
 import logging
 import os
-import sys
 import getpass
 
 console = Console()
 
+"""
+Orchestration/Explanation Handlers for Chaos CLI
 
+I KNOW IT'S MESSY, IT'S INTENTIONAL.
+Big function = easier to read flow, more explicit and less jumping around files.
+
++ Big Function = Big Brain (I've never said that)
+"""
+
+""" Handle verbosity levels for logging """
 def handleVerbose(args):
     log_level = None
     if args.verbose:
@@ -33,6 +40,29 @@ def handleVerbose(args):
     if log_level:
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
+"""
+OK, this is the big one.
+Handles the orchestration of roles based on passed args and configurations.
+
+First thing it does:
+
+Discover Ch-obolo file path from args or global config.
+Then it sets up the user configuration for posterior use.
+Then it sets up pyinfra connection to localhost (probably will be extended to remote hosts later).
+
+Now to the juicy part:
+IF the role is HARD CODED _OR_ configured to be a secret having role, it handles accordingly, if it isn't hard coded, it asks for permission to proceed.
+Then it gets the decrypted secrets and passes them to the role function.
+
+If the role is 'packages', it determines the mode (all, native, aur) based on the tag used. (This is a bit of a hack, but works for now).
+
+If the role is standard, it just calls the role function with common args.
+
+The roles should be using pyinfra's add_op() function to queue operations, which are then executed in bulk at the end (unless dry run is active).
+This allows for better performance and error handling.
+
+I really should wrap this in a try/finally to ensure disconnection happens, but for now, this will do.
+"""
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
     console = Console()
     console_err = Console(stderr=True)
@@ -88,17 +118,9 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     # ----- args -----
     commonArgs = (state, host, chobolo_path, skip)
-    secArgs = commonArgs + (
-        secrets_file_override,
-        sops_file_override,
-        args
-    )
 
     SEC_HAVING_ROLES=['users', 'secrets']
-    if enabledSecPlugins:
-        confirm = True if skip else Confirm.ask(f"You are about to use external plugins as Secret having plugins:\n[bold yellow]{enabledSecPlugins}[/]\nAre you sure you want to continue?", default=False)
-        if confirm:
-            SEC_HAVING_ROLES.extend(enabledSecPlugins)
+    SEC_HAVING_ROLES.extend(enabledSecPlugins)
 
     SEC_HAVING_ROLES = set(SEC_HAVING_ROLES)
 
@@ -118,6 +140,39 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
             normalized_tag = tag
         if normalized_tag in ROLES_DISPATCHER:
             if normalized_tag in SEC_HAVING_ROLES:
+                if normalized_tag in enabledSecPlugins:
+                    confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
+                    if not confirm:
+                        continue
+                decrypted_secrets = ()
+                decrypt = args.secrets
+                if decrypt:
+                    from chaos.lib.secret_backends.utils import decrypt_secrets
+                    decrypted_secrets = decrypt_secrets(
+                        secrets_file_override,
+                        sops_file_override,
+                        global_config,
+                        args
+                    )
+
+                if not decrypted_secrets:
+                    confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
+                    if not confirm:
+                        continue
+
+                    from chaos.lib.secret_backends.utils import decrypt_secrets
+                    decrypted_secrets = decrypt_secrets(
+                        secrets_file_override,
+                        sops_file_override,
+                        global_config,
+                        args
+                    )
+
+                if isinstance(decrypted_secrets, str):
+                    secArgs = commonArgs + (decrypted_secrets,)
+                else:
+                    secArgs = commonArgs + decrypted_secrets
+
                 ROLES_DISPATCHER[normalized_tag](*secArgs)
             elif normalized_tag == 'packages':
                 mode = ''
@@ -150,6 +205,21 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     disconnect_all(state)
     console.print("[bold green]Finalized.[/bold green]")
 
+
+"""
+Another Chunker:
+
+This function handles the 'explain' command.
+It basically loads the appropriate explanation class based on the topic passed.
+Then it calls the appropriate method to get the explanation data.
+Then it formats and displays the explanation using rich.
+
+The explanation data is expected to be a dictionary with various keys like 'concept', 'what', 'why', 'how', 'examples', etc.
+The level of detail to show is determined by the 'details' argument (basic, intermediate, advanced).
+If the sub-topic is 'list', it lists all available sub-topics for the given role.
+
+I really should add a "--complexity" flag to extend the capability of detailing even further.
+"""
 def handleExplain(args, EXPLAIN_DISPATCHER):
     from rich.panel import Panel
     from rich.syntax import Syntax
@@ -308,6 +378,9 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
         else:
             console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
 
+"""
+Just handles configuring the tool.
+"""
 def setMode(args):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
