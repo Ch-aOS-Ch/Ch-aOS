@@ -1,4 +1,4 @@
-from chaos.lib.secret_backends.utils import exctract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys
+from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys
 from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
@@ -296,8 +296,6 @@ def bwExportKeys(args):
             item_json['fields'] = [tags]
         item_json["favorite"] = False
         item_json["secureNote"] = {"type": 0}
-        if collection_id:
-            item_json["collectionIds"] = [collection_id]
 
         encoded_item = subprocess.run(
             ['bw', 'encode'],
