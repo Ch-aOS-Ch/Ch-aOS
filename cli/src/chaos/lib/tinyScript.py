@@ -1,8 +1,10 @@
 import os
 import subprocess
 from omegaconf import OmegaConf
-import sys
 
+"""
+This is quite literally a tiny script to open the Ch-obolo file in the user's preferred text editor.
+"""
 def runChoboloEdit(chobolo_path):
     editor = os.getenv('EDITOR', 'nano')
     if not chobolo_path:
@@ -12,7 +14,7 @@ def runChoboloEdit(chobolo_path):
             raise FileNotFoundError("No chaos config file found, and no chobolo path provided.")
         cfg = OmegaConf.load(CONFIG_FILE_PATH)
         chobolo_path = cfg.get('chobolo_file', None)
-    
+
     if chobolo_path:
         try:
             subprocess.run(
