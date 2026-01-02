@@ -10,6 +10,15 @@ import os
 
 console = Console()
 
+"""
+Handles listing of roles/explanations/aliases with rich rendering.
+
++ some validity checks for vault
+"""
+
+"""
+Handles the printing of the lists.
+"""
 def printCheck(namespace, dispatcher):
     if not dispatcher:
         console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
@@ -70,7 +79,6 @@ def printCheck(namespace, dispatcher):
 
         console.print(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}s[/][/]:"))
 
-
 def checkRoles(ROLES_DISPATCHER, **kwargs):
     printCheck("role", ROLES_DISPATCHER)
 
@@ -80,6 +88,10 @@ def checkExplanations(EXPLANATIONS, **kwargs):
 def checkAliases(ROLE_ALIASES, **kwargs):
     printCheck("alias", ROLE_ALIASES)
 
+"""
+checks if vault is in use in the sops file
+yeah, just that
+"""
 def is_vault_in_use(sops_file_path: str) -> bool:
     if not sops_file_path or not os.path.exists(sops_file_path):
         return False
@@ -94,6 +106,7 @@ def is_vault_in_use(sops_file_path: str) -> bool:
         return False
     return False
 
+"""checks if vault auth is valid"""
 def check_vault_auth():
     vault_addr = os.getenv('VAULT_ADDR')
     if not vault_addr:

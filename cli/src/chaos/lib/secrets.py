@@ -9,6 +9,17 @@ import subprocess
 
 console = Console()
 
+"""
+Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
+
+Better than ansible vault, like a bowss (jk).
+"""
+
+"""
+Adds a new key to the sops config file and (if -u), updates all secrets.
+
+Check secret_backends/utils.py for shared functions + their docs.
+"""
 def handleRotateAdd(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -40,6 +51,7 @@ def handleRotateAdd(args):
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
+"""Removes a key from the sops config file and (if -u), updates all secrets."""
 def handleRotateRemove(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -70,6 +82,7 @@ def handleRotateRemove(args):
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
+"""Lists all keys of a certain type from the sops config file."""
 def listFp(args):
     from rich.panel import Panel
     from itertools import zip_longest
@@ -131,6 +144,7 @@ def listFp(args):
 
             console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
 
+"""Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -201,6 +215,7 @@ def handleSetShamir(args):
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
+"""Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
     team = args.team
     sops_file_override = args.sops_file_override
@@ -255,6 +270,7 @@ def handleSecEdit(args):
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
+"""Prints the decrypted secrets file to stdout."""
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
@@ -311,6 +327,7 @@ def handleSecPrint(args):
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
+"""Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
     team = args.team
     sops_file_override = args.sops_file_override

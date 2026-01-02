@@ -18,6 +18,13 @@ import base64
 
 console = Console()
 
+"""
+Now now, I KNOW this is way too big of a file, but bear with me here
+"""
+
+"""
+Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
+"""
 def setup_gpg_keys(gnupghome: tempfile.TemporaryDirectory) -> None:
     actualGnupgHome_path = Path(os.getenv("GNUPGHOME", str(Path.home() / ".gnupg")))
     temp_gnupg_path = Path(gnupghome.name)
@@ -60,6 +67,9 @@ def setup_gpg_keys(gnupghome: tempfile.TemporaryDirectory) -> None:
         except:
             pass
 
+"""
+Concatenates existing age keys with imported ones
+"""
 def conc_age_keys(secKey: str) -> str:
     sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
     if not sops_file_env or not Path(sops_file_env).exists():
@@ -72,6 +82,9 @@ def conc_age_keys(secKey: str) -> str:
 
     return concResult
 
+"""
+Checks for gpg fingerprint validity
+"""
 def is_valid_fp(fp):
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
     if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
@@ -79,6 +92,9 @@ def is_valid_fp(fp):
     else:
         return False
 
+"""
+Checks for gpg fp existence
+"""
 def pgp_exists(fp):
     try:
         subprocess.run(
@@ -91,6 +107,9 @@ def pgp_exists(fp):
     except subprocess.CalledProcessError:
         return False
 
+"""
+Validates public age keys
+"""
 def is_valid_age_key(pubKey: str) -> bool:
     isValid = False
     testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey) 
@@ -98,6 +117,9 @@ def is_valid_age_key(pubKey: str) -> bool:
         isValid = True
     return isValid
 
+"""
+Validates private age keys
+"""
 def is_valid_age_secret_key(secKey: str) -> bool:
     isValid = False
     testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) 
@@ -105,6 +127,9 @@ def is_valid_age_secret_key(secKey: str) -> bool:
         isValid = True
     return isValid
 
+"""
+Sets up the vault keys for exporting, validating them on the way
+"""
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
     if not checkDep("vault"): raise EnvironmentError("The 'vault' CLI tool is required but not found in PATH.")
     with open(keyPath, 'r') as f:
@@ -117,6 +142,9 @@ Vault Key: {key}
 """
     return key_content
 
+"""
+Creates a pipe for passing inside a FD
+"""
 def setup_pipe(token: str) -> int:
     r, w = os.pipe()
     os.write(w, token.encode())
@@ -124,6 +152,9 @@ def setup_pipe(token: str) -> int:
     os.close(w)
     return r
 
+"""
+checks if vault key is valid
+"""
 def _is_valid_vault_key(key):
     import hvac
     import requests.exceptions
@@ -143,6 +174,9 @@ def _is_valid_vault_key(key):
     except Exception as e:
         return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
 
+"""
+extracts age private and public keys
+"""
 def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
     pubKey, secKey = None, None
     for line in key_content.splitlines():
@@ -153,6 +187,9 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
             secKey = line
     return pubKey, secKey
 
+"""
+Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
+"""
 def extract_gpg_keys(fingerprints: list[str]) -> str:
     try:
         result = subprocess.run(
@@ -176,6 +213,9 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
+"""
+Compression/Decompression for gpg keys. This is the only way they can fit inside a bw notes
+"""
 def compress(data: bytes) -> str:
     try:
         compressed_data = zlib.compress(data, level=9)
@@ -192,6 +232,9 @@ def decompress(encoded_data: str) -> bytes:
     except Exception as e:
         raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
 
+"""
+Gets sops files, secrets files and config files
+"""
 def get_sops_files(sops_file_override, secrets_file_override, team):
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
@@ -279,6 +322,9 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
     return secretsFile, sopsFile, global_config
 
+"""
+Turns a concatenated list into a singular list
+"""
 def flatten(items):
     for i in items:
         if isinstance(i, (list, ListConfig)):
@@ -286,43 +332,9 @@ def flatten(items):
         else:
             yield i
 
-def handleUpdateAllSecrets(args):
-    console.print("\n[bold cyan]Starting key update for all secret files...[/]")
-
-    sops_file_override = getattr(args, 'sops_file_override', None)
-    secrets_file_override = getattr(args, 'secrets_file_override', None)
-    team = getattr(args, 'team', None)
-
-    main_secrets_file, sops_file_path, _ = get_sops_files(sops_file_override, secrets_file_override, team)
-
-    if is_vault_in_use(sops_file_path):
-        is_authed, message = check_vault_auth()
-        if not is_authed:
-            raise PermissionError(message)
-
-    if not sops_file_path:
-        console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
-    elif main_secrets_file and Path(main_secrets_file).exists():
-        try:
-            data = OmegaConf.load(main_secrets_file)
-            if "sops" in data:
-                console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
-                result = subprocess.run(
-                    ['sops', '--config', sops_file_path, 'updatekeys', main_secrets_file],
-                    check=True, input="y", text=True, capture_output=True
-                )
-                console.print("[green]Keys updated successfully.[/green]")
-        except subprocess.CalledProcessError as e:
-            console.print(f'[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}')
-        except Exception as e:
-            console.print(f'[bold red]ERROR:[/] Could not process file {main_secrets_file}: {e}')
-    else:
-        console.print("[dim]Main secrets file not found or not configured. Skipping.[/dim]")
-
-    console.print("\n[bold cyan]Updating ramble files...[/]")
-    from chaos.lib.ramble import handleUpdateEncryptRamble
-    handleUpdateEncryptRamble(args)
-
+"""
+Saves freshly exported keys to the specified provider
+"""
 def _save_to_config(
     project_id: str = '',
     item_id: str = '',
@@ -379,6 +391,46 @@ def _save_to_config(
             config.secret_providers.op[url_key] = item_url
 
     OmegaConf.save(config, config_path)
+
+"""
+The rest of the functions should be auto explicative.
+"""
+def handleUpdateAllSecrets(args):
+    console.print("\n[bold cyan]Starting key update for all secret files...[/]")
+
+    sops_file_override = getattr(args, 'sops_file_override', None)
+    secrets_file_override = getattr(args, 'secrets_file_override', None)
+    team = getattr(args, 'team', None)
+
+    main_secrets_file, sops_file_path, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+
+    if is_vault_in_use(sops_file_path):
+        is_authed, message = check_vault_auth()
+        if not is_authed:
+            raise PermissionError(message)
+
+    if not sops_file_path:
+        console.print("[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update.")
+    elif main_secrets_file and Path(main_secrets_file).exists():
+        try:
+            data = OmegaConf.load(main_secrets_file)
+            if "sops" in data:
+                console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
+                result = subprocess.run(
+                    ['sops', '--config', sops_file_path, 'updatekeys', main_secrets_file],
+                    check=True, input="y", text=True, capture_output=True
+                )
+                console.print("[green]Keys updated successfully.[/green]")
+        except subprocess.CalledProcessError as e:
+            console.print(f'[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}')
+        except Exception as e:
+            console.print(f'[bold red]ERROR:[/] Could not process file {main_secrets_file}: {e}')
+    else:
+        console.print("[dim]Main secrets file not found or not configured. Skipping.[/dim]")
+
+    console.print("\n[bold cyan]Updating ramble files...[/]")
+    from chaos.lib.ramble import handleUpdateEncryptRamble
+    handleUpdateEncryptRamble(args)
 
 def _handle_provider_arg(args, config: DictConfig):
     if not hasattr(args, 'provider') or args.provider is None:
@@ -701,7 +753,4 @@ def _import_vault_keys(key_content: str) -> None:
 
     with currentPathVaultFile.open('w') as f:
         f.write(key_content)
-
-
-
 

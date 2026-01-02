@@ -3,6 +3,9 @@ import subprocess
 import argparse
 from argcomplete.completers import FilesCompleter
 
+"""
+gets the argument parser for chaos
+"""
 class RolesCompleter:
     def __init__(self):
         self._roles = None
@@ -16,6 +19,11 @@ class RolesCompleter:
         all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
+"""
+creates the argument parser for chaos
+
+KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO BE EASY.
+"""
 def argParsing():
     parser = argparse.ArgumentParser(
         description="chaos system manager.",
@@ -291,5 +299,6 @@ def argParsing():
 
     return parser
 
+"""Handles the -t/--generate-tab argument, generating the tab-completion script"""
 def handleGenerateTab():
     subprocess.run(['register-python-argcomplete', 'chaos'])

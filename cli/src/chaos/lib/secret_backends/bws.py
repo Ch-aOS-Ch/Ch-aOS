@@ -13,6 +13,9 @@ import tempfile
 
 console = Console()
 
+"""Bitwarden Secrets (bws) backend for Chaos."""
+
+"Validates and reads the age key content from the specified file path."
 def _get_age_key_content(key_path: Path) -> str:
     with key_path.open('r') as f:
         content = f.read()
@@ -20,6 +23,7 @@ def _get_age_key_content(key_path: Path) -> str:
         raise ValueError("The specified key file does not appear to be a valid age key.")
     return content
 
+"Exports an age key to Bitwarden Secrets."
 def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
     value = _get_age_key_content(key_path)
     pubKey, secKey = extract_age_keys(value)
@@ -54,6 +58,7 @@ def exportBwsAgeKey(key_path: Path, key: str, project_id: str, save_to_config: b
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
+"Exports a GPG key to Bitwarden Secrets."
 def exportBwsGpgKey(key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
     key_content = extract_gpg_keys(fingerprints)
 
@@ -82,6 +87,7 @@ def exportBwsGpgKey(key: str, project_id: str, fingerprints: list[str], save_to_
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
+"Exports a Vault key to Bitwarden Secrets."
 def exportBwsVaultKey(keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
     key_content = setup_vault_keys(vaultAddr, keyPath)
     cmd = ['bws', 'secret', 'create', key, key_content, project_id]
@@ -109,6 +115,7 @@ def exportBwsVaultKey(keyPath: Path, vaultAddr: str, key: str, project_id: str, 
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
+"Main function to handle exporting keys to Bitwarden Secrets."
 def bwsExportKeys(args) -> None:
     _check_bws_status()
 
@@ -154,6 +161,7 @@ def bwsExportKeys(args) -> None:
         case _:
             raise ValueError(f"Unsupported key type: {keyType}")
 
+"Retrieves age keys from Bitwarden Secrets."
 def getBwsAgeKeys(item_id: str) -> tuple[str, str, str]:
     try:
         result = subprocess.run(
@@ -175,6 +183,7 @@ def getBwsAgeKeys(item_id: str) -> tuple[str, str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving age keys from Bitwarden: {e.stderr.strip()}") from e
 
+"Retrieves gpg keys from Bitwarden Secrets."
 def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
     try:
         result = subprocess.run(
@@ -205,6 +214,7 @@ def getBwsGpgKeys(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
 
+"Retrieves Hashicorp vault token and address from Bitwarden Secrets."
 def getBwsVaultKey(item_id: str) -> tuple[str, str]:
     try:
         result = subprocess.run(
@@ -232,6 +242,11 @@ def getBwsVaultKey(item_id: str) -> tuple[str, str]:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Error retrieving Vault keys from Bitwarden: {e.stderr.strip()}") from e
 
+"""
+Creates the temporary environment for Bitwarden keys based on the provided item ID and key type.
+
+Allows for ephemeral setup of age, gpg, or vault keys retrieved from Bitwarden.
+"""
 def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int], str, tempfile.TemporaryDirectory | None, str | None]:
     env = os.environ.copy()
     fds_to_pass: list[int] = []
@@ -293,6 +308,7 @@ def _setup_bws_env(item_id: str, keyType: str) -> tuple[dict[str, str], list[int
 
     return env, fds_to_pass, prefix, gnupghome, age_temp_path
 
+"""Decrypts a SOPS-encrypted file using Bitwarden-stored, locally ephemeral keys."""
 def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
     item_id, keyType = args.from_bws
     secrets_file_override = args.secrets_file_override
@@ -334,6 +350,7 @@ def bwsSopsDec(args) -> subprocess.CompletedProcess[str]:
 
     return result
 
+"""Allows for editing a SOPS-encrypted file using Bitwarden-stored, locally ephemeral keys."""
 def bwsSopsEdit(args) -> None:
     item_id, keyType = args.from_bws
     secrets_file_override = args.secrets_file_override
@@ -371,6 +388,7 @@ def bwsSopsEdit(args) -> None:
             except OSError:
                 console.print(f"[yellow]WARNING:[/] Could not remove temporary age key file {agePath}")
 
+"""Imports keys from Bitwarden into local key stores."""
 def bwsImportKeys(args) -> None:
     _check_bws_status()
     keyType = args.key_type

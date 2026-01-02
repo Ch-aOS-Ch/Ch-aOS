@@ -4,6 +4,10 @@ from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _gener
 
 console = Console()
 
+"""
+AGE specific handlers for add/rem/list
+"""
+
 def listAge(sops_file_override):
     try:
         sops_config = OmegaConf.load(sops_file_override)
