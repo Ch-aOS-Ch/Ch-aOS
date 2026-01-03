@@ -105,6 +105,11 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     isFleet = False
     if hasattr(args, 'fleet') and args.fleet:
         fleet_config = chobolo_config.get('fleet')
+        if not fleet_config:
+            confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+            if not confirm:
+                console.print('Exiting...')
+                return
 
         parallels = fleet_config.get('parallelism', 0)
         fleet_hosts = fleet_config.get('hosts', [])
