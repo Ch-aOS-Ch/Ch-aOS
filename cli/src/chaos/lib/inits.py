@@ -85,9 +85,6 @@ def setupSshToAge():
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to convert SSH key to age key: {e.stderr.strip()}") from e
 
-    # Im having this issue:
-    # ERROR: [Errno 2] No such file or directory: 'read SSH_TO_AGE_PASSPHRASE </dev/fd/9; export SSH_TO_AGE_PASSPHRASE; ssh-to-age -i /home/dexmachina/.ssh/id_ed25519 -private-key'
-    # How do I fix it?
     try:
         proc = subprocess.run(full_cmd, env=env, check=True, pass_fds=(r_ssh,), capture_output=True, text=True, shell=True)
         private_key = proc.stdout.strip()
