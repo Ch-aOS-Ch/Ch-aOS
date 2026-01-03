@@ -105,32 +105,33 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     isFleet = False
     if hasattr(args, 'fleet') and args.fleet:
         fleet_config = chobolo_config.get('fleet')
-        if not fleet_config:
-            confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
-            if not confirm:
-                console.print('Exiting...')
-                return
 
-        parallels = fleet_config.get('parallelism', 0)
-        fleet_hosts = fleet_config.get('hosts', [])
+        if fleet_config:
+            parallels = fleet_config.get('parallelism', 0)
+            fleet_hosts = fleet_config.get('hosts', [])
 
-        if fleet_hosts:
-            hosts = []
-            container = OmegaConf.to_container(fleet_hosts, resolve=True)
+            if fleet_hosts:
+                hosts = []
+                container = OmegaConf.to_container(fleet_hosts, resolve=True)
 
-            if not isinstance(container, list):
-                raise ValueError(f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of hosts.")
+                if not isinstance(container, list):
+                    raise ValueError(f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of hosts.")
 
-            for host_item in container:
-                if isinstance(host_item, dict) and len(host_item) == 1:
-                    hostname = list(host_item.keys())[0]
-                    host_data = host_item[hostname]
-                    hosts.append((hostname, host_data))
+                for host_item in container:
+                    if isinstance(host_item, dict) and len(host_item) == 1:
+                        hostname = list(host_item.keys())[0]
+                        host_data = host_item[hostname]
+                        hosts.append((hostname, host_data))
 
-            isFleet = True
+                isFleet = True
 
+            else:
+                confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+                if not confirm:
+                    console.print('Exiting...')
+                    return
         else:
-            confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+            confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configuration found in chobolo file {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
             if not confirm:
                 console.print('Exiting...')
                 return
