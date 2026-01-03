@@ -1,6 +1,7 @@
 from omegaconf import OmegaConf as oc
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.utils import checkDep
+from chaos.lib.secret_backends.utils import setup_pipe
 from rich.console import Console
 from pathlib import Path
 from rich.prompt import Prompt, Confirm
@@ -66,7 +67,13 @@ def setupSshToAge():
     selected_key_path = Prompt.ask("Choose an SSH public key to use", choices=key_choices, default=key_choices[0])
 
     console.print(f"[cyan]Info:[/] Using SSH key: {selected_key_path}")
+    passphrase = Prompt.ask("Please enter the passphrase for your SSH key. Leave blank if it doesn't have any passhphrase.", password=True)
+    r_ssh = setup_pipe(passphrase)
     console.print("[bold yellow]WARNING:[/] Your secrets will be tied to this SSH key. If you lose it, you will lose access to your secrets.")
+    env = os.environ.copy()
+    prefix = f"read SSH_TO_AGE_PASSPHRASE </dev/fd/{r_ssh}; export SSH_TO_AGE_PASSPHRASE;"
+    private_cmd = f"ssh-to-age -i {selected_key_path.replace(".pub", "")} -private-key"
+    full_cmd = f"{prefix} {private_cmd}"
 
     try:
         proc = subprocess.run(
@@ -75,9 +82,40 @@ def setupSshToAge():
         )
         pubkey = proc.stdout.strip()
         console.print("[bold green]Success![/] Derived age public key from your SSH key.")
-        return "age", pubkey
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to convert SSH key to age key: {e.stderr.strip()}") from e
+
+    # Im having this issue:
+    # ERROR: [Errno 2] No such file or directory: 'read SSH_TO_AGE_PASSPHRASE </dev/fd/9; export SSH_TO_AGE_PASSPHRASE; ssh-to-age -i /home/dexmachina/.ssh/id_ed25519 -private-key'
+    # How do I fix it?
+    try:
+        proc = subprocess.run(full_cmd, env=env, check=True, pass_fds=(r_ssh,), capture_output=True, text=True, shell=True)
+        private_key = proc.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to derive private age key from SSH key: {e.stderr.strip()}") from e
+
+    if not pubkey or not private_key:
+        raise RuntimeError("Failed to derive age keys from SSH key.")
+
+    ageDir = Path(os.path.expanduser("~/.config/chaos"))
+    ageFile = ageDir / "keys.txt"
+    ageDir.mkdir(parents=True, exist_ok=True)
+    if ageFile.exists():
+        console.print(f"[cyan]Info:[/] An existing age key file was found at {ageFile}, it will be overwritten.")
+        confirm = Confirm.ask("Do you wish to continue?", default=True)
+        console.print("[cyan]Info:[/] Moving this key to a backup and creating a new age file.")
+        if confirm:
+            timestamp = int(time.time())
+            try:
+                subprocess.run(["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"], check=True)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Could not backup existing key: {e}") from e
+    with open(ageFile, 'w') as f:
+        f.write(f"# created: {time.strftime('%Y-%m-%dT%H:%M:%S%z')}\n")
+        f.write(f"# public key: {pubkey}\n")
+        f.write(private_key + "\n")
+
+    return "age", pubkey
 
 """
 Setup Age keys for Sops encryption.
@@ -90,7 +128,6 @@ def setupAge():
 
     if not checkDep('age-keygen'):
         raise EnvironmentError("age-keygen not installed, please install it to use sops+age.")
-
     method_choices = ['generate']
     if checkDep('ssh-to-age'):
         method_choices.append('ssh')

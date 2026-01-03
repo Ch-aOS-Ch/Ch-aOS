@@ -1,11 +1,14 @@
-from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys
+from chaos.lib.secret_backends.utils import extract_gpg_keys, get_sops_files, _check_bw_status, extract_age_keys, setup_pipe, decompress, setup_gpg_keys, setup_vault_keys, _import_age_keys, _import_gpg_keys, _import_vault_keys
 from chaos.lib.utils import checkDep
 from rich.console import Console
 from pathlib import Path
 import subprocess
+import shlex
 import tempfile
 import json
 import os
+
+console = Console()
 
 """
 Module that handles bw (Bitwarden) secret backend operations for Chaos.
