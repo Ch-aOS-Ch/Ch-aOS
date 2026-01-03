@@ -126,12 +126,12 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
                 isFleet = True
 
             else:
-                confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+                confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
                 if not confirm:
                     console.print('Exiting...')
                     return
         else:
-            confirm = True if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configuration found in chobolo file {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+            confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configuration found in chobolo file {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
             if not confirm:
                 console.print('Exiting...')
                 return
