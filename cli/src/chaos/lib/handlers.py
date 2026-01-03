@@ -115,16 +115,21 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
                 container = OmegaConf.to_container(fleet_hosts, resolve=True)
 
                 if not isinstance(container, list):
-                    raise ValueError(f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of hosts.")
+                    raise ValueError(f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of dicts of hosts.")
 
                 for host_item in container:
-                    if isinstance(host_item, dict) and len(host_item) == 1:
-                        hostname = list(host_item.keys())[0]
-                        host_data = host_item[hostname]
-                        hosts.append((hostname, host_data))
+                    if not isinstance(host_item, dict) or len(host_item) != 1:
+                        console.print(f"[bold yellow]WARNING:[/] Malformed host entry in fleet configuration: {host_item}. It must be a dictionary with a single host name as the key. Skipping.")
+                        continue
 
+                    hostname = list(host_item.keys())[0]
+                    host_data = host_item[hostname]
+                    if not isinstance(host_data, dict):
+                        console.print(f"[bold yellow]WARNING:[/] Malformed host data for host '{hostname}' in fleet configuration. It must be a dictionary of host parameters. Skipping.")
+                        continue
+
+                    hosts.append((hostname, host_data))
                 isFleet = True
-
             else:
                 confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
                 if not confirm:
