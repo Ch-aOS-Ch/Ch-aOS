@@ -27,3 +27,11 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[project.entry-points."chaos.explain"]
+chaos = "chaos.lib.explanations.chaos.chaos:ChaosExplain"
+secrets = "chaos.lib.explanations.secrets.secrets:SecretsExplain"
+ramble = "chaos.lib.explanations.ramble.ramble:RambleExplain"
+team = "chaos.lib.explanations.team.team:TeamExplain"
+apply = "chaos.lib.explanations.apply.apply:ApplyExplain"
+
