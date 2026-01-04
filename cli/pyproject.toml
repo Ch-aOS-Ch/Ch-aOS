@@ -34,4 +34,5 @@ secrets = "chaos.lib.explanations.secrets.secrets:SecretsExplain"
 ramble = "chaos.lib.explanations.ramble.ramble:RambleExplain"
 team = "chaos.lib.explanations.team.team:TeamExplain"
 apply = "chaos.lib.explanations.apply.apply:ApplyExplain"
+yourself = "chaos.lib.explanations.myself.myself:ExplainMyself"
 
