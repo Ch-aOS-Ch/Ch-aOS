@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, ListConfig
 import logging
 import os
 import getpass
@@ -85,6 +85,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         raise FileNotFoundError("No Ch-obolo passed\n"
                             "   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos set chobolo /path/to/file.yml[/cyan]'.")
 
+    chobolo_config = OmegaConf.load(chobolo_path)
+
     # -----------------------------
     # ---- Pyinfra Setup ----
 
@@ -95,13 +97,61 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     from pyinfra.api.state import StateStage, State
     from pyinfra.api.operations import run_ops
     from pyinfra.context import ctx_state
+    from pyinfra.api.exceptions import PyinfraError
     # ------------------------------------
 
+    parallels = 0
     hosts = ["@local"]
-    inventory = Inventory((hosts, {}))
-    config = Config()
+    isFleet = False
+    if hasattr(args, 'fleet') and args.fleet:
+        fleet_config = chobolo_config.get('fleet')
+
+        if fleet_config:
+            parallels = fleet_config.get('parallelism', 0)
+            fleet_hosts = fleet_config.get('hosts', [])
+
+            if fleet_hosts:
+                hosts = []
+                container = OmegaConf.to_container(fleet_hosts, resolve=True)
+
+                if not isinstance(container, list):
+                    raise ValueError(f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of dicts of hosts.")
+
+                for host_item in container:
+                    if not isinstance(host_item, dict) or len(host_item) != 1:
+                        console.print(f"[bold yellow]WARNING:[/] Malformed host entry in fleet configuration: {host_item}. It must be a dictionary with a single host name as the key. Skipping.")
+                        continue
+
+                    hostname = list(host_item.keys())[0]
+                    host_data = host_item[hostname]
+                    if not isinstance(host_data, dict):
+                        console.print(f"[bold yellow]WARNING:[/] Malformed host data for host '{hostname}' in fleet configuration. It must be a dictionary of host parameters. Skipping.")
+                        continue
+
+                    hosts.append((hostname, host_data))
+                isFleet = True
+            else:
+                confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+                if not confirm:
+                    console.print('Exiting...')
+                    return
+        else:
+            confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configuration found in chobolo file {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
+            if not confirm:
+                console.print('Exiting...')
+                return
+
+    if not isFleet:
+        inventory = Inventory((hosts, {}))
+
+    else:
+        inventory = Inventory(hosts)
+
+    config = Config(parallel=parallels)
     state = State(inventory, config)
+
     state.current_stage = StateStage.Prepare
+
     ctx_state.set(state)
 
     console.print("[bold magenta]Sudo password:[/bold magenta] ")
@@ -109,15 +159,11 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     skip = ikwid
 
-    console.print("Connecting to localhost...")
+    console.print(f"Connecting to {hosts}...")
     connect_all(state)
-    host = state.inventory.get_host("@local")
     console.print("[bold green]Connection established.[/bold green]")
 
     # -----------------------------------------
-
-    # ----- args -----
-    commonArgs = (state, host, chobolo_path, skip)
 
     SEC_HAVING_ROLES=['users', 'secrets']
     SEC_HAVING_ROLES.extend(enabledSecPlugins)
@@ -132,78 +178,88 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     if ROLE_ALIASES:
         ROLE_ALIASES.update(userAliases)
 
+    decrypted_secrets = ()
     # --- Role orchestration ---
-    for tag in args.tags:
-        if ROLE_ALIASES:
-            normalized_tag = ROLE_ALIASES.get(tag, tag)
-        else:
-            normalized_tag = tag
-        if normalized_tag in ROLES_DISPATCHER:
-            if normalized_tag in SEC_HAVING_ROLES:
-                if normalized_tag in enabledSecPlugins:
-                    confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
-                    if not confirm:
-                        continue
-                decrypted_secrets = ()
-                decrypt = args.secrets
-                if decrypt:
-                    from chaos.lib.secret_backends.utils import decrypt_secrets
-                    decrypted_secrets = decrypt_secrets(
-                        secrets_file_override,
-                        sops_file_override,
-                        global_config,
-                        args
-                    )
-
-                if not decrypted_secrets:
-                    confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
-                    if not confirm:
-                        continue
-
-                    from chaos.lib.secret_backends.utils import decrypt_secrets
-                    decrypted_secrets = decrypt_secrets(
-                        secrets_file_override,
-                        sops_file_override,
-                        global_config,
-                        args
-                    )
-
-                if isinstance(decrypted_secrets, str):
-                    secArgs = commonArgs + (decrypted_secrets,)
+    try:
+        for host in state.inventory.iter_activated_hosts():
+            console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
+            commonArgs = (state, host, chobolo_path, skip)
+            for tag in args.tags:
+                if ROLE_ALIASES:
+                    normalized_tag = ROLE_ALIASES.get(tag, tag)
                 else:
-                    secArgs = commonArgs + decrypted_secrets
+                    normalized_tag = tag
+                if normalized_tag in ROLES_DISPATCHER:
+                    if normalized_tag in SEC_HAVING_ROLES:
+                        if normalized_tag in enabledSecPlugins:
+                            confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
+                            if not confirm:
+                                continue
+                        
+                        if not decrypted_secrets:
+                            decrypt = args.secrets
+                            if decrypt:
+                                from chaos.lib.secret_backends.utils import decrypt_secrets
+                                decrypted_secrets = decrypt_secrets(
+                                    secrets_file_override,
+                                    sops_file_override,
+                                    global_config,
+                                    args
+                                )
 
-                ROLES_DISPATCHER[normalized_tag](*secArgs)
-            elif normalized_tag == 'packages':
-                mode = ''
-                if tag in ['allPkgs', 'packages', 'pkgs']:
-                    mode = 'all'
-                elif tag == 'natPkgs':
-                    mode = 'native'
-                elif tag == 'aurPkgs':
-                    mode = 'aur'
+                            if not decrypted_secrets:
+                                confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
+                                if not confirm:
+                                    continue
 
-                if mode:
-                    pkgArgs = commonArgs + (mode,)
-                    ROLES_DISPATCHER[normalized_tag](*pkgArgs)
+                                from chaos.lib.secret_backends.utils import decrypt_secrets
+                                decrypted_secrets = decrypt_secrets(
+                                    secrets_file_override,
+                                    sops_file_override,
+                                    global_config,
+                                    args
+                                )
+
+                        if isinstance(decrypted_secrets, str):
+                            secArgs = commonArgs + (decrypted_secrets,)
+                        else:
+                            secArgs = commonArgs + decrypted_secrets
+
+                        ROLES_DISPATCHER[normalized_tag](*secArgs)
+                    elif normalized_tag == 'packages':
+                        mode = ''
+                        if tag in ['allPkgs', 'packages', 'pkgs']:
+                            mode = 'all'
+                        elif tag == 'natPkgs':
+                            mode = 'native'
+                        elif tag == 'aurPkgs':
+                            mode = 'aur'
+
+                        if mode:
+                            pkgArgs = commonArgs + (mode,)
+                            ROLES_DISPATCHER[normalized_tag](*pkgArgs)
+                        else:
+                            console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
+                    else:
+                        ROLES_DISPATCHER[normalized_tag](*commonArgs)
+
+                    console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized for {host.name}. ---\n")
                 else:
-                    console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
-            else:
-                ROLES_DISPATCHER[normalized_tag](*commonArgs)
+                    console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
 
-            console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized. ---\n")
+        if not dry:
+            run_ops(state)
         else:
-            console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
+            console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
+            
+    except PyinfraError as e:
+        console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
-    if not dry:
-        run_ops(state)
-    else:
-        console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
-
-    # --- Disconnection ---
-    console.print("\nDisconnecting...")
-    disconnect_all(state)
-    console.print("[bold green]Finalized.[/bold green]")
+    finally:
+        # --- Disconnection ---
+        console.print("\nDisconnecting...")
+        disconnect_all(state)
+        console.print("[bold green]Finalized.[/bold green]")
 
 
 """
