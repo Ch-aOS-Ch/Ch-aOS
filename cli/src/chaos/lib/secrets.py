@@ -11,8 +11,6 @@ console = Console()
 
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
-
-Better than ansible vault, like a bowss (jk).
 """
 
 """
@@ -218,7 +216,6 @@ def handleSetShamir(args):
 """Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
     team = args.team
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
@@ -337,7 +334,6 @@ def handleSecPrint(args):
 """Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
     team = args.team
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     keys = args.keys
     secrets_file_override = args.secrets_file_override
