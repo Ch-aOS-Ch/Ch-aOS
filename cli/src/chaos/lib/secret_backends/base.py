@@ -27,18 +27,18 @@ class SecretBackend(ABC):
         pass
 
     @abstractmethod
-    def export_secrets(self):
+    def export_secrets(self) -> None:
         """
-        Context manager to export secrets from the environment.
+        Exporta chaves de arquivos locais para o secret backend.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
-    def import_secrets(self):
+    def import_secrets(self) -> None:
         """
-        Import secrets from to environment.
+        Importa chaves do secret backend para arquivos locais.
         """
-        pass
+        raise NotImplementedError
 
     def edit(self, secrets_file: str, sops_file: str) -> None:
         """
