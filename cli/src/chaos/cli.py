@@ -103,29 +103,40 @@ def main():
                         handleSecPrint,
                         handleSecCat
                     )
+                    from chaos.lib.secret_backends.utils import get_sops_files
+                    team = getattr(args, 'team', None)
+                    sops_file_override = getattr(args, 'sops_file', None)
+                    secrets_file_override = getattr(args, 'secrets_file', None)
+                    _, _, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
                     match args.secrets_commands:
                         case 'export':
                             match args.export_commands:
                                 case 'bw':
-                                    from chaos.lib.secret_backends.bw import bwExportKeys
-                                    bwExportKeys(args)
+                                    from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
+                                    provider = BitwardenPasswordProvider(args, global_config)
+                                    provider.export_secrets()
                                 case 'bws':
-                                    from chaos.lib.secret_backends.bws import bwsExportKeys
-                                    bwsExportKeys(args)
+                                    from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
+                                    provider = BitwardenSecretsProvider(args, global_config)
+                                    provider.export_secrets()
                                 case 'op':
-                                    from chaos.lib.secret_backends.op import opExportKeys
-                                    opExportKeys(args)
+                                    from chaos.lib.secret_backends.onepassword import OnePasswordProvider
+                                    provider = OnePasswordProvider(args, global_config)
+                                    provider.export_secrets()
                         case 'import':
                             match args.import_commands:
                                 case 'bw':
-                                    from chaos.lib.secret_backends.bw import bwImportKeys
-                                    bwImportKeys(args)
+                                    from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
+                                    provider = BitwardenPasswordProvider(args, global_config)
+                                    provider.import_secrets()
                                 case 'bws':
-                                    from chaos.lib.secret_backends.bws import bwsImportKeys
-                                    bwsImportKeys(args)
+                                    from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
+                                    provider = BitwardenSecretsProvider(args, global_config)
+                                    provider.import_secrets()
                                 case 'op':
-                                    from chaos.lib.secret_backends.op import opImportKeys
-                                    opImportKeys(args)
+                                    from chaos.lib.secret_backends.onepassword import OnePasswordProvider
+                                    provider = OnePasswordProvider(args, global_config)
+                                    provider.import_secrets()
                         case 'rotate-add': handleRotateAdd(args)
                         case 'rotate-rm': handleRotateRemove(args)
                         case 'list': listFp(args)
