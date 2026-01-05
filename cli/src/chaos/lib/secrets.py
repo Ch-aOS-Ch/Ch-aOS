@@ -2,7 +2,7 @@ from io import StringIO
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
+from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _getProvider
 import os
 import math
 import subprocess
@@ -12,6 +12,7 @@ console = Console()
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
+
 
 """
 Adds a new key to the sops config file and (if -u), updates all secrets.
@@ -222,16 +223,7 @@ def handleSecEdit(args):
 
     args = _handle_provider_arg(args, global_config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, global_config)
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
@@ -247,15 +239,8 @@ def handleSecEdit(args):
         if isSops:
             editor = os.getenv('EDITOR', 'nano')
             subprocess.run([editor, sopsFile], check=True)
-        elif bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsEdit
-            bwsSopsEdit(args)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsEdit
-            bwSopsEdit(args)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsEdit
-            opSopsEdit(args)
+        elif provider:
+            provider.edit(secretsFile, sopsFile)
         else:
             subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
 
@@ -272,23 +257,13 @@ def handleSecEdit(args):
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     args = _handle_provider_arg(args, global_config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, global_config)
 
     if not isSops:
         if not secretsFile:
@@ -305,26 +280,11 @@ def handleSecPrint(args):
 
     try:
         if isSops:
-            subprocess.run(['cat', sopsFile], check=True)
-        elif bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsDec
-            sopsDecryptResult = bwsSopsDec(args)
-            print(sopsDecryptResult.stdout)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsDec
-            sopsDecryptResult = bwSopsDec(args)
-            print(sopsDecryptResult.stdout)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsDec
-            sopsDecryptResult = opSopsDec(args)
-            print(sopsDecryptResult.stdout)
+            decrypted_output = subprocess.run(['cat', sopsFile], check=True, capture_output=True, text=True).stdout
+        elif provider:
+            decrypted_output = provider.decrypt(secretsFile, sopsFile)
         else:
-            # if op and keyPath:
-            #     from chaos.lib.secret_backends.op import opSopsDec
-            #     sopsDecryptResult = opSopsDec(args)
-            #     print(sopsDecryptResult.stdout)
-            # else:
-                subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+            decrypted_output = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, capture_output=True, text=True).stdout
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
@@ -341,16 +301,7 @@ def handleSecCat(args):
 
     args = _handle_provider_arg(args, global_config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, global_config)
 
     if not secretsFile or not sopsFile:
         raise FileNotFoundError("SOPS check requires both secrets file and sops config file paths.\n"
@@ -365,24 +316,17 @@ def handleSecCat(args):
         isSops = args.sops
         sopsDecryptResult = None
         if not isSops:
-            if bws and bws_keyType:
-                from chaos.lib.secret_backends.bws import bwsSopsDec
-                sopsDecryptResult = bwsSopsDec(args)
-            elif bw and bw_keyType:
-                from chaos.lib.secret_backends.bw import bwSopsDec
-                sopsDecryptResult = bwSopsDec(args)
-            elif op and op_keyType:
-                from chaos.lib.secret_backends.op import opSopsDec
-                sopsDecryptResult = opSopsDec(args)
+            if provider:
+                sopsDecryptResult = provider.decrypt(secretsFile, sopsFile)
             else:
-                sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+                sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True).stdout
         else:
-            sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True)
+            sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True).stdout
 
         if sopsDecryptResult is None:
             raise RuntimeError("SOPS decryption result is None. This should not happen.")
 
-        ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
+        ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
         isJson = args.json
         for key in keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)

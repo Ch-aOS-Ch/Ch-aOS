@@ -1,5 +1,6 @@
 import shutil
 from omegaconf import ListConfig, DictConfig
+from .base import Provider
 from pathlib import Path
 from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
@@ -20,6 +21,20 @@ console = Console()
 """
 Now now, I KNOW this is way too big of a file, but bear with me here
 """
+
+"""Returns the appropriate secret provider based on the command-line arguments."""
+def _getProvider(args, global_config):
+    provider = None
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
+        provider = BitwardenPasswordProvider(args, global_config)
+    elif hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
+        provider = BitwardenSecretsProvider(args, global_config)
+    elif hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
+        provider = OnePasswordProvider(args, global_config)
+    return provider
 
 """
 Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
@@ -587,68 +602,6 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
-def _build_op_keypath(key: str, loc: str) -> str:
-    match = re.match(r"op://([^/]+)/([^/]+)(?:/([^/]+))?", key)
-    if not match:
-        raise ValueError(f"Invalid 1Password key format: {key}. Expected format like 'op://vault/item'.")
-
-    vault, item, field_in_key = match.groups()
-
-    if field_in_key:
-        if loc and field_in_key != loc:
-            raise ValueError(
-                f"Path '{key}' already specifies a field ('{field_in_key}'), "
-                f"which conflicts with the provided location ('{loc}')."
-            )
-        return key
-
-    if not loc:
-        raise ValueError("A field location must be provided when the key path does not contain one.")
-
-    return f"op://{vault}/{item}/{loc}"
-
-def _reg_match_op_keypath(path: str) -> tuple[str, str, str|None]:
-    regMatch = re.match(r"op://([^/]+)/([^/]+)(?:/(.+))?", path)
-    if not regMatch:
-        raise ValueError(f"Invalid 1Password path format: {path}")
-    vault, title, field = regMatch.group(1), regMatch.group(2), regMatch.group(3)
-    return vault, title, field
-
-def _op_get_item(vault: str, title: str) -> dict | None:
-    try:
-        result = subprocess.run(
-            ["op", "item", "get", title, "--vault", vault, "--format", "json"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        item_data = result.stdout.strip()
-        if not item_data:
-            return None
-        return json.loads(item_data)
-
-    except subprocess.CalledProcessError as e:
-        if "isn't in vault" in e.stderr or "no item found" in e.stderr:
-            return None
-        raise RuntimeError(f"Error retrieving item from 1Password: {e.stderr.strip()}") from e
-
-def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: str) -> bool:
-    try:
-        field_args = []
-        for tag in tags:
-            field_args.extend(["--tag", tag])
-
-        field_args.extend([f"--field", f"{field}={key}"])
-        subprocess.run(
-            ["op", "item", "create", "--title", title, "--vault", vault, '--category=password'] + field_args,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        console.print(f"[green]INFO:[/] Successfully created item '{title}' in vault '{vault}'.")
-        return True
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e
 
 def _check_bws_status():
     if not checkDep("bws"):
@@ -680,16 +633,7 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
 
     args = _handle_provider_arg(args, config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()
@@ -697,19 +641,12 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
             raise PermissionError(message)
 
     try:
-        if bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsDec
-            sopsDecryptResult = bwsSopsDec(args)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsDec
-            sopsDecryptResult = bwSopsDec(args)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsDec
-            sopsDecryptResult = opSopsDec(args)
+        if provider:
+            sopsDecryptResult = provider.decrypt(secrets_file, sops_file)
         else:
-            sopsDecryptResult = subprocess.run(['sops', '--config', sops_file, '--decrypt', secrets_file], check=True, capture_output=True, text=True)
+            sopsDecryptResult = subprocess.run(['sops', '--config', sops_file, '--decrypt', secrets_file], check=True, capture_output=True, text=True).stdout
 
-        return sopsDecryptResult.stdout
+        return sopsDecryptResult
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e

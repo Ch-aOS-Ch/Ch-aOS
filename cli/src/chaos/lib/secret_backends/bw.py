@@ -198,7 +198,10 @@ def bwSopsEdit(args) -> None:
     cmd = f"{prefix} {cmd}" if prefix else cmd
 
     try:
-        subprocess.run(cmd, env=env, check=True, pass_fds=fds, shell=True)
+        subprocess.run(
+            cmd, env=env, check=True, pass_fds=fds, shell=True,
+            stderr=subprocess.PIPE, text=True
+        )
     except subprocess.CalledProcessError as e:
         if e.returncode != 200: # 200 is sops' "no changes" exit code
             raise RuntimeError(f"Error editing file with sops and Bitwarden: {e.stderr.strip()}") from e

@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from contextlib import contextmanager
 import shlex
 import subprocess
 
-class SecretBackend(ABC):
+class Provider(ABC):
     """
     Abstract base class for secret backends.
 
@@ -16,7 +17,7 @@ class SecretBackend(ABC):
 
     @abstractmethod
     @contextmanager
-    def setupEphemeralEnv(self) -> dict:
+    def setupEphemeralEnv(self) -> Iterator[dict]:
         """
         Context manager to set up an ephemeral environment for SOPS.
 
@@ -24,19 +25,19 @@ class SecretBackend(ABC):
             secrets_file_override (str): Path to override the default secrets file.
             sops_file_override (str): Path to override the default SOPS file.
         """
-        pass
+        yield {}
 
     @abstractmethod
     def export_secrets(self) -> None:
         """
-        Exporta chaves de arquivos locais para o secret backend.
+        Exports local keys to the provider.
         """
         raise NotImplementedError
 
     @abstractmethod
     def import_secrets(self) -> None:
         """
-        Importa chaves do secret backend para arquivos locais.
+        Imports remote keys from the provider to local.
         """
         raise NotImplementedError
 
@@ -64,6 +65,8 @@ class SecretBackend(ABC):
                     env=env,
                     pass_fds=pass_fds,
                     shell=True,
+                    stderr=subprocess.PIPE,
+                    text=True
                 )
             except subprocess.CalledProcessError as e:
                 if e.returncode == 200:
