@@ -3,11 +3,9 @@ from rich.console import Console
 from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
 from rich.text import Text
+from typing import cast
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import _handle_provider_arg
-from chaos.lib.secret_backends.bw import bwSopsDec, bwSopsEdit
-from chaos.lib.secret_backends.bws import bwsSopsDec, bwsSopsEdit
-from chaos.lib.secret_backends.op import opSopsDec, opSopsEdit
+from chaos.lib.secret_backends.utils import _handle_provider_arg, _getProvider, decrypt_secrets
 import subprocess
 import math
 import shutil
@@ -75,7 +73,7 @@ def is_safe_path(target_path: Path, team) -> bool:
 """
 Reads the content of a ramble file, handling decryption if necessary.
 """
-def _read_ramble_content(ramble_path, sops_config, team, args):
+def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
     is_safe_path(ramble_path, team)
 
     if not ramble_path.exists():
@@ -102,21 +100,7 @@ def _read_ramble_content(ramble_path, sops_config, team, args):
             provider_args.sops_file_override = sops_config
             provider_args.team = team
 
-            if hasattr(args, 'from_bws') and args.from_bws:
-                provider_args.from_bws = args.from_bws
-                decrypted_text = bwsSopsDec(provider_args).stdout
-            elif hasattr(args, 'from_bw') and args.from_bw:
-                provider_args.from_bw = args.from_bw
-                decrypted_text = bwSopsDec(provider_args).stdout
-            elif hasattr(args, 'from_op') and args.from_op:
-                provider_args.from_op = args.from_op
-                decrypted_text = opSopsDec(provider_args).stdout
-            else:
-                result = subprocess.run(
-                    ['sops', '--config', sops_config, '-d', str(ramble_path)],
-                    capture_output=True, text=True, check=True
-                )
-                decrypted_text = result.stdout
+            decrypted_text = decrypt_secrets(str(ramble_path), sops_config, global_config, args)
 
             ramble_data = OmegaConf.create(decrypted_text)
             return ramble_data, decrypted_text
@@ -138,7 +122,7 @@ Prints the ramble content in a formatted manner.
 
 Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
 """
-def _print_ramble(ramble_path, sops_config, target_name, team, args):
+def _print_ramble(ramble_path, sops_config, target_name, team, args, global_config):
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.markdown import Markdown
@@ -146,7 +130,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args):
     from rich.console import Group
     from rich.align import Align
 
-    ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args)
+    ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
 
     renderables = []
     standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
@@ -214,7 +198,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args):
 """
 Handles the ambiguity of ramble targets, allowing for listing pages or reading specific pages.
 """
-def _process_ramble_target(target, sops_file_override, team, args):
+def _process_ramble_target(target, sops_file_override, team, args, global_config):
     from rich.table import Table
     from rich.panel import Panel
     from rich.align import Align
@@ -254,7 +238,7 @@ def _process_ramble_target(target, sops_file_override, team, args):
                 if 1 <= indx <= len(entries):
                     selected_file_name = entries[indx - 1]
                     file_to_read = path / selected_file_name
-                    _print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem, team, args)
+                    _print_ramble(file_to_read, sops_file_override, Path(selected_file_name).stem, team, args, global_config)
                 else:
                     raise IndexError
             except (IndexError, ValueError):
@@ -268,7 +252,7 @@ def _process_ramble_target(target, sops_file_override, team, args):
         if not page:
              raise ValueError(f"No page passed for journal '{journal}'.")
         full_path = path / f'{page}.yml'
-        _print_ramble(full_path, sops_file_override, target, team, args)
+        _print_ramble(full_path, sops_file_override, target, team, args, global_config)
 
 """
 Creates a new ramble journal or page, and opens it in the user's editor.
@@ -386,9 +370,11 @@ def handleEditRamble(args):
 
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
+    global_config = cast(DictConfig, global_config)
 
     args = _handle_provider_arg(args, global_config)
 
@@ -429,22 +415,12 @@ def handleEditRamble(args):
                 is_authed, message = check_vault_auth()
                 if not is_authed:
                     raise PermissionError(message)
-            
-            try:
-                provider_args = argparse.Namespace()
-                provider_args.secrets_file_override = str(file_path)
-                provider_args.sops_file_override = sops_file_override
-                provider_args.team = team
 
-                if hasattr(args, 'from_bws') and args.from_bws:
-                    provider_args.from_bws = args.from_bws
-                    bwsSopsEdit(provider_args)
-                elif hasattr(args, 'from_bw') and args.from_bw:
-                    provider_args.from_bw = args.from_bw
-                    bwSopsEdit(provider_args)
-                elif hasattr(args, 'from_op') and args.from_op:
-                    provider_args.from_op = args.from_op
-                    opSopsEdit(provider_args)
+            provider = _getProvider(args, global_config)
+
+            try:
+                if provider:
+                    provider.edit(str(file_path), sops_file_override)
                 else:
                     subprocess.run(['sops', '--config', sops_file_override, str(file_path)], check=True)
             except FileNotFoundError:
@@ -519,9 +495,10 @@ The tags key is never encrypted, helping to optimize searching.
 def handleEncryptRamble(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+    global_config = cast(DictConfig, global_config)
 
     sops_file_override = getattr(args, 'sops_file_override', None) or global_config.get('sops_file')
 
@@ -576,17 +553,17 @@ def handleEncryptRamble(args):
 
     try:
         if 'sops' in data:
-            result = subprocess.run(['sops', '--config', sops_file_override, '-d', str(fullPath)], capture_output=True, text=True, check=True)
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, dir=fullPath.parent, suffix=".yml") as tmp:
+            result = decrypt_secrets(str(fullPath), sops_file_override, global_config, args)
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, dir="/dev/shm", suffix=".yml") as tmp:
                 os.chmod(tmp.name, 0o600)
-                tmp.write(result.stdout)
+                tmp.write(result)
                 tmpPath=tmp.name
-            
+
             subprocess.run(['sops', '--config', sops_file_override, '--encrypt', '--in-place', '--encrypted-regex', regex, str(tmpPath)], check=True)
             shutil.move(tmpPath, fullPath)
         else:
             subprocess.run(['sops', '--config', sops_file_override, '--encrypt', '--in-place', '--encrypted-regex', regex, str(fullPath)], check=True)
-        
+
         console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
     except FileNotFoundError:
         raise FileNotFoundError('The `sops` command was not found. Please install sops to encrypt rambles.')
@@ -599,9 +576,10 @@ Handles the display of the ramble content.
 def handleReadRamble(args):
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+    global_config = cast(DictConfig, global_config)
 
     args = _handle_provider_arg(args, global_config)
 
@@ -609,7 +587,7 @@ def handleReadRamble(args):
     team = getattr(args, 'team', None)
 
     for target in args.targets:
-        _process_ramble_target(target, sops_file_override, team, args)
+        _process_ramble_target(target, sops_file_override, team, args, global_config)
 
 """
 Searches for rambles containing a specific term, optionally filtered by tag.
@@ -633,18 +611,19 @@ def handleFindRamble(args):
     global_config = {}
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+    global_config = cast(DictConfig, global_config)
 
     sops_file_override = getattr(args, 'sops_file_override', None) or global_config.get('sops_file')
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         try:
-            data, text = _read_ramble_content(ramble_file, sops_file_override, team, args)
-            
+            data, text = _read_ramble_content(ramble_file, sops_file_override, team, args, global_config)
+
             if required_tag:
                 tags = data.get('tags', [])
                 if required_tag not in tags:
                     continue
-            
+
             if search_term and search_term.lower() not in text.lower():
                 continue
 
@@ -700,7 +679,7 @@ def handleMoveRamble(args):
         raise ValueError(f"Invalid source format: '{old}'")
 
     is_safe_path(source_path, team)
-    
+
     dest_dir_path = RAMBLE_DIR / new if new_is_dir else RAMBLE_DIR / new.split('.', 1)[0]
     dest_file_path = None if new_is_dir else dest_dir_path / f"{new.split('.', 1)[1]}.yml"
 
@@ -710,19 +689,27 @@ def handleMoveRamble(args):
     if not source_path.exists():
         raise FileNotFoundError(f"No such journal or page: {source_path}")
 
+    if dest_file_path == None or dest_dir_path == None:
+        raise ValueError("Destination path could not be determined.")
+
     if old_is_dir and new_is_dir:
         if dest_dir_path.exists():
             raise FileExistsError(f"Destination journal (directory) already exists: {dest_dir_path}")
         shutil.move(str(source_path), str(dest_dir_path))
         console.print(f"[green]Successfully moved journal '{old}' to '{new}'[/]")
+
     elif not old_is_dir and not new_is_dir:
         if dest_file_path.exists():
             raise FileExistsError(f"Destination page (file) already exists: {dest_file_path}")
+
         dest_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         shutil.move(str(source_path), str(dest_file_path))
         console.print(f"[green]Successfully moved page '{old}' to '{new}'[/]")
+
     elif old_is_dir and not new_is_dir:
         raise ValueError("Cannot move a directory to a singular file.")
+
     elif not old_is_dir and new_is_dir:
         final_dest_file = dest_dir_path / source_path.name
         is_safe_path(final_dest_file, team)
@@ -779,6 +766,7 @@ def handleUpdateEncryptRamble(args):
 
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+    global_config = cast(DictConfig, global_config)
 
     sops_file_override = getattr(args, 'sops_file_override', None) or global_config.get('sops_file')
 
@@ -786,6 +774,9 @@ def handleUpdateEncryptRamble(args):
         is_authed, message = check_vault_auth()
         if not is_authed:
             raise PermissionError(message)
+
+    args = _handle_provider_arg(args, global_config)
+    provider = _getProvider(args, global_config)
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         is_safe_path(ramble_file, team)
@@ -797,7 +788,10 @@ def handleUpdateEncryptRamble(args):
                                      "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
 
                 console.print(f"Checking for key updates in [cyan]{ramble_file.relative_to(RAMBLE_DIR)}[/]...")
-                subprocess.run(['sops', '--config', sops_file_override, 'updatekeys', str(ramble_file)], capture_output=True, text=True, check=True, input="y")
+                if provider:
+                    provider.updatekeys(str(ramble_file), sops_file_override)
+                else:
+                    subprocess.run(['sops', '--config', sops_file_override, 'updatekeys', '-y', str(ramble_file)], capture_output=True, text=True, check=True)
                 updated_count += 1
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f'Ramble key update with sops failed for {ramble_file}.\n{e.stderr}') from e

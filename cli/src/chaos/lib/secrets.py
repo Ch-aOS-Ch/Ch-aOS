@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import cast
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
@@ -12,7 +13,6 @@ console = Console()
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
-
 
 """
 Adds a new key to the sops config file and (if -u), updates all secrets.
@@ -163,6 +163,7 @@ def handleSetShamir(args):
 
     try:
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules')
 
         if not creation_rules:
@@ -263,8 +264,6 @@ def handleSecPrint(args):
 
     args = _handle_provider_arg(args, global_config)
 
-    provider = _getProvider(args, global_config)
-
     if not isSops:
         if not secretsFile:
             raise FileNotFoundError("SOPS check requires a secrets file path.\n"
@@ -281,10 +280,10 @@ def handleSecPrint(args):
     try:
         if isSops:
             decrypted_output = subprocess.run(['cat', sopsFile], check=True, capture_output=True, text=True).stdout
-        elif provider:
-            decrypted_output = provider.decrypt(secretsFile, sopsFile)
         else:
-            decrypted_output = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, capture_output=True, text=True).stdout
+            from .secret_backends.utils import decrypt_secrets
+            decrypted_output = decrypt_secrets(secretsFile, sopsFile, global_config, args)
+        print(decrypted_output)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
@@ -301,8 +300,6 @@ def handleSecCat(args):
 
     args = _handle_provider_arg(args, global_config)
 
-    provider = _getProvider(args, global_config)
-
     if not secretsFile or not sopsFile:
         raise FileNotFoundError("SOPS check requires both secrets file and sops config file paths.\n"
                             "       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.")
@@ -315,13 +312,11 @@ def handleSecCat(args):
     try:
         isSops = args.sops
         sopsDecryptResult = None
-        if not isSops:
-            if provider:
-                sopsDecryptResult = provider.decrypt(secretsFile, sopsFile)
-            else:
-                sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True).stdout
-        else:
+        if isSops:
             sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True).stdout
+        else:
+            from .secret_backends.utils import decrypt_secrets
+            sopsDecryptResult = decrypt_secrets(secretsFile, sopsFile, global_config, args)
 
         if sopsDecryptResult is None:
             raise RuntimeError("SOPS decryption result is None. This should not happen.")

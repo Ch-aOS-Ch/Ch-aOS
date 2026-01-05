@@ -87,6 +87,16 @@ class Provider(ABC):
         result = self._run_sops_command(sops_command).stdout
         return result
 
+    def updatekeys(self, secrets_file: str, sops_file: str) -> None:
+        """
+        Update keys on a SOPS encrypted file.
+        Args:
+            secrets_file (str): Path to the secrets file.
+            sops_file (str): Path to the SOPS file.
+        """
+        sops_command = ['sops', '--config', sops_file, 'updatekeys', '-y', secrets_file]
+        self._run_sops_command(sops_command)
+
     def _run_sops_command(self, command: list[str]) -> subprocess.CompletedProcess:
         """
         Run a SOPS command in a subprocess.

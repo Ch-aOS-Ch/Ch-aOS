@@ -416,7 +416,7 @@ def handleUpdateAllSecrets(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    main_secrets_file, sops_file_path, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+    main_secrets_file, sops_file_path, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if is_vault_in_use(sops_file_path):
         is_authed, message = check_vault_auth()
@@ -430,10 +430,17 @@ def handleUpdateAllSecrets(args):
             data = OmegaConf.load(main_secrets_file)
             if "sops" in data:
                 console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
-                result = subprocess.run(
-                    ['sops', '--config', sops_file_path, 'updatekeys', main_secrets_file],
-                    check=True, input="y", text=True, capture_output=True
-                )
+
+                args = _handle_provider_arg(args, global_config)
+                provider = _getProvider(args, global_config)
+
+                if provider:
+                    provider.updatekeys(main_secrets_file, sops_file_path)
+                else:
+                    subprocess.run(
+                        ['sops', '--config', sops_file_path, 'updatekeys', '-y', main_secrets_file],
+                        check=True, text=True, capture_output=True
+                    )
                 console.print("[green]Keys updated successfully.[/green]")
         except subprocess.CalledProcessError as e:
             console.print(f'[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}')
@@ -601,31 +608,6 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
-
-
-def _check_bws_status():
-    if not checkDep("bws"):
-        raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
-    if not os.getenv("BWS_ACCESS_TOKEN"):
-        raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
-
-def _check_bw_status():
-    if not checkDep("bw"):
-        raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
-
-    try:
-        status_result = subprocess.run(['bw', 'status'], capture_output=True, text=True, check=True)
-        status = json.loads(status_result.stdout)
-        if status['status'] == 'unlocked':
-            return True, "Bitwarden vault is unlocked."
-        elif status['status'] == 'locked':
-            raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
-        else: # "unauthenticated"
-            raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
-    except (json.JSONDecodeError, KeyError) as e:
-        raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
 
 def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
     if not checkDep("sops"):

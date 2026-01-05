@@ -195,7 +195,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
                             confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
                             if not confirm:
                                 continue
-                        
+
                         if not decrypted_secrets:
                             decrypt = args.secrets
                             if decrypt:
@@ -251,7 +251,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
             run_ops(state)
         else:
             console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
-            
+
     except PyinfraError as e:
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 

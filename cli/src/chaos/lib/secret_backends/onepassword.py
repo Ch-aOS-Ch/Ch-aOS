@@ -47,7 +47,7 @@ class OnePasswordProvider(Provider):
                     context["env"].update(gpg_env)
                     yield context
             case 'vault':
-                vault_addr, vault_token = self._getOpGpgKeys(item_id)
+                vault_addr, vault_token = self._getOpVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
@@ -226,7 +226,6 @@ class OnePasswordProvider(Provider):
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error reading secret from 1Password: {e.stderr.strip()}") from e
 
-    """Extracts age keys from a 1Password item."""
     def _getOpAgeKeys(self, path) -> tuple[str, str, str]:
         key_content = self._opReadKey(path)
 
@@ -251,7 +250,6 @@ class OnePasswordProvider(Provider):
 
         return pubKey, secKey, key_content
 
-    """Extracts GPG keys from a 1Password item."""
     def _getOpGpgKeys(self, path) -> tuple[str, str]:
         key_content = self._opReadKey(path)
 
@@ -272,7 +270,6 @@ class OnePasswordProvider(Provider):
 
         return fingerprints, secKey
 
-    """Extracts Vault keys from a 1Password item."""
     def _getOpVaultKeys(self, path: str) -> tuple[str, str]:
         key_content = self._opReadKey(path)
 
