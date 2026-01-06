@@ -53,10 +53,8 @@ def test_handle_explain_list_subtopics(mock_import, capsys, mock_args, mock_disp
     mock_import.return_value.MockExplain = MockExplain
     mock_args.topics = ['main.list']
     
-    # handleExplain chama sys.exit, então o capturamos
-    with pytest.raises(SystemExit):
-        with patch.dict(mock_dispatcher, {'main': 'test_module:MockExplain'}):
-            handleExplain(mock_args, mock_dispatcher)
+    with patch.dict(mock_dispatcher, {'main': 'test_module:MockExplain'}):
+        handleExplain(mock_args, mock_dispatcher)
 
     captured = capsys.readouterr()
     assert "Available subtopics for" in captured.out
