@@ -86,8 +86,9 @@ class BitwardenPasswordProvider(Provider):
             ).stdout
             item_json = json.loads(template_str)
 
-            item_json["type"] = 2
-            item_json["name"] = item_name
+            item_json["type"] = 1
+            item_json["login"] = {"username": "ch-aos", "password": "ch-aos"}
+            item_json["name"] = f"Ch-aOS {keyType.upper()} Key: {item_name}"
             item_json["notes"] = key_content
             if collection_id:
                 if not organization_id:
@@ -98,7 +99,6 @@ class BitwardenPasswordProvider(Provider):
             if tags:
                 item_json['fields'] = [tags]
             item_json["favorite"] = False
-            item_json["secureNote"] = {"type": 0}
 
             encoded_item = subprocess.run(
                 ['bw', 'encode'],
