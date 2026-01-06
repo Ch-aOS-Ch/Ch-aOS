@@ -4,8 +4,8 @@ from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _getProvider
+from chaos.lib.utils import render_list_as_table
 import os
-import math
 import subprocess
 
 console = Console()
@@ -83,10 +83,6 @@ def handleRotateRemove(args):
 
 """Lists all keys of a certain type from the sops config file."""
 def listFp(args):
-    from rich.panel import Panel
-    from itertools import zip_longest
-    from rich.align import Align
-    from rich.table import Table
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -109,39 +105,9 @@ def listFp(args):
         case _:
             raise ValueError("No available type passed.")
 
-    if results != None:
-        items = sorted(results)
-        num_items = len(results)
-        max_rows = 4
-
-        if num_items < 5:
-            table = Table(show_lines=True, expand=False, show_header=False)
-            table.add_column(justify="center")
-
-            for item in items:
-                table.add_row(f"[italic][cyan]{item}[/][/]")
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
-        else:
-            num_columns = math.ceil(num_items / max_rows)
-
-            table = Table(
-                show_lines=True,
-                expand=False,
-                show_header=False
-            )
-
-            for _ in range(num_columns):
-                table.add_column(justify="center")
-
-            chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-            transposed_items = zip_longest(*chunks, fillvalue="")
-
-            for row_data in transposed_items:
-                styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-                table.add_row(*styled_row)
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+    if results:
+        title = f"[italic][green]Found {args.type} Keys:[/][/]"
+        render_list_as_table(list(results), title)
 
 """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):

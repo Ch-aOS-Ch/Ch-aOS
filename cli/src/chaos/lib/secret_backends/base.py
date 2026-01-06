@@ -1,8 +1,21 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
+import os
 import shlex
 import subprocess
+from rich.console import Console
+from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
+from .utils import (
+    _import_age_keys,
+    _import_gpg_keys,
+    _import_vault_keys,
+    extract_age_keys,
+    decompress,
+)
+from typing import Tuple
+
+console = Console()
 
 class Provider(ABC):
     """
@@ -15,17 +28,71 @@ class Provider(ABC):
         self.args = args
         self.config = global_config
 
+    @property
+    def name(self) -> str:
+        """
+        Returns a clean name for the provider.
+        e.g. BitwardenPasswordProvider -> BitwardenPassword
+        """
+        return self.__class__.__name__.replace("PasswordProvider", "").replace("SecretProvider", "")
+
     @abstractmethod
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        """Gets the provider-specific arguments for creating an ephemeral environment."""
+        raise NotImplementedError
+
     @contextmanager
     def setupEphemeralEnv(self) -> Iterator[dict]:
         """
         Context manager to set up an ephemeral environment for SOPS.
-
-        Args:
-            secrets_file_override (str): Path to override the default secrets file.
-            sops_file_override (str): Path to override the default SOPS file.
         """
-        yield {}
+        key_args = self.get_ephemeral_key_args()
+        if not key_args:
+            yield {"env": os.environ.copy(), "prefix": "", "pass_fds": []}
+            return
+
+        item_id, key_type = key_args
+
+        context = {
+            "env": os.environ.copy(),
+            "prefix": "",
+            "pass_fds": []
+        }
+
+        match key_type:
+            case 'age':
+                _, _, key_content = self.getAgeKeys(item_id)
+                with ephemeralAgeKey(key_content) as age_env:
+                    context["env"].update(age_env)
+                    yield context
+            case 'gpg':
+                _, secKey = self.getGpgKeys(item_id)
+                actualKey = decompress(secKey)
+                with ephemeralGpgKey(actualKey) as gpg_env:
+                    context["env"].update(gpg_env)
+                    yield context
+            case 'vault':
+                vault_addr, vault_token = self.getVaultKeys(item_id)
+                with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
+                    context["prefix"] = prefix
+                    context["pass_fds"] = fds
+                    yield context
+            case _:
+                raise ValueError(f"Unsupported key type '{key_type}'.")
+
+    @abstractmethod
+    def readKeys(self, item_id: str) -> str:
+        """
+        Reads keys from the provider.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_status(self) -> None | Tuple[bool, str]:
+        """
+        Checks the status of the provider.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def export_secrets(self) -> None:
@@ -34,12 +101,118 @@ class Provider(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
+    def getAgeKeys(self, item_id: str) -> tuple[str, str, str]:
+        """
+        Retrieves Age keys from the provider.
+        Args:
+            item_id (str): The ID of the item to retrieve.
+        Returns:
+            tuple[str, str, str]: Public key, Secret key, Key content.
+        """
+        key_content = self.readKeys(item_id)
+        if not key_content: raise ValueError(f"Retrieved key from {self.name} is empty.")
+
+        pubKey, secKey = extract_age_keys(key_content)
+
+        if not pubKey:
+            raise ValueError(f"Could not find a public key in the secret from {self.name}. Expected a line starting with '# public key:'.")
+        if not secKey:
+            raise ValueError(f"Could not find a secret key in the secret from {self.name}. Expected a line starting with 'AGE-SECRET-KEY-'.")
+
+        return pubKey, secKey, key_content
+
+    def getGpgKeys(self, item_id: str) -> tuple[str, str]:
+        """
+        Retrieves GPG keys from the provider.
+        Args:
+            item_id (str): The ID of the item to retrieve.
+        Returns:
+            tuple[str, str]: Fingerprints, Secret key.
+        """
+        key_content = self.readKeys(item_id)
+        if not key_content:
+            raise ValueError(f"Retrieved GPG key from {self.name} is empty.")
+
+        fingerprints = ""
+        for line in key_content.splitlines():
+            if line.startswith("# fingerprints:"):
+                fingerprints = line.split(":", 1)[1].strip()
+                break
+
+        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
+            raise ValueError(f"The secret read from {self.name} does not appear to be a GPG private key block.")
+
+        noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
+        secKey = noHeadersSecKey.strip()
+
+        return fingerprints, secKey
+
+    def getVaultKeys(self, item_id: str) -> tuple[str, str]:
+        """
+        Retrieves Vault keys from the provider.
+        Args:
+            item_id (str): The ID of the item to retrieve.
+        Returns:
+            tuple[str, str]: Vault address, Vault token.
+        """
+        key_content = self.readKeys(item_id)
+        if not key_content: raise ValueError(f"Retrieved key from {self.name} is empty.")
+
+        vault_addr, vault_token = None, None
+        for line in key_content.splitlines():
+            if line.startswith("# Vault Address:"):
+                vault_addr = line.split("::", 1)[1].strip()
+            if line.startswith("Vault Key:"):
+                vault_token = line.split(":", 1)[1].strip()
+
+        if not vault_addr or not vault_token:
+            raise ValueError(f"Could not extract both Vault address and token from {self.name} item.")
+
+        return vault_addr, vault_token
+
     def import_secrets(self) -> None:
         """
         Imports remote keys from the provider to local.
         """
-        raise NotImplementedError
+        self.check_status()
+
+        args = self.args
+
+        keyType = args.key_type
+        item_id = args.item_id
+        if not keyType:
+            raise ValueError("Key type must be specified for import.")
+        if not item_id:
+            raise ValueError("Item ID must be specified for import.")
+        match keyType:
+            case 'age':
+                pubKey, secKey, key_content = self.getAgeKeys(item_id)
+                console.print(f"[green]Successfully imported age key from {self.name}.[/green]")
+                console.print(f"Public Key: [bold]{pubKey}[/bold]")
+                console.print(f"Secret Key: [bold]{secKey}[/bold]")
+
+                _import_age_keys(key_content)
+
+            case 'gpg':
+                fingerprints, secKey = self.getGpgKeys(item_id)
+                console.print(f"[green]Successfully imported GPG key from {self.name}.[/green]")
+                if fingerprints:
+                    console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+
+                _import_gpg_keys(secKey)
+
+            case 'vault':
+                vault_addr, vault_token = self.getVaultKeys(item_id)
+                console.print(f"[green]Successfully imported Vault key from {self.name}.[/green]")
+                console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
+                console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+
+                key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+
+                _import_vault_keys(key_content)
+
+            case _:
+                raise ValueError(f"Unsupported key type: {keyType}")
 
     def edit(self, secrets_file: str, sops_file: str) -> None:
         """
@@ -50,9 +223,9 @@ class Provider(ABC):
         """
         sops_command = ['sops', '--config', sops_file, secrets_file]
         with self.setupEphemeralEnv() as ctx:
-            prefix = ctx["prefix"]
-            pass_fds = ctx["pass_fds"]
-            env = ctx["env"]
+            prefix = ctx.get("prefix", "")
+            pass_fds = ctx.get("pass_fds", [])
+            env = ctx.get("env", os.environ.copy())
             cmd = shlex.join(sops_command)
 
             if prefix:
@@ -107,9 +280,9 @@ class Provider(ABC):
         """
         try:
             with self.setupEphemeralEnv() as ctx:
-                prefix = ctx["prefix"]
-                pass_fds = ctx["pass_fds"]
-                env = ctx["env"]
+                prefix = ctx.get("prefix", "")
+                pass_fds = ctx.get("pass_fds", [])
+                env = ctx.get("env", os.environ.copy())
 
                 cmd = shlex.join(command)
                 if prefix:

@@ -1,10 +1,7 @@
-import os
 from .base import Provider
-from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
-from .utils import decompress, get_sops_files, setup_vault_keys, extract_gpg_keys, _import_age_keys, _import_gpg_keys, _import_vault_keys
+from .utils import get_sops_files, setup_vault_keys, extract_gpg_keys
 import subprocess
 import json
-from contextlib import contextmanager
 from pathlib import Path
 from rich.console import Console
 from chaos.lib.utils import checkDep
@@ -18,43 +15,6 @@ class OnePasswordProvider(Provider):
     Implements methods to manage secrets using 1Password CLI.
     """
 
-    @contextmanager
-    def setupEphemeralEnv(self):
-        """
-        Set up an ephemeral environment for SOPS using 1Password CLI.
-        Yields:
-            dict: Context containing environment variables and command prefix.
-        """
-
-        item_id, key_type = self.args.from_op
-
-        context = {
-            "prefix": "",
-            "pass_fds": [],
-            "env": os.environ.copy(),
-        }
-
-        match key_type:
-            case 'age':
-                _, _, key_content = self._getOpAgeKeys(item_id)
-                with ephemeralAgeKey(key_content) as age_env:
-                    context["env"].update(age_env)
-                    yield context
-            case 'gpg':
-                _, secKey = self._getOpGpgKeys(item_id)
-                actualKey = decompress(secKey)
-                with ephemeralGpgKey(actualKey) as gpg_env:
-                    context["env"].update(gpg_env)
-                    yield context
-            case 'vault':
-                vault_addr, vault_token = self._getOpVaultKeys(item_id)
-                with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
-                    context["prefix"] = prefix
-                    context["pass_fds"] = fds
-                    yield context
-            case _:
-                raise ValueError(f"Unsupported key type '{key_type}'.")
-
     def export_secrets(self) -> None:
         args = self.args
 
@@ -67,8 +27,8 @@ class OnePasswordProvider(Provider):
         _, _, config = get_sops_files(None, None, None)
         path = config.get('secret_providers', {}).get('op', {}).get(f'{keyType}_url', '')
 
-        if args.url:
-            path = args.url
+        if args.item_id:
+            path = args.item_id
 
         loc = args.op_location
 
@@ -143,43 +103,42 @@ class OnePasswordProvider(Provider):
                 field=loc
             )
 
-    def import_secrets(self) -> None:
-        args = self.args
-        keyType = args.key_type
-        url = args.url
-        loc = args.op_location
-        if not keyType:
-            raise ValueError("Key type must be specified for import.")
-        if not url:
-            raise ValueError("Item ID must be specified for import.")
+    def readKeys(self, item_id: str) -> str:
+        if not checkDep("op"):
+            raise EnvironmentError("The 'op' CLI tool is required but not found in PATH.")
 
-        if keyType == 'age':
-            pubKey, secKey, key_content = self._getOpAgeKeys(url)
-            console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
-            console.print(f"Public Key: [bold]{pubKey}[/bold]")
-            console.print(f"Secret Key: [bold]{secKey}[/bold]")
+        if not item_id:
+            raise ValueError("The provided 1Password path is invalid.")
 
-            _import_age_keys(key_content)
+        try:
+            result = subprocess.run(
+                ["op", "read", item_id],
+                capture_output=True,
+                text=True,
+                check=True
+            )
 
-        elif keyType == 'gpg':
-            fingerprints, secKey = self._getOpGpgKeys(url)
-            console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
-            console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+            if not result.stdout.strip():
+                raise ValueError("No output received from 'op read' command.")
+            return result.stdout.strip()
 
-            _import_gpg_keys(secKey)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error reading secret from 1Password: {e.stderr.strip()}") from e
 
-        elif keyType == 'vault':
-            vault_addr, vault_token = self._getOpVaultKeys(url)
-            console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
-            console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
-            console.print(f"Vault Token: [bold]{vault_token}[/bold]")
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        return self.args.from_op
 
-            key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
-
-            _import_vault_keys(key_content)
-
-        else:
-            raise ValueError(f"Unsupported key type: {keyType}")
+    def check_status(self):
+        try:
+            subprocess.run(
+            ["op", "account", "get"],
+            capture_output=True,
+            text=True,
+            check=True
+            )
+            return True, "1Password CLI is installed and configured."
+        except subprocess.CalledProcessError:
+            raise EnvironmentError("1Password CLI is not installed or not configured properly.")
 
     def _build_op_keypath(self, key: str, loc: str) -> str:
         match = re.match(r"op://([^/]+)/([^/]+)(?:/([^/]+))?", key)
@@ -200,90 +159,6 @@ class OnePasswordProvider(Provider):
             raise ValueError("A field location must be provided when the key path does not contain one.")
 
         return f"op://{vault}/{item}/{loc}"
-
-    def _opReadKey(self, path: str, loc: str | None = None) -> str:
-        if not checkDep("op"):
-            raise EnvironmentError("The 'op' CLI tool is required but not found in PATH.")
-
-        if loc:
-            path = self._build_op_keypath(path, loc)
-
-        if not path:
-            raise ValueError("The provided 1Password path is invalid.")
-
-        try:
-            result = subprocess.run(
-                ["op", "read", path],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            if not result.stdout.strip():
-                raise ValueError("No output received from 'op read' command.")
-            return result.stdout.strip()
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Error reading secret from 1Password: {e.stderr.strip()}") from e
-
-    def _getOpAgeKeys(self, path) -> tuple[str, str, str]:
-        key_content = self._opReadKey(path)
-
-        if not key_content:
-            raise ValueError("Retrieved key from 1Password is empty.")
-
-        pubKey = ""
-        secKey = ""
-
-        for line in key_content.splitlines():
-            line = line.strip()
-            if line.startswith("# public key:"):
-                pubKey = line.split(":", 1)[1].strip()
-            if line.startswith("AGE-SECRET-KEY-"):
-                secKey = line
-
-        if not pubKey:
-            raise ValueError("Could not find a public key in the secret from 1Password. Expected a line starting with '# public key:'.")
-
-        if not secKey:
-            raise ValueError("Could not find a secret key in the secret from 1Password. Expected a line starting with 'AGE-SECRET-KEY-'.")
-
-        return pubKey, secKey, key_content
-
-    def _getOpGpgKeys(self, path) -> tuple[str, str]:
-        key_content = self._opReadKey(path)
-
-        if not key_content:
-            raise ValueError("Retrieved GPG key from 1Password is empty.")
-
-        fingerprints = ""
-        for line in key_content.splitlines():
-            if line.startswith("# fingerprints:"):
-                fingerprints = line.split(":", 1)[1].strip()
-                break
-
-        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
-            raise ValueError("The secret read from 1Password does not appear to be a GPG private key block.")
-
-        noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-        secKey = noHeadersSecKey.strip()
-
-        return fingerprints, secKey
-
-    def _getOpVaultKeys(self, path: str) -> tuple[str, str]:
-        key_content = self._opReadKey(path)
-
-        vault_addr, vault_token = None, None
-        for line in key_content.splitlines():
-            if line.startswith("# Vault Address:"):
-                vault_addr = line.split("::", 1)[1].strip()
-            if line.startswith("Vault Key:"):
-                vault_token = line.split(":", 1)[1].strip()
-
-        if not vault_addr or not vault_token:
-            raise ValueError("Could not extract both Vault address and token from 1Password item.")
-
-        return vault_addr, vault_token
 
     def _reg_match_op_keypath(self, path: str) -> tuple[str, str, str|None]:
         regMatch = re.match(r"op://([^/]+)/([^/]+)(?:/(.+))?", path)

@@ -6,8 +6,8 @@ from rich.text import Text
 from typing import cast
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.secret_backends.utils import _handle_provider_arg, _getProvider, decrypt_secrets
+from chaos.lib.utils import render_list_as_table
 import subprocess
-import math
 import shutil
 import tempfile
 import os
@@ -595,11 +595,6 @@ Searches for rambles containing a specific term, optionally filtered by tag.
 If nothing passed, lists all rambles.
 """
 def handleFindRamble(args):
-    from rich.table import Table
-    from rich.panel import Panel
-    from rich.align import Align
-    from itertools import zip_longest
-
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
     search_term = getattr(args, 'find_term', None)
@@ -633,32 +628,13 @@ def handleFindRamble(args):
         except Exception as e:
             console.print(f"[bold yellow]Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}[/]")
             continue
-    
+
     if not results:
         console.print("Could not find any rambles.")
         return
 
-    items = sorted(results)
-    num_items = len(results)
-    max_rows = 4
-
-    if num_items < 5:
-        table = Table(show_lines=True, expand=False, show_header=False)
-        table.add_column(justify="center")
-        for item in items:
-            table.add_row(f"[italic][cyan]{item}[/][/]")
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
-    else:
-        num_columns = math.ceil(num_items / max_rows)
-        table = Table(show_lines=True, expand=False, show_header=False)
-        for _ in range(num_columns):
-            table.add_column(justify="center")
-        chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-        transposed_items = zip_longest(*chunks, fillvalue="")
-        for row_data in transposed_items:
-            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-            table.add_row(*styled_row)
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found ramblings:[/][/]")), justify="center")
+    title = "[italic][green]Found ramblings:[/][/]"
+    render_list_as_table(results, title)
 
 "Moves or renames a ramble journal or page."
 def handleMoveRamble(args):

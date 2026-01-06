@@ -19,6 +19,15 @@ class RolesCompleter:
         all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
+def add_provider_args(parser):
+    """Adds the standard provider arguments to a given parser."""
+    provider_group = parser.add_mutually_exclusive_group()
+    provider_group.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
+    provider_group.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
+    provider_group.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age', 'gpg', or 'vault'.")
+    provider_group.add_argument('-o', '--from-op', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+
+
 """
 creates the argument parser for chaos
 
@@ -29,7 +38,7 @@ def argParsing():
         description="chaos system manager.",
     )
 
-    parser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
+    parser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-t', '--generate-tab', action='store_true', help="Generate shell tab-completion script.")
     parser.add_argument('-ec', '--edit-chobolo', action='store_true', help="Edit the Ch-obolo file using the default editor.")
@@ -70,7 +79,7 @@ def argParsing():
     secBwsExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
     secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
     secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-    secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
+    secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
     secBwsExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
     secBwsExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
     secBwsExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
@@ -80,7 +89,7 @@ def argParsing():
     secBwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
     secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
     secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
-    secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
+    secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
     secBwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
     secBwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
     secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
@@ -88,8 +97,8 @@ def argParsing():
 
     secOpExport = secSubExport.add_parser('op', help="1Password CLI export options")
     secOpExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-    secOpExport.add_argument('-u', '--url', help="1Password item URL where to export the key (format: op://vault/item).")
-    secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter()
+    secOpExport.add_argument('-i', '--item-id', help="1Password item URL where to export the key (format: op://vault/item).")
+    secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
     secOpExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
     secOpExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
     secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
@@ -110,60 +119,44 @@ def argParsing():
 
     secOpImport = secSubImport.add_parser('op', help="1Password CLI import options")
     secOpImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-    secOpImport.add_argument('-u', '--url', help="1Password item URL to import the key from (format: op://vault/item).")
+    secOpImport.add_argument('-i', '--item-id', help="1Password item URL to import the key from (format: op://vault/item).")
 
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
     secRotateRemove.add_argument('keys', nargs="+", help="Keys to be removed.")
     secRotateRemove.add_argument('-i', '--index', type=int, help="Rule index to be used.")
-    secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secRotateRemove.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secRotateRemove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
-    provider_group_rotate_remove = secRotateRemove.add_mutually_exclusive_group()
-    provider_group_rotate_remove.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_rotate_remove.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_rotate_remove.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_rotate_remove.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
     secRotateRemove.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
+    add_provider_args(secRotateRemove)
 
     secList = secSubParser.add_parser('list',  help="Show all keys inside your sops configuration.")
     secList.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to list.")
-    secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secList.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
 
     secEdit = secSubParser.add_parser('edit', help="Edit your secrets file.")
     secEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     secEdit.add_argument('-s', '--sops', help="Edit the sops file instead of the secrets file.", action='store_true')
-    secEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    secEdit.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    provider_group_edit = secEdit.add_mutually_exclusive_group()
-    provider_group_edit.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_edit.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_edit.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_edit.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    secEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secEdit.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    add_provider_args(secEdit)
 
     secPrint = secSubParser.add_parser('print', help="Print your secrets to the screen. Be careful where you use this.")
     secPrint.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
     secPrint.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
-    secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
-    provider_group_print = secPrint.add_mutually_exclusive_group()
-    provider_group_print.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_print.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_print.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age', 'gpg' or 'vault'.")
-    provider_group_print.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    add_provider_args(secPrint)
 
     secCat = secSubParser.add_parser("cat", help="Get the specified keys inside of your secrets file, nested or not.")
     secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
     secCat.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
     secCat.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
-    secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
-    provider_group_cat = secCat.add_mutually_exclusive_group()
-    provider_group_cat.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_cat.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_cat.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_cat.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(secCat)
 
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
     secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
@@ -172,72 +165,50 @@ def argParsing():
     secRotateAdd.add_argument('-cr', '--create', action='store_true', help="If you want to create a new key group or not.")
     secRotateAdd.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
     secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import GPG keys.")
-    secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
-    provider_group_rotate_add = secRotateAdd.add_mutually_exclusive_group()
-    provider_group_rotate_add.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_rotate_add.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_rotate_add.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_rotate_add.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(secRotateAdd)
 
     secShamir = secSubParser.add_parser('shamir', help="Manage Shamir's Secret Sharing configuration.")
     secShamir.add_argument('index', type=int, help="Rule index to be used.")
     secShamir.add_argument('share', type=int, help="Amount of Shares to be obligatory.")
-    secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
-    provider_group_shamir = secShamir.add_mutually_exclusive_group()
-    provider_group_shamir.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_shamir.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_shamir.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_shamir.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
     secShamir.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
+    add_provider_args(secShamir)
 
     rambleCreate = rambSubParser.add_parser('create', help='Create a new ramble or a rambling inside a ramble.')
     rambleCreate.add_argument('target', help='The ramble/rambling to create (e.g., ramble.rambling)')
     rambleCreate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
     rambleCreate.add_argument('-e', '--encrypt', action='store_true', help='Encrypt the rambling upon creation.')
     rambleCreate.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
-    rambleCreate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleCreate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
 
     rambleEdit = rambSubParser.add_parser('edit', help='Edit a rambling directly, whether encrypted or not.')
     rambleEdit.add_argument('target', help='The rambling you want to edit (e.g., ramble.rambling)')
     rambleEdit.add_argument('-s', '--sops', help="Edit the sops file instead of the ramble file.", action='store_true')
-    rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleEdit.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     rambleEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
-
-    provider_group_edit_ramble = rambleEdit.add_mutually_exclusive_group()
-    provider_group_edit_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_edit_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_edit_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_edit_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(rambleEdit)
 
     rambleEncrypt = rambSubParser.add_parser('encrypt', help='Encrypt a rambling inside a ramble with sops.')
     rambleEncrypt.add_argument('target', help='The rambling you want to encrypt (e.g., ramble.rambling)')
     rambleEncrypt.add_argument('-k', '--keys', nargs='+', help='Encrypt keys in a granular way')
-    rambleEncrypt.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleEncrypt.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     rambleEncrypt.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
-    provider_group_encrypt_ramble = rambleEncrypt.add_mutually_exclusive_group()
-    provider_group_encrypt_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_encrypt_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_encrypt_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_encrypt_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(rambleEncrypt)
 
     rambleRead = rambSubParser.add_parser('read', help='Read your ramblings.')
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
-    rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
-
-    provider_group_read_ramble = rambleRead.add_mutually_exclusive_group()
-    provider_group_read_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_read_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_read_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_read_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(rambleRead)
 
     rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
     rambleFind.add_argument('find_term', nargs='?', default=None, help='A keyword to search for in your rambles.')
     rambleFind.add_argument('--tag', help='Filter rambles by a specific tag.')
     rambleFind.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
-    rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
 
     rambleMove = rambSubParser.add_parser('move', help='Move a rambling through rambles')
     rambleMove.add_argument('old', help='Your old rambling')
@@ -245,13 +216,9 @@ def argParsing():
     rambleMove.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
 
     rambleUpdate = rambSubParser.add_parser('update', help='Update your rambling encryption keys, great for rotation!')
-    rambleUpdate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    rambleUpdate.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     rambleUpdate.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
-    provider_group_update_ramble = rambleUpdate.add_mutually_exclusive_group()
-    provider_group_update_ramble.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_update_ramble.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_update_ramble.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_update_ramble.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(rambleUpdate)
 
     rambleDel = rambSubParser.add_parser('delete', help='Delete a rambling or an entire ramble.')
     rambleDel.add_argument('ramble', help='Your ramble')
@@ -261,7 +228,7 @@ def argParsing():
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
 
     checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
-    checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
+    checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
 
     chParser = setSubParser.add_parser('chobolo', aliases=['c', 'ch'], help="Set default chobolo file")
     chParser.add_argument('chobolo_file', help="Chobolo file path")
@@ -278,18 +245,13 @@ def argParsing():
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
     applyParser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")
     applyParser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly.")
-    applyParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter()
+    applyParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
     applyParser.add_argument('-s', '--secrets', action='store_true', help="Signal that a secret-having role is being used and decryption is needed.")
-    applyParser.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter()
-    applyParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter()
+    applyParser.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    applyParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     applyParser.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     applyParser.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations for role execution.")
-
-    provider_group_apply = applyParser.add_mutually_exclusive_group()
-    provider_group_apply.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group_apply.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_apply.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group_apply.add_argument('-o', '--from-op', nargs=2, metavar=('URL', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    add_provider_args(applyParser)
 
     teamPrune = teamSubParser.add_parser('prune', help="Prune unused teams from your configuration.")
     teamPrune.add_argument('-ikwid', '-y', '--i-know-what-im-doing', action='store_true', help="Skips all confirmations.")
@@ -321,7 +283,7 @@ def argParsing():
     initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
 
-    tags.completer = RolesCompleter()
+    tags.completer = RolesCompleter() # type: ignore
 
     return parser
 

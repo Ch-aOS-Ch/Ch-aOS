@@ -1,24 +1,18 @@
 import os
 from .base import Provider
-from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
 import subprocess
 import json
-from contextlib import contextmanager
 from pathlib import Path
 from rich.console import Console
 from chaos.lib.utils import checkDep
 from chaos.lib.secret_backends.utils import (
     extract_age_keys,
-    decompress,
     _save_to_config,
     extract_gpg_keys,
     setup_vault_keys,
     get_sops_files,
     is_valid_age_key,
     is_valid_age_secret_key,
-    _import_age_keys,
-    _import_gpg_keys,
-    _import_vault_keys,
 )
 from omegaconf import OmegaConf, DictConfig
 from typing import cast
@@ -26,42 +20,12 @@ from typing import cast
 console = Console()
 
 class BitwardenPasswordProvider(Provider):
-    @contextmanager
-    def setupEphemeralEnv(self):
-        item_id, key_type = self.args.from_bw
-        context = {
-            "env": os.environ.copy(),
-            "prefix": "",
-            "pass_fds": []
-        }
-
-        match key_type:
-            case 'age':
-                _, _, key_content = self._getBwAgeKeys(item_id)
-                with ephemeralAgeKey(key_content) as age_env:
-                    context["env"].update(age_env)
-                    yield context
-            case 'gpg':
-                _, secKey = self._getBwGpgKeys(item_id)
-                actualKey = decompress(secKey)
-                with ephemeralGpgKey(actualKey) as gpg_env:
-                    context["env"].update(gpg_env)
-                    yield context
-            case 'vault':
-                vault_addr, vault_token = self._getBwVaultKeys(item_id)
-                with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
-                    context["prefix"] = prefix
-                    context["pass_fds"] = fds
-                    yield context
-            case _:
-                raise ValueError(f"Unsupported key type '{key_type}'.")
-
     def export_secrets(self) -> None:
         """
         Exports keys to Bitwarden as new notes.
         """
 
-        self._check_bw_status()
+        self.check_status()
 
         keyType = self.args.key_type
         keyPath = self.args.keys
@@ -160,51 +124,7 @@ class BitwardenPasswordProvider(Provider):
         except (json.JSONDecodeError, KeyError) as e:
             raise RuntimeError(f"Failed to parse Bitwarden output: {e}") from e
 
-    def import_secrets(self) -> None:
-        """
-        Imports keys from Bitwarden into the local environment.
-        """
-        from chaos.lib.secret_backends.utils import _import_age_keys, _import_gpg_keys, _import_vault_keys
-        from rich.console import Console
-
-        console = Console()
-
-        self._check_bw_status()
-
-        keyType = self.args.key_type
-        item_id = self.args.item_id
-
-        if not keyType:
-            raise ValueError("Key type must be specified for import.")
-        if not item_id:
-            raise ValueError("Item ID must be specified for import.")
-
-        match keyType:
-            case 'age':
-                pubKey, secKey, key_content = self._getBwAgeKeys(item_id)
-                console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
-                console.print(f"Public Key: [bold]{pubKey}[/bold]")
-                console.print(f"Secret Key: [bold]{secKey}[/bold]")
-                _import_age_keys(key_content)
-
-            case 'gpg':
-                fingerprints, secKey = self._getBwGpgKeys(item_id)
-                console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
-                console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
-                _import_gpg_keys(secKey)
-
-            case 'vault':
-                vault_addr, vault_token = self._getBwVaultKeys(item_id)
-                console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
-                console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
-                console.print(f"Vault Token: [bold]{vault_token}[/bold]")
-                key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
-                _import_vault_keys(key_content)
-
-            case _:
-                raise ValueError(f"Unsupported key type: {keyType}")
-
-    def _check_bw_status(self):
+    def check_status(self):
         if not checkDep("bw"):
             raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
 
@@ -226,59 +146,8 @@ class BitwardenPasswordProvider(Provider):
         except (json.JSONDecodeError, KeyError) as e:
             raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
 
-    """Retrieves age keys from a Bitwarden item by its ID."""
-    def _getBwAgeKeys(self, item_id: str) -> tuple[str, str, str]:
-        key_content = self._bwReadKey(item_id)
-        if not key_content: raise ValueError("Retrieved key from Bitwarden is empty.")
-
-        pubKey, secKey = extract_age_keys(key_content)
-
-        if not pubKey:
-            raise ValueError("Could not find a public key in the secret from Bitwarden. Expected a line starting with '# public key:'.")
-        if not secKey:
-            raise ValueError("Could not find a secret key in the secret from Bitwarden. Expected a line starting with 'AGE-SECRET-KEY-'.")
-
-        return pubKey, secKey, key_content
-
-    """Retrieves Vault keys from a Bitwarden item by its ID."""
-    def _getBwVaultKeys(self, item_id: str) -> tuple[str, str]:
-        key_content = self._bwReadKey(item_id)
-
-        vault_addr, vault_token = None, None
-        for line in key_content.splitlines():
-            if line.startswith("# Vault Address:"):
-                vault_addr = line.split("::", 1)[1].strip()
-            if line.startswith("Vault Key:"):
-                vault_token = line.split(":", 1)[1].strip()
-
-        if not vault_addr or not vault_token:
-            raise ValueError("Could not extract both Vault address and token from Bitwarden item.")
-
-        return vault_addr, vault_token
-
-    """Retrieves GPG keys from a Bitwarden item by its ID."""
-    def _getBwGpgKeys(self, item_id: str) -> tuple[str, str]:
-        key_content = self._bwReadKey(item_id)
-        if not key_content:
-            raise ValueError("Retrieved GPG key from Bitwarden is empty.")
-
-        fingerprints = ""
-        for line in key_content.splitlines():
-            if line.startswith("# fingerprints:"):
-                fingerprints = line.split(":", 1)[1].strip()
-                break
-
-        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
-            raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
-
-        noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-        secKey = noHeadersSecKey.strip()
-
-        return fingerprints, secKey
-
-    """Reads the secret key content from a Bitwarden item by its ID."""
-    def _bwReadKey(self, item_id: str) -> str:
-        self._check_bw_status()
+    def readKeys(self, item_id: str) -> str:
+        self.check_status()
         try:
             result = subprocess.run(
                 ["bw", "get", "notes", item_id],
@@ -293,43 +162,13 @@ class BitwardenPasswordProvider(Provider):
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}") from e
 
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        return self.args.from_bw
+
 class BitwardenSecretsProvider(Provider):
-    @contextmanager
-    def setupEphemeralEnv(self):
-        item_id, key_type = self.args.from_bws
-
-        context = {
-            "env": os.environ.copy(),
-            "prefix": "",
-            "pass_fds": []
-        }
-
-        match key_type:
-            case 'age':
-                _, _, key_content = self._getBwsAgeKeys(item_id)
-                with ephemeralAgeKey(key_content) as age_env:
-                    context["env"].update(age_env)
-                    yield context
-
-            case 'gpg':
-                _, secKey = self._getBwsGpgKeys(item_id)
-                actualKey = decompress(secKey)
-                with ephemeralGpgKey(actualKey) as gpg_env:
-                    context["env"].update(gpg_env)
-                    yield context
-
-            case 'vault':
-                vault_addr, vault_token = self._getBwsVaultKey(item_id)
-                with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
-                    context["prefix"] = prefix
-                    context["pass_fds"] = fds
-                    yield context
-            case _:
-                raise ValueError(f"Unsupported key type '{key_type}' for secrets provider.")
-
     def export_secrets(self) -> None:
         args = self.args
-        self._check_bws_status()
+        self.check_status()
 
         keyType = args.key_type
         key = args.item_name
@@ -373,47 +212,14 @@ class BitwardenSecretsProvider(Provider):
             case _:
                 raise ValueError(f"Unsupported key type: {keyType}")
 
-    def import_secrets(self) -> None:
-        self._check_bws_status()
+    def check_status(self):
+        if not checkDep("bws"):
+            raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
+        if not os.getenv("BWS_ACCESS_TOKEN"):
+            raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
+        return True, "Bitwarden Secrets CLI is ready."
 
-        args = self.args
-
-        keyType = args.key_type
-        item_id = args.item_id
-        if not keyType:
-            raise ValueError("Key type must be specified for import.")
-        if not item_id:
-            raise ValueError("Item ID must be specified for import.")
-        match keyType:
-            case 'age':
-                pubKey, secKey, key_content = self._getBwsAgeKeys(item_id)
-                console.print(f"[green]Successfully imported age key from Bitwarden.[/green]")
-                console.print(f"Public Key: [bold]{pubKey}[/bold]")
-                console.print(f"Secret Key: [bold]{secKey}[/bold]")
-
-                _import_age_keys(key_content)
-
-            case 'gpg':
-                fingerprints, secKey = self._getBwsGpgKeys(item_id)
-                console.print(f"[green]Successfully imported GPG key from Bitwarden.[/green]")
-                console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
-
-                _import_gpg_keys(secKey)
-
-            case 'vault':
-                vault_addr, vault_token = self._getBwsVaultKey(item_id)
-                console.print(f"[green]Successfully imported Vault key from Bitwarden.[/green]")
-                console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
-                console.print(f"Vault Token: [bold]{vault_token}[/bold]")
-
-                key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
-
-                _import_vault_keys(key_content)
-
-            case _:
-                raise ValueError(f"Unsupported key type: {keyType}")
-
-    def _getBwsVaultKey(self, item_id: str) -> tuple[str, str]:
+    def readKeys(self, item_id: str) -> str:
         try:
             result = subprocess.run(
                 ['bws', 'secret', 'get', item_id],
@@ -424,72 +230,12 @@ class BitwardenSecretsProvider(Provider):
             key_content = result.stdout.strip()
             key_content_conf = OmegaConf.create(key_content)
             key_content = cast(str, cast(DictConfig, key_content_conf).get('value'))
-
-            vault_addr, vault_token = None, None
-            for line in key_content.splitlines():
-                if line.startswith("# Vault Address:"):
-                    vault_addr = line.split("::", 1)[1].strip()
-                if line.startswith("Vault Key:"):
-                    vault_token = line.split(":", 1)[1].strip()
-
-            if not vault_addr or not vault_token:
-                raise ValueError("Could not extract both Vault address and token from Bitwarden item.")
-
-            return vault_addr, vault_token
-
+            return key_content
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Error retrieving Vault keys from Bitwarden: {e.stderr.strip()}") from e
+                raise RuntimeError(f"Error retrieving keys from Bitwarden: {e.stderr.strip()}") from e
 
-    def _getBwsAgeKeys(self, item_id: str) -> tuple[str, str, str]:
-        try:
-            result = subprocess.run(
-                ['bws', 'secret', 'get', item_id],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            key_content = result.stdout.strip()
-            key_content_conf = OmegaConf.create(key_content)
-            key_content = cast(str, cast(DictConfig, key_content_conf).get('value'))
-            pubKey, secKey = extract_age_keys(key_content)
-
-            if not pubKey or not secKey:
-                raise ValueError("Could not extract both public and secret keys from Bitwarden item.")
-
-            return pubKey, secKey, key_content
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Error retrieving age keys from Bitwarden: {e.stderr.strip()}") from e
-
-    def _getBwsGpgKeys(self, item_id: str) -> tuple[str, str]:
-        try:
-            result = subprocess.run(
-                ['bws', 'secret', 'get', item_id],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            key_content = result.stdout.strip()
-            key_content_conf = OmegaConf.create(key_content)
-            key_content = cast(str, cast(DictConfig, key_content_conf).get('value'))
-            fingerprints = None
-            for line in key_content.splitlines():
-                if line.startswith("# fingerprints:"):
-                    fingerprints = line.split(":", 1)[1].strip()
-                    break
-
-            if not fingerprints:
-                raise ValueError("Could not extract GPG fingerprint from Bitwarden item.")
-
-            if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
-                raise ValueError("The secret read from Bitwarden does not appear to be a GPG private key block.")
-
-            noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
-            secKey = noHeadersSecKey.strip()
-            return fingerprints, secKey
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Error retrieving GPG keys from Bitwarden: {e.stderr.strip()}") from e
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        return self.args.from_bws
 
     def _get_age_key_content(self, key_path: Path) -> str:
         with key_path.open('r') as f:
@@ -497,12 +243,6 @@ class BitwardenSecretsProvider(Provider):
         if '# public' not in content or 'AGE-SECRET-KEY-' not in content:
             raise ValueError("The specified key file does not appear to be a valid age key.")
         return content
-
-    def _check_bws_status(self):
-        if not checkDep("bws"):
-            raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
-        if not os.getenv("BWS_ACCESS_TOKEN"):
-            raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
 
     def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
         key_content = setup_vault_keys(vaultAddr, keyPath)

@@ -1,4 +1,5 @@
-from omegaconf import OmegaConf
+from typing import cast
+from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, _is_valid_vault_key
 
@@ -11,6 +12,7 @@ Vault specific handlers for add/rem/list
 def listVault(sops_file_override):
     try:
         sops_config = OmegaConf.load(sops_file_override)
+        sops_config = cast(DictConfig, sops_config)
         creation_rules = sops_config.get('creation_rules')
         if not creation_rules:
             console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
@@ -47,6 +49,7 @@ def handleVaultAdd(args, sops_file_override, keys):
 def handleVaultRem(args, sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")

@@ -1,6 +1,7 @@
 import os
 import subprocess
-from omegaconf import OmegaConf
+from typing import cast
+from omegaconf import DictConfig, OmegaConf
 
 """
 This is quite literally a tiny script to open the Ch-obolo file in the user's preferred text editor.
@@ -13,6 +14,7 @@ def runChoboloEdit(chobolo_path):
         if not os.path.exists(CONFIG_FILE_PATH):
             raise FileNotFoundError("No chaos config file found, and no chobolo path provided.")
         cfg = OmegaConf.load(CONFIG_FILE_PATH)
+        cfg = cast(DictConfig, cfg)
         chobolo_path = cfg.get('chobolo_file', None)
 
     if chobolo_path:

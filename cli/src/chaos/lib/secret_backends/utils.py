@@ -1,6 +1,6 @@
 import shutil
+from typing import cast
 from omegaconf import ListConfig, DictConfig
-from .base import Provider
 from pathlib import Path
 from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
@@ -11,7 +11,6 @@ import os
 import re
 from omegaconf import OmegaConf
 import subprocess
-import json
 import tempfile
 import zlib
 import base64
@@ -315,6 +314,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         else:
             raise FileNotFoundError(f"Team directory for '{team_name}' not found at {teamPath}.")
 
+    global_config = cast(DictConfig, global_config)
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
     if not sopsFile:
@@ -325,6 +325,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         if ChOboloPath:
             try:
                 ChObolo = OmegaConf.load(ChOboloPath)
+                ChObolo = cast(DictConfig, ChObolo)
                 secrets_config = ChObolo.get('secrets', None)
                 if secrets_config:
                     if not secretsFile:
@@ -516,6 +517,7 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
     try:
         create = args.create
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             raise ValueError(f"No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
@@ -573,6 +575,7 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
 
     try:
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")

@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
-from omegaconf import DictConfig, OmegaConf, ListConfig
+from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 import getpass
@@ -104,6 +104,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     hosts = ["@local"]
     isFleet = False
     if hasattr(args, 'fleet') and args.fleet:
+        chobolo_config = cast(DictConfig, chobolo_config)
         fleet_config = chobolo_config.get('fleet')
 
         if fleet_config:
