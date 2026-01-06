@@ -1,4 +1,5 @@
 import os
+import base64
 from .base import Provider
 import subprocess
 import json
@@ -100,11 +101,8 @@ class BitwardenPasswordProvider(Provider):
                 item_json['fields'] = [tags]
             item_json["favorite"] = False
 
-            encoded_item = subprocess.run(
-                ['bw', 'encode'],
-                input=json.dumps(item_json),
-                capture_output=True, text=True, check=True
-            ).stdout.strip()
+            item_str = json.dumps(item_json)
+            encoded_item = base64.b64encode(item_str.encode()).decode()
 
             created_item_json = subprocess.run(
                 ['bw', 'create', 'item', encoded_item],
