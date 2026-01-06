@@ -8,18 +8,18 @@ theme:
   palette:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: green
-      accent: teal
+      primary: teal
+      accent: indigo
       toggle:
-        icon: material/weather-night
+        icon: material/toggle-switch-off-outline
         name: Switch to light mode
 
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: teal
+      primary: teal
+      accent: indigo
       toggle:
-        icon: material/weather-sunny
+        icon: material/toggle-switch
         name: Switch to dark mode
 
   features:
