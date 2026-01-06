@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.text import Text
 from pathlib import Path
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, ListConfig
 import logging
 import os
 import getpass
