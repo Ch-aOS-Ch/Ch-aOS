@@ -72,19 +72,19 @@ def get_plugins(update_cache=False):
     discovered_keys = {}
     eps = entry_points()
 
-    role_eps = eps.select(group="chaos.roles") if hasattr(eps, "select") else eps.get("chaos.roles", [])
+    role_eps = eps.select(group="chaos.roles")
     for ep in role_eps:
         discovered_roles[ep.name] = ep.value
 
-    alias_eps = eps.select(group="chaos.aliases") if hasattr(eps, "select") else eps.get("chaos.aliases", [])
+    alias_eps = eps.select(group="chaos.aliases")
     for ep in alias_eps:
         discovered_aliases[ep.name] = ep.value
 
-    exp_eps = eps.select(group="chaos.explain") if hasattr(eps, "select") else eps.get("chaos.explain", [])
+    exp_eps = eps.select(group="chaos.explain")
     for ep in exp_eps:
         discovered_explanations[ep.name] = ep.value
 
-    keys_eps = eps.select(group="chaos.keys") if hasattr(eps, "select") else eps.get("chaos.keys", [])
+    keys_eps = eps.select(group="chaos.keys")
     for ep in keys_eps:
         discovered_keys[ep.name] = ep.value
     try:

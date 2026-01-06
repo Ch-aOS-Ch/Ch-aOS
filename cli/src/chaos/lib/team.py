@@ -1,15 +1,10 @@
 from rich.console import Console
 from rich.prompt import Confirm
-from rich.panel import Panel
-from rich.table import Table
-from rich.align import Align
-import math
-from itertools import zip_longest
 from pathlib import Path
 import subprocess
 import shutil
 
-from chaos.lib.utils import checkDep
+from chaos.lib.utils import checkDep, render_list_as_table
 """Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 from chaos.lib.teamUtils import (
     _validate_deps,
@@ -120,7 +115,6 @@ Validity = presence of .chaos.yml with required fields.
 """
 def cloneGitTeam(args):
     from git import Repo
-    from urllib.parse import urlparse
 
     repo = args.target
     path = args.path
@@ -160,39 +154,9 @@ def listTeams(args):
     if not teams:
         console.print("[bold yellow]No teams have been activated yet.[/]")
         return
-    results = set(teams)
-    items = sorted(results)
-    num_items = len(results)
-    max_rows = 4
 
-    if num_items < 5:
-        table = Table(show_lines=True, expand=False, show_header=False)
-        table.add_column(justify="center")
-
-        for item in items:
-            table.add_row(f"[italic][cyan]{item}[/][/]")
-
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found teams:[/][/]")), justify="center")
-    else:
-        num_columns = math.ceil(num_items / max_rows)
-
-        table = Table(
-            show_lines=True,
-            expand=False,
-            show_header=False
-        )
-
-        for _ in range(num_columns):
-            table.add_column(justify="center")
-
-        chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-        transposed_items = zip_longest(*chunks, fillvalue="")
-
-        for row_data in transposed_items:
-            styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-            table.add_row(*styled_row)
-
-        console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found teams:[/][/]")), justify="center")
+    title = "[italic][green]Found teams:[/][/]"
+    render_list_as_table(list(teams), title)
 
 """Deactivates specified teams or all teams for a company."""
 def deactivateTeam(args):

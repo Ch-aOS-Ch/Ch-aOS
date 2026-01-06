@@ -1,7 +1,7 @@
 import pytest
 import os
 from unittest.mock import Mock, patch
-from chaos.lib.handlers import handleCreateRamble, handleReadRamble, handleDelRamble
+from chaos.lib.ramble import handleCreateRamble, handleReadRamble, handleDelRamble, _process_ramble_target
 
 # Precisamos simular o diretório home para um diretório temporário
 @pytest.fixture
@@ -11,21 +11,27 @@ def mock_ramble_home(tmp_path, monkeypatch):
     
     # Simula o `expanduser` para que `~` aponte para o nosso diretório temporário
     def mock_expanduser(path):
-        if path.startswith("~/"):
-             return str(tmp_path / path.replace("~/", ""))
+        if path.startswith("~"):
+             # Substitui apenas o til no início do caminho
+             return str(tmp_path) + path[1:]
         return str(tmp_path)
         
     monkeypatch.setattr(os.path, 'expanduser', mock_expanduser)
+    monkeypatch.setattr('chaos.lib.ramble._get_ramble_dir', lambda team: ramble_dir)
     return ramble_dir
 
-def test_create_ramble_journal_and_page(mock_ramble_home, capsys):
+def test_create_ramble_journal_and_page(mock_ramble_home):
     args = Mock()
     args.target = "diary" # cria um diário
+    args.encrypt = False
+    args.keys = []
+    args.sops_file_override = None
+    args.team = None
+
 
     # A função chama o editor, então simulamos o subprocesso
-    with patch('chaos.lib.handlers.subprocess.run') as mock_run:
-         with pytest.raises(SystemExit):
-            handleCreateRamble(args)
+    with patch('chaos.lib.ramble.subprocess.run') as mock_run:
+        handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "diary"
     page_path = journal_path / "diary.yml"
@@ -35,13 +41,16 @@ def test_create_ramble_journal_and_page(mock_ramble_home, capsys):
     content = page_path.read_text()
     assert "title: diary" in content
 
-def test_create_ramble_page_in_journal(mock_ramble_home, capsys):
+def test_create_ramble_page_in_journal(mock_ramble_home):
     args = Mock()
     args.target = "work.meeting_notes"
+    args.encrypt = False
+    args.keys = []
+    args.sops_file_override = None
+    args.team = None
 
-    with patch('chaos.lib.handlers.subprocess.run') as mock_run:
-        with pytest.raises(SystemExit):
-            handleCreateRamble(args)
+    with patch('chaos.lib.ramble.subprocess.run') as mock_run:
+        handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "work"
     page_path = journal_path / "meeting_notes.yml"
@@ -51,7 +60,7 @@ def test_create_ramble_page_in_journal(mock_ramble_home, capsys):
     content = page_path.read_text()
     assert "title: meeting_notes" in content
 
-def test_read_and_delete_ramble(mock_ramble_home, capsys, monkeypatch):
+def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
     # --- Criação ---
     journal_path = mock_ramble_home / "todo"
     page_path = journal_path / "shopping.yml"
@@ -62,26 +71,31 @@ def test_read_and_delete_ramble(mock_ramble_home, capsys, monkeypatch):
     read_args = Mock()
     read_args.targets = ["todo.shopping"]
     read_args.sops_file_override = None
+    read_args.team = None
+    # Adiciona os atributos que seriam adicionados por _handle_provider_arg
+    read_args.from_bw = None
+    read_args.from_bws = None
+    read_args.from_op = None
+    read_args.provider = None
 
     # Simula a descoberta de config global
-    with patch('chaos.lib.handlers.os.path.exists') as mock_exists:
+    with patch('chaos.lib.ramble.os.path.exists') as mock_exists:
         mock_exists.return_value = False
-        with pytest.raises(SystemExit):
-             _process_ramble_target_path = "chaos.lib.handlers._process_ramble_target"
-             with patch(_process_ramble_target_path) as mock_process:
-                handleReadRamble(read_args)
-    
-    # Como a leitura é complexa, vamos apenas verificar se a função foi chamada
-    # mock_process.assert_called_with("todo.shopping", None)
+        _process_ramble_target_path = "chaos.lib.ramble._print_ramble"
+        with patch(_process_ramble_target_path) as mock_print_ramble:
+            handleReadRamble(read_args)
+            
+    # Verifica se a função de impressão foi chamada corretamente
+    mock_print_ramble.assert_called_once()
     
     # --- Deleção ---
     del_args = Mock()
     del_args.ramble = "todo.shopping"
+    del_args.team = None
 
     # Simula a confirmação do usuário
     monkeypatch.setattr('rich.prompt.Confirm.ask', lambda *args, **kwargs: True)
     
-    with pytest.raises(SystemExit):
-        handleDelRamble(del_args)
+    handleDelRamble(del_args)
     
     assert not page_path.exists()

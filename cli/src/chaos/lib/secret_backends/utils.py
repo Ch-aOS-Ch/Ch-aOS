@@ -1,4 +1,5 @@
 import shutil
+from typing import cast
 from omegaconf import ListConfig, DictConfig
 from pathlib import Path
 from rich.prompt import Confirm
@@ -10,7 +11,6 @@ import os
 import re
 from omegaconf import OmegaConf
 import subprocess
-import json
 import tempfile
 import zlib
 import base64
@@ -20,6 +20,20 @@ console = Console()
 """
 Now now, I KNOW this is way too big of a file, but bear with me here
 """
+
+"""Returns the appropriate secret provider based on the command-line arguments."""
+def _getProvider(args, global_config):
+    provider = None
+    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
+        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
+        provider = BitwardenPasswordProvider(args, global_config)
+    elif hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
+        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
+        provider = BitwardenSecretsProvider(args, global_config)
+    elif hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
+        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
+        provider = OnePasswordProvider(args, global_config)
+    return provider
 
 """
 Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
@@ -300,6 +314,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         else:
             raise FileNotFoundError(f"Team directory for '{team_name}' not found at {teamPath}.")
 
+    global_config = cast(DictConfig, global_config)
     if not secretsFile:
         secretsFile = global_config.get('secrets_file')
     if not sopsFile:
@@ -310,6 +325,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
         if ChOboloPath:
             try:
                 ChObolo = OmegaConf.load(ChOboloPath)
+                ChObolo = cast(DictConfig, ChObolo)
                 secrets_config = ChObolo.get('secrets', None)
                 if secrets_config:
                     if not secretsFile:
@@ -401,7 +417,7 @@ def handleUpdateAllSecrets(args):
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
 
-    main_secrets_file, sops_file_path, _ = get_sops_files(sops_file_override, secrets_file_override, team)
+    main_secrets_file, sops_file_path, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     if is_vault_in_use(sops_file_path):
         is_authed, message = check_vault_auth()
@@ -415,10 +431,17 @@ def handleUpdateAllSecrets(args):
             data = OmegaConf.load(main_secrets_file)
             if "sops" in data:
                 console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
-                result = subprocess.run(
-                    ['sops', '--config', sops_file_path, 'updatekeys', main_secrets_file],
-                    check=True, input="y", text=True, capture_output=True
-                )
+
+                args = _handle_provider_arg(args, global_config)
+                provider = _getProvider(args, global_config)
+
+                if provider:
+                    provider.updatekeys(main_secrets_file, sops_file_path)
+                else:
+                    subprocess.run(
+                        ['sops', '--config', sops_file_path, 'updatekeys', '-y', main_secrets_file],
+                        check=True, text=True, capture_output=True
+                    )
                 console.print("[green]Keys updated successfully.[/green]")
         except subprocess.CalledProcessError as e:
             console.print(f'[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}')
@@ -494,6 +517,7 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
     try:
         create = args.create
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             raise ValueError(f"No 'creation_rules' found in {sops_file_override}. Cannot add keys.")
@@ -551,6 +575,7 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
 
     try:
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules', [])
         if not creation_rules:
             console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
@@ -587,109 +612,13 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
-def _build_op_keypath(key: str, loc: str) -> str:
-    match = re.match(r"op://([^/]+)/([^/]+)(?:/([^/]+))?", key)
-    if not match:
-        raise ValueError(f"Invalid 1Password key format: {key}. Expected format like 'op://vault/item'.")
-
-    vault, item, field_in_key = match.groups()
-
-    if field_in_key:
-        if loc and field_in_key != loc:
-            raise ValueError(
-                f"Path '{key}' already specifies a field ('{field_in_key}'), "
-                f"which conflicts with the provided location ('{loc}')."
-            )
-        return key
-
-    if not loc:
-        raise ValueError("A field location must be provided when the key path does not contain one.")
-
-    return f"op://{vault}/{item}/{loc}"
-
-def _reg_match_op_keypath(path: str) -> tuple[str, str, str|None]:
-    regMatch = re.match(r"op://([^/]+)/([^/]+)(?:/(.+))?", path)
-    if not regMatch:
-        raise ValueError(f"Invalid 1Password path format: {path}")
-    vault, title, field = regMatch.group(1), regMatch.group(2), regMatch.group(3)
-    return vault, title, field
-
-def _op_get_item(vault: str, title: str) -> dict | None:
-    try:
-        result = subprocess.run(
-            ["op", "item", "get", title, "--vault", vault, "--format", "json"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        item_data = result.stdout.strip()
-        if not item_data:
-            return None
-        return json.loads(item_data)
-
-    except subprocess.CalledProcessError as e:
-        if "isn't in vault" in e.stderr or "no item found" in e.stderr:
-            return None
-        raise RuntimeError(f"Error retrieving item from 1Password: {e.stderr.strip()}") from e
-
-def _op_create_item(vault: str, title: str, field: str, tags: list[str], key: str) -> bool:
-    try:
-        field_args = []
-        for tag in tags:
-            field_args.extend(["--tag", tag])
-
-        field_args.extend([f"--field", f"{field}={key}"])
-        subprocess.run(
-            ["op", "item", "create", "--title", title, "--vault", vault, '--category=password'] + field_args,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        console.print(f"[green]INFO:[/] Successfully created item '{title}' in vault '{vault}'.")
-        return True
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error creating item in 1Password: {e.stderr.strip()}") from e
-
-def _check_bws_status():
-    if not checkDep("bws"):
-        raise EnvironmentError("The Bitwarden Secrets CLI ('bws') is required but not found in PATH.")
-    if not os.getenv("BWS_ACCESS_TOKEN"):
-        raise PermissionError("BWS_ACCESS_TOKEN environment variable is not set. Please authenticate.")
-
-def _check_bw_status():
-    if not checkDep("bw"):
-        raise EnvironmentError("The 'bw' CLI tool is required but not found in PATH.")
-
-    try:
-        status_result = subprocess.run(['bw', 'status'], capture_output=True, text=True, check=True)
-        status = json.loads(status_result.stdout)
-        if status['status'] == 'unlocked':
-            return True, "Bitwarden vault is unlocked."
-        elif status['status'] == 'locked':
-            raise PermissionError("Bitwarden vault is locked. Please unlock it first with 'bw unlock'.")
-        else: # "unauthenticated"
-            raise PermissionError("You are not logged into Bitwarden. Please log in first with 'bw login'.")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to check Bitwarden status: {e.stderr.strip()}") from e
-    except (json.JSONDecodeError, KeyError) as e:
-        raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
-
 def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
     if not checkDep("sops"):
         raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
 
     args = _handle_provider_arg(args, config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()
@@ -697,19 +626,12 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
             raise PermissionError(message)
 
     try:
-        if bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsDec
-            sopsDecryptResult = bwsSopsDec(args)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsDec
-            sopsDecryptResult = bwSopsDec(args)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsDec
-            sopsDecryptResult = opSopsDec(args)
+        if provider:
+            sopsDecryptResult = provider.decrypt(secrets_file, sops_file)
         else:
-            sopsDecryptResult = subprocess.run(['sops', '--config', sops_file, '--decrypt', secrets_file], check=True, capture_output=True, text=True)
+            sopsDecryptResult = subprocess.run(['sops', '--config', sops_file, '--decrypt', secrets_file], check=True, capture_output=True, text=True).stdout
 
-        return sopsDecryptResult.stdout
+        return sopsDecryptResult
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e

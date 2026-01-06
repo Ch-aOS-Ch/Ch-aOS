@@ -1,18 +1,17 @@
 from io import StringIO
+from typing import cast
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
+from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _getProvider
+from chaos.lib.utils import render_list_as_table
 import os
-import math
 import subprocess
 
 console = Console()
 
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
-
-Better than ansible vault, like a bowss (jk).
 """
 
 """
@@ -84,10 +83,6 @@ def handleRotateRemove(args):
 
 """Lists all keys of a certain type from the sops config file."""
 def listFp(args):
-    from rich.panel import Panel
-    from itertools import zip_longest
-    from rich.align import Align
-    from rich.table import Table
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -110,39 +105,9 @@ def listFp(args):
         case _:
             raise ValueError("No available type passed.")
 
-    if results != None:
-        items = sorted(results)
-        num_items = len(results)
-        max_rows = 4
-
-        if num_items < 5:
-            table = Table(show_lines=True, expand=False, show_header=False)
-            table.add_column(justify="center")
-
-            for item in items:
-                table.add_row(f"[italic][cyan]{item}[/][/]")
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
-        else:
-            num_columns = math.ceil(num_items / max_rows)
-
-            table = Table(
-                show_lines=True,
-                expand=False,
-                show_header=False
-            )
-
-            for _ in range(num_columns):
-                table.add_column(justify="center")
-
-            chunks = [items[i:i + max_rows] for i in range(0, num_items, max_rows)]
-            transposed_items = zip_longest(*chunks, fillvalue="")
-
-            for row_data in transposed_items:
-                styled_row = [f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data]
-                table.add_row(*styled_row)
-
-            console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=f"[italic][green]Found {args.type} Keys:[/][/]")), justify="center")
+    if results:
+        title = f"[italic][green]Found {args.type} Keys:[/][/]"
+        render_list_as_table(list(results), title)
 
 """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):
@@ -164,6 +129,7 @@ def handleSetShamir(args):
 
     try:
         config_data = OmegaConf.load(sops_file_override)
+        config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules')
 
         if not creation_rules:
@@ -218,23 +184,13 @@ def handleSetShamir(args):
 """Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
     team = args.team
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     args = _handle_provider_arg(args, global_config)
 
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
+    provider = _getProvider(args, global_config)
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
@@ -250,15 +206,8 @@ def handleSecEdit(args):
         if isSops:
             editor = os.getenv('EDITOR', 'nano')
             subprocess.run([editor, sopsFile], check=True)
-        elif bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsEdit
-            bwsSopsEdit(args)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsEdit
-            bwSopsEdit(args)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsEdit
-            opSopsEdit(args)
+        elif provider:
+            provider.edit(secretsFile, sopsFile)
         else:
             subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
 
@@ -275,23 +224,11 @@ def handleSecEdit(args):
 def handleSecPrint(args):
     team = args.team
     isSops = args.sops
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     args = _handle_provider_arg(args, global_config)
-
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
 
     if not isSops:
         if not secretsFile:
@@ -308,26 +245,11 @@ def handleSecPrint(args):
 
     try:
         if isSops:
-            subprocess.run(['cat', sopsFile], check=True)
-        elif bws and bws_keyType:
-            from chaos.lib.secret_backends.bws import bwsSopsDec
-            sopsDecryptResult = bwsSopsDec(args)
-            print(sopsDecryptResult.stdout)
-        elif bw and bw_keyType:
-            from chaos.lib.secret_backends.bw import bwSopsDec
-            sopsDecryptResult = bwSopsDec(args)
-            print(sopsDecryptResult.stdout)
-        elif op and op_keyType:
-            from chaos.lib.secret_backends.op import opSopsDec
-            sopsDecryptResult = opSopsDec(args)
-            print(sopsDecryptResult.stdout)
+            decrypted_output = subprocess.run(['cat', sopsFile], check=True, capture_output=True, text=True).stdout
         else:
-            # if op and keyPath:
-            #     from chaos.lib.secret_backends.op import opSopsDec
-            #     sopsDecryptResult = opSopsDec(args)
-            #     print(sopsDecryptResult.stdout)
-            # else:
-                subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True)
+            from .secret_backends.utils import decrypt_secrets
+            decrypted_output = decrypt_secrets(secretsFile, sopsFile, global_config, args)
+        print(decrypted_output)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
@@ -337,24 +259,12 @@ def handleSecPrint(args):
 """Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
     team = args.team
-    op, keyPath = args.from_op if args.from_op else (None, None)
     sops_file_override = args.sops_file_override
     keys = args.keys
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
     args = _handle_provider_arg(args, global_config)
-
-    bw, bw_keyType = (None, None)
-    bws, bws_keyType = (None, None)
-    op, op_keyType = (None, None)
-
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        bw, bw_keyType = args.from_bw
-    if hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        bws, bws_keyType = args.from_bws
-    if hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        op, op_keyType = args.from_op
 
     if not secretsFile or not sopsFile:
         raise FileNotFoundError("SOPS check requires both secrets file and sops config file paths.\n"
@@ -368,25 +278,16 @@ def handleSecCat(args):
     try:
         isSops = args.sops
         sopsDecryptResult = None
-        if not isSops:
-            if bws and bws_keyType:
-                from chaos.lib.secret_backends.bws import bwsSopsDec
-                sopsDecryptResult = bwsSopsDec(args)
-            elif bw and bw_keyType:
-                from chaos.lib.secret_backends.bw import bwSopsDec
-                sopsDecryptResult = bwSopsDec(args)
-            elif op and op_keyType:
-                from chaos.lib.secret_backends.op import opSopsDec
-                sopsDecryptResult = opSopsDec(args)
-            else:
-                sopsDecryptResult = subprocess.run(['sops', '--config', sopsFile, '--decrypt', secretsFile], check=True, text=True, capture_output=True)
+        if isSops:
+            sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True).stdout
         else:
-            sopsDecryptResult = subprocess.run(['cat', sopsFile], check=True, text=True, capture_output=True)
+            from .secret_backends.utils import decrypt_secrets
+            sopsDecryptResult = decrypt_secrets(secretsFile, sopsFile, global_config, args)
 
         if sopsDecryptResult is None:
             raise RuntimeError("SOPS decryption result is None. This should not happen.")
 
-        ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult.stdout))
+        ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
         isJson = args.json
         for key in keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)
