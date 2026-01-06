@@ -8,7 +8,7 @@ theme:
   palette:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep green
+      primary: green
       accent: teal
       toggle:
         icon: material/weather-night
