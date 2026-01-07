@@ -612,15 +612,28 @@ def handleFindRamble(args):
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         try:
-            data, text = _read_ramble_content(ramble_file, sops_file_override, team, args, global_config)
+            if search_term and required_tag:
+                data, text = _read_ramble_content(ramble_file, sops_file_override, team, args, global_config)
 
-            if required_tag:
+                if required_tag:
+                    tags = data.get('tags', [])
+                    if required_tag not in tags:
+                        continue
+
+                if search_term and search_term.lower() not in text.lower():
+                    continue
+
+            elif search_term:
+                data, text = _read_ramble_content(ramble_file, sops_file_override, team, args, global_config)
+
+                if search_term and search_term.lower() not in text.lower():
+                    continue
+
+            elif required_tag:
+                data = cast(DictConfig, OmegaConf.load(ramble_file))
                 tags = data.get('tags', [])
                 if required_tag not in tags:
                     continue
-
-            if search_term and search_term.lower() not in text.lower():
-                continue
 
             ramble = ramble_file.parent.name
             page = ramble_file.stem
