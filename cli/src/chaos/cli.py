@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import sys
 import os
-from chaos.lib.args import (
+from typing import cast
+from chaos.lib.args.args import (
     handleGenerateTab,
     argParsing,
     addTeamParsers,
@@ -13,6 +14,7 @@ from chaos.lib.args import (
     addRambleParsers,
     addInitParsers
 )
+from chaos.lib.args.types import ChaosArguments
 
 """
 Ok so, this is the main CLI entrypoint for this project. Yeah, ik it's a lot of match cases, but this is intentional.
@@ -47,7 +49,7 @@ def main():
             import argcomplete
             argcomplete.autocomplete(parser)
 
-        args = parser.parse_args()
+        args = cast(ChaosArguments, parser.parse_args())
 
         from rich.console import Console
 
