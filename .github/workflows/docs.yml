@@ -20,7 +20,7 @@ jobs:
           
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: "3.12"
           
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       
@@ -32,7 +32,7 @@ jobs:
             mkdocs-material-
             
       - name: Install dependencies
-        run: pip install mkdocs-material mkdocstrings mkdocs-typer
+        run: pip install mkdocs-material mkdocstrings mkdocstrings-python mkdocs-typer
         
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
