@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import argcomplete
-from rich.console import Console
 
 from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
@@ -17,13 +16,14 @@ Keep this file AS EXPLICIT as possible, avoid abstractions that hide the control
 """
 
 def main():
-
     try:
         parser = argParsing()
 
         argcomplete.autocomplete(parser)
 
         args = parser.parse_args()
+
+        from rich.console import Console
 
         role_specs, ROLE_ALIASES, EXPLANATIONS, keys = get_plugins(args.update_plugins)
 
@@ -65,7 +65,7 @@ def main():
             case 'apply':
                 from chaos.lib.plugDiscovery import load_roles
                 from chaos.lib.handlers import handleVerbose, handleOrchestration
-                from pyinfra.api import exceptions as pyinfra_exceptions
+                from pyinfra.api import exceptions as pyinfra_exceptions # type: ignore
                 from typing import cast
                 from omegaconf import DictConfig
 

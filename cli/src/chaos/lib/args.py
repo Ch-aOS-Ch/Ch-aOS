@@ -1,4 +1,3 @@
-from chaos.lib.plugDiscovery import get_plugins
 import subprocess
 import argparse
 from argcomplete.completers import FilesCompleter
@@ -14,6 +13,7 @@ class RolesCompleter:
 
     def __call__(self, prefix, **kwargs):
         if self._roles is None or self._aliases is None or self.explain is None:
+            from chaos.lib.plugDiscovery import get_plugins
             self. _roles, self._aliases, self.explain, self.keys = get_plugins()
 
         all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())

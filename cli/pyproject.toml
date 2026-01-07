@@ -7,7 +7,7 @@ name = "chaos"
 version = "0.1.0"
 description = "Declarative OS configuration manager"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "pyinfra",
     "omegaconf",
