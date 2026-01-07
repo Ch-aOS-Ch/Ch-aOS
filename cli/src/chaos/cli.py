@@ -108,9 +108,9 @@ def handleTeam(args, Console):
                 from chaos.lib.team import pruneTeams
                 pruneTeams(args)
             case _:
-                Console().print("Unsupported team subcommand.")
+                Console.print("Unsupported team subcommand.")
     except (ValueError, FileNotFoundError, FileExistsError, RuntimeError, EnvironmentError) as e:
-        Console().print(f"[bold red]ERROR:[/] {e}")
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handleExplain(args):
@@ -148,7 +148,7 @@ def handleApply(args, Console):
         else:
             print("No tags passed.")
     except FileNotFoundError as e:
-        Console().print(f"[bold red]ERROR:[/] {e}")
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
     except pyinfra_exceptions.PyinfraError as e:
         print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
@@ -207,9 +207,9 @@ def handleSecrets(args, Console):
             case 'print': handleSecPrint(args)
             case 'cat': handleSecCat(args)
             case _:
-                Console().print("Unsupported secrets subcommand.")
+                Console.print("Unsupported secrets subcommand.")
     except (ValueError, FileNotFoundError, PermissionError, RuntimeError, EnvironmentError) as e:
-        Console().print(f"[bold red]ERROR:[/] {e}")
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handleCheck(args):
@@ -243,7 +243,7 @@ def handleSet(args, Console):
         try:
             setMode(args)
         except FileNotFoundError as e:
-            Console().print(f"[bold red]ERROR:[/] {e}")
+            Console.print(f"[bold red]ERROR:[/] {e}")
             sys.exit(1)
         sys.exit(0)
 
@@ -264,9 +264,9 @@ def handleRamble(args, Console):
             case 'delete': handleDelRamble(args)
             case 'update': handleUpdateEncryptRamble(args)
             case _:
-                Console().print("Unsupported ramble subcommand.")
+                Console.print("Unsupported ramble subcommand.")
     except (ValueError, FileNotFoundError, PermissionError, RuntimeError, FileExistsError) as e:
-        Console().print(f"[bold red]ERROR:[/] {e}")
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handleInit(args, Console):
@@ -279,9 +279,9 @@ def handleInit(args, Console):
                 initChobolo(keys)
             case 'secrets': initSecrets()
             case _:
-                Console().print("Unsupported init.")
+                Console.print("Unsupported init.")
     except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
-        Console().print(f"[bold red]ERROR:[/] {e}")
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handle_(args, Console):
@@ -294,7 +294,7 @@ def handle_(args, Console):
             from chaos.lib.tinyScript import runChoboloEdit
             runChoboloEdit(args.chobolo)
         except (ValueError, FileNotFoundError, RuntimeError) as e:
-            Console().print(f"[bold red]ERROR:[/] {e}")
+            Console.print(f"[bold red]ERROR:[/] {e}")
             sys.exit(1)
 
 
