@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import argcomplete
-
-from chaos.lib.plugDiscovery import get_plugins
 from chaos.lib.args import handleGenerateTab, argParsing
 
 """
@@ -25,7 +23,6 @@ def main():
 
         from rich.console import Console
 
-        role_specs, ROLE_ALIASES, EXPLANATIONS, keys = get_plugins(args.update_plugins)
 
         match args.command:
             case 'team':
@@ -58,6 +55,8 @@ def main():
             case 'explain':
                 from chaos.lib.handlers import handleExplain
                 if args.topics:
+                    from chaos.lib.plugDiscovery import get_plugins
+                    _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
                     handleExplain(args, EXPLANATIONS)
                 else:
                     print("No explanation passed.")
@@ -74,6 +73,8 @@ def main():
                 We load the roles, handle verbosity, and then pass control to the orchestration handler.
                 """
                 try:
+                    from chaos.lib.plugDiscovery import get_plugins
+                    role_specs, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
                     ROLES_DISPATCHER = load_roles(role_specs)
                     ikwid = args.i_know_what_im_doing
                     dry = args.dry
@@ -154,9 +155,18 @@ def main():
                 from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
 
                 match args.checks:
-                    case 'explanations': checkExplanations(EXPLANATIONS)
-                    case 'aliases': checkAliases(ROLE_ALIASES)
-                    case 'roles': checkRoles(role_specs)
+                    case 'explanations':
+                        from chaos.lib.plugDiscovery import get_plugins
+                        _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
+                        checkExplanations(EXPLANATIONS)
+                    case 'aliases':
+                        from chaos.lib.plugDiscovery import get_plugins
+                        _, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
+                        checkAliases(ROLE_ALIASES)
+                    case 'roles':
+                        from chaos.lib.plugDiscovery import get_plugins
+                        role_specs, _, _, _ = get_plugins(args.update_plugins)
+                        checkRoles(role_specs)
                     case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
                 sys.exit(0)
@@ -202,7 +212,10 @@ def main():
                 try:
                     from chaos.lib.inits import initChobolo, initSecrets
                     match args.init_command:
-                        case 'chobolo': initChobolo(keys)
+                        case 'chobolo':
+                            from chaos.lib.plugDiscovery import get_plugins
+                            _, _, _, keys = get_plugins(args.update_plugins)
+                            initChobolo(keys)
                         case 'secrets': initSecrets()
                         case _:
                             Console().print("Unsupported init.")
