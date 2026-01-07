@@ -27,6 +27,7 @@ Keep this file AS EXPLICIT as possible, avoid abstractions that hide the control
 def main():
     try:
         parser = argParsing()
+
         subParser = parser.add_subparsers(dest="command", help="Available subcommands")
 
         addTeamParsers(subParser)
@@ -37,6 +38,10 @@ def main():
         addSetParsers(subParser)
         addRambleParsers(subParser)
         addInitParsers(subParser)
+
+        if len(sys.argv) == 1:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
 
         if "_ARGCOMPLETE" in os.environ:
             import argcomplete
@@ -73,8 +78,6 @@ def main():
 
             case _:
                 handle_(args, Console())
-
-        sys.exit(0)
 
     except ImportError as e:
         print(f"Error: Missing dependency. Please ensure all requirements are installed. Details: {e}", file=sys.stderr)
