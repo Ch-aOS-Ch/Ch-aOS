@@ -4,7 +4,6 @@ from .base import Provider
 import subprocess
 import json
 from pathlib import Path
-from rich.console import Console
 from chaos.lib.utils import checkDep
 from argcomplete.completers import FilesCompleter
 from chaos.lib.secret_backends.utils import (
@@ -16,10 +15,7 @@ from chaos.lib.secret_backends.utils import (
     is_valid_age_key,
     is_valid_age_secret_key,
 )
-from omegaconf import OmegaConf, DictConfig
 from typing import Tuple, cast
-
-console = Console()
 
 class BitwardenPasswordProvider(Provider):
     @staticmethod
@@ -59,6 +55,8 @@ class BitwardenPasswordProvider(Provider):
         """
         Exports keys to Bitwarden as new notes.
         """
+        from rich.console import Console
+        console = Console()
 
         self.check_status()
 
@@ -286,6 +284,7 @@ class BitwardenSecretsProvider(Provider):
         return True, "Bitwarden Secrets CLI is ready."
 
     def readKeys(self, item_id: str) -> str:
+        from omegaconf import OmegaConf, DictConfig
         try:
             result = subprocess.run(
                 ['bws', 'secret', 'get', item_id],
@@ -311,6 +310,8 @@ class BitwardenSecretsProvider(Provider):
         return content
 
     def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = setup_vault_keys(vaultAddr, keyPath)
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
@@ -338,6 +339,8 @@ class BitwardenSecretsProvider(Provider):
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
     def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = extract_gpg_keys(fingerprints)
 
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
@@ -366,6 +369,8 @@ class BitwardenSecretsProvider(Provider):
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
     def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         value = self._get_age_key_content(key_path)
         pubKey, secKey = extract_age_keys(value)
 

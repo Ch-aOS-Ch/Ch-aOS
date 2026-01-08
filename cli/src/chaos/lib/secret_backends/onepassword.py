@@ -6,11 +6,8 @@ import subprocess
 from argcomplete.completers import FilesCompleter
 import json
 from pathlib import Path
-from rich.console import Console
 from chaos.lib.utils import checkDep
 import re
-
-console = Console()
 
 class OnePasswordProvider(Provider):
     """
@@ -50,6 +47,8 @@ class OnePasswordProvider(Provider):
         secOpImport.add_argument('-i', '--item-id', help="1Password item URL to import the key from (format: op://vault/item).")
 
     def export_secrets(self) -> None:
+        from rich.console import Console
+        console = Console()
         args = self.args
 
         keyType = args.key_type
@@ -220,6 +219,8 @@ class OnePasswordProvider(Provider):
             raise RuntimeError(f"Error retrieving item from 1Password: {e.stderr.strip()}") from e
 
     def _op_create_item(self, vault: str, title: str, field: str, tags: list[str], key: str) -> bool:
+        from rich.console import Console
+        console = Console()
         try:
             field_args = []
             for tag in tags:
