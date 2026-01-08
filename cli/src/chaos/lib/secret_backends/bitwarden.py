@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from rich.console import Console
 from chaos.lib.utils import checkDep
+from argcomplete.completers import FilesCompleter
 from chaos.lib.secret_backends.utils import (
     extract_age_keys,
     _save_to_config,

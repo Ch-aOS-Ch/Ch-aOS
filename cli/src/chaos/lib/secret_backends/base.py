@@ -37,16 +37,16 @@ class Provider(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
         """
         Register provider-specific subcommands.
         """
         pass
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
         """
         Register provider-specific subcommands.

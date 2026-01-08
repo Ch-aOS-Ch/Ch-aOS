@@ -1,7 +1,8 @@
-from importlib.metadata import EntryPoints, entry_points
 import subprocess
 import argparse
 from argcomplete.completers import FilesCompleter
+
+from chaos.lib.utils import get_providerEps
 
 """
 gets the argument parser for chaos
@@ -31,9 +32,6 @@ class ExplainCompleter:
         all_comps = list(self._topics.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
-def get_providerEps() -> EntryPoints | None:
-    providerEps = entry_points(group='chaos.providers')
-    return providerEps
 
 def add_provider_args(parser):
     """Adds the standard provider arguments to a given parser."""
@@ -57,7 +55,7 @@ def add_provider_export_subcommands(subparsers):
     try:
         for ep in providerEps:
             provider = ep.load()
-            provider.register_export_subparser(subparsers)
+            provider.register_export_subcommands(subparsers)
     except ImportError as e:
         print(f"Error loading provider entry points: {e}")
 

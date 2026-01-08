@@ -4,7 +4,7 @@ from omegaconf import ListConfig, DictConfig
 from pathlib import Path
 from rich.prompt import Confirm
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.utils import checkDep
+from chaos.lib.utils import checkDep, get_providerEps
 from rich.console import Console
 import sys
 import os
@@ -21,18 +21,48 @@ console = Console()
 Now now, I KNOW this is way too big of a file, but bear with me here
 """
 
+def _resolveProvider(args, global_config):
+    if hasattr(args, 'provider') and args.provider is not None:
+        args = _handle_provider_arg(args, global_config)
+
+    return _getProvider(args, global_config)
+
 """Returns the appropriate secret provider based on the command-line arguments."""
 def _getProvider(args, global_config):
+    from chaos.lib.secret_backends.base import Provider
     provider = None
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
-        provider = BitwardenPasswordProvider(args, global_config)
-    elif hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
-        provider = BitwardenSecretsProvider(args, global_config)
-    elif hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
-        provider = OnePasswordProvider(args, global_config)
+    provider_eps = get_providerEps()
+    if not provider_eps:
+        raise ValueError("No secret providers found. Please ensure that at least one provider plugin is installed.")
+    for provider in provider_eps:
+        ProviderClass = provider.load()
+        providerFlag, _ = ProviderClass.get_cli_name()
+        if hasattr(args, providerFlag) and getattr(args, providerFlag):
+            provider = ProviderClass(args, global_config)
+            break
+    if not isinstance(provider, Provider):
+        raise ValueError("No valid secret provider could be resolved from the provided arguments.")
+    return provider
+
+def _getProviderByName(provider_subcommand_name: str, args, global_config) -> "Provider":
+    from chaos.lib.secret_backends.base import Provider
+    provider = None
+    provider_eps = get_providerEps()
+    if not provider_eps:
+        raise ValueError("No secret providers available for exporting secrets.")
+
+    for ep in provider_eps:
+        ProviderClass = ep.load()
+        _, providerCliName = ProviderClass.get_cli_name()
+        if providerCliName == provider_subcommand_name:
+            provider = ProviderClass(args, global_config)
+
+            if not isinstance(provider, Provider) or not hasattr(provider, 'export_secrets'):
+                 raise TypeError(f"The provider '{providerCliName}' does not support exporting secrets.")
+            break
+
+    if not provider or provider == None:
+        raise ValueError(f"No secret provider found for '{provider_subcommand_name}'.")
     return provider
 
 """
@@ -432,8 +462,7 @@ def handleUpdateAllSecrets(args):
             if "sops" in data:
                 console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
 
-                args = _handle_provider_arg(args, global_config)
-                provider = _getProvider(args, global_config)
+                provider = _resolveProvider(args, global_config)
 
                 if provider:
                     provider.updatekeys(main_secrets_file, sops_file_path)
@@ -481,30 +510,32 @@ def _handle_provider_arg(args, config: DictConfig):
     id_key = f"{key_type}_id"
     url_key = f"{key_type}_url"
 
-    match backend:
-        case "bw":
-            if id_key not in backend_config:
-                raise ValueError(f"'{id_key}' not found for 'bw' provider in secret_providers config.")
+    provider_eps = get_providerEps()
+    if not provider_eps:
+        raise ValueError("No secret providers found. Please ensure that at least one provider plugin is installed.")
 
-            item_id = backend_config[id_key]
-            args.from_bw = (item_id, key_type)
+    provider_found = False
+    for provider_ep in provider_eps:
+        ProviderClass = provider_ep.load()
+        providerFlag, providerName = ProviderClass.get_cli_name()
 
-        case "bws":
-            if id_key not in backend_config:
-                raise ValueError(f"'{id_key}' not found for 'bws' provider in secret_providers config.")
+        if providerName == backend:
+            value_to_set = None
+            if id_key in backend_config:
+                item_id = backend_config[id_key]
+                value_to_set = (item_id, key_type)
+            elif url_key in backend_config:
+                item_url = backend_config[url_key]
+                value_to_set = (item_url, key_type)
+            else:
+                raise ValueError(f"Could not find '{id_key}' or '{url_key}' in backend '{backend}' config for provider '{provider_name}'.")
 
-            item_id = backend_config[id_key]
-            args.from_bws = (item_id, key_type)
+            setattr(args, providerFlag, value_to_set)
+            provider_found = True
+            break
 
-        case "op":
-            if url_key not in backend_config:
-                raise ValueError(f"'{url_key}' not found for 'op' provider in secret_providers config.")
-
-            item_url = backend_config[url_key]
-            args.from_op = (item_url, key_type)
-
-        case _:
-            raise ValueError(f"Unsupported provider backend: '{backend}'.")
+    if not provider_found:
+         raise ValueError(f"No installed provider plugin matched the backend '{backend}'.")
 
     args.provider = None
     return args
@@ -616,9 +647,7 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
     if not checkDep("sops"):
         raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
 
-    args = _handle_provider_arg(args, config)
-
-    provider = _getProvider(args, config)
+    provider = _resolveProvider(args, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()

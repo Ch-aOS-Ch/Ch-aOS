@@ -1,3 +1,4 @@
+from importlib.metadata import EntryPoints, entry_points
 import shutil
 import math
 from itertools import zip_longest
@@ -14,6 +15,10 @@ def checkDep(bin):
     if path is None:
         return False
     return True
+
+def get_providerEps() -> EntryPoints | None:
+    providerEps = entry_points(group='chaos.providers')
+    return providerEps
 
 def render_list_as_table(items: list[str], panel_title: str):
     """Renders a list of strings into a responsive multi-column table using rich."""
