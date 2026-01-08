@@ -5,7 +5,6 @@ from contextlib import contextmanager
 import os
 import shlex
 import subprocess
-from rich.console import Console
 from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
 from .utils import (
     _import_age_keys,
@@ -15,8 +14,6 @@ from .utils import (
     decompress,
 )
 from typing import Tuple
-
-console = Console()
 
 class Provider(ABC):
     """
@@ -208,6 +205,9 @@ class Provider(ABC):
         """
         Imports remote keys from the provider to local.
         """
+        from rich.console import Console
+        console = Console()
+
         self.check_status()
 
         args = self.args

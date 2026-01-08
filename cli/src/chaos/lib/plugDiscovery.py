@@ -4,6 +4,7 @@ import sys
 from importlib.metadata import entry_points
 from importlib import import_module
 from pathlib import Path
+import functools
 
 """
 Module for discovering and loading Ch-aOS plugins.
@@ -30,6 +31,7 @@ Aliases: Define new aliases for existing roles.
 Keys: Define new keys for existing roles, allowing for better `chaos init chobolo`.
 Explanations: Define explanations for existing roles, enhancing user understanding.
 """
+@functools.lru_cache(maxsize=None)
 def get_plugins(update_cache=False):
     plugin_dirs = [
         Path.home() / ".local/share/chaos/plugins",

@@ -1,6 +1,20 @@
 import subprocess
 import argparse
-from argcomplete.completers import FilesCompleter
+import functools
+import os
+
+if "_ARGCOMPLETE" in os.environ:
+    try:
+        from argcomplete.completers import FilesCompleter # type: ignore
+    except ImportError:
+        class FilesCompleter: # type: ignore
+            def __call__(self, *args, **kwargs):
+                return []
+else:
+    class FilesCompleter:
+        def __call__(self, *args, **kwargs):
+            return []
+
 
 from chaos.lib.utils import get_providerEps
 
@@ -33,43 +47,47 @@ class ExplainCompleter:
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 
-def add_provider_args(parser):
-    """Adds the standard provider arguments to a given parser."""
-    providerEps = get_providerEps()
-    if not providerEps:
-        return
+import functools
 
+@functools.lru_cache(maxsize=None)
+def get_loaded_providers():
+    providerEps = get_providerEps()
+    loaded_providers = []
+    if not providerEps:
+        return loaded_providers
     try:
-        provider_group = parser.add_mutually_exclusive_group()
         for ep in providerEps:
             provider = ep.load()
-            provider.register_flags(provider_group)
+            loaded_providers.append(provider)
     except ImportError as e:
         print(f"Error loading provider entry points: {e}")
+    return loaded_providers
+
+def add_provider_args(parser):
+    """Adds the standard provider arguments to a given parser."""
+    providers = get_loaded_providers()
+    if not providers:
+        return
+
+    provider_group = parser.add_mutually_exclusive_group()
+    for provider in providers:
+        provider.register_flags(provider_group)
 
 def add_provider_export_subcommands(subparsers):
     """Adds the standard provider subparsers to a given subparsers object."""
-    providerEps = get_providerEps()
-    if not providerEps:
+    providers = get_loaded_providers()
+    if not providers:
         return
-    try:
-        for ep in providerEps:
-            provider = ep.load()
-            provider.register_export_subcommands(subparsers)
-    except ImportError as e:
-        print(f"Error loading provider entry points: {e}")
+    for provider in providers:
+        provider.register_export_subcommands(subparsers)
 
 def add_provider_import_subcommands(subparsers):
     """Adds the standard provider subparsers to a given subparsers object."""
-    providerEps = get_providerEps()
-    if not providerEps:
+    providers = get_loaded_providers()
+    if not providers:
         return
-    try:
-        for ep in providerEps:
-            provider = ep.load()
-            provider.register_import_subcommands(subparsers)
-    except ImportError as e:
-        print(f"Error loading provider entry points: {e}")
+    for provider in providers:
+        provider.register_import_subcommands(subparsers)
 
 """
 creates the argument parser for chaos
@@ -138,6 +156,15 @@ def addSecParsers(parser):
     secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     add_provider_args(secPrint)
+
+    secCat = secSubParser.add_parser("cat", help="Get the specified keys inside of your secrets file, nested or not.")
+    secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
+    secCat.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secCat.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
+    secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
+    add_provider_args(secCat)
 
 def addRambleParsers(parser):
     rambleParser = parser.add_parser('ramble', help="Annotate your rambles!")
