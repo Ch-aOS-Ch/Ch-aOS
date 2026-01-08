@@ -16,14 +16,14 @@ from chaos.lib.secret_backends.utils import (
     is_valid_age_secret_key,
 )
 from omegaconf import OmegaConf, DictConfig
-from typing import cast
+from typing import Tuple, cast
 
 console = Console()
 
 class BitwardenPasswordProvider(Provider):
     @staticmethod
-    def get_cli_flag_name() -> str:
-        return "from_bw"
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bw", "bw"
 
     @staticmethod
     def register_flags(parser: argparse.ArgumentParser) -> None:
@@ -201,8 +201,8 @@ class BitwardenPasswordProvider(Provider):
 
 class BitwardenSecretsProvider(Provider):
     @staticmethod
-    def get_cli_flag_name() -> str:
-        return "from_bws"
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bws", "bws"
 
     @staticmethod
     def register_flags(parser: argparse.ArgumentParser) -> None:

@@ -59,7 +59,7 @@ def get_plugins(update_cache=False):
         with open(CACHE_FILE, 'r') as f:
             try:
                 cache_data = json.load(f)
-                if 'roles' in cache_data and 'aliases' in cache_data and 'explanations' in cache_data:
+                if 'roles' in cache_data and 'aliases' in cache_data and 'explanations' in cache_data and 'keys' in cache_data and 'providers' in cache_data:
                     return cache_data['roles'], cache_data['aliases'], cache_data['explanations'], cache_data['keys'], cache_data['providers']
                 else:
                     print("Warning: Invalid or outdated cache file format. Re-discovering plugins.", file=sys.stderr)
@@ -96,7 +96,7 @@ def get_plugins(update_cache=False):
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, 'w') as f:
-            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explanations': discovered_explanations, 'keys': discovered_keys}, f, indent=4)
+            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explanations': discovered_explanations, 'keys': discovered_keys, 'providers': discovered_providers}, f, indent=4)
         if update_cache or not cache_exists:
             print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
     except OSError as e:

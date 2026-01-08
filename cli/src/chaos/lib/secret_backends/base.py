@@ -54,13 +54,13 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def get_cli_flag_name() -> str | None:
+    def get_cli_name() -> Tuple[str | None, str | None]:
         """
         Returns the name of the attribute in the args object that corresponds
-        to this provider's ephemeral key flag (e.g., 'from_bw').
+        to this provider's ephemeral key flag (e.g., 'from_bw') and name for config (e.g. bw).
         Returns None if the provider doesn't have a direct flag.
         """
-        return None
+        raise NotImplementedError
 
     @property
     def name(self) -> str:

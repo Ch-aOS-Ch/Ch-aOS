@@ -1,4 +1,5 @@
 import argparse
+from typing import Tuple
 from .base import Provider
 from .utils import get_sops_files, setup_vault_keys, extract_gpg_keys
 import subprocess
@@ -17,8 +18,8 @@ class OnePasswordProvider(Provider):
     """
 
     @staticmethod
-    def get_cli_flag_name() -> str:
-        return "from_op"
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_op", "op"
 
     @staticmethod
     def register_flags(parser: argparse.ArgumentParser) -> None:
