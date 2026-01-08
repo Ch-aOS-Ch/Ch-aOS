@@ -41,13 +41,13 @@ def main():
         addRambleParsers(subParser)
         addInitParsers(subParser)
 
-        if len(sys.argv) == 1:
-            parser.print_help(sys.stderr)
-            sys.exit(1)
-
         if "_ARGCOMPLETE" in os.environ:
             import argcomplete
             argcomplete.autocomplete(parser)
+
+        if len(sys.argv) == 1:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
 
         args = cast(ChaosArguments, parser.parse_args())
 
