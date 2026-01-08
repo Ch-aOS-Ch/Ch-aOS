@@ -60,7 +60,7 @@ def get_plugins(update_cache=False):
             try:
                 cache_data = json.load(f)
                 if 'roles' in cache_data and 'aliases' in cache_data and 'explanations' in cache_data:
-                    return cache_data['roles'], cache_data['aliases'], cache_data['explanations'], cache_data['keys']
+                    return cache_data['roles'], cache_data['aliases'], cache_data['explanations'], cache_data['keys'], cache_data['providers']
                 else:
                     print("Warning: Invalid or outdated cache file format. Re-discovering plugins.", file=sys.stderr)
             except json.JSONDecodeError:
@@ -70,6 +70,7 @@ def get_plugins(update_cache=False):
     discovered_aliases = {}
     discovered_explanations = {}
     discovered_keys = {}
+    discovered_providers = {}
     eps = entry_points()
 
     role_eps = eps.select(group="chaos.roles")
@@ -87,6 +88,11 @@ def get_plugins(update_cache=False):
     keys_eps = eps.select(group="chaos.keys")
     for ep in keys_eps:
         discovered_keys[ep.name] = ep.value
+
+    provider_eps = eps.select(group="chaos.providers")
+    for ep in provider_eps:
+        discovered_providers[ep.name] = ep.value
+
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, 'w') as f:
@@ -96,8 +102,7 @@ def get_plugins(update_cache=False):
     except OSError as e:
         print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
 
-
-    return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys
+    return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys, discovered_providers
 
 """
 Load role functions based on their specifications.

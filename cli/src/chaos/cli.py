@@ -119,7 +119,7 @@ def handleExplain(args):
     from chaos.lib.handlers import handleExplain
     if args.topics:
         from chaos.lib.plugDiscovery import get_plugins
-        _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
+        _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
         handleExplain(args, EXPLANATIONS)
     else:
         print("No explanation passed.")
@@ -137,7 +137,7 @@ def handleApply(args, Console):
     """
     try:
         from chaos.lib.plugDiscovery import get_plugins
-        role_specs, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
+        role_specs, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
         ROLES_DISPATCHER = load_roles(role_specs)
         ikwid = args.i_know_what_im_doing
         dry = args.dry
@@ -220,15 +220,15 @@ def handleCheck(args):
     match args.checks:
         case 'explanations':
             from chaos.lib.plugDiscovery import get_plugins
-            _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
+            _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
             checkExplanations(EXPLANATIONS)
         case 'aliases':
             from chaos.lib.plugDiscovery import get_plugins
-            _, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
+            _, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
             checkAliases(ROLE_ALIASES)
         case 'roles':
             from chaos.lib.plugDiscovery import get_plugins
-            role_specs, _, _, _ = get_plugins(args.update_plugins)
+            role_specs, _, _, _, _ = get_plugins(args.update_plugins)
             checkRoles(role_specs)
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
@@ -277,7 +277,7 @@ def handleInit(args, Console):
         match args.init_command:
             case 'chobolo':
                 from chaos.lib.plugDiscovery import get_plugins
-                _, _, _, keys = get_plugins(args.update_plugins)
+                _, _, _, keys, _ = get_plugins(args.update_plugins)
                 initChobolo(keys)
             case 'secrets': initSecrets()
             case _:

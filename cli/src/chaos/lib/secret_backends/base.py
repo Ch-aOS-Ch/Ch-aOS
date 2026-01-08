@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import argparse
 from collections.abc import Iterator
 from contextlib import contextmanager
 import os
@@ -27,6 +28,39 @@ class Provider(ABC):
     def __init__(self, args, global_config: dict):
         self.args = args
         self.config = global_config
+
+    @staticmethod
+    @abstractmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        """
+        Register provider-specific command-line arguments.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+        """
+        Register provider-specific subcommands.
+        """
+        pass
+
+    @abstractmethod
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+        """
+        Register provider-specific subcommands.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def get_cli_flag_name() -> str | None:
+        """
+        Returns the name of the attribute in the args object that corresponds
+        to this provider's ephemeral key flag (e.g., 'from_bw').
+        Returns None if the provider doesn't have a direct flag.
+        """
+        return None
 
     @property
     def name(self) -> str:
