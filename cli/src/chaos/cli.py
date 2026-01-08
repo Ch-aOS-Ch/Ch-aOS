@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# This monkey-patches the standard library to work with gevent.
+# It's crucial to do this at the very beginning of the entry point
+# to avoid issues with libraries that rely on gevent for concurrency,
+# especially when packaged with tools like shiv.
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import sys
 import os
 from typing import cast

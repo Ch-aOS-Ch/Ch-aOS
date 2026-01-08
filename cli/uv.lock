@@ -204,6 +204,8 @@ dependencies = [
     { name = "charset-normalizer" },
     { name = "gevent" },
     { name = "gitpython" },
+    { name = "greenlet", version = "3.2.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "greenlet", version = "3.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "hvac" },
     { name = "markupsafe" },
     { name = "omegaconf" },
@@ -213,6 +215,10 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
+    { name = "zope-event", version = "6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "zope-event", version = "6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "zope-interface", version = "8.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "zope-interface", version = "8.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 
 [package.metadata]
@@ -220,8 +226,9 @@ requires-dist = [
     { name = "argcomplete" },
     { name = "cffi", specifier = ">=2.0.0" },
     { name = "charset-normalizer", specifier = ">=2,<4" },
-    { name = "gevent", specifier = ">=1.5" },
+    { name = "gevent", specifier = ">=24.10.3" },
     { name = "gitpython", specifier = ">=3.1.45" },
+    { name = "greenlet", specifier = ">=3.1.1" },
     { name = "hvac", specifier = ">=2.4.0" },
     { name = "markupsafe", specifier = ">=2.0" },
     { name = "omegaconf" },
@@ -230,6 +237,8 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=5.1.0" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "rich", specifier = ">=13.7.1" },
+    { name = "zope-event", specifier = ">=5.0" },
+    { name = "zope-interface", specifier = ">=6.4" },
 ]
 
 [[package]]
