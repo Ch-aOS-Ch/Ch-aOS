@@ -7,24 +7,24 @@ name = "chaos"
 version = "0.1.0"
 description = "Declarative OS configuration manager"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11,<=3.13.11"
 dependencies = [
     "pyinfra",
     "omegaconf",
-    "passlib>=1.7.4",
+    "passlib",
     "argcomplete",
-    "rich>=13.7.1",
-    "hvac>=2.4.0",
-    "requests>=2.32.4",
-    "gitpython>=3.1.45",
-    "greenlet>=3.1.1",
-    "zope.event>=5.0",
-    "zope.interface>=6.4",
-    "gevent>=24.10.3",
-    "MarkupSafe>=2.0",
-    "cffi>=2.0.0",
-    "PyYAML>=5.1.0",
-    "charset_normalizer<4,>=2",
+    "rich",
+    "hvac",
+    "requests",
+    "gitpython",
+    "greenlet",
+    "zope.event",
+    "zope.interface",
+    "gevent",
+    "MarkupSafe",
+    "cffi",
+    "PyYAML",
+    "charset_normalizer",
 ]
 
 [project.scripts]
