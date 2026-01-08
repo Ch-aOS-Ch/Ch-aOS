@@ -36,6 +36,7 @@ class ApplyArgs(Protocol):
     secrets: bool
 
 class SecArgs(Protocol):
+    pgp_server: Optional[str]
     key_type: Optional[Literal['age', 'gpg', 'vault']]
     type: Optional[Literal['age', 'pgp', 'vault']]
     index: Optional[int]

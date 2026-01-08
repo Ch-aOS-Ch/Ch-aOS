@@ -97,6 +97,17 @@ def addSecParsers(parser):
     secOpImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
     secOpImport.add_argument('-i', '--item-id', help="1Password item URL to import the key from (format: op://vault/item).")
 
+    secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
+    secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
+    secRotateAdd.add_argument('keys', nargs="+", help="Keys to be added.")
+    secRotateAdd.add_argument('-i', '--index', type=int, help="Rule index to be used.")
+    secRotateAdd.add_argument('-cr', '--create', action='store_true', help="If you want to create a new key group or not.")
+    secRotateAdd.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
+    secRotateAdd.add_argument('-s', '--pgp-server', dest="pgp_server", help="Server to import GPG keys.")
+    secRotateAdd.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secRotateAdd.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    add_provider_args(secRotateAdd)
+
     secRotateRemove = secSubParser.add_parser('rotate-rm', help="Remove keys from your secrets.")
     secRotateRemove.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to remove.")
     secRotateRemove.add_argument('keys', nargs="+", help="Keys to be removed.")
