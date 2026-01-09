@@ -460,7 +460,10 @@ class BitwardenRbwProvider(Provider):
         vaultAddr = args.vault_addr
         save_to_config = args.save_to_config
 
-        self.check_status()
+        isUnlocked, msg = self.check_status()
+        if not isUnlocked:
+            raise PermissionError(msg)
+
         from rich.console import Console
         console = Console()
 
@@ -548,7 +551,10 @@ class BitwardenRbwProvider(Provider):
             return False, "rbw is locked. Please unlock it with 'rbw unlock' or 'rbw login' first.\n    Note: for official Bitwarden users, 'rbw register' is required before 'rbw login'.\n    It will ask you foro your CLIENT ID and SECRET from your Bitwarden account settings."
 
     def readKeys(self, item_id: str) -> str:
-        self.check_status()
+        isUnlocked, msg = self.check_status()
+        if not isUnlocked:
+            raise PermissionError(msg)
+
         try:
             result = subprocess.run(
             ['rbw', 'get', item_id, '--field=notes'],
