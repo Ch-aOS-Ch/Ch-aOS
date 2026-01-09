@@ -119,7 +119,7 @@ def handleExplain(args):
     from chaos.lib.handlers import handleExplain
     if args.topics:
         from chaos.lib.plugDiscovery import get_plugins
-        _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
+        _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
         handleExplain(args, EXPLANATIONS)
     else:
         print("No explanation passed.")
@@ -137,7 +137,7 @@ def handleApply(args, Console):
     """
     try:
         from chaos.lib.plugDiscovery import get_plugins
-        role_specs, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
+        role_specs, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
         ROLES_DISPATCHER = load_roles(role_specs)
         ikwid = args.i_know_what_im_doing
         dry = args.dry
@@ -165,7 +165,9 @@ def handleSecrets(args, Console):
             handleSetShamir,
             handleSecEdit,
             handleSecPrint,
-            handleSecCat
+            handleSecCat,
+            handleImportSec,
+            handleExportSec
         )
         from chaos.lib.secret_backends.utils import get_sops_files
         team = getattr(args, 'team', None)
@@ -173,34 +175,8 @@ def handleSecrets(args, Console):
         secrets_file_override = getattr(args, 'secrets_file', None)
         _, _, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
         match args.secrets_commands:
-            case 'export':
-                match args.export_commands:
-                    case 'bw':
-                        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
-                        provider = BitwardenPasswordProvider(args, global_config)
-                        provider.export_secrets()
-                    case 'bws':
-                        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
-                        provider = BitwardenSecretsProvider(args, global_config)
-                        provider.export_secrets()
-                    case 'op':
-                        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
-                        provider = OnePasswordProvider(args, global_config)
-                        provider.export_secrets()
-            case 'import':
-                match args.import_commands:
-                    case 'bw':
-                        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
-                        provider = BitwardenPasswordProvider(args, global_config)
-                        provider.import_secrets()
-                    case 'bws':
-                        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
-                        provider = BitwardenSecretsProvider(args, global_config)
-                        provider.import_secrets()
-                    case 'op':
-                        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
-                        provider = OnePasswordProvider(args, global_config)
-                        provider.import_secrets()
+            case 'export': handleExportSec(args, global_config)
+            case 'import': handleImportSec(args, global_config)
             case 'rotate-add': handleRotateAdd(args)
             case 'rotate-rm': handleRotateRemove(args)
             case 'list': listFp(args)
@@ -220,15 +196,15 @@ def handleCheck(args):
     match args.checks:
         case 'explanations':
             from chaos.lib.plugDiscovery import get_plugins
-            _, _, EXPLANATIONS, _ = get_plugins(args.update_plugins)
+            _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
             checkExplanations(EXPLANATIONS)
         case 'aliases':
             from chaos.lib.plugDiscovery import get_plugins
-            _, ROLE_ALIASES, _, _ = get_plugins(args.update_plugins)
+            _, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
             checkAliases(ROLE_ALIASES)
         case 'roles':
             from chaos.lib.plugDiscovery import get_plugins
-            role_specs, _, _, _ = get_plugins(args.update_plugins)
+            role_specs, _, _, _, _ = get_plugins(args.update_plugins)
             checkRoles(role_specs)
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
@@ -277,7 +253,7 @@ def handleInit(args, Console):
         match args.init_command:
             case 'chobolo':
                 from chaos.lib.plugDiscovery import get_plugins
-                _, _, _, keys = get_plugins(args.update_plugins)
+                _, _, _, keys, _ = get_plugins(args.update_plugins)
                 initChobolo(keys)
             case 'secrets': initSecrets()
             case _:

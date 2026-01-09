@@ -3,8 +3,9 @@ from typing import cast
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _getProvider
-from chaos.lib.utils import render_list_as_table
+from chaos.lib.secret_backends.base import Provider
+from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _resolveProvider, _getProviderByName
+from chaos.lib.utils import get_providerEps, render_list_as_table
 import os
 import subprocess
 
@@ -188,9 +189,7 @@ def handleSecEdit(args):
     secrets_file_override = args.secrets_file_override
     secretsFile, sopsFile, global_config = get_sops_files(sops_file_override, secrets_file_override, team)
 
-    args = _handle_provider_arg(args, global_config)
-
-    provider = _getProvider(args, global_config)
+    provider = _resolveProvider(args, global_config)
 
     if is_vault_in_use(sopsFile):
         is_authed, message = check_vault_auth()
@@ -309,3 +308,14 @@ def handleSecCat(args):
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
+
+def handleExportSec(args, global_config):
+    provider_subcommand_name = args.export_commands
+    provider = _getProviderByName(provider_subcommand_name, args, global_config)
+    provider.export_secrets()
+
+def handleImportSec(args, global_config):
+    provider_subcommand_name = args.import_commands
+    provider = _getProviderByName(provider_subcommand_name, args, global_config)
+    provider.import_secrets()
+

@@ -1,6 +1,22 @@
 import subprocess
 import argparse
-from argcomplete.completers import FilesCompleter
+import functools
+import os
+
+if "_ARGCOMPLETE" in os.environ:
+    try:
+        from argcomplete.completers import FilesCompleter # type: ignore
+    except ImportError:
+        class FilesCompleter: # type: ignore
+            def __call__(self, *args, **kwargs):
+                return []
+else:
+    class FilesCompleter:
+        def __call__(self, *args, **kwargs):
+            return []
+
+
+from chaos.lib.utils import get_providerEps
 
 """
 gets the argument parser for chaos
@@ -12,20 +28,66 @@ class RolesCompleter:
         self.explain = None
 
     def __call__(self, prefix, **kwargs):
-        if self._roles is None or self._aliases is None or self.explain is None:
+        if self._roles is None or self._aliases is None:
             from chaos.lib.plugDiscovery import get_plugins
-            self. _roles, self._aliases, self.explain, self.keys = get_plugins()
+            self. _roles, self._aliases, _, _, _ = get_plugins()
 
-        all_comps = list(self._roles.keys()) + list(self._aliases.keys()) + list(self.explain.keys()) + list(self.keys.keys())
+        all_comps = list(self._roles.keys()) + list(self._aliases.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
+
+class ExplainCompleter:
+    def __init__(self):
+        self._topics = None
+    def __call__(self, prefix, **kwargs):
+        if self._topics is None:
+            from chaos.lib.plugDiscovery import get_plugins
+            _, _, self._topics, _, _ = get_plugins()
+
+        all_comps = list(self._topics.keys())
+        return [comp for comp in all_comps if comp.startswith(prefix)]
+
+
+import functools
+
+@functools.lru_cache(maxsize=None)
+def get_loaded_providers():
+    providerEps = get_providerEps()
+    loaded_providers = []
+    if not providerEps:
+        return loaded_providers
+    try:
+        for ep in providerEps:
+            provider = ep.load()
+            loaded_providers.append(provider)
+    except ImportError as e:
+        print(f"Error loading provider entry points: {e}")
+    return loaded_providers
 
 def add_provider_args(parser):
     """Adds the standard provider arguments to a given parser."""
+    providers = get_loaded_providers()
+    if not providers:
+        return
+
     provider_group = parser.add_mutually_exclusive_group()
-    provider_group.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
-    provider_group.add_argument('-b', '--from-bw', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden. KEY_TYPE is 'age' or 'gpg'.")
-    provider_group.add_argument('-bs', '--from-bws', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from Bitwarden Secrets. KEY_TYPE is 'age', 'gpg', or 'vault'.")
-    provider_group.add_argument('-o', '--from-op', nargs=2, metavar=('ITEM_ID', 'KEY_TYPE'), help="[Manual] Decrypt with a key from 1Password. KEY_TYPE is 'age', 'gpg' or 'vault'.")
+    for provider in providers:
+        provider.register_flags(provider_group)
+
+def add_provider_export_subcommands(subparsers):
+    """Adds the standard provider subparsers to a given subparsers object."""
+    providers = get_loaded_providers()
+    if not providers:
+        return
+    for provider in providers:
+        provider.register_export_subcommands(subparsers)
+
+def add_provider_import_subcommands(subparsers):
+    """Adds the standard provider subparsers to a given subparsers object."""
+    providers = get_loaded_providers()
+    if not providers:
+        return
+    for provider in providers:
+        provider.register_import_subcommands(subparsers)
 
 """
 creates the argument parser for chaos
@@ -50,52 +112,11 @@ def addSecParsers(parser):
 
     secExport = secSubParser.add_parser('export', help="Export keys to a Password Manager.")
     secSubExport = secExport.add_subparsers(dest='export_commands', help="Secret export subcommands", required=True)
-
-    secBwsExport = secSubExport.add_parser('bws', help="Bitwarden Secrets CLI export options")
-    secBwsExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-    secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
-    secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-    secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-    secBwsExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secBwsExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
-    secBwsExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
-
-    secBwExport = secSubExport.add_parser('bw', help="Bitwarden CLI export options")
-    secBwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-    secBwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-    secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
-    secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
-    secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-    secBwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secBwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
-    secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
-    secBwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
-
-    secOpExport = secSubExport.add_parser('op', help="1Password CLI export options")
-    secOpExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-    secOpExport.add_argument('-i', '--item-id', help="1Password item URL where to export the key (format: op://vault/item).")
-    secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-    secOpExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-    secOpExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
-    secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
-    secOpExport.add_argument('-g', '--tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
-    secOpExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the 1Password item URL to the chaos config file.")
+    add_provider_export_subcommands(secSubExport)
 
     secImport = secSubParser.add_parser('import', help="Import keys from a Password Manager.")
-
     secSubImport = secImport.add_subparsers(dest='import_commands', help="Secret import subcommands", required=True)
-
-    secBwsImport = secSubImport.add_parser('bws', help="Bitwarden Secrets CLI import options")
-    secBwsImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-    secBwsImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
-
-    secBwImport = secSubImport.add_parser('bw', help="Bitwarden CLI import options")
-    secBwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-    secBwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
-
-    secOpImport = secSubImport.add_parser('op', help="1Password CLI import options")
-    secOpImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-    secOpImport.add_argument('-i', '--item-id', help="1Password item URL to import the key from (format: op://vault/item).")
+    add_provider_import_subcommands(secSubImport)
 
     secRotateAdd = secSubParser.add_parser('rotate-add', help="Add new keys to your secrets.")
     secRotateAdd.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to add")
@@ -135,6 +156,15 @@ def addSecParsers(parser):
     secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     add_provider_args(secPrint)
+
+    secCat = secSubParser.add_parser("cat", help="Get the specified keys inside of your secrets file, nested or not.")
+    secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
+    secCat.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secCat.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
+    secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
+    add_provider_args(secCat)
 
 def addRambleParsers(parser):
     rambleParser = parser.add_parser('ramble', help="Annotate your rambles!")
@@ -190,8 +220,9 @@ def addRambleParsers(parser):
 def addExplainParsers(parser):
     expParser = parser.add_parser('explain', help="Explain a role topic or subtopic.")
 
-    expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
+    topics = expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
+    topics.completer = ExplainCompleter() # type: ignore
 
 def addCheckParsers(parser):
     checkParser = parser.add_parser('check', help='Check and list roles, aliases and explanations')

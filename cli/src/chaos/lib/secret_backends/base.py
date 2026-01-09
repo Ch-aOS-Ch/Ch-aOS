@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
+import argparse
 from collections.abc import Iterator
 from contextlib import contextmanager
 import os
 import shlex
 import subprocess
-from rich.console import Console
 from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
 from .utils import (
     _import_age_keys,
@@ -14,8 +14,6 @@ from .utils import (
     decompress,
 )
 from typing import Tuple
-
-console = Console()
 
 class Provider(ABC):
     """
@@ -27,6 +25,39 @@ class Provider(ABC):
     def __init__(self, args, global_config: dict):
         self.args = args
         self.config = global_config
+
+    @staticmethod
+    @abstractmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        """
+        Register provider-specific command-line arguments.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+        """
+        Register provider-specific subcommands.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+        """
+        Register provider-specific subcommands.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def get_cli_name() -> Tuple[str | None, str | None]:
+        """
+        Returns the name of the attribute in the args object that corresponds
+        to this provider's ephemeral key flag (e.g., 'from_bw') and name for config (e.g. bw).
+        Returns None if the provider doesn't have a direct flag.
+        """
+        raise NotImplementedError
 
     @property
     def name(self) -> str:
@@ -174,6 +205,9 @@ class Provider(ABC):
         """
         Imports remote keys from the provider to local.
         """
+        from rich.console import Console
+        console = Console()
+
         self.check_status()
 
         args = self.args

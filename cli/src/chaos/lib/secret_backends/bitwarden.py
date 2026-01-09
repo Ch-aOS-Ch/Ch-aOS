@@ -1,10 +1,11 @@
+import argparse
 import os
 from .base import Provider
 import subprocess
 import json
 from pathlib import Path
-from rich.console import Console
 from chaos.lib.utils import checkDep
+from argcomplete.completers import FilesCompleter
 from chaos.lib.secret_backends.utils import (
     extract_age_keys,
     _save_to_config,
@@ -14,16 +15,48 @@ from chaos.lib.secret_backends.utils import (
     is_valid_age_key,
     is_valid_age_secret_key,
 )
-from omegaconf import OmegaConf, DictConfig
-from typing import cast
-
-console = Console()
+from typing import Tuple, cast
 
 class BitwardenPasswordProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bw", "bw"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-bw', '-b',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from Bitwarden. Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secBwExport = subparser.add_parser('bw', help="Bitwarden CLI export options")
+        secBwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
+        secBwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
+        secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
+        secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
+        secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
+        secBwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
+        secBwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
+        secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
+        secBwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secBwImport = subparser.add_parser('bw', help="Bitwarden CLI import options")
+        secBwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+        secBwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+
     def export_secrets(self) -> None:
         """
         Exports keys to Bitwarden as new notes.
         """
+        from rich.console import Console
+        console = Console()
 
         self.check_status()
 
@@ -166,6 +199,37 @@ class BitwardenPasswordProvider(Provider):
         return self.args.from_bw
 
 class BitwardenSecretsProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bws", "bws"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-bws', '-B',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from Bitwarden Secrets CLI. Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secBwsExport = subparser.add_parser('bws', help="Bitwarden Secrets CLI export options")
+        secBwsExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
+        secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
+        secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
+        secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
+        secBwsExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
+        secBwsExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
+        secBwsExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secBwsImport = subparser.add_parser('bws', help="Bitwarden Secrets CLI import options")
+        secBwsImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+        secBwsImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+
     def export_secrets(self) -> None:
         args = self.args
         self.check_status()
@@ -220,6 +284,7 @@ class BitwardenSecretsProvider(Provider):
         return True, "Bitwarden Secrets CLI is ready."
 
     def readKeys(self, item_id: str) -> str:
+        from omegaconf import OmegaConf, DictConfig
         try:
             result = subprocess.run(
                 ['bws', 'secret', 'get', item_id],
@@ -245,6 +310,8 @@ class BitwardenSecretsProvider(Provider):
         return content
 
     def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = setup_vault_keys(vaultAddr, keyPath)
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
@@ -272,6 +339,8 @@ class BitwardenSecretsProvider(Provider):
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
     def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = extract_gpg_keys(fingerprints)
 
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
@@ -300,6 +369,8 @@ class BitwardenSecretsProvider(Provider):
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
     def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
+        from rich.console import Console
+        console = Console()
         value = self._get_age_key_content(key_path)
         pubKey, secKey = extract_age_keys(value)
 
