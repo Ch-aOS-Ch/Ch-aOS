@@ -70,6 +70,7 @@ def add_provider_args(parser):
         return
 
     provider_group = parser.add_mutually_exclusive_group()
+    provider_group.add_argument('-p', '--provider', nargs='?', const='default', default=None, help="Use a configured provider for decryption. If no name is given, uses the default provider.")
     for provider in providers:
         provider.register_flags(provider_group)
 
