@@ -143,6 +143,12 @@ class Provider(ABC):
         key_content = self.readKeys(item_id)
         if not key_content: raise ValueError(f"Retrieved key from {self.name} is empty.")
 
+        sanitized_key_content = ""
+        for line in key_content.splitlines():
+            if line.startswith(" ") or line.startswith("\t"):
+                line = line.lstrip()
+            sanitized_key_content += line + "\n"
+
         pubKey, secKey = extract_age_keys(key_content)
 
         if not pubKey:
@@ -150,7 +156,7 @@ class Provider(ABC):
         if not secKey:
             raise ValueError(f"Could not find a secret key in the secret from {self.name}. Expected a line starting with 'AGE-SECRET-KEY-'.")
 
-        return pubKey, secKey, key_content
+        return pubKey, secKey, sanitized_key_content
 
     def getGpgKeys(self, item_id: str) -> tuple[str, str]:
         """
@@ -166,7 +172,7 @@ class Provider(ABC):
 
         fingerprints = ""
         for line in key_content.splitlines():
-            if line.startswith("# fingerprints:"):
+            if line.strip().startswith("# fingerprints:"):
                 fingerprints = line.split(":", 1)[1].strip()
                 break
 
@@ -191,9 +197,9 @@ class Provider(ABC):
 
         vault_addr, vault_token = None, None
         for line in key_content.splitlines():
-            if line.startswith("# Vault Address:"):
+            if line.strip().startswith("# Vault Address:"):
                 vault_addr = line.split("::", 1)[1].strip()
-            if line.startswith("Vault Key:"):
+            if line.strip().startswith("Vault Key:"):
                 vault_token = line.split(":", 1)[1].strip()
 
         if not vault_addr or not vault_token:

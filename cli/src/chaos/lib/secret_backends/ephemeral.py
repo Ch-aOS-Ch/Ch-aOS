@@ -19,8 +19,9 @@ def ephemeralAgeKey(key_content: str):
         return
 
     with tempfile.NamedTemporaryFile(delete=False, mode='w', prefix='chaos-age-', dir="/dev/shm") as temp_file:
-        temp_file.write(key_content)
-        if not key_content.endswith('\n'):
+        sanitized_content = "\n".join(line.lstrip() for line in key_content.splitlines())
+        temp_file.write(sanitized_content)
+        if not sanitized_content.endswith('\n'):
             temp_file.write('\n')
         temp_file_path = temp_file.name
 

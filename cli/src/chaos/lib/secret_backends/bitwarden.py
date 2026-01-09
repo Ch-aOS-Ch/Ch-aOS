@@ -119,8 +119,9 @@ class BitwardenPasswordProvider(Provider):
             ).stdout
             item_json = json.loads(template_str)
 
-            item_json["type"] = 2
-            item_json["name"] = item_name
+            item_json["type"] = 1
+            item_json["login"] = {"username": "ch-aos", "password": "ch-aos"}
+            item_json["name"] = f"Ch-aOS {keyType.upper()} Key: {item_name}"
             item_json["notes"] = key_content
             if collection_id:
                 if not organization_id:
@@ -131,7 +132,6 @@ class BitwardenPasswordProvider(Provider):
             if tags:
                 item_json['fields'] = [tags]
             item_json["favorite"] = False
-            item_json["secureNote"] = {"type": 0}
 
             encoded_item = subprocess.run(
                 ['bw', 'encode'],
@@ -150,7 +150,14 @@ class BitwardenPasswordProvider(Provider):
             console.print(f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item '{created_item['name']}' (ID: {created_item['id']}).")
 
             if save_to_config and item_id:
-                _save_to_config(item_id=item_id, collection_id=collection_id, organization_id=organization_id, backend='bw', keyType=keyType)
+                data_to_save = {
+                    f"{keyType}_id": item_id
+                }
+                if collection_id:
+                    data_to_save["collection_id"] = collection_id
+                if organization_id:
+                    data_to_save["organization_id"] = organization_id
+                _save_to_config(backend='bw', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error creating item in Bitwarden: {e.stderr.strip()}") from e
@@ -328,8 +335,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported Vault key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='vault')
+                data_to_save = {
+                    "vault_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -358,8 +368,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported GPG key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='gpg')
+                data_to_save = {
+                    "gpg_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -394,8 +407,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported age key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='age')
+                data_to_save = {
+                    "age_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting age key to Bitwarden: {e.stderr.strip()}") from e
@@ -404,3 +420,182 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
+class BitwardenRbwProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_rbw", "rbw"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-rbw', '-rb',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from rbw (Bitwarden CLI). Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secRbwImport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) import options")
+        secRbwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+        secRbwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+        secRbwExport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) export options")
+        secRbwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
+        secRbwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
+        secRbwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
+        secRbwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
+        secRbwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
+        secRbwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+
+    def export_secrets(self) -> None:
+        args = self.args
+        keyType = args.key_type
+        keyPath = args.keys
+        fingerprints = args.fingerprints
+        item_name = args.item_name
+        vaultAddr = args.vault_addr
+        save_to_config = args.save_to_config
+
+        self.check_status()
+        from rich.console import Console
+        console = Console()
+
+        match keyType:
+            case 'age':
+                if not keyPath: raise ValueError("No age key path passed via --keys.")
+                keyPath = Path(keyPath).expanduser()
+                if not keyPath.is_file(): raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                with open(keyPath, 'r') as f:
+                    key_content = f.read()
+                pubkey, seckey = extract_age_keys(key_content)
+
+                if not pubkey:
+                    raise ValueError("Could not find a public key in the provided age key file. Expected a line starting with '# public key:'.")
+
+                if not seckey:
+                    raise ValueError("Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'.")
+                console.print(f"[green]INFO:[/] Exporting age public key: {pubkey}")
+
+            case 'gpg':
+                if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
+                if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
+
+                key_content = extract_gpg_keys(fingerprints)
+
+            case 'vault':
+                if not keyPath: raise ValueError("No Vault key path passed via --keys.")
+                if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
+                keyPath = Path(keyPath).expanduser()
+
+                if not keyPath.is_file(): raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                key_content = setup_vault_keys(vaultAddr, keyPath)
+            case _:
+                raise ValueError(f"Unsupported key type: {keyType}")
+
+        if not key_content:
+            raise ValueError("No key content to export.")
+
+        if not item_name:
+            raise ValueError("No item name provided for export.")
+
+        processed_key_content = "\n".join(
+            f" {line}" if line.startswith("#") else line for line in key_content.splitlines()
+        )
+
+        credential_content = f"ch-aos\n{processed_key_content}"
+
+        try:
+            subprocess.run(
+                ['rbw', 'add', f'Ch-aOS {keyType.upper()} Key: {item_name}', 'ch-aos'],
+                check=True,
+                input=credential_content,
+                text=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error creating item in Bitwarden via rbw: {e.stderr.strip()}") from e
+
+        item_id = self._get_item_id(f'Ch-aOS {keyType.upper()} Key: {item_name}')
+        console.print(f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item with ID: {item_id}.")
+        if item_id and save_to_config:
+            console.print(f"[green]INFO:[/] Saving Bitwarden item ID '{item_id}' to chaos config.")
+            data_to_save = {
+                f"{keyType}_id": item_id
+            }
+            _save_to_config(backend='rbw', data_to_save=data_to_save)
+
+    def check_status(self) -> Tuple[bool, str]:
+        if not checkDep('rbw'):
+            raise EnvironmentError("The 'rbw' CLI tool is required but not found in PATH.")
+
+        try:
+            result = subprocess.run(
+                ['rbw', 'unlocked'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            status_info = result.stdout.strip()
+            if not status_info:
+                return True, "rbw is unlocked."
+            return False, "rbw is locked. Please unlock it with 'rbw unlock' or 'rbw login' first.\n    Note: for official Bitwarden users, 'rbw register' is required before 'rbw login'.\n    It will ask you foro your CLIENT ID and SECRET from your Bitwarden account settings."
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to check rbw status: {e.stderr.strip()}") from e
+
+    def readKeys(self, item_id: str) -> str:
+        self.check_status()
+        try:
+            result = subprocess.run(
+            ['rbw', 'get', item_id, '--field=notes'],
+            capture_output=True,
+            text=True,
+            check=True
+            )
+            key_content = result.stdout.strip()
+
+            if not key_content:
+                raise ValueError(f"No notes found in Bitwarden item with ID '{item_id}'. The key should be in the 'notes' field.")
+
+            return key_content
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}") from e
+
+    def get_ephemeral_key_args(self) -> tuple[str, str]:
+        return self.args.from_rbw
+
+    def _get_item_id(self, name: str) -> str:
+        try:
+            items_raw = subprocess.Popen(
+                ['rbw', 'list', '--fields', 'id', '--fields', 'name'],
+                stdout = subprocess.PIPE
+            )
+
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error retrieving Bitwarden items: {e.stderr.strip()}") from e
+
+        try:
+            items = subprocess.run(
+                ['grep', name],
+                stdin=items_raw.stdout,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if not items.stdout.strip():
+                raise ValueError(f"No Bitwarden item found with name '{name}'.")
+            items = items.stdout.strip().splitlines()
+            if len(items) > 1:
+                raise ValueError(f"Multiple Bitwarden items found with name '{name}.")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error searching for Bitwarden item '{name}': {e.stderr.strip()}") from e
+
+        id = items[0].split('\t')[0]
+
+        return id

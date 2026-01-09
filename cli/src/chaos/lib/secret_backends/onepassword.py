@@ -89,7 +89,7 @@ class OnePasswordProvider(Provider):
 
             pubkey = ""
             for line in key.splitlines():
-                if line.startswith("# public key:"):
+                if line.strip().startswith("# public key:"):
                     pubkey = line.split("# public key:", 1)[1].strip()
                     break
             if pubkey:
@@ -128,13 +128,11 @@ class OnePasswordProvider(Provider):
             raise ValueError(f"Unsupported key type: {keyType}")
 
         if save_to_config:
-            from chaos.lib.secret_backends.utils import _save_to_config
-            _save_to_config(
-                backend='op',
-                keyType=keyType,
-                item_url=path,
-                field=loc
-            )
+            data_to_save = {
+                f"{keyType}_url": path,
+                "field": loc
+            }
+            _save_to_config(backend='op', data_to_save=data_to_save)
 
     def readKeys(self, item_id: str) -> str:
         if not checkDep("op"):

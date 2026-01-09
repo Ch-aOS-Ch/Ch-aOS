@@ -275,6 +275,16 @@ def handle_(args, Console):
             Console.print(f"[bold red]ERROR:[/] {e}")
             sys.exit(1)
 
+    elif args.update_plugins:
+        try:
+            from chaos.lib.plugDiscovery import get_plugins
+            get_plugins(update_cache=True)
+            Console.print("[bold green]Plugins updated successfully.[/]")
+            sys.exit(0)
+        except (RuntimeError, EnvironmentError) as e:
+            Console.print(f"[bold red]ERROR:[/] {e}")
+            sys.exit(1)
+
 
 if __name__ == "__main__":
   main()

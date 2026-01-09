@@ -219,9 +219,9 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
     pubKey, secKey = None, None
     for line in key_content.splitlines():
         line = line.strip()
-        if line.startswith("# public key:"):
+        if line.strip().startswith("# public key:"):
             pubKey = line.split(":", 1)[1].strip()
-        if line.startswith("AGE-SECRET-KEY-"):
+        if line.strip().startswith("AGE-SECRET-KEY-"):
             secKey = line
     return pubKey, secKey
 
@@ -386,16 +386,10 @@ def flatten(items):
 """
 Saves freshly exported keys to the specified provider
 """
-def _save_to_config(
-    project_id: str = '',
-    item_id: str = '',
-    backend: str = '',
-    organization_id: str = '',
-    collection_id: str = '',
-    keyType: str = '',
-    field: str = '',
-    item_url: str = '',
-) -> None:
+def _save_to_config(backend: str, data_to_save: dict) -> None:
+    """
+    Saves provider-specific data to the chaos config file.
+    """
     from omegaconf import OmegaConf
     config_path = Path.home() / ".config/chaos/config.yml"
     config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
@@ -403,44 +397,12 @@ def _save_to_config(
     if 'secret_providers' not in config:
         config.secret_providers = OmegaConf.create()
 
-    match backend:
-        case 'bws':
-            if 'bws' not in config.secret_providers:
-                config.secret_providers.bws = OmegaConf.create()
+    if backend not in config.secret_providers:
+        config.secret_providers[backend] = OmegaConf.create()
 
-            config.secret_providers.bws.project_id = project_id
-
-            id_key = f"{keyType}_id"
-            config.secret_providers.bws[id_key] = item_id
-
-        case 'bw':
-            if 'secret_providers' not in config:
-                config.secret_providers = OmegaConf.create()
-
-            if 'bw' not in config.secret_providers:
-                config.secret_providers.bw = OmegaConf.create()
-
-            if organization_id:
-                config.secret_providers.bw.organization_id = organization_id
-
-            if collection_id:
-                config.secret_providers.bw.collection_id = collection_id
-
-            id_key = f"{keyType}_id"
-            config.secret_providers.bw[id_key] = item_id
-
-        case 'op':
-            if 'secret_providers' not in config:
-                config.secret_providers = OmegaConf.create()
-
-            if 'op' not in config.secret_providers:
-                config.secret_providers.op = OmegaConf.create()
-
-            if field:
-                config.secret_providers.op.field = field
-
-            url_key = f"{keyType}_url"
-            config.secret_providers.op[url_key] = item_url
+    for key, value in data_to_save.items():
+        if value:
+            config.secret_providers[backend][key] = value
 
     OmegaConf.save(config, config_path)
 
@@ -704,8 +666,11 @@ def _import_age_keys(key_content: str) -> None:
             return
 
     with currentPathAgeFile.open('w') as f:
-        f.write(key_content)
-        if not key_content.endswith('\n'):
+        # Sanitize each line to ensure the output file is in a clean format,
+        # without leading spaces on comments, as expected for age key files.
+        sanitized_content = "\n".join(line.lstrip() for line in key_content.splitlines())
+        f.write(sanitized_content)
+        if not sanitized_content.endswith('\n'):
             f.write('\n')
 
 def _import_gpg_keys(secKey: str) -> None:
