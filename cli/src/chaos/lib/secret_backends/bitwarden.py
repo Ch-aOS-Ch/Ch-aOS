@@ -547,6 +547,7 @@ class BitwardenRbwProvider(Provider):
             status_info = result.stdout.strip()
             if not status_info:
                 return True, "rbw is unlocked."
+            return True, "rbw is unlocked."
         except subprocess.CalledProcessError:
             return False, "rbw is locked. Please unlock it with 'rbw unlock' or 'rbw login' first.\n    Note: for official Bitwarden users, 'rbw register' is required before 'rbw login'.\n    It will ask you foro your CLIENT ID and SECRET from your Bitwarden account settings."
 
