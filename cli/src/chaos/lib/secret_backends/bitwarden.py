@@ -37,6 +37,7 @@ class BitwardenPasswordProvider(Provider):
         secBwExport = subparser.add_parser('bw', help="Bitwarden CLI export options")
         secBwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
         secBwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
+        secBwExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
         secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
         secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
@@ -66,6 +67,7 @@ class BitwardenPasswordProvider(Provider):
         fingerprints = self.args.fingerprints
         tags = self.args.bw_tags
         save_to_config = self.args.save_to_config
+        no_import = self.args.no_import
 
         collection_id = self.config.get('secret_providers', {}).get('bw', {}).get('collection_id', '')
         organization_id = self.config.get('secret_providers', {}).get('bw', {}).get('organization_id', '')
@@ -111,6 +113,11 @@ class BitwardenPasswordProvider(Provider):
 
         else:
             raise ValueError(f"Unsupported key type: {keyType}")
+
+        if not key_content:
+            raise ValueError("No key content to export.")
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
 
         try:
             template_str = subprocess.run(
@@ -224,6 +231,7 @@ class BitwardenSecretsProvider(Provider):
     def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
         secBwsExport = subparser.add_parser('bws', help="Bitwarden Secrets CLI export options")
         secBwsExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
+        secBwsExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
         secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
         secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
@@ -245,6 +253,7 @@ class BitwardenSecretsProvider(Provider):
         key = args.item_name
         fingerprints = args.fingerprints
         save_to_config = args.save_to_config
+        no_import = args.no_import
 
         _,_, config = get_sops_files(None, None, None)
 
@@ -265,13 +274,13 @@ class BitwardenSecretsProvider(Provider):
                 if not args.keys: raise ValueError("No age key path passed via --keys.")
                 keyPath = Path(args.keys)
 
-                self._exportBwsAgeKey(keyPath, key, project_id, save_to_config)
+                self._exportBwsAgeKey(keyPath, key, project_id, save_to_config, no_import)
 
             case 'gpg':
                 if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
                 if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-                self._exportBwsGpgKey(key, project_id, fingerprints, save_to_config)
+                self._exportBwsGpgKey(key, project_id, fingerprints, save_to_config, no_import)
 
             case 'vault':
                 vaultAddr = args.vault_addr
@@ -279,7 +288,7 @@ class BitwardenSecretsProvider(Provider):
                 if not keyPath: raise ValueError("No Vault key path passed via --keys.")
                 if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
 
-                self._exportBwsVaultKey(keyPath, vaultAddr, key, project_id, save_to_config)
+                self._exportBwsVaultKey(keyPath, vaultAddr, key, project_id, save_to_config, no_import)
             case _:
                 raise ValueError(f"Unsupported key type: {keyType}")
 
@@ -316,10 +325,13 @@ class BitwardenSecretsProvider(Provider):
             raise ValueError("The specified key file does not appear to be a valid age key.")
         return content
 
-    def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
+    def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool, no_import: bool) -> None:
         from rich.console import Console
         console = Console()
         key_content = setup_vault_keys(vaultAddr, keyPath)
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
 
@@ -348,10 +360,12 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
-    def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
+    def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool, no_import: bool) -> None:
         from rich.console import Console
         console = Console()
         key_content = extract_gpg_keys(fingerprints)
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
 
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting GPG key for fingerprints: {', '.join(fingerprints)}")
@@ -381,10 +395,12 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
-    def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
+    def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool, no_import: bool) -> None:
         from rich.console import Console
         console = Console()
         value = self._get_age_key_content(key_path)
+        if no_import:
+            value = f"# NO-IMPORT\n{value}"
         pubKey, secKey = extract_age_keys(value)
 
         if not pubKey or not secKey: raise ValueError("Could not extract both public and secret keys from the provided age key file.")
@@ -446,6 +462,7 @@ class BitwardenRbwProvider(Provider):
         secRbwExport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) export options")
         secRbwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
         secRbwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
+        secRbwExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secRbwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
         secRbwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
         secRbwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
@@ -459,6 +476,7 @@ class BitwardenRbwProvider(Provider):
         item_name = args.item_name
         vaultAddr = args.vault_addr
         save_to_config = args.save_to_config
+        no_import = args.no_import
 
         isUnlocked, msg = self.check_status()
         if not isUnlocked:
@@ -506,6 +524,9 @@ class BitwardenRbwProvider(Provider):
 
         if not item_name:
             raise ValueError("No item name provided for export.")
+
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
 
         processed_key_content = "\n".join(
             f" {line}" if line.startswith("#") else line for line in key_content.splitlines()

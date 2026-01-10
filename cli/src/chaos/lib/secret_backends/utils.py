@@ -666,8 +666,6 @@ def _import_age_keys(key_content: str) -> None:
             return
 
     with currentPathAgeFile.open('w') as f:
-        # Sanitize each line to ensure the output file is in a clean format,
-        # without leading spaces on comments, as expected for age key files.
         sanitized_content = "\n".join(line.lstrip() for line in key_content.splitlines())
         f.write(sanitized_content)
         if not sanitized_content.endswith('\n'):

@@ -97,13 +97,13 @@ class Provider(ABC):
                     context["env"].update(age_env)
                     yield context
             case 'gpg':
-                _, secKey = self.getGpgKeys(item_id)
+                _, secKey, _ = self.getGpgKeys(item_id)
                 actualKey = decompress(secKey)
                 with ephemeralGpgKey(actualKey) as gpg_env:
                     context["env"].update(gpg_env)
                     yield context
             case 'vault':
-                vault_addr, vault_token = self.getVaultKeys(item_id)
+                vault_addr, vault_token, _ = self.getVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
@@ -158,7 +158,7 @@ class Provider(ABC):
 
         return pubKey, secKey, sanitized_key_content
 
-    def getGpgKeys(self, item_id: str) -> tuple[str, str]:
+    def getGpgKeys(self, item_id: str) -> tuple[str, str, str]:
         """
         Retrieves GPG keys from the provider.
         Args:
@@ -182,9 +182,9 @@ class Provider(ABC):
         noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
         secKey = noHeadersSecKey.strip()
 
-        return fingerprints, secKey
+        return fingerprints, secKey, key_content
 
-    def getVaultKeys(self, item_id: str) -> tuple[str, str]:
+    def getVaultKeys(self, item_id: str) -> tuple[str, str, str]:
         """
         Retrieves Vault keys from the provider.
         Args:
@@ -205,7 +205,7 @@ class Provider(ABC):
         if not vault_addr or not vault_token:
             raise ValueError(f"Could not extract both Vault address and token from {self.name} item.")
 
-        return vault_addr, vault_token
+        return vault_addr, vault_token, key_content
 
     def import_secrets(self) -> None:
         """
@@ -227,6 +227,9 @@ class Provider(ABC):
         match keyType:
             case 'age':
                 pubKey, secKey, key_content = self.getAgeKeys(item_id)
+                if "# NO-IMPORT" in key_content:
+                    raise ValueError(f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+
                 console.print(f"[green]Successfully imported age key from {self.name}.[/green]")
                 console.print(f"Public Key: [bold]{pubKey}[/bold]")
                 console.print(f"Secret Key: [bold]{secKey}[/bold]")
@@ -234,7 +237,10 @@ class Provider(ABC):
                 _import_age_keys(key_content)
 
             case 'gpg':
-                fingerprints, secKey = self.getGpgKeys(item_id)
+                fingerprints, secKey, key_content = self.getGpgKeys(item_id)
+                if "# NO-IMPORT" in key_content:
+                    raise ValueError(f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+
                 console.print(f"[green]Successfully imported GPG key from {self.name}.[/green]")
                 if fingerprints:
                     console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
@@ -242,7 +248,10 @@ class Provider(ABC):
                 _import_gpg_keys(secKey)
 
             case 'vault':
-                vault_addr, vault_token = self.getVaultKeys(item_id)
+                vault_addr, vault_token, key_content = self.getVaultKeys(item_id)
+                if "# NO-IMPORT" in key_content:
+                    raise ValueError(f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+
                 console.print(f"[green]Successfully imported Vault key from {self.name}.[/green]")
                 console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
                 console.print(f"Vault Token: [bold]{vault_token}[/bold]")

@@ -33,6 +33,7 @@ class OnePasswordProvider(Provider):
         secOpExport = subparser.add_parser('op', help="1Password CLI export options")
         secOpExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
         secOpExport.add_argument('-i', '--item-id', help="1Password item URL where to export the key (format: op://vault/item).")
+        secOpExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
         secOpExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
         secOpExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
@@ -56,6 +57,7 @@ class OnePasswordProvider(Provider):
         fingerprints = args.fingerprints
         tags = args.op_tags
         save_to_config = args.save_to_config
+        no_import = args.no_import
 
         _, _, config = get_sops_files(None, None, None)
         path = config.get('secret_providers', {}).get('op', {}).get(f'{keyType}_url', '')
@@ -82,6 +84,9 @@ class OnePasswordProvider(Provider):
             with open(keyPath, 'r') as f:
                 key = f.read()
 
+            if no_import:
+                key = f"# NO-IMPORT\n{key}"
+
             if not all([key, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
 
@@ -103,6 +108,8 @@ class OnePasswordProvider(Provider):
                 raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
             key_content = extract_gpg_keys(fingerprints)
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
 
             if not all([key_content, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
@@ -118,6 +125,8 @@ class OnePasswordProvider(Provider):
             keyPath = Path(keyPath).expanduser()
 
             key_content = setup_vault_keys(vaultAddr, keyPath)
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
 
             if not all([key_content, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
@@ -132,6 +141,7 @@ class OnePasswordProvider(Provider):
                 f"{keyType}_url": path,
                 "field": loc
             }
+            from .utils import _save_to_config
             _save_to_config(backend='op', data_to_save=data_to_save)
 
     def readKeys(self, item_id: str) -> str:
