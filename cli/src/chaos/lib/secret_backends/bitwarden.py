@@ -33,24 +33,18 @@ class BitwardenPasswordProvider(Provider):
         )
 
     @staticmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secBwExport = subparser.add_parser('bw', help="Bitwarden CLI export options")
-        secBwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-        secBwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-        secBwExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
         secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
-        secBwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-        secBwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-        secBwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
         secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
-        secBwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+
+        return secBwExport
 
     @staticmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secBwImport = subparser.add_parser('bw', help="Bitwarden CLI import options")
-        secBwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-        secBwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+        return secBwImport
 
     def export_secrets(self) -> None:
         """
@@ -228,22 +222,16 @@ class BitwardenSecretsProvider(Provider):
         )
 
     @staticmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secBwsExport = subparser.add_parser('bws', help="Bitwarden Secrets CLI export options")
-        secBwsExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-        secBwsExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
         secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
-        secBwsExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-        secBwsExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-        secBwsExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-        secBwsExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
-        secBwsExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+
+        return secBwsExport
 
     @staticmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secBwsImport = subparser.add_parser('bws', help="Bitwarden Secrets CLI import options")
-        secBwsImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-        secBwsImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+        return secBwsImport
 
     def export_secrets(self) -> None:
         args = self.args
@@ -452,21 +440,14 @@ class BitwardenRbwProvider(Provider):
         )
 
     @staticmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secRbwImport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) import options")
-        secRbwImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-        secRbwImport.add_argument('-i', '--item-id', help="The Bitwarden item ID to import the key from.")
+        return secRbwImport
 
     @staticmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secRbwExport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) export options")
-        secRbwExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
-        secRbwExport.add_argument('-n', '--item-name', help="Name of the Bitwarden item where to export the key.")
-        secRbwExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
-        secRbwExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-        secRbwExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-        secRbwExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
-        secRbwExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
+        return secRbwExport
 
     def export_secrets(self) -> None:
         args = self.args

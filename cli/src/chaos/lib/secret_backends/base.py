@@ -36,7 +36,7 @@ class Provider(ABC):
 
     @staticmethod
     @abstractmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         """
         Register provider-specific subcommands.
         """
@@ -44,7 +44,7 @@ class Provider(ABC):
 
     @staticmethod
     @abstractmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         """
         Register provider-specific subcommands.
         """

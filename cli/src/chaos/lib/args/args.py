@@ -80,7 +80,14 @@ def add_provider_export_subcommands(subparsers):
     if not providers:
         return
     for provider in providers:
-        provider.register_export_subcommands(subparsers)
+        providerSub = provider.register_export_subcommands(subparsers)
+        providerSub.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
+        providerSub.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
+        providerSub.add_argument('-n', '--item-name', help="Name of the item to export the key.")
+        providerSub.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
+        providerSub.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
+        providerSub.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprint to be exported (required for gpg keys).")
+        providerSub.add_argument('-s', '--save-to-config', action='store_true', help="Save the project ID to the chaos config file.")
 
 def add_provider_import_subcommands(subparsers):
     """Adds the standard provider subparsers to a given subparsers object."""
@@ -88,7 +95,9 @@ def add_provider_import_subcommands(subparsers):
     if not providers:
         return
     for provider in providers:
-        provider.register_import_subcommands(subparsers)
+        providerSub = provider.register_import_subcommands(subparsers)
+        providerSub.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
+        providerSub.add_argument('-i', '--item-id', help="The item ID/URL to import the key from.")
 
 """
 creates the argument parser for chaos

@@ -29,23 +29,18 @@ class OnePasswordProvider(Provider):
         )
 
     @staticmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secOpExport = subparser.add_parser('op', help="1Password CLI export options")
-        secOpExport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to export.")
         secOpExport.add_argument('-i', '--item-id', help="1Password item URL where to export the key (format: op://vault/item).")
-        secOpExport.add_argument('-N', '--no-import', action='store_true', help="Add a check to incapacitate importing of secrets.")
-        secOpExport.add_argument('-k', '--keys', help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).").completer = FilesCompleter() # type: ignore
-        secOpExport.add_argument('-a', '--vault-addr', help="Vault address where the token is used (required for vault keys).")
-        secOpExport.add_argument('-f', '--fingerprints', nargs="+", help="GPG Fingerprints to be exported (required for gpg keys).")
         secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
         secOpExport.add_argument('-g', '--tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
-        secOpExport.add_argument('-s', '--save-to-config', action='store_true', help="Save the 1Password item URL to the chaos config file.")
+
+        return secOpExport
 
     @staticmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> None:
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
         secOpImport = subparser.add_parser('op', help="1Password CLI import options")
-        secOpImport.add_argument('-t', '--key-type', choices=['age', 'gpg', 'vault'], help="The type of key you want to import.")
-        secOpImport.add_argument('-i', '--item-id', help="1Password item URL to import the key from (format: op://vault/item).")
+        return secOpImport
 
     def export_secrets(self) -> None:
         from rich.console import Console
