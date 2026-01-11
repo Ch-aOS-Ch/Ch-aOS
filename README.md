@@ -1,4 +1,3 @@
-
 [versão pt br](./READMEpt_BR.md)
 # ***Ch-aOS project suite***
 
@@ -131,4 +130,5 @@ Areas of particular interest include:
 - Creation of plugins and cores for other distros. These can be very simple, btw, one role at a time can make a true turn of events!!
 - Creation of new providers, btw if you create one, PLEASE either 1: put it under GPL/AGPL or 2: create a new PR in this repo, it'd be for the interest of everyone to keep chaos both 1 free and 2 open source (although you CAN always just make it proprietary, either way the more, the merrier)!
 - Help with documentation and examples.
+- Help to integrate for Windows machines
 
