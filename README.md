@@ -114,8 +114,9 @@
 - Ch-iron -- a fedora core for Ch-aOS
 - Ch-ronos -- a debian core for Ch-aOS
 - Mapping for distro agnosticity (probably impossible)
-- Direct SSH integration for chaos init and chaos provders
+- Direct SSH integration for chaos init and chaos providers, as sops has native integration with it
 - chaos.boats entry_point for dinamically discovered fleet definitions from external sources (like chaos providers, but for fleets)
+- Ch-imera: a Ch-aOS entry_point for mini ch-obolo-to-nix compilers (this one is going to be my undergrads degree!)
 
 ---
 
@@ -128,6 +129,6 @@ Areas of particular interest include:
 - Suggestions and implementations for post-install configurations.
 - Creation of issues.
 - Creation of plugins and cores for other distros. These can be very simple, btw, one role at a time can make a true turn of events!!
-- Creation of new providers, btw if you create one, PLEASE either 1: put it under MPL2.0 or 2: create a new PR in this repo, it'd be for the interest of everyone to keep chaos both 1 free and 2 open source (although you CAN always just put it under gpl, or even make it proprietary, I'm not your dad, either way the more, the merrier)!
+- Creation of new providers, btw if you create one, PLEASE either 1: put it under GPL/AGPL or 2: create a new PR in this repo, it'd be for the interest of everyone to keep chaos both 1 free and 2 open source (although you CAN always just make it proprietary, either way the more, the merrier)!
 - Help with documentation and examples.
 
