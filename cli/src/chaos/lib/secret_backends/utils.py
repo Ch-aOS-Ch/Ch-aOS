@@ -646,7 +646,7 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
 
         return sopsDecryptResult
     except subprocess.CalledProcessError as e:
-        details = e.stderr.decode() if e.stderr else "No output."
+        details = e.stderr if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
