@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.11,<=3.13.11"
 dependencies = [
     "pyinfra",
+    "pynacl>=1.6.2",
     "omegaconf",
+    "urllib3>=2.6.3",
     "passlib",
     "argcomplete",
     "rich",
