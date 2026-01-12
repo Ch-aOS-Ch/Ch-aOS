@@ -24,7 +24,7 @@ Also, nix is not just a config file with a lot of semantics, it's a _programming
 ---
 
 ## First of all:
-The docs. The documentation for Pyinfra is horrible at best, therefore I'm going to do the best of my efforts to explain what everything does and how the things should be setup, ok? ok.
+The docs. The documentation for Pyinfra is not the best when regarding API mode, therefore I'm going to do the best of my efforts to explain what everything does and how the things should be setup, ok? ok.
 
 First of all: what is this?
 ```py
