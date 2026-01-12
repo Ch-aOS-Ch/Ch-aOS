@@ -37,7 +37,7 @@ from pyinfra.context import ctx_state
 These are pyinfra modules, they serve as normal modules, but they are very sparse and work weirdly because of--
 
 ## Secondly:
-Pyinfra is not just an api, it is also a binary akin to python, this means they have a very convoluted system setup to serve both of these, worst of all, they use the same language AND have bad exceptions, so you can technically just import the wrong modules and python won't even notice.
+Pyinfra is not just an api, it is also a binary akin to python, this means they have a very big system setup to serve both of these, however they use the same language, so you can technically just import the wrong modules and python won't even notice.
 
 ## Thirdly: Connection? In my localhost based code?
 ```py
