@@ -3,9 +3,8 @@ from typing import cast
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.base import Provider
 from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _resolveProvider, _getProviderByName
-from chaos.lib.utils import get_providerEps, render_list_as_table
+from chaos.lib.utils import render_list_as_table
 import os
 import subprocess
 

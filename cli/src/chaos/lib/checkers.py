@@ -37,7 +37,9 @@ def printCheck(namespace, dispatcher):
     render_list_as_table(list(dispatcher.keys()), title)
 
 def _handleAliases(dispatcher):
+    from rich.console import Console
     from omegaconf import DictConfig, OmegaConf
+    console = Console()
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()

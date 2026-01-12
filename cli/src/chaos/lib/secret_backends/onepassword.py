@@ -3,7 +3,6 @@ from typing import Tuple
 from .base import Provider
 from .utils import get_sops_files, setup_vault_keys, extract_gpg_keys
 import subprocess
-from argcomplete.completers import FilesCompleter
 import json
 from pathlib import Path
 from chaos.lib.utils import checkDep
