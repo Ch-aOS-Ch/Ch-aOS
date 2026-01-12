@@ -1,0 +1,40 @@
+site_name: Ch-aOS Documentation
+site_url: https://Ch-aOS-Ch.github.io/Ch-aOS/
+repo_url: https://github.com/Ch-aOS-Ch/Ch-aOS
+repo_name: Ch-aOS-Ch/Ch-aOS
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+
+  features:
+    - content.code.copy
+    - navigation.instant
+    - navigation.top
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+         python:
+           paths: ['cli/src/chaos']
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
