@@ -1,13 +1,13 @@
+import argparse
+from typing import Tuple
 from .base import Provider
 from .utils import get_sops_files, setup_vault_keys, extract_gpg_keys
 import subprocess
+from argcomplete.completers import FilesCompleter
 import json
 from pathlib import Path
-from rich.console import Console
 from chaos.lib.utils import checkDep
 import re
-
-console = Console()
 
 class OnePasswordProvider(Provider):
     """
@@ -15,7 +15,36 @@ class OnePasswordProvider(Provider):
     Implements methods to manage secrets using 1Password CLI.
     """
 
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_op", "op"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-op', '-o',
+            nargs=2,
+            metavar=('ITEM_ID', 'FIELD'),
+            help='Read ephemeral key from 1Password item and field.'
+        )
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secOpExport = subparser.add_parser('op', help="1Password CLI export options")
+        secOpExport.add_argument('-i', '--item-id', help="1Password item URL where to export the key (format: op://vault/item).")
+        secOpExport.add_argument('-l', '--op-location', dest='op_location', default='notesPlain', help="Field name in 1Password item where the key will be stored (default: notesPlain).")
+        secOpExport.add_argument('-g', '--tags', dest='op_tags', nargs='*', default=[], help="Tags to add to the 1Password item.")
+
+        return secOpExport
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secOpImport = subparser.add_parser('op', help="1Password CLI import options")
+        return secOpImport
+
     def export_secrets(self) -> None:
+        from rich.console import Console
+        console = Console()
         args = self.args
 
         keyType = args.key_type
@@ -23,6 +52,7 @@ class OnePasswordProvider(Provider):
         fingerprints = args.fingerprints
         tags = args.op_tags
         save_to_config = args.save_to_config
+        no_import = args.no_import
 
         _, _, config = get_sops_files(None, None, None)
         path = config.get('secret_providers', {}).get('op', {}).get(f'{keyType}_url', '')
@@ -49,6 +79,9 @@ class OnePasswordProvider(Provider):
             with open(keyPath, 'r') as f:
                 key = f.read()
 
+            if no_import:
+                key = f"# NO-IMPORT\n{key}"
+
             if not all([key, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
 
@@ -56,7 +89,7 @@ class OnePasswordProvider(Provider):
 
             pubkey = ""
             for line in key.splitlines():
-                if line.startswith("# public key:"):
+                if line.strip().startswith("# public key:"):
                     pubkey = line.split("# public key:", 1)[1].strip()
                     break
             if pubkey:
@@ -70,6 +103,8 @@ class OnePasswordProvider(Provider):
                 raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
             key_content = extract_gpg_keys(fingerprints)
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
 
             if not all([key_content, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
@@ -85,6 +120,8 @@ class OnePasswordProvider(Provider):
             keyPath = Path(keyPath).expanduser()
 
             key_content = setup_vault_keys(vaultAddr, keyPath)
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
 
             if not all([key_content, path, loc]):
                 raise ValueError("Missing required parameters for exporting keys to 1Password.")
@@ -95,13 +132,12 @@ class OnePasswordProvider(Provider):
             raise ValueError(f"Unsupported key type: {keyType}")
 
         if save_to_config:
-            from chaos.lib.secret_backends.utils import _save_to_config
-            _save_to_config(
-                backend='op',
-                keyType=keyType,
-                item_url=path,
-                field=loc
-            )
+            data_to_save = {
+                f"{keyType}_url": path,
+                "field": loc
+            }
+            from .utils import _save_to_config
+            _save_to_config(backend='op', data_to_save=data_to_save)
 
     def readKeys(self, item_id: str) -> str:
         if not checkDep("op"):
@@ -186,6 +222,8 @@ class OnePasswordProvider(Provider):
             raise RuntimeError(f"Error retrieving item from 1Password: {e.stderr.strip()}") from e
 
     def _op_create_item(self, vault: str, title: str, field: str, tags: list[str], key: str) -> bool:
+        from rich.console import Console
+        console = Console()
         try:
             field_args = []
             for tag in tags:

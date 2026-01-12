@@ -6,31 +6,35 @@ from pathlib import Path
 
 @contextmanager
 def ephemeralAgeKey(key_content: str):
+    from .utils import conc_age_keys, setup_pipe
     """
     Create a temporary file containing the provided Age key content.
     Args:
         key_content (str): The content of the Age key.
     Returns:
-        str: The path to the temporary Age key file.
+        tuple: A context manager that yields a tuple containing:
+            - A string to be used as a prefix in shell commands to set the SOPS_AGE_KEY environment variable.
+            - A list of file descriptors that need to be passed to subprocesses.
     """
 
     if not key_content:
         yield {}
         return
+    sanitized_content = "\n".join(line.lstrip() for line in key_content.splitlines())
+    final_content = conc_age_keys(sanitized_content)
 
-    with tempfile.NamedTemporaryFile(delete=False, mode='w', prefix='chaos-age-', dir="/dev/shm") as temp_file:
-        temp_file.write(key_content)
-        if not key_content.endswith('\n'):
-            temp_file.write('\n')
-        temp_file_path = temp_file.name
+    r_age = setup_pipe(final_content)
+    prefix = f'export SOPS_AGE_KEY="$(cat /dev/fd/{r_age})";'
+    fds_to_pass = [r_age]
 
     try:
-        yield {'SOPS_AGE_KEY_FILE': temp_file_path}
+        yield prefix, fds_to_pass
     finally:
-        os.remove(temp_file_path)
+        os.close(r_age)
 
 @contextmanager
 def ephemeralGpgKey(key_bytes: bytes):
+    from .utils import setup_gpg_keys
     """
     Creates a temporary GNUPGHOME in memory (/dev/shm)
     Imports the gotten key to this GNUPGHOME and returns the env path
@@ -41,6 +45,7 @@ def ephemeralGpgKey(key_bytes: bytes):
 
     with tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-') as temp_dir_name:
         temp_path = Path(temp_dir_name)
+        setup_gpg_keys(temp_path)
 
         try:
             subprocess.run(

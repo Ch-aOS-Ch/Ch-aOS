@@ -7,16 +7,24 @@ name = "chaos"
 version = "0.1.0"
 description = "Declarative OS configuration manager"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11,<=3.13.11"
 dependencies = [
     "pyinfra",
     "omegaconf",
-    "passlib>=1.7.4",
+    "passlib",
     "argcomplete",
-    "rich>=13.7.1",
-    "hvac>=2.4.0",
-    "requests>=2.32.4",
-    "gitpython>=3.1.45",
+    "rich",
+    "hvac",
+    "requests",
+    "gitpython",
+    "greenlet",
+    "zope.event",
+    "zope.interface",
+    "gevent",
+    "MarkupSafe",
+    "cffi",
+    "PyYAML",
+    "charset_normalizer",
 ]
 
 [project.scripts]
@@ -35,4 +43,10 @@ ramble = "chaos.lib.explanations.ramble.ramble:RambleExplain"
 team = "chaos.lib.explanations.team.team:TeamExplain"
 apply = "chaos.lib.explanations.apply.apply:ApplyExplain"
 yourself = "chaos.lib.explanations.myself.myself:ExplainMyself"
+
+[project.entry-points."chaos.providers"]
+bitwarden = "chaos.lib.secret_backends.bitwarden:BitwardenPasswordProvider"
+bitwarden-secrets = "chaos.lib.secret_backends.bitwarden:BitwardenSecretsProvider"
+bitwarden-rbw = "chaos.lib.secret_backends.bitwarden:BitwardenRbwProvider"
+onepassword = "chaos.lib.secret_backends.onepassword:OnePasswordProvider"
 

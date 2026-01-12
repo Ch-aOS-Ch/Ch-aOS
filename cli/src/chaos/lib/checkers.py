@@ -1,13 +1,7 @@
 import os
 from typing import cast
-from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 from chaos.lib.utils import render_list_as_table
-from rich.align import Align
 
-console = Console()
 
 """
 Handles listing of roles/explanations/aliases with rich rendering.
@@ -19,6 +13,11 @@ Handles listing of roles/explanations/aliases with rich rendering.
 Handles the printing of the lists.
 """
 def printCheck(namespace, dispatcher):
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.align import Align
+    console = Console()
     if not dispatcher:
         console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
         return
@@ -38,6 +37,7 @@ def printCheck(namespace, dispatcher):
     render_list_as_table(list(dispatcher.keys()), title)
 
 def _handleAliases(dispatcher):
+    from omegaconf import DictConfig, OmegaConf
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -69,6 +69,7 @@ checks if vault is in use in the sops file
 yeah, just that
 """
 def is_vault_in_use(sops_file_path: str) -> bool:
+    from omegaconf import DictConfig, OmegaConf
     if not sops_file_path or not os.path.exists(sops_file_path):
         return False
     try:

@@ -1,4 +1,3 @@
-
 [versão pt br](./READMEpt_BR.md)
 # ***Ch-aOS project suite***
 
@@ -31,193 +30,105 @@
 4. (optional) go to ../../external_plugins/chaos-dots and run `makepkg -fcsi` to install the chaos-dots plugin.
 5. Now you can run `chaos -h` to see the help menu and `chaos check [roles/explanations/aliases/secrets]`!
 
-## Ch-obolos System
-It's a declarative yaml file describing what your system should have! Ch-aOS will load this file and utilize it's keys for managing your system for you.
+---
 
-> [!TIP]
->
-> You can use `chaos set sops/chobolo/secrets` to set your base chobolo file, secrets file or sops file, this will be used as the base for all role runs and decryptions!
+# key features
 
-> [!TIP]
->
-> You can complete example of a Ch-obolo in [My-Ch-obolos](Ch-obolos/dex/dex-migrating.yml), these are the Ch-obolos I am actively using to manage my own system!
+## Declarative System Orchestration
+*   **What is it?** At its core, Ch-aOS allows you to define the desired state of your system in simple YAML files called "Ch-obolos". The `chaos apply` command then reads this data and executes "roles" (Python scripts using `pyinfra`) to make your system's actual state match the declared state.
+*   **Why use it?** It enforces a strict separation of data (what your system should be) from logic (how to achieve that state). This makes your configurations readable, reusable, and version-controllable. You can apply specific parts of your configuration (e.g., just users or just packages) without running through everything.
+*   **How is it used?**
+    *   **Create a Ch-obolo file:** Define variables for your system, like `users`, `packages`, or `services` inside of YAML dicts, these should be documented by the plugin itself (maybe even on `chaos explain`), if a plugin is well made, it will also come with a `keys` entry_point to make sure `chaos init chobolo` can handle the boiler plates for you.
+    *   **Apply roles:** Run `chaos apply <role_tag>` (e.g., `chaos apply users pkgs`). Ch-aOS finds the corresponding roles from its installed plugins and executes them, using the data from your Ch-obolo, optionally you can run with the `-s/--secrets` flag to make sure your secrets are loaded as well (don't forget to configure your `.config/chaos/config.yml` so the plugin is recognized as a secret-having plugin as well!).
+    *   **Safety First:** Use `chaos apply --dry` (or `-d`) to see a preview of all the changes that would be made without actually applying them, if you really want to get to understand what exactly the plugin is doing, run wit `-vvv` for maximum verbosity.
 
-> [!TIP]
->
-> Want to test a chaos role but don't want to mess with your system? Use chaos -dvvv to run it in dry-run + full verbose mode, this way you can see exactly what it is doing without actually doing it! Also, all roles (made by me) ask for confirmation before doing _anything_ potentially destructive, so you are always safe by design. (unless you use -y, then you're on your own)
+## Fleet Management
+*   **What is it?** The `fleet` feature extends `chaos` to multi-machine orchestration. By adding a `fleet` block to your Ch-obolo file, you can define a group of remote hosts and run `chaos apply --fleet` roles across all of them simultaneously.
+*   **Why use it?** It's essential for managing any infrastructure with more than one machine. Whether you're maintaining a cluster of web servers, a set of development VMs, or any group of computers that need consistent configuration, the fleet feature allows you to apply your declarative roles to all of them from a single command.
+*   **How is it used?**
+    *   **Define your fleet:** In your Ch-obolo file, create a `fleet` key. Inside it, define your `hosts` and their SSH connection details (e.g., `ssh_user`, `ssh_port`, `ssh_key`). You can also set a `parallelism` level to control how many hosts are configured at once.
+    *   **Apply to the fleet:** Run your `apply` command with the `--fleet` flag (e.g., `chaos apply packages --fleet`). `chaos` will then connect to each host defined in your fleet via SSH and execute the `packages` role on all of them.
+
+## Plugin System
+*   **What is it?** Ch-aOS is built to be minimal and modular. Most of its functionality, including system management tasks ("cores"), command aliases, documentation (`explain`), and even secret provider integrations, is provided through external plugins.
+*   **Why use it?** This design means you only install the functionality you need. It also allows the community to extend Ch-aOS for different distributions or add new tools without modifying the central CLI. The CLI is just an engine; the plugins provide the power.
+*   **How is it used?**
+    *   **Cores:** A "core" is a plugin that provides the basic set of roles for managing a specific Linux distribution (e.g., `ch-aronte` for Arch Linux), these tend to be quite big (In functionality, not in size), as managing different systems do require a LOT of different ways to calculate deltas or even managing different things (for instance, managing an user is as a concept is ALIEN to managing packages).
+    *   **Functionality Plugins:** Other plugins can add specialized tools, like `chaos-dots` for dotfile management.
+    *   **Secret Providers:** Integrations with password/secret managers like Bitwarden and 1Password are implemented as plugins via the `chaos.providers` entry point, allowing for new providers to be added easily, Ch-aOS comes with these two specific cases from the get-go.
+    *   **Discovery:** The `chaos check roles` and `chaos check explanations` commands let you see all the features available from your installed plugins. Run `chaos -u` to update the plugin cache after installing new plugins (sorry for the hassle, its for optimization).
+
+## Integrated Documentation (`chaos explain`)
+*   **What is it?** A built-in documentation system that provides detailed (if you so wish) explanations for every feature, command, and concept within Ch-aOS. It's powered by the same plugin system that provides roles, so documentation may even live alongside the functionality it describes, so if you don't want to read about the plugin online, you can just install it and read about it locally, it comes all packaged together!
+*   **Why use it?** It offers a didactic and discovery based way to learn Ch-aOS. Instead of just reading a static man page, you can progressively request more detailed information (`--details basic|intermediate|advanced`) on any topic, from high-level concepts to deep technical specifics (and even syntax-highlighted scripts of how to manage your system manually), only on the specific plugins you already have.
+*   **How is it used?**
+    *   **Explore topics:** Run `chaos check explanations` to see all available documentation topics.
+    *   **Get an explanation:** Use `chaos explain <topic>` to read about a feature (e.g., `chaos explain apply`).
+    *   **Drill down:** Use `topic.subtopic` to get more specific information (e.g., `chaos explain apply.dry`). You can use `topic.list` to see all available subtopics.
+    *   **Increase detail:** Use the `-d` flag to get more advanced information (e.g., `chaos explain secrets.sops -d advanced`), some explanations come baked in, so give it a go!
+
+## Secure Secret Management
+*   **What is it?** A suite of commands (`chaos secrets`) that acts as an orchestrator for Mozilla's `sops`. It allows you to safely store sensitive data (like passwords, tokens, and API keys) in encrypted YAML files that can be committed to a Git repository.
+*   **Why use it?** It simplifies the entire `sops` workflow, from key rotation to editing encrypted files. It provides a secure way to manage secrets alongside your configuration, ensuring that sensitive values are never exposed in plain text.
+*   **How is it used?**
+    *   **Initialization:** `chaos init secrets` runs an interactive wizard to set up your encryption keys (`age` or `gpg`) and create your initial `sops` configuration.
+    *   **Editing:** `chaos secrets edit` seamlessly decrypts your secrets file into a temporary buffer, opens it in your `$EDITOR`, and automatically re-encrypts it on save.
+    *   **Key Management:** `chaos secrets rotate-add` and `rotate-rm` allow you to easily grant or revoke access by adding or removing `age`/`pgp`/`vault` keys from the configuration.
+    *   **Access Control:** Use `chaos secrets shamir` to configure an M-of-N policy, requiring a quorum of keys to decrypt a file, enhancing security and redundancy.
 
 ## Secret Providers
-*   **What are they?** Secret `providers` in Ch-aOS are integrations with external password managers (like Bitwarden and 1Password). They allow the `chaos` CLI to access encryption keys (AGE, GPG, Vault tokens) securely stored in these services, without needing to keep them permanently on the local filesystem.
-*   **Why use them?** The main advantage is enhanced security and convenience. Instead of managing key files locally, `chaos` can fetch the necessary keys *ephemerally* (just for the duration of an operation) from your configured secret provider!
+*   **What are they?** So, you already have your secrets set-up, but... Where do you store your private key?? Well, secret `providers` in Ch-aOS are integrations with external password managers (like Bitwarden and 1Password). They allow the `chaos` CLI to access encryption keys (AGE, GPG, Vault tokens) securely stored in these services, without needing to keep them permanently on the local filesystem (they can even not touch the disk, like ever!)
+*   **Why use them?** They provide a significantly enhanced security posture and convenience.
+    *   **Ephemeral Keys:** Instead of managing key files on every developer's machine, `chaos` can fetch the necessary decryption keys *ephemerally* (they exist only in memory for the duration of a single command). This approach allows you to manage exactly who, how and when anyone can access your secrets (provided your provider allows for that), while also reducing the attack surface of any given secret!
+    *   **Centralized & Auditable Access:** Storing master keys in a password manager provides a central and trusty source. Access can be managed through the password manager's own policies, and in many cases, it is auditable.
+    *   **Secure Onboarding:** It simplifies the process of securely distributing keys to new team members. They only need access to the password manager to start decrypting secrets.
 *   **How are they used?**
-    *   **Configuration:** You can configure default secret providers inside the `secret_providers` part of ~/.config/chaos/config.yml file, the only hardcoded key inside of this is "default", the rest you can set as you wish, just be sure to create them using sub dicts (eg. provider.key_id).
-    *   **Usage in Commands:** Many commands that interact with secrets (like `chaos apply`, `chaos secrets edit`, `chaos secrets print`, `chaos ramble edit`, `chaos ramble read`) accept specific flags to use a provider:
-        *   `-p [provider_name]`: Uses a provider configured in your `~/.config/chaos/config.yml` file. You can optionally specify a named provider (e.g., `bw.age` for Bitwarden with an AGE key). If no name is given, it will try to use the `default` provider.
-        *   `-b <ITEM_ID> <KEY_TYPE>`: Uses a key directly from a Bitwarden item.
-        *   `-bs <ITEM_ID> <KEY_TYPE>`: Uses a key directly from a Bitwarden Secrets item.
-        *   `-o <URL> <KEY_TYPE>`: Uses a key directly from a 1Password item (via URL).
-    *   **Export/Import:** The `chaos secrets export` command allows you to export SOPS keys to a secret provider, and `chaos secrets import` allows you to import them locally.
+    *   **Configuration:** You can configure default secret providers in the `secret_providers` section of `~/.config/chaos/config.yml`. You can define named providers for specific backends and key types (e.g., `bw.age`).
+    *   **Ephemeral Usage:** Many commands that interact with secrets (like `chaos apply`, `secrets edit`, and `ramble read`) accept a `-p` flag to use a provider. For example, `chaos apply users --secrets -p bw.age` will fetch the age key from Bitwarden to decrypt your configured secrets to give to the `users` role. Manual flags for direct item access are also available (`-b` for Bitwarden, `-o` for 1Password, etc. These are given by the plugin, so they will always be available).
+    *   **Secure Export/Import:** The `chaos secrets export <provider>` and `import <provider>` commands create a secure workflow for backing up master keys or bootstrapping a new machine.
+    *   **Enhanced Export Security (`--no-import`):** When exporting a key with `chaos secrets export`, you can use the `-N` or `--no-import` flag. This embeds a special marker in the secret stored in the password manager. The `chaos secrets import` command will refuse to import any key with this marker. This creates a one-way-trip for a key, allowing it to be distributed for use but preventing it from being extracted from the password manager back to a local file, enforcing a stricter security model where desired. If any plugin doesn't support this feature, you can also just add the marker manually to the secret's notes, the text is, letter for letter "# NO-IMPORT", this can be placed anywhere on the note and Ch-aOS will use it.
 
 ## Team Management
-*   **What is it?** The team management feature in Ch-aOS is designed to facilitate collaboration and the sharing of configurations and secrets within a work group. It establishes a standardized structure for team repositories, allowing members to share `ramblings` (encrypted notes), secret files, and declarative configurations in an organized and secure way.
+*   **What is it?** The team management in Ch-aOS is designed to facilitate collaboration and the sharing of configurations and secrets within a work group. It implements a standard structure for team repositories, allowing members to share `ramblings` (encrypted notes), secret files, and declarative configurations in an organized and secure way.
 *   **Why use it?**
     *   **Secure Collaboration:** Allows different team members to access and manage secrets and configurations relevant to their projects, using integrated access control mechanisms (like Shamir's Secret Sharing in SOPS).
-    *   **Standardized Structure:** Enforces a directory hierarchy for secrets and `ramblings` (e.g., `secrets/dev`, `secrets/prod`, `ramblings/company/team/person`), making organization and understanding easier.
+    *   **Standardized Structure:** Enforces a directory hierarchy for secrets and `ramblings` (e.g., `secrets/dev`, `secrets/prod`, `ramblings/person`), making organization and understanding easier.
     *   **Clear Workflows:** Offers dedicated commands to initialize, clone, activate, and deactivate team environments, simplifying new member onboarding and project maintenance.
 *   **How is it used?**
-    *   **Naming Convention:** Teams are identified by a `company.team.person` convention (e.g., `MyCompany.DevTeam.MyName`). This hierarchy is used to organize files and control access.
-    *   **Initialization:** The command `chaos team init MyCompany.DevTeam.MyName` creates a new team repository locally, setting up the directory structure for secrets and `ramblings`, and generating a `sops-config.yml` file made for team secret sharing (this uses a LOT of Shamir Secret Sharing, so be sure to educate yourself on that!).
-    *   **Cloning and Activation:** Team members can clone an existing team repository (`chaos team clone <REPO_URL>`) and activate it (`chaos team activate [path]`). Activation creates symlinks, registering the team in your local Ch-aOS environment (~/.local/share/chaos).
-    *   **Deactivation and Pruning:** Commands like `chaos team deactivate` and `chaos team prune` help remove or clean up records of no-longer-used teams.
+    *   **Naming Convention:** Teams are identified by a `company.team` convention (e.g., `MyCompany.DevTeam.MyName`). This hierarchy is used to organize files and control access.
+    *   **Initialization:** The command `chaos team init MyCompany.DevTeam.MyName` creates a new team repository locally, setting up the directory structure for secrets and `ramblings`, and generating a `sops-config.yml` file tailored for team secret sharing using Shamir's Secret Sharing.
+    *   **Cloning and Activation:** Team members can clone an existing team repository (`chaos team clone <REPO_URL>`) or activate an existing one (`chaos team activate [path]`). Activation creates symlinks, registering the team in your local Ch-aOS environment (`~/.local/share/chaos/teams`).
+    *   **Deactivation and Pruning:** Commands like `chaos team deactivate` and `chaos team prune` help remove or clean up records of no longer used teams.
 
-# Command Cheat Sheet (cause no good CLI project is complete without one):
-
-The `chaos` CLI is the main entry point for interacting with the Ch-aOS suite. It provides a set of commands to manage your system declaratively, handle secrets, organize your notes, and extend its functionality through plugins. Below is a comprehensive list of all available commands and their options.
-
-#### Global Flags
-| Flag | Description |
-|------|-------------|
-| `-c /path/to/chobolo.yml` | Override the Ch-obolo file for a single run. |
-| `-u`, `--update-plugins` | Force an update of the plugin cache. |
-| `-t`, `--generate-tab` | Generate a shell tab-completion script. |
-| `-ec`, `--edit-chobolo` | Edit your chobolo file with `$EDITOR`. |
-| `-h`, `--help` | Show the help screen. |
-
-#### `apply`
-Applies one or more roles to the system.
-| Flag | Description |
-|------|-------------|
-| `tags...` | A space-separated list of roles/aliases to execute. |
-| `-c /path/to/chobolo.yml` | Override the Ch-obolo file for this run. |
-| `-d`, `--dry` | Dry-run mode (preview changes without executing). |
-| `-v`, `-vv`, `-vvv` | Increase verbosity level. |
-| `--verbose [1-3]` | Set verbosity level directly. |
-| `-s`, `--secrets` | Signal that a role requires secret decryption. |
-| `-sf /path/to/secrets.yml`| Override the secrets file for this run. |
-| `-ss /path/to/sops.yml` | Override the sops config file for this run. |
-| `-t team` | Specify the team to use (e.g., `company.team.group`). |
-| `-p [provider]` | Use a configured provider for decryption (e.g., `bw.age`). Uses `default` if no name is given. |
-| `-b <ID> <type>` | [Manual] Decrypt with a key from Bitwarden. |
-| `-bs <ID> <type>` | [Manual] Decrypt with a key from Bitwarden Secrets. |
-| `-o <url> <type>` | [Manual] Decrypt with a key from 1Password. |
-| `-ikwid`, `--i-know-what-im-doing` (or just `-y` if you're boring) | "I Know What I'm Doing" mode (disables safety checks). |
-
-#### `check`
-Lists available items like roles, aliases, and explanations.
-| Argument | Description |
-|----------|-------------|
-| `roles` | List all available roles. |
-| `aliases` | List all available aliases. |
-| `explanations`| List all available explanation topics. |
-
-#### `explain`
-Provides detailed explanations for roles and topics.
-| Argument | Description |
-|----------|-------------|
-| `topic` or `topic.subtopic` | The topic to explain. Use `topic.list` to see subtopics. |
-| `-d [basic\|intermediate\|advanced]` | Set the level of detail for the explanation. |
-
-#### `init`
-Creates boilerplate configuration files.
-| Argument | Description |
-|----------|-------------|
-| `chobolo` | Generate a template `ch-obolo.yml` from installed plugins. |
-| `secrets` | Interactively set up `sops` and create an initial `secrets.yml`. |
-
-#### `set`
-Sets the default paths for configuration files.
-| Argument | Description |
-|----------|-------------|
-| `chobolo /path/to/file.yml` | Set the default Ch-obolo file. |
-| `secrets /path/to/file.yml` | Set the default secrets file. |
-| `sops /path/to/file.yml` | Set the default sops config file. |
-
-#### `ramble`
-A built-in, encrypted note-taking utility.
-*Run `chaos ramble <subcommand> -h` for detailed options.*
-| Subcommand | Description |
-|------------|-------------|
-| `create <target>` | Create a new ramble or a rambling inside a ramble (e.g., `journal.page`). |
-| `edit <target>` | Edit a rambling directly, whether encrypted or not (e.g., `journal.page`). |
-| `encrypt <target>` | Encrypt a rambling inside a ramble with sops (e.g., `journal.page`). |
-| `read <targets...>` | Read your ramblings. Use `journal.list` to list ramblings or `journal.page` to read a specific one. |
-| `find [term]` | Find rambles by keyword or tag. |
-| `move <old> <new>` | Move a rambling (e.g., `journal.old_page`) to a new location (e.g., `new_journal.new_page`). |
-| `update` | Update your rambling encryption keys. |
-| `delete <ramble>` | Delete a rambling (e.g., `journal.page`) or an entire ramble (e.g., `journal`). |
-
-#### `secrets`
-A powerful suite for managing application secrets using `sops`.
-*Run `chaos secrets <subcommand> -h` for detailed options.*
-| Subcommand | Description |
-|------------|-------------|
-| `cat <keys...>` | Decrypts and prints specific keys from the secrets file. |
-| `edit` | Edit the encrypted secrets file in-place. |
-| `export <backend>` | Export sops keys to a password manager (`bw`, `bws`, `op`). |
-| `import <backend>` | Import sops keys from a password manager (`bw`, `bws`, `op`). |
-| `list <type>` | List all keys of a given type (`age`, `pgp`, `vault`) in the sops config. |
-| `print` | Decrypt and print the entire secrets file to stdout. |
-| `rotate-add <type> <keys...>` | Add new keys (`age`, `pgp`, `vault`) to the sops configuration. |
-| `rotate-rm <type> <keys...>` | Remove keys (`age`, `pgp`, `vault`) from the sops configuration. |
-| `shamir <index> <shares>` | Configure Shamir's Secret Sharing for a specific rule. |
-
-#### `team`
-Manages team configurations and repositories for collaborative development.
-*Run `chaos team <subcommand> -h` for detailed options.*
-| Subcommand | Description |
-|------------|-------------|
-| `activate [path]` | Activate a team from a local repository. |
-| `clone <repo_url>` | Clone a team repository from a git URL. |
-| `deactivate <company> [teams...]` | Deactivate one or more teams for a company. |
-| `init <company.team.person>` | Initialize a new team repository in the current directory. |
-| `list [company]` | List all activated teams, optionally filtering by company. |
-| `prune [companies...]` | Remove stale team symlinks that point to non-existent directories. |
-
-# Example of usage:
-![chaos usage](./imagens/B-coin-test.gif)
-
-## Project Roadmap
-
-- [-] = In Progress, probably in another branch, either being worked on or already implemented, but not fully tested.
-
-### Next on the chopping board:
-- [ ] Ch-imera
-- [ ] Installer
-
-### MVP
-- [-] Minimal Installer with Firmware Detection
-- [x] Plugin System for Ch-aronte
-- [x] Declarative package state manager (Install and uninstall declaratively) for Ch-aOS.
-
-### Modularity + Automation
-- [x] Dotfile Manager integrated with the Plugin System
-- [x] chaos system manager CLI helper.
-- [ ] Ch-imera Ch-obolo transpiler for simple nix 
-
-### Declarativity
-- [-] Fully declarative installation mode, with it's only necessity being the *.yml file for Ch-aOS.
-- [x] Fully declarative post-install system configuration with only one custom*.yml file for Ch-aOS.
-- [x] Repo manager for Ch-aronte.
-- [x] Secrets management.
-  - Utilizes sops as a secrets manager.
-  - Utilizes Jinja2 for templating.
-
-### Quality + security
-- [-] Pytest + flake8 tests for all the codebase.
+## Integrated Knowledge Base (`ramble`)
+*   **What is it?** The `ramble` command provides a built-in, file-based personal knowledge base or wiki system. It allows you to create, edit, search, and encrypt notes directly from the command line.
+*   **Why use it?** It's a convenient place to store technical notes, documentation, code snippets, and ideas co-located with your system management tools. Since rambles can be encrypted with `sops`, it's also a safe place for sensitive information.
+*   **How is it used?**
+    *   **Organization:** Notes are organized into "rambles" (directories) and "ramblings" (YAML files) within `~/.local/share/chaos/ramblings/`.
+    *   **CRUD Operations:** Use `chaos ramble create journal.page` to make a new note, `edit` to modify it, `read` to view it, and `delete` to remove it.
+    *   **Encryption:** A ramble page can be encrypted with `chaos ramble encrypt journal.page`. All subsequent `read` and `edit` operations will handle decryption and re-encryption on their own.
+    *   **Search:** The `chaos ramble find` command can perform a case-insensitive search through the content of all your rambles by adding a keyword or sentence at the end of the command, or by a tag inside of a dedicated `tags` field inside of the rambling, by using the `--tag` flag, oh, btw it can find these even if the rambling is encrypted.
 
 ### Ideas being studied
 - Ch-iron -- a fedora core for Ch-aOS
 - Ch-ronos -- a debian core for Ch-aOS
-- mapping for distro agnosticity (probably impossible)
+- Mapping for distro agnosticity (probably impossible)
+- Direct SSH integration for chaos init and chaos providers, as sops has native integration with it
+- chaos.boats entry_point for dinamically discovered fleet definitions from external sources (like chaos providers, but for fleets)
+- Ch-imera: a Ch-aOS entry_point for mini ch-obolo-to-nix compilers (this one is going to be my undergrads degree!)
 
-## Contributing
+---
 
-Contributions are higly welcomed. If you have ideas to improve Ch-aOS, your help is very welcome! Check out CONTRIBUTING.md to get started.
+# Contributing
+
+Contributions are highly welcomed. If you have ideas to improve Ch-aOS, your help is very welcome! Check out CONTRIBUTING.md to get started.
 
 Areas of particular interest include:
 
-- Creative translations and improvements to the narrative style.
 - Suggestions and implementations for post-install configurations.
-- Help to check if the Ch-obolos are truly declarative or not.
 - Creation of issues.
+- Creation of plugins and cores for other distros. These can be very simple, btw, one role at a time can make a true turn of events!!
+- Creation of new providers, btw if you create one, PLEASE either 1: put it under GPL/AGPL or 2: create a new PR in this repo, it'd be for the interest of everyone to keep chaos both 1 free and 2 open source (although you CAN always just make it proprietary, either way the more, the merrier)!
+- Help with documentation and examples.
+- Help to integrate for Windows machines (this could be done by contributing directly to pyinfra!!)
 

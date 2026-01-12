@@ -1,11 +1,12 @@
+import argparse
 import os
 import base64
 from .base import Provider
 import subprocess
 import json
 from pathlib import Path
-from rich.console import Console
 from chaos.lib.utils import checkDep
+from argcomplete.completers import FilesCompleter
 from chaos.lib.secret_backends.utils import (
     extract_age_keys,
     _save_to_config,
@@ -15,16 +16,43 @@ from chaos.lib.secret_backends.utils import (
     is_valid_age_key,
     is_valid_age_secret_key,
 )
-from omegaconf import OmegaConf, DictConfig
-from typing import cast
-
-console = Console()
+from typing import Tuple, cast
 
 class BitwardenPasswordProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bw", "bw"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-bw', '-b',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from Bitwarden. Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secBwExport = subparser.add_parser('bw', help="Bitwarden CLI export options")
+        secBwExport.add_argument('-o', '--organization-id', help="Organization ID where to create the item.")
+        secBwExport.add_argument('-c','--collection-id', dest='collection_id', help="The ID of the collection to add the item to.")
+        secBwExport.add_argument('--bw-tags', dest='bw_tags', nargs='*', default=[], help="Tags to add to the Bitwarden item.")
+
+        return secBwExport
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secBwImport = subparser.add_parser('bw', help="Bitwarden CLI import options")
+        return secBwImport
+
     def export_secrets(self) -> None:
         """
         Exports keys to Bitwarden as new notes.
         """
+        from rich.console import Console
+        console = Console()
 
         self.check_status()
 
@@ -34,6 +62,7 @@ class BitwardenPasswordProvider(Provider):
         fingerprints = self.args.fingerprints
         tags = self.args.bw_tags
         save_to_config = self.args.save_to_config
+        no_import = self.args.no_import
 
         collection_id = self.config.get('secret_providers', {}).get('bw', {}).get('collection_id', '')
         organization_id = self.config.get('secret_providers', {}).get('bw', {}).get('organization_id', '')
@@ -80,6 +109,11 @@ class BitwardenPasswordProvider(Provider):
         else:
             raise ValueError(f"Unsupported key type: {keyType}")
 
+        if not key_content:
+            raise ValueError("No key content to export.")
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
         try:
             template_str = subprocess.run(
                 ['bw', 'get', 'template', 'item'],
@@ -115,7 +149,14 @@ class BitwardenPasswordProvider(Provider):
             console.print(f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item '{created_item['name']}' (ID: {created_item['id']}).")
 
             if save_to_config and item_id:
-                _save_to_config(item_id=item_id, collection_id=collection_id, organization_id=organization_id, backend='bw', keyType=keyType)
+                data_to_save = {
+                    f"{keyType}_id": item_id
+                }
+                if collection_id:
+                    data_to_save["collection_id"] = collection_id
+                if organization_id:
+                    data_to_save["organization_id"] = organization_id
+                _save_to_config(backend='bw', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error creating item in Bitwarden: {e.stderr.strip()}") from e
@@ -164,6 +205,32 @@ class BitwardenPasswordProvider(Provider):
         return self.args.from_bw
 
 class BitwardenSecretsProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_bws", "bws"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-bws', '-B',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from Bitwarden Secrets CLI. Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secBwsExport = subparser.add_parser('bws', help="Bitwarden Secrets CLI export options")
+        secBwsExport.add_argument('-i', '--project-id', help="The Bitwarden project ID where to export the key.")
+
+        return secBwsExport
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secBwsImport = subparser.add_parser('bws', help="Bitwarden Secrets CLI import options")
+        return secBwsImport
+
     def export_secrets(self) -> None:
         args = self.args
         self.check_status()
@@ -172,6 +239,7 @@ class BitwardenSecretsProvider(Provider):
         key = args.item_name
         fingerprints = args.fingerprints
         save_to_config = args.save_to_config
+        no_import = args.no_import
 
         _,_, config = get_sops_files(None, None, None)
 
@@ -192,13 +260,13 @@ class BitwardenSecretsProvider(Provider):
                 if not args.keys: raise ValueError("No age key path passed via --keys.")
                 keyPath = Path(args.keys)
 
-                self._exportBwsAgeKey(keyPath, key, project_id, save_to_config)
+                self._exportBwsAgeKey(keyPath, key, project_id, save_to_config, no_import)
 
             case 'gpg':
                 if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
                 if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
 
-                self._exportBwsGpgKey(key, project_id, fingerprints, save_to_config)
+                self._exportBwsGpgKey(key, project_id, fingerprints, save_to_config, no_import)
 
             case 'vault':
                 vaultAddr = args.vault_addr
@@ -206,7 +274,7 @@ class BitwardenSecretsProvider(Provider):
                 if not keyPath: raise ValueError("No Vault key path passed via --keys.")
                 if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
 
-                self._exportBwsVaultKey(keyPath, vaultAddr, key, project_id, save_to_config)
+                self._exportBwsVaultKey(keyPath, vaultAddr, key, project_id, save_to_config, no_import)
             case _:
                 raise ValueError(f"Unsupported key type: {keyType}")
 
@@ -218,6 +286,7 @@ class BitwardenSecretsProvider(Provider):
         return True, "Bitwarden Secrets CLI is ready."
 
     def readKeys(self, item_id: str) -> str:
+        from omegaconf import OmegaConf, DictConfig
         try:
             result = subprocess.run(
                 ['bws', 'secret', 'get', item_id],
@@ -242,8 +311,13 @@ class BitwardenSecretsProvider(Provider):
             raise ValueError("The specified key file does not appear to be a valid age key.")
         return content
 
-    def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool) -> None:
+    def _exportBwsVaultKey(self, keyPath: Path, vaultAddr: str, key: str, project_id: str, save_to_config: bool, no_import: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = setup_vault_keys(vaultAddr, keyPath)
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
 
@@ -259,8 +333,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported Vault key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='vault')
+                data_to_save = {
+                    "vault_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -269,8 +346,12 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
-    def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool) -> None:
+    def _exportBwsGpgKey(self, key: str, project_id: str, fingerprints: list[str], save_to_config: bool, no_import: bool) -> None:
+        from rich.console import Console
+        console = Console()
         key_content = extract_gpg_keys(fingerprints)
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
 
         cmd = ['bws', 'secret', 'create', key, key_content, project_id]
         console.print(f"[cyan]INFO:[/] Exporting GPG key for fingerprints: {', '.join(fingerprints)}")
@@ -287,8 +368,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported GPG key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='gpg')
+                data_to_save = {
+                    "gpg_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}") from e
@@ -297,8 +381,12 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting GPG key to Bitwarden: {str(e)}") from e
 
-    def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool) -> None:
+    def _exportBwsAgeKey(self, key_path: Path, key: str, project_id: str, save_to_config: bool, no_import: bool) -> None:
+        from rich.console import Console
+        console = Console()
         value = self._get_age_key_content(key_path)
+        if no_import:
+            value = f"# NO-IMPORT\n{value}"
         pubKey, secKey = extract_age_keys(value)
 
         if not pubKey or not secKey: raise ValueError("Could not extract both public and secret keys from the provided age key file.")
@@ -321,8 +409,11 @@ class BitwardenSecretsProvider(Provider):
             console.print(f"[green]Successfully exported age key '{key}' to Bitwarden with id {item_id}[/green]")
 
             if save_to_config and item_id:
-                from chaos.lib.secret_backends.utils import _save_to_config
-                _save_to_config(item_id=item_id, project_id=project_id, backend='bws', keyType='age')
+                data_to_save = {
+                    "age_id": item_id,
+                    "project_id": project_id
+                }
+                _save_to_config(backend='bws', data_to_save=data_to_save)
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Error exporting age key to Bitwarden: {e.stderr.strip()}") from e
@@ -331,3 +422,186 @@ class BitwardenSecretsProvider(Provider):
         except Exception as e:
             raise RuntimeError(f"Unexpected error exporting age key to Bitwarden: {str(e)}") from e
 
+class BitwardenRbwProvider(Provider):
+    @staticmethod
+    def get_cli_name() -> Tuple[str, str]:
+        return "from_rbw", "rbw"
+
+    @staticmethod
+    def register_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            '--from-rbw', '-rb',
+            type=str,
+            nargs=2,
+            metavar=('ITEM_ID', 'KEY_TYPE'),
+            help='Retrieve ephemeral keys from rbw (Bitwarden CLI). Provide ITEM_ID and KEY_TYPE (age/gpg/vault).'
+        )
+
+    @staticmethod
+    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secRbwImport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) import options")
+        return secRbwImport
+
+    @staticmethod
+    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+        secRbwExport = subparser.add_parser('rbw', help="rbw (Bitwarden CLI) export options")
+        return secRbwExport
+
+    def export_secrets(self) -> None:
+        args = self.args
+        keyType = args.key_type
+        keyPath = args.keys
+        fingerprints = args.fingerprints
+        item_name = args.item_name
+        vaultAddr = args.vault_addr
+        save_to_config = args.save_to_config
+        no_import = args.no_import
+
+        isUnlocked, msg = self.check_status()
+        if not isUnlocked:
+            raise PermissionError(msg)
+
+        from rich.console import Console
+        console = Console()
+
+        match keyType:
+            case 'age':
+                if not keyPath: raise ValueError("No age key path passed via --keys.")
+                keyPath = Path(keyPath).expanduser()
+                if not keyPath.is_file(): raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                with open(keyPath, 'r') as f:
+                    key_content = f.read()
+                pubkey, seckey = extract_age_keys(key_content)
+
+                if not pubkey:
+                    raise ValueError("Could not find a public key in the provided age key file. Expected a line starting with '# public key:'.")
+
+                if not seckey:
+                    raise ValueError("Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'.")
+                console.print(f"[green]INFO:[/] Exporting age public key: {pubkey}")
+
+            case 'gpg':
+                if not fingerprints: raise ValueError("At least one GPG fingerprint is required via --fingerprints.")
+                if not checkDep("gpg"): raise EnvironmentError("The 'gpg' CLI tool is required but not found in PATH.")
+
+                key_content = extract_gpg_keys(fingerprints)
+
+            case 'vault':
+                if not keyPath: raise ValueError("No Vault key path passed via --keys.")
+                if not vaultAddr: raise ValueError("No Vault address passed via --vault-addr.")
+                keyPath = Path(keyPath).expanduser()
+
+                if not keyPath.is_file(): raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                key_content = setup_vault_keys(vaultAddr, keyPath)
+            case _:
+                raise ValueError(f"Unsupported key type: {keyType}")
+
+        if not key_content:
+            raise ValueError("No key content to export.")
+
+        if not item_name:
+            raise ValueError("No item name provided for export.")
+
+        if no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
+        processed_key_content = "\n".join(
+            f" {line}" if line.startswith("#") else line for line in key_content.splitlines()
+        )
+
+        credential_content = f"ch-aos\n{processed_key_content}"
+
+        try:
+            subprocess.run(
+                ['rbw', 'add', f'Ch-aOS {keyType.upper()} Key: {item_name}', 'ch-aos'],
+                check=True,
+                input=credential_content,
+                text=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error creating item in Bitwarden via rbw: {e.stderr.strip()}") from e
+
+        item_id = self._get_item_id(f'Ch-aOS {keyType.upper()} Key: {item_name}')
+        console.print(f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item with ID: {item_id}.")
+        if item_id and save_to_config:
+            console.print(f"[green]INFO:[/] Saving Bitwarden item ID '{item_id}' to chaos config.")
+            data_to_save = {
+                f"{keyType}_id": item_id
+            }
+            _save_to_config(backend='rbw', data_to_save=data_to_save)
+
+    def check_status(self) -> Tuple[bool, str]:
+        if not checkDep('rbw'):
+            raise EnvironmentError("The 'rbw' CLI tool is required but not found in PATH.")
+
+        try:
+            result = subprocess.run(
+                ['rbw', 'unlocked'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            status_info = result.stdout.strip()
+            if not status_info:
+                return True, "rbw is unlocked."
+            return True, "rbw is unlocked."
+        except subprocess.CalledProcessError:
+            return False, "rbw is locked. Please unlock it with 'rbw unlock' or 'rbw login' first.\n    Note: for official Bitwarden users, 'rbw register' is required before 'rbw login'.\n    It will ask you foro your CLIENT ID and SECRET from your Bitwarden account settings."
+
+    def readKeys(self, item_id: str) -> str:
+        isUnlocked, msg = self.check_status()
+        if not isUnlocked:
+            raise PermissionError(msg)
+
+        try:
+            result = subprocess.run(
+            ['rbw', 'get', item_id, '--field=notes'],
+            capture_output=True,
+            text=True,
+            check=True
+            )
+            key_content = result.stdout.strip()
+
+            if not key_content:
+                raise ValueError(f"No notes found in Bitwarden item with ID '{item_id}'. The key should be in the 'notes' field.")
+
+            return key_content
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}") from e
+
+    def get_ephemeral_key_args(self) -> tuple[str, str]:
+        return self.args.from_rbw
+
+    def _get_item_id(self, name: str) -> str:
+        try:
+            items_raw = subprocess.Popen(
+                ['rbw', 'list', '--fields', 'id', '--fields', 'name'],
+                stdout = subprocess.PIPE
+            )
+
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error retrieving Bitwarden items: {e.stderr.strip()}") from e
+
+        try:
+            items = subprocess.run(
+                ['grep', name],
+                stdin=items_raw.stdout,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if not items.stdout.strip():
+                raise ValueError(f"No Bitwarden item found with name '{name}'.")
+            items = items.stdout.strip().splitlines()
+            if len(items) > 1:
+                raise ValueError(f"Multiple Bitwarden items found with name '{name}.")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Error searching for Bitwarden item '{name}': {e.stderr.strip()}") from e
+
+        id = items[0].split('\t')[0]
+
+        return id

@@ -1,44 +1,64 @@
 import shutil
 from typing import cast
-from omegaconf import ListConfig, DictConfig
 from pathlib import Path
-from rich.prompt import Confirm
-from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.utils import checkDep
-from rich.console import Console
-import sys
 import os
-import re
-from omegaconf import OmegaConf
-import subprocess
-import tempfile
-import zlib
-import base64
-
-console = Console()
 
 """
 Now now, I KNOW this is way too big of a file, but bear with me here
 """
 
+def _resolveProvider(args, global_config):
+    if hasattr(args, 'provider') and args.provider is not None:
+        args = _handle_provider_arg(args, global_config)
+
+    return _getProvider(args, global_config)
+
 """Returns the appropriate secret provider based on the command-line arguments."""
 def _getProvider(args, global_config):
+    from chaos.lib.utils import get_providerEps
+    provider_eps = get_providerEps()
+
+    if not provider_eps:
+        return None
+
+    for ep in provider_eps:
+        ProviderClass = ep.load()
+        providerFlag, _ = ProviderClass.get_cli_name()
+
+        if hasattr(args, providerFlag) and getattr(args, providerFlag):
+            return ProviderClass(args, global_config)
+
+    return None
+
+def _getProviderByName(provider_subcommand_name: str, args, global_config) -> "Provider": # type: ignore
+    from chaos.lib.utils import get_providerEps
+    from chaos.lib.secret_backends.base import Provider
     provider = None
-    if hasattr(args, 'from_bw') and args.from_bw and None not in args.from_bw:
-        from chaos.lib.secret_backends.bitwarden import BitwardenPasswordProvider
-        provider = BitwardenPasswordProvider(args, global_config)
-    elif hasattr(args, 'from_bws') and args.from_bws and None not in args.from_bws:
-        from chaos.lib.secret_backends.bitwarden import BitwardenSecretsProvider
-        provider = BitwardenSecretsProvider(args, global_config)
-    elif hasattr(args, 'from_op') and args.from_op and None not in args.from_op:
-        from chaos.lib.secret_backends.onepassword import OnePasswordProvider
-        provider = OnePasswordProvider(args, global_config)
+    provider_eps = get_providerEps()
+    if not provider_eps:
+        raise ValueError("No secret providers available for exporting secrets.")
+
+    for ep in provider_eps:
+        ProviderClass = ep.load()
+        _, providerCliName = ProviderClass.get_cli_name()
+        if providerCliName == provider_subcommand_name:
+            provider = ProviderClass(args, global_config)
+
+            if not isinstance(provider, Provider) or not hasattr(provider, 'export_secrets'):
+                 raise TypeError(f"The provider '{providerCliName}' does not support exporting secrets.")
+            break
+
+    if not provider or provider == None:
+        raise ValueError(f"No secret provider found for '{provider_subcommand_name}'.")
     return provider
 
 """
 Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
 """
-def setup_gpg_keys(gnupghome: tempfile.TemporaryDirectory) -> None:
+def setup_gpg_keys(gnupghome) -> None:
+    import subprocess
+    from rich.console import Console
+    console = Console()
     actualGnupgHome_path = Path(os.getenv("GNUPGHOME", str(Path.home() / ".gnupg")))
     temp_gnupg_path = Path(gnupghome.name)
 
@@ -99,6 +119,7 @@ def conc_age_keys(secKey: str) -> str:
 Checks for gpg fingerprint validity
 """
 def is_valid_fp(fp):
+    import re
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
     if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
         return True
@@ -109,6 +130,7 @@ def is_valid_fp(fp):
 Checks for gpg fp existence
 """
 def pgp_exists(fp):
+    import subprocess
     try:
         subprocess.run(
             ['gpg', '--list-keys', fp],
@@ -124,6 +146,7 @@ def pgp_exists(fp):
 Validates public age keys
 """
 def is_valid_age_key(pubKey: str) -> bool:
+    import re
     isValid = False
     testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey) 
     if testPub:
@@ -134,6 +157,7 @@ def is_valid_age_key(pubKey: str) -> bool:
 Validates private age keys
 """
 def is_valid_age_secret_key(secKey: str) -> bool:
+    import re
     isValid = False
     testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) 
     if testSec:
@@ -144,6 +168,7 @@ def is_valid_age_secret_key(secKey: str) -> bool:
 Sets up the vault keys for exporting, validating them on the way
 """
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
+    from chaos.lib.utils import checkDep
     if not checkDep("vault"): raise EnvironmentError("The 'vault' CLI tool is required but not found in PATH.")
     with open(keyPath, 'r') as f:
         key = f.read().strip()
@@ -169,7 +194,7 @@ def setup_pipe(token: str) -> int:
 checks if vault key is valid
 """
 def _is_valid_vault_key(key):
-    import hvac
+    import hvac # type: ignore
     import requests.exceptions
     try:
         client = hvac.Client(url=key)
@@ -194,9 +219,9 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
     pubKey, secKey = None, None
     for line in key_content.splitlines():
         line = line.strip()
-        if line.startswith("# public key:"):
+        if line.strip().startswith("# public key:"):
             pubKey = line.split(":", 1)[1].strip()
-        if line.startswith("AGE-SECRET-KEY-"):
+        if line.strip().startswith("AGE-SECRET-KEY-"):
             secKey = line
     return pubKey, secKey
 
@@ -204,6 +229,7 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
 Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
 """
 def extract_gpg_keys(fingerprints: list[str]) -> str:
+    import subprocess
     try:
         result = subprocess.run(
             ["gpg", "--export-secret-keys"] + fingerprints,
@@ -230,6 +256,8 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
 Compression/Decompression for gpg keys. This is the only way they can fit inside a bw notes
 """
 def compress(data: bytes) -> str:
+    import zlib
+    import base64
     try:
         compressed_data = zlib.compress(data, level=9)
         encoded_data = base64.b85encode(compressed_data).decode('utf-8')
@@ -238,6 +266,8 @@ def compress(data: bytes) -> str:
     return encoded_data
 
 def decompress(encoded_data: str) -> bytes:
+    import zlib
+    import base64
     try:
         compressed_data = base64.b85decode(encoded_data.encode('utf-8'))
         data = zlib.decompress(compressed_data)
@@ -249,6 +279,9 @@ def decompress(encoded_data: str) -> bytes:
 Gets sops files, secrets files and config files
 """
 def get_sops_files(sops_file_override, secrets_file_override, team):
+    from omegaconf import OmegaConf, DictConfig
+    from rich.console import Console
+    console = Console()
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
@@ -298,6 +331,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     raise ValueError(f"Invalid team sops file override '{sops_file_override}'.")
                 override_path = (teamPath / sops_file_override).resolve(strict=False)
                 if not str(override_path).startswith(str(teamPath)):
+                    import sys
                     console.print("[bold red]ERROR:[/] Path traversal detected.")
                     sys.exit(1)
                 sopsFile = teamPath / sops_file_override
@@ -333,6 +367,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     if not sopsFile:
                         sopsFile = secrets_config.get('sec_sops')
             except Exception as e:
+                import sys
                 print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
 
     return secretsFile, sopsFile, global_config
@@ -341,6 +376,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 Turns a concatenated list into a singular list
 """
 def flatten(items):
+    from omegaconf import ListConfig
     for i in items:
         if isinstance(i, (list, ListConfig)):
             yield from flatten(i)
@@ -350,60 +386,23 @@ def flatten(items):
 """
 Saves freshly exported keys to the specified provider
 """
-def _save_to_config(
-    project_id: str = '',
-    item_id: str = '',
-    backend: str = '',
-    organization_id: str = '',
-    collection_id: str = '',
-    keyType: str = '',
-    field: str = '',
-    item_url: str = '',
-) -> None:
+def _save_to_config(backend: str, data_to_save: dict) -> None:
+    """
+    Saves provider-specific data to the chaos config file.
+    """
+    from omegaconf import OmegaConf
     config_path = Path.home() / ".config/chaos/config.yml"
     config = OmegaConf.load(config_path) if config_path.exists() else OmegaConf.create()
 
     if 'secret_providers' not in config:
         config.secret_providers = OmegaConf.create()
 
-    match backend:
-        case 'bws':
-            if 'bws' not in config.secret_providers:
-                config.secret_providers.bws = OmegaConf.create()
+    if backend not in config.secret_providers:
+        config.secret_providers[backend] = OmegaConf.create()
 
-            config.secret_providers.bws.project_id = project_id
-
-            id_key = f"{keyType}_id"
-            config.secret_providers.bws[id_key] = item_id
-
-        case 'bw':
-            if 'secret_providers' not in config:
-                config.secret_providers = OmegaConf.create()
-
-            if 'bw' not in config.secret_providers:
-                config.secret_providers.bw = OmegaConf.create()
-
-            if organization_id:
-                config.secret_providers.bw.organization_id = organization_id
-
-            if collection_id:
-                config.secret_providers.bw.collection_id = collection_id
-
-            id_key = f"{keyType}_id"
-            config.secret_providers.bw[id_key] = item_id
-
-        case 'op':
-            if 'secret_providers' not in config:
-                config.secret_providers = OmegaConf.create()
-
-            if 'op' not in config.secret_providers:
-                config.secret_providers.op = OmegaConf.create()
-
-            if field:
-                config.secret_providers.op.field = field
-
-            url_key = f"{keyType}_url"
-            config.secret_providers.op[url_key] = item_url
+    for key, value in data_to_save.items():
+        if value:
+            config.secret_providers[backend][key] = value
 
     OmegaConf.save(config, config_path)
 
@@ -411,6 +410,11 @@ def _save_to_config(
 The rest of the functions should be auto explicative.
 """
 def handleUpdateAllSecrets(args):
+    from chaos.lib.checkers import is_vault_in_use, check_vault_auth
+    import subprocess
+    from rich.console import Console
+    from omegaconf import OmegaConf
+    console = Console()
     console.print("\n[bold cyan]Starting key update for all secret files...[/]")
 
     sops_file_override = getattr(args, 'sops_file_override', None)
@@ -432,8 +436,7 @@ def handleUpdateAllSecrets(args):
             if "sops" in data:
                 console.print(f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]")
 
-                args = _handle_provider_arg(args, global_config)
-                provider = _getProvider(args, global_config)
+                provider = _resolveProvider(args, global_config)
 
                 if provider:
                     provider.updatekeys(main_secrets_file, sops_file_path)
@@ -454,7 +457,8 @@ def handleUpdateAllSecrets(args):
     from chaos.lib.ramble import handleUpdateEncryptRamble
     handleUpdateEncryptRamble(args)
 
-def _handle_provider_arg(args, config: DictConfig):
+def _handle_provider_arg(args, config):
+    from chaos.lib.utils import get_providerEps
     if not hasattr(args, 'provider') or args.provider is None:
         return args
 
@@ -481,35 +485,40 @@ def _handle_provider_arg(args, config: DictConfig):
     id_key = f"{key_type}_id"
     url_key = f"{key_type}_url"
 
-    match backend:
-        case "bw":
-            if id_key not in backend_config:
-                raise ValueError(f"'{id_key}' not found for 'bw' provider in secret_providers config.")
+    provider_eps = get_providerEps()
+    if not provider_eps:
+        raise ValueError("No secret providers found. Please ensure that at least one provider plugin is installed.")
 
-            item_id = backend_config[id_key]
-            args.from_bw = (item_id, key_type)
+    provider_found = False
+    for provider_ep in provider_eps:
+        ProviderClass = provider_ep.load()
+        providerFlag, providerName = ProviderClass.get_cli_name()
 
-        case "bws":
-            if id_key not in backend_config:
-                raise ValueError(f"'{id_key}' not found for 'bws' provider in secret_providers config.")
+        if providerName == backend:
+            value_to_set = None
+            if id_key in backend_config:
+                item_id = backend_config[id_key]
+                value_to_set = (item_id, key_type)
+            elif url_key in backend_config:
+                item_url = backend_config[url_key]
+                value_to_set = (item_url, key_type)
+            else:
+                raise ValueError(f"Could not find '{id_key}' or '{url_key}' in backend '{backend}' config for provider '{provider_name}'.")
 
-            item_id = backend_config[id_key]
-            args.from_bws = (item_id, key_type)
+            setattr(args, providerFlag, value_to_set)
+            provider_found = True
+            break
 
-        case "op":
-            if url_key not in backend_config:
-                raise ValueError(f"'{url_key}' not found for 'op' provider in secret_providers config.")
-
-            item_url = backend_config[url_key]
-            args.from_op = (item_url, key_type)
-
-        case _:
-            raise ValueError(f"Unsupported provider backend: '{backend}'.")
+    if not provider_found:
+         raise ValueError(f"No installed provider plugin matched the backend '{backend}'.")
 
     args.provider = None
     return args
 
 def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: set):
+    from omegaconf import OmegaConf, DictConfig
+    from rich.console import Console
+    console = Console()
     if not valids:
         console.print("No valid keys. Returning.")
         return
@@ -566,6 +575,9 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
         raise RuntimeError(f"Failed to load or save sops config file {sops_file_override}: {e}") from e
 
 def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_remove: set):
+    from omegaconf import OmegaConf, DictConfig
+    from rich.console import Console
+    console = Console()
     rule_index = getattr(args, 'index', None)
     ikwid = getattr(args, 'i_know_what_im_doing', False)
 
@@ -613,12 +625,13 @@ def _generic_handle_rem(key_type: str, args, sops_file_override: str, keys_to_re
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
+    import subprocess
+    from chaos.lib.utils import checkDep
+    from chaos.lib.checkers import is_vault_in_use, check_vault_auth
     if not checkDep("sops"):
         raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
 
-    args = _handle_provider_arg(args, config)
-
-    provider = _getProvider(args, config)
+    provider = _resolveProvider(args, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()
@@ -633,12 +646,15 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
 
         return sopsDecryptResult
     except subprocess.CalledProcessError as e:
-        details = e.stderr.decode() if e.stderr else "No output."
+        details = e.stderr if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
 def _import_age_keys(key_content: str) -> None:
+    from rich.prompt import Confirm
+    from rich.console import Console
+    console = Console()
     currentPathAgeFile = Path.cwd() / "keys.txt"
 
     if currentPathAgeFile.exists():
@@ -650,24 +666,28 @@ def _import_age_keys(key_content: str) -> None:
             return
 
     with currentPathAgeFile.open('w') as f:
-        f.write(key_content)
-        if not key_content.endswith('\n'):
+        sanitized_content = "\n".join(line.lstrip() for line in key_content.splitlines())
+        f.write(sanitized_content)
+        if not sanitized_content.endswith('\n'):
             f.write('\n')
 
 def _import_gpg_keys(secKey: str) -> None:
-        decompressedKey = decompress(secKey)
+    import subprocess
+    from rich.console import Console
+    console = Console()
+    decompressedKey = decompress(secKey)
 
-        try:
-            import_cmd = ['gpg', '--batch', '--import']
-            subprocess.run(
-                import_cmd,
-                input=decompressedKey,
-                check=True,
-                capture_output=True,
-            )
-            console.print(f"[green]GPG key imported into your local GPG keyring successfully.[/green]")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+    try:
+        import_cmd = ['gpg', '--batch', '--import']
+        subprocess.run(
+            import_cmd,
+            input=decompressedKey,
+            check=True,
+            capture_output=True,
+        )
+        console.print(f"[green]GPG key imported into your local GPG keyring successfully.[/green]")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
 
 def _import_vault_keys(key_content: str) -> None:
     currentPathVaultFile = Path.cwd() / "vault_key.txt"
