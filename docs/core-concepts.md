@@ -57,7 +57,7 @@ There are several types of plugins:
 -   **Keys**: These plugins add boiler plate for `chaos init chobolo`, in order to help users get started faster with pre-defined configurations for specific use cases.
 -   **Aliases**: These plugins add shortcuts to chaos roles (kinda basic ik).
 
-??? note "Hey, hey you there, I've got a secret to tell you"
+??? quote "Hey, hey you there, I've got a secret to tell you"
     Ch-aOS will have more types of plugins in the futures, chec k the [Chopping Board](chopping-board.md) for planned features!
 
 This plugin-based architecture means you only install the functionality you need, and it allows the community to extend Ch-aOS for different distributions or use cases without modifying the central CLI, also, since it's made using a pyproject structure, one plugin can easily implement 2 or more types of plugins!
