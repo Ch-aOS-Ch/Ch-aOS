@@ -93,8 +93,9 @@ class Provider(ABC):
         match key_type:
             case 'age':
                 _, _, key_content = self.getAgeKeys(item_id)
-                with ephemeralAgeKey(key_content) as age_env:
-                    context["env"].update(age_env)
+                with ephemeralAgeKey(key_content) as (prefix, fds):
+                    context["prefix"] = prefix
+                    context["pass_fds"] = fds
                     yield context
             case 'gpg':
                 _, secKey, _ = self.getGpgKeys(item_id)

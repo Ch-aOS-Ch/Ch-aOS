@@ -24,6 +24,7 @@ theme:
 
   features:
     - content.code.copy
+    - content.code.select
     - navigation.instant
     - navigation.top
 
@@ -41,6 +42,7 @@ markdown_extensions:
       pygments_lang_class: true
       pygments_style: dracula
   - admonition
+  - pymdownx.inlinehilite
   - pymdownx.details
   - pymdownx.superfences
 
