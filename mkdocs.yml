@@ -38,3 +38,22 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences
+
+nav:
+  - 'Introduction': 'index.md'
+  - 'Getting Started': 'getting-started.md'
+  - 'Core Concepts': 'core-concepts.md'
+  - 'The Chopping Board': 'chopping-board.md'
+  - 'Commands':
+    - 'apply': 'commands/apply.md'
+    - 'Management': 'commands/management.md'
+    - 'explain': 'commands/explain.md'
+    - 'team': 'commands/team.md'
+    - 'secrets': 'commands/secrets.md'
+    - 'ramble': 'commands/ramble.md'
+  - 'Advanced':
+    - 'Fleet Management': 'advanced/fleet.md'
+    - 'Secret Providers': 'advanced/providers.md'
+  - 'Plugins':
+    - 'Provider Plugins': 'plugins/provider-plugins.md'
+    - 'Development': 'plugins/development.md'
