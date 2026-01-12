@@ -7,7 +7,7 @@
 
 `add_op()`: `op` pile made to be ran with `run_ops()`
 
-why?: Cause pyinfra is significantly faster than ansible, and it allows for the use of python's ecosystem.
+Why?: Cause pyinfra is significantly faster than ansible, and it allows for the use of python's ecosystem.
 
 USE THE PYINFRA API, _NOT_ THE BINARY.
 
@@ -24,7 +24,7 @@ Also, nix is not just a config file with a lot of semantics, it's a _programming
 ---
 
 ## First of all:
-The docs. The documentation for Pyinfra is horrible at best, therefore I'm going to do the best of my efforts to explain what everything does and how the things should be setup, ok? ok.
+The docs. The documentation for Pyinfra is not the best when regarding API mode, therefore I'm going to do the best of my efforts to explain what everything does and how the things should be setup, ok? ok.
 
 First of all: what is this?
 ```py
@@ -37,7 +37,7 @@ from pyinfra.context import ctx_state
 These are pyinfra modules, they serve as normal modules, but they are very sparse and work weirdly because of--
 
 ## Secondly:
-Pyinfra is not just an api, it is also a binary akin to python, this means they have a very convoluted system setup to serve both of these, worst of all, they use the same language AND have bad exceptions, so you can technically just import the wrong modules and python won't even notice.
+Pyinfra is not just an api, it is also a binary akin to python, this means they have a very big system setup to serve both of these, however they use the same language, so you can technically just import the wrong modules and python won't even notice.
 
 ## Thirdly: Connection? In my localhost based code?
 ```py
@@ -59,7 +59,7 @@ host = state.inventory.get_host("@local")
 print("Connection established.")
 ```
 
-Yeah, remember when I said it's not just an API, but a binary as well? Yeah, this is why this is an issue.
+Yeah, remember when I said it's not just an API, but a binary as well? Yeah, this is why this is an issue in this case.
 
 You see, since pyinfra is an ansible alternative, they need to have a way to connect to your pc and/or to other pcs, this is how they do it.
 
@@ -69,7 +69,7 @@ Oh yeah, forgot to mention. I use the API, _NOT_ the binary. Using the API opens
 
 We only use `ctx_state.set(state)` once at startup. Avoid relying on global context inside roles, always pass `state` explicitly to keep roles deterministic and reusable as a library.
 
-> [!NOTE] StateStages Quick mental notes:
+> [!TIP] StateStages Quick mental notes:
 > - `Prepare`: collect & queue operations (what we use)
 > - `Deploy`: execute operations automatically without calling `run_ops()`
 > - `Cleanup`: post-deploy hooks
@@ -108,7 +108,7 @@ Well, It's a list
         update=True,
         _sudo=True
     )
-   run_ops(state) # <~ better positioning for this context, if the context requires it, use run_(ops) inside the if block
+   run_ops(state) # <~ better positioning for this context, if the context requires it, use run_ops() inside the if block
    ```
 
    Ok, let's be thorough about this.
@@ -121,6 +121,8 @@ Well, It's a list
 
    Important notes: you can (and, IMO, should) _not_ use `_sudo_password` with `_sudo`, the first one declares what's going to be the password used by sudo, the second one only appends an big ol' "sudo" before any commands, when used together, sudo will know what to use, however, when using only `_sudo`, the system will automatically ask for the password, it's kinda neat, since it uses the native sudo security measures.
 
+    Note that run_ops should not ever be called inside of your roles, Ch-aOS takes care of calling it after all roles have been processed. This keeps execution predictable and easier to manage (such is the case for `-d`).
+
 ## Fifthly: OmegaConf
 I use omegaconf as the thing that helps me parse the used Ch-obolo, it's very useful, you can simply do
 ```py
@@ -131,23 +133,14 @@ And every single one of your variables will be inside of `ChObolo`, so basically
 ## finally
 So, these are my findings as of right now about this system, it IS a pain to use at first glance, but whence you understand how the thing actually works, it gets easier, also, it IS leagues faster than ansible, which is BIG.
 
-How can you run this?
-
-Firstly run `uv tool install omegaconf pyinfra`, then `uv add --dev omegaconf pyinfra`, then `uv run main.py [tags to use] -e path/to/ch-obolo/to-use.yml`
-
-To do a dry run, simply pass the `-d` or `--dry` tag.
-To skip inputs, pass `-y`, `-ikwid` or `--i-know-what-im-doing`
-To add verbosity to your task, run `-v` up to `-vvv`, this will increase the level of debugging, 1=warning, 2=info, 3=full debug.
-You can also pass `--verbose {1,2,3}` to select it directly.
-
 # Creating your own Pyinfra Role
 Here's a quick guide to get you started on creating a new role for Ch-aronte.
 
 1.  **Create the File Structure:** Create your directory and Python file following the pattern: `roles/your_role/tasks/your_role.py`.
 
-2.  **Define the Entry Point:** In your new file, create the main function that will be called by `main.py`. It must accept `state`, `host`, and `chobolo_path` as arguments.
+2.  **Define the Entry Point:** In your new file, create the main function that will be called by `main.py`. It must accept `state`, `host`, `skip`, and `chobolo_path` as arguments.
     ```python
-    def run_your_role(state, host, chobolo_path):
+    def run_your_role(state: State, host: Host, chobolo_path: str, skip: bool) -> None:
         # Your logic goes here
         print("Executing your_role!")
     ```
@@ -155,29 +148,22 @@ Here's a quick guide to get you started on creating a new role for Ch-aronte.
 3.  **Implement Your Logic:** Use `add_op` and `run_ops` to execute your operations. Import any necessary `pyinfra.operations` at the top of your file.
 
 4.  **Integrate with `main.py`:**
-    *   Import your new role at the top of `main.py`:
-        ```python
-        from roles.your_role.tasks import your_role
-
+    *   Place an entry_point inside of pyproject.toml:
+        ```toml
+        [project.entry-points."chaos.roles"]
+        your_role = "roles.your_role.tasks.your_role:run_your_role"
         ```
 
-    *   Add the corresponding `tag` to the `ROLES_DISPATCHER` block in `main.py`:
-        ```python
-        #...
-        ROLES_DISPATCHER = {
-          "packages": pkgs_role.run_all_pkg_logic,
-          "your_role": your_role.run_your_role,
-        }
-        #...
-
+    *   You can also create aliases for your tags in the `chaos.aliases` ep, it should map directly to the dispatcher variable.:
+        ```toml
+        [project.entry-points."chaos.aliases"]
+        yrrl = "your_role"
         ```
 
-    *   You can also create aliases for your tags in the `ROLE_ALIASES` block, it should map directly to the dispatcher variable.:
-        ```py
-        ROLE_ALIASES = {
-            "pkgs": "packages",
-            "yrrl": "your_role"
-        }
+    *   Install your role in your environment:
+      ```bash
+      uv build && cp dist/your_role-0.1.0-py3-none-any.whl ~/.local/share/chaos/plugins && chaos -u # to update the cached plugins
+      ```
 
 ## Minimal Example: A 'touch' Role
 Here is a complete, minimal example of a role that creates a directory in `/tmp/`.
@@ -191,9 +177,8 @@ from pyinfra.api.operations import run_ops
 
 # Note: We don't need OmegaConf if the role doesn't read the Ch-obolo file.
 
-def run_touch_role(state, host, skip, dry): # <~ add "chobolo_path if the role needs it."
+def run_touch_role(state, host, chobolo_path, skip):
                                             # <~ add skip if your role has inputs, they should be skipped if skip = True
-                                            # <~ add dry, this is mandatory.
   """
   Ensures the directory /tmp/ch-aronte-test exists.
   """
@@ -209,10 +194,6 @@ def run_touch_role(state, host, skip, dry): # <~ add "chobolo_path if the role n
                  # you should never run "sudo yay", since yay uses sudo internally,
                  # the prompt yay uses _will_ be passed no matter what using pyinfra
   )
-  if not dry:
-    run_ops(state) # <~ dry run should only cover the run command, as it will allow for better debugging with -vvv
-  else:
-    print(f"\ndry mode active, skipping")
 ```
 
 ## Real usage example:
@@ -267,7 +248,7 @@ def pkgLogic(host, chobolo_path):
     return toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper
 
 def nativeLogic(state, toAddNative, toRemoveNative, skip, dry):
-    """Applies changes to Native packages""" # <~ Btw, I'm using """ here cause it get's a better highlighting on my screen than #
+    """Applies changes to Native packages"""
     if toAddNative or toRemoveNative:
         print("--- Native packages to be removed: ---")
         for pkg in toRemoveNative:
@@ -347,17 +328,4 @@ def run_all_pkg_logic(state, host, chobolo_path, skip, dry):
     toAddNative, toRemoveNative, toAddAur, toRemoveAur, aur_helper = pkgLogic(host, chobolo_path)
     nativeLogic(state, toAddNative, toRemoveNative, skip, dry)
     aurLogic(state, toAddAur, toRemoveAur, aur_helper, skip, dry)
-    if not dry:
-        run_ops(state) # <~ Crucial, if your config does more than 1 thing, dry should be ran after _all_ of the code
-    else:
-        print(f"dry mode active, skipping.")
-```
-
-> [!NOTE] to: self
->
-> use `systemctl list-unit-files --type=service --state=enabled | grep -Ev 'getty|timesyncd|UNIT|unit' | awk '{print $1}'`to manage services in a non hardcoded way
->
-> use
-```bash
-awk -F: '(($3>=1000)||($3==0))&&($1!="nobody"){print $1}' /etc/passwd # to manage users faster
 ```
