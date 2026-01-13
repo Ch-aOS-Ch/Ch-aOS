@@ -176,6 +176,15 @@ def addSecParsers(parser):
     secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
     add_provider_args(secCat)
 
+    secShamir = secSubParser.add_parser('set-shamir', help="Manage Shamir's Secret Sharing configuration.")
+    secShamir.add_argument('index', type=int, help="Rule index to be used.")
+    secShamir.add_argument('share', type=int, help="Amount of Shares to be obligatory.")
+    secShamir.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    secShamir.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
+    add_provider_args(secShamir)
+
+
 def addRambleParsers(parser):
     rambleParser = parser.add_parser('ramble', help="Annotate your rambles!")
 

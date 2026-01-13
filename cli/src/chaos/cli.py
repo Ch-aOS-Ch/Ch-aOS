@@ -181,7 +181,7 @@ def handleSecrets(args, Console):
             case 'rotate-rm': handleRotateRemove(args)
             case 'list': listFp(args)
             case 'edit': handleSecEdit(args)
-            case 'shamir': handleSetShamir(args)
+            case 'set-shamir': handleSetShamir(args)
             case 'print': handleSecPrint(args)
             case 'cat': handleSecCat(args)
             case _:
