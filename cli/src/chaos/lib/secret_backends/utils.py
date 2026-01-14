@@ -173,7 +173,7 @@ def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
     with open(keyPath, 'r') as f:
         key = f.read().strip()
     if not _is_valid_vault_key(key): raise ValueError("The provided Vault key does not appear to be valid.")
-    if not key.startswith('hvs.'): raise ValueError('The provided Vault key does not appear to be a valid HCP Vault URI (must start with "hvs.").')
+    if not key.startswith('hvs.') and not key.startswith("s."): raise ValueError('The provided Vault key does not appear to be a valid HCP Vault URI (must start with "hvs." or "s.").')
 
     key_content = f"""# Vault Address:: {vaultAddr}
 Vault Key: {key}
