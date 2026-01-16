@@ -12,9 +12,6 @@ console = Console()
 
 """
 Orchestration/Explanation Handlers for Chaos CLI
-
-I KNOW IT'S MESSY, IT'S INTENTIONAL.
-Big function = easier to read flow, more explicit and less jumping around files.
 """
 
 """ Handle verbosity levels for logging """
@@ -114,7 +111,7 @@ def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
                     hosts = ["@local"]
                     isFleet = False
                     parallels = 0
-                    
+
                 return isFleet, parallels, hosts
             else:
                 confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)

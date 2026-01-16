@@ -32,7 +32,7 @@ def _getProvider(args, global_config):
 
 def _getProviderByName(provider_subcommand_name: str, args, global_config) -> "Provider": # type: ignore
     from chaos.lib.utils import get_providerEps
-    from chaos.lib.secret_backends.base import Provider
+    from .providers.base import Provider
     provider = None
     provider_eps = get_providerEps()
     if not provider_eps:

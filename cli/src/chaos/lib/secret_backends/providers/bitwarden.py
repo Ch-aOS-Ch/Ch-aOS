@@ -6,7 +6,7 @@ import subprocess
 import json
 from pathlib import Path
 from chaos.lib.utils import checkDep
-from chaos.lib.secret_backends.utils import (
+from ..utils import (
     extract_age_keys,
     _save_to_config,
     extract_gpg_keys,
