@@ -247,7 +247,7 @@ def addExplainParsers(parser):
 def addCheckParsers(parser):
     checkParser = parser.add_parser('check', help='Check and list roles, aliases and explanations')
 
-    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
 
 def addSetParsers(parser):

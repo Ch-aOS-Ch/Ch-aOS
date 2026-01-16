@@ -33,7 +33,7 @@ def printCheck(namespace, dispatcher):
         console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:")))
         return
 
-    title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]:"
+    title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
     render_list_as_table(list(dispatcher.keys()), title)
 
 def _handleAliases(dispatcher):
@@ -65,6 +65,12 @@ def checkExplanations(EXPLANATIONS, **kwargs):
 
 def checkAliases(ROLE_ALIASES, **kwargs):
     printCheck("alias", ROLE_ALIASES)
+
+def checkProviders(providers, **kwargs):
+    printCheck("provider", providers)
+
+def checkBoats(boats, **kwargs):
+    printCheck("boat", boats)
 
 """
 checks if vault is in use in the sops file

@@ -191,7 +191,7 @@ def handleSecrets(args, Console):
         sys.exit(1)
 
 def handleCheck(args):
-    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
+    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles, checkProviders, checkBoats
 
     match args.checks:
         case 'explanations':
@@ -206,6 +206,15 @@ def handleCheck(args):
             from chaos.lib.plugDiscovery import get_plugins
             role_specs = get_plugins(args.update_plugins)[0]
             checkRoles(role_specs)
+        case 'providers':
+            from chaos.lib.plugDiscovery import get_plugins
+            providers = get_plugins(args.update_plugins)[4]
+            checkProviders(providers)
+
+        case 'boats':
+            from chaos.lib.plugDiscovery import get_plugins
+            boats = get_plugins(args.update_plugins)[5]
+            checkBoats(boats)
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
     sys.exit(0)
