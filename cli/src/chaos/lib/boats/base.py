@@ -58,7 +58,7 @@ class Boat(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_boat_logic(self, fleet_config: dict) -> dict:
+    def handle_boat_logic(self, fleet_config: dict) -> dict | list:
         """
         Handle any boat-specific logic for managing the fleet.
         This method should take the current fleet configuration as input,
@@ -81,7 +81,16 @@ class Boat(ABC):
         this_fleet_config = self.get_fleet_config()
         hosts_to_add = self.handle_boat_logic(this_fleet_config)
 
-        configured_hosts = OmegaConf.create({"fleet": {"hosts": hosts_to_add}})
-        merged_hosts = DictConfig(OmegaConf.merge(old_state, configured_hosts))
+        if isinstance(hosts_to_add, dict):
+            hosts_to_add = [hosts_to_add]
 
-        return merged_hosts
+        if not isinstance(hosts_to_add, list):
+            raise ValueError(f"Boat provider '{self.__class__.name}' returned invalid hosts format.")
+
+        curent_hosts = old_state.get("fleet", {}).get("hosts", [])
+        merged_hosts = curent_hosts + hosts_to_add
+
+        new_state = old_state.copy()
+        new_state.fleet.hosts = merged_hosts
+
+        return new_state
