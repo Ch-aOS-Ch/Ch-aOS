@@ -14,7 +14,7 @@ def checkDep(bin):
 def get_providerEps():
     from importlib.metadata import EntryPoint
     from chaos.lib.plugDiscovery import get_plugins
-    _, _, _, _, providers = get_plugins()
+    providers = get_plugins()[4]
     provider_eps = []
     if providers:
         for name, value in providers.items():

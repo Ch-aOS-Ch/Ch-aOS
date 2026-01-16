@@ -30,7 +30,7 @@ class RolesCompleter:
     def __call__(self, prefix, **kwargs):
         if self._roles is None or self._aliases is None:
             from chaos.lib.plugDiscovery import get_plugins
-            self. _roles, self._aliases, _, _, _ = get_plugins()
+            self._roles, self._aliases = get_plugins()[:2]
 
         all_comps = list(self._roles.keys()) + list(self._aliases.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
@@ -41,7 +41,7 @@ class ExplainCompleter:
     def __call__(self, prefix, **kwargs):
         if self._topics is None:
             from chaos.lib.plugDiscovery import get_plugins
-            _, _, self._topics, _, _ = get_plugins()
+            self._topics = get_plugins()[2]
 
         all_comps = list(self._topics.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
