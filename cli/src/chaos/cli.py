@@ -116,7 +116,7 @@ def handleTeam(args, Console):
         sys.exit(1)
 
 def handleExplain(args):
-    from chaos.lib.handlers import handleExplain
+    from chaos.lib.explain import handleExplain
     if args.topics:
         from chaos.lib.plugDiscovery import get_plugins
         _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)

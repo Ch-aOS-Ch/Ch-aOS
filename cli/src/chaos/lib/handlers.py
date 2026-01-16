@@ -1,10 +1,9 @@
-from importlib import import_module
+import sys
 from typing import cast
 from rich.console import Console
 from rich.prompt import Confirm
-from rich.text import Text
 from pathlib import Path
-from omegaconf import DictConfig, OmegaConf, ListConfig
+from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 import getpass
@@ -16,8 +15,6 @@ Orchestration/Explanation Handlers for Chaos CLI
 
 I KNOW IT'S MESSY, IT'S INTENTIONAL.
 Big function = easier to read flow, more explicit and less jumping around files.
-
-+ Big Function = Big Brain (I've never said that)
 """
 
 """ Handle verbosity levels for logging """
@@ -63,11 +60,7 @@ This allows for better performance and error handling.
 
 I really should wrap this in a try/finally to ensure disconnection happens, but for now, this will do.
 """
-def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
-    console = Console()
-    console_err = Console(stderr=True)
-
-    # ----- Ch-obolo Discovery -----
+def _get_configs(args):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -78,30 +71,14 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     chobolo_path = args.chobolo or global_config.get('chobolo_file', None)
     secrets_file_override = args.secrets_file_override or global_config.get('secrets_file', None)
     sops_file_override = args.sops_file_override or global_config.get('sops_file', None)
-    enabledSecPlugins = global_config.get('secret_plugins', [])
-    userAliases = global_config.get('aliases', {})
 
     if not chobolo_path:
         raise FileNotFoundError("No Ch-obolo passed\n"
                             "   Use '[cyan]-e /path/to/file.yml[/cyan]' or configure a base Ch-obolo with '[cyan]chaos set chobolo /path/to/file.yml[/cyan]'.")
 
-    chobolo_config = OmegaConf.load(chobolo_path)
+    return global_config, chobolo_path, secrets_file_override, sops_file_override
 
-    # -----------------------------
-    # ---- Pyinfra Setup ----
-
-    # --- Lazy import pyinfra components ---
-    from pyinfra.api.inventory import Inventory
-    from pyinfra.api.config import Config
-    from pyinfra.api.connect import connect_all, disconnect_all
-    from pyinfra.api.state import StateStage, State
-    from pyinfra.api.operations import run_ops
-    from pyinfra.context import ctx_state
-    from pyinfra.api.exceptions import PyinfraError
-    # ------------------------------------
-
-    parallels = 0
-    hosts = ["@local"]
+def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
     isFleet = False
     if hasattr(args, 'fleet') and args.fleet:
         chobolo_config = cast(DictConfig, chobolo_config)
@@ -131,102 +108,149 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
                     hosts.append((hostname, host_data))
                 isFleet = True
+
+                if not hosts:
+                    console.print(f"[bold yellow]WARNING:[/] No valid fleet hosts found in chobolo file in {chobolo_path}, defaulting to localhost.")
+                    hosts = ["@local"]
+                    isFleet = False
+                    parallels = 0
+                    
+                return isFleet, parallels, hosts
             else:
                 confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet hosts configured for chobolo file in {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
                 if not confirm:
                     console.print('Exiting...')
-                    return
+                    sys.exit(0)
+                return False, 0, ["@local"]
         else:
             confirm = False if ikwid else Confirm.ask(f'[bold yellow]WARNING:[/] No fleet configuration found in chobolo file {chobolo_path}, do you wish to continue? (will use localhost)', default=False)
             if not confirm:
                 console.print('Exiting...')
-                return
+                sys.exit(0)
+            return False, 0, ["@local"]
+    return False, 0, ["@local"]
+
+def setup_fleet_hosts(args, chobolo_config, chobolo_path, ikwid):
+    from pyinfra.api.inventory import Inventory
+    parallels = 0
+    hosts = ["@local"]
+
+    isFleet, parallels, hosts = _handle_fleet(args, chobolo_config, chobolo_path, ikwid)
 
     if not isFleet:
         inventory = Inventory((hosts, {}))
-
     else:
         inventory = Inventory(hosts)
 
+    return inventory, hosts, parallels
+
+def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
+    # --- Lazy import pyinfra components ---
+    from pyinfra.api.config import Config
+    from pyinfra.api.connect import connect_all
+    from pyinfra.api.state import StateStage, State
+    from pyinfra.context import ctx_state
+    # ------------------------------------
+
+    inventory, hosts, parallels = setup_fleet_hosts(args, chobolo_config, chobolo_path, ikwid)
+
     config = Config(parallel=parallels)
     state = State(inventory, config)
-
     state.current_stage = StateStage.Prepare
-
     ctx_state.set(state)
 
     console.print("[bold magenta]Sudo password:[/bold magenta] ")
     config.SUDO_PASSWORD = getpass.getpass("")
-
     skip = ikwid
 
     console.print(f"Connecting to {hosts}...")
     connect_all(state)
     console.print("[bold green]Connection established.[/bold green]")
 
-    # -----------------------------------------
+    return state, skip
 
-    SEC_HAVING_ROLES=['users', 'secrets']
-    SEC_HAVING_ROLES.extend(enabledSecPlugins)
-
-    SEC_HAVING_ROLES = set(SEC_HAVING_ROLES)
-
+def _setup_user_aliases(console: Console, userAliases: DictConfig, ROLE_ALIASES: DictConfig):
     for a in userAliases.keys():
         if a in ROLE_ALIASES:
             console.print(f"[bold yellow]WARNING:[/] Alias {a} already exists in Aliases installed. Skipping.")
             del userAliases[a]
+    return userAliases
 
+def _setup_normalized_tag(tag: str, ROLE_ALIASES: DictConfig):
     if ROLE_ALIASES:
-        ROLE_ALIASES.update(userAliases)
+        normalized_tag = ROLE_ALIASES.get(tag, tag)
+    else:
+        normalized_tag = tag
+    return normalized_tag
 
-    decrypted_secrets = ()
-    # --- Role orchestration ---
-    try:
-        for host in state.inventory.iter_activated_hosts():
-            console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
-            commonArgs = (state, host, chobolo_path, skip)
+def handleSecRoles(normalized_tag, enabledSecPlugins, skip, decrypted_secrets, commonArgs, ROLES_DISPATCHER: DictConfig, secrets_file_override, sops_file_override, global_config, args):
+    if normalized_tag in enabledSecPlugins:
+        confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
+        if not confirm:
+            return
+
+    if not decrypted_secrets:
+        decrypt = args.secrets
+        if decrypt:
+            from chaos.lib.secret_backends.utils import decrypt_secrets
+            decrypted_secrets = decrypt_secrets(
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                args
+            )
+
+        if not decrypted_secrets:
+            confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
+            if not confirm:
+                return
+
+            from chaos.lib.secret_backends.utils import decrypt_secrets
+            decrypted_secrets = decrypt_secrets(
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                args
+            )
+
+    if isinstance(decrypted_secrets, str):
+        secArgs = commonArgs + (decrypted_secrets,)
+    else:
+        secArgs = commonArgs + decrypted_secrets
+
+    ROLES_DISPATCHER[normalized_tag](*secArgs)
+
+def _run_tags(
+    ROLES_DISPATCHER,
+    ROLE_ALIASES: DictConfig,
+    SEC_HAVING_ROLES: set,
+    skip: bool,
+    decrypted_secrets: tuple,
+    commonArgs: tuple,
+    secrets_file_override,
+    sops_file_override,
+    global_config,
+    args,
+    console_err,
+    host,
+):
             for tag in args.tags:
-                if ROLE_ALIASES:
-                    normalized_tag = ROLE_ALIASES.get(tag, tag)
-                else:
-                    normalized_tag = tag
+                normalized_tag = _setup_normalized_tag(tag, ROLE_ALIASES)
                 if normalized_tag in ROLES_DISPATCHER:
                     if normalized_tag in SEC_HAVING_ROLES:
-                        if normalized_tag in enabledSecPlugins:
-                            confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
-                            if not confirm:
-                                continue
+                        handleSecRoles(
+                            normalized_tag,
+                            SEC_HAVING_ROLES,
+                            skip,
+                            decrypted_secrets,
+                            commonArgs,
+                            ROLES_DISPATCHER,
+                            secrets_file_override,
+                            sops_file_override,
+                            global_config,
+                            args
+                        )
 
-                        if not decrypted_secrets:
-                            decrypt = args.secrets
-                            if decrypt:
-                                from chaos.lib.secret_backends.utils import decrypt_secrets
-                                decrypted_secrets = decrypt_secrets(
-                                    secrets_file_override,
-                                    sops_file_override,
-                                    global_config,
-                                    args
-                                )
-
-                            if not decrypted_secrets:
-                                confirm = Confirm.ask(f"--secrets not passed, yet you are using a secret having role '{normalized_tag}', do you wish to decrypt and use it?", default=False)
-                                if not confirm:
-                                    continue
-
-                                from chaos.lib.secret_backends.utils import decrypt_secrets
-                                decrypted_secrets = decrypt_secrets(
-                                    secrets_file_override,
-                                    sops_file_override,
-                                    global_config,
-                                    args
-                                )
-
-                        if isinstance(decrypted_secrets, str):
-                            secArgs = commonArgs + (decrypted_secrets,)
-                        else:
-                            secArgs = commonArgs + decrypted_secrets
-
-                        ROLES_DISPATCHER[normalized_tag](*secArgs)
                     elif normalized_tag == 'packages':
                         mode = ''
                         if tag in ['allPkgs', 'packages', 'pkgs']:
@@ -236,17 +260,63 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
                         elif tag == 'aurPkgs':
                             mode = 'aur'
 
-                        if mode:
-                            pkgArgs = commonArgs + (mode,)
-                            ROLES_DISPATCHER[normalized_tag](*pkgArgs)
-                        else:
+                        if not mode:
                             console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
+
+                        pkgArgs = commonArgs + (mode,)
+                        ROLES_DISPATCHER[normalized_tag](*pkgArgs)
+
                     else:
                         ROLES_DISPATCHER[normalized_tag](*commonArgs)
 
                     console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized for {host.name}. ---\n")
                 else:
                     console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
+
+def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
+    from pyinfra.api.connect import disconnect_all
+    from pyinfra.api.exceptions import PyinfraError
+    from pyinfra.api.operations import run_ops
+    console = Console()
+    console_err = Console(stderr=True)
+
+    global_config, chobolo_path, secrets_file_override, sops_file_override = _get_configs(args)
+    enabledSecPlugins = global_config.get('secret_plugins', [])
+    userAliases = global_config.get('aliases', {})
+
+    chobolo_config = OmegaConf.load(chobolo_path)
+
+    state, skip = _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid)
+
+    SEC_HAVING_ROLES=['users', 'secrets']
+    SEC_HAVING_ROLES.extend(enabledSecPlugins)
+    SEC_HAVING_ROLES = set(SEC_HAVING_ROLES)
+
+    userAliases = _setup_user_aliases(console, userAliases, ROLE_ALIASES)
+
+    if ROLE_ALIASES:
+        ROLE_ALIASES.update(userAliases)
+
+    decrypted_secrets = ()
+    try:
+        for host in state.inventory.iter_activated_hosts():
+            console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
+            commonArgs = (state, host, chobolo_path, skip)
+
+            _run_tags(
+                ROLES_DISPATCHER,
+                ROLE_ALIASES,
+                SEC_HAVING_ROLES,
+                skip,
+                decrypted_secrets,
+                commonArgs,
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                args,
+                console_err,
+                host
+            )
 
         if not dry:
             run_ops(state)
@@ -257,183 +327,9 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
     finally:
-        # --- Disconnection ---
         console.print("\nDisconnecting...")
         disconnect_all(state)
         console.print("[bold green]Finalized.[/bold green]")
-
-
-"""
-Another Chunker:
-
-This function handles the 'explain' command.
-It basically loads the appropriate explanation class based on the topic passed.
-Then it calls the appropriate method to get the explanation data.
-Then it formats and displays the explanation using rich.
-
-The explanation data is expected to be a dictionary with various keys like 'concept', 'what', 'why', 'how', 'examples', etc.
-The level of detail to show is determined by the 'details' argument (basic, intermediate, advanced).
-If the sub-topic is 'list', it lists all available sub-topics for the given role.
-
-I really should add a "--complexity" flag to extend the capability of detailing even further.
-"""
-def handleExplain(args, EXPLAIN_DISPATCHER):
-    from rich.panel import Panel
-    from rich.syntax import Syntax
-    from rich.markdown import Markdown
-    from rich.table import Table
-    from rich.tree import Tree
-    from rich.align import Align
-    from rich.padding import Padding
-    from rich.console import Group
-
-    DETAIL_LEVELS = {
-        'basic': ['concept', 'what', 'why', 'examples', 'security'],
-        'intermediate': ['what', 'why', 'how', 'commands', 'equivalent', 'examples', 'security'],
-        'advanced': ['concept', 'what', 'why', 'how', 'technical', 'commands', 'files', 'security', 'equivalent', 'examples', 'validation', 'learn_more']
-    }
-
-    topics = args.topics
-    if not isinstance(topics, list):
-        topics = [topics]
-
-    for topic in topics:
-        keysToShow = DETAIL_LEVELS.get(args.details, DETAIL_LEVELS['basic'])
-        parts = topic.split('.')
-        role = parts[0]
-        sub_topic = parts[1] if len(parts) > 1 else None
-
-        if role in EXPLAIN_DISPATCHER:
-            try:
-                module_name, class_name = EXPLAIN_DISPATCHER[role].split(':')
-                module = import_module(module_name)
-                ExplainClass = getattr(module, class_name)
-                explainObj = ExplainClass()
-            except (ImportError, AttributeError, ValueError) as e:
-                console.print(f"[bold red]ERROR:[/] Could not load explanation class for role '{role}': {e}")
-                continue
-
-            methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
-
-            if (sub_topic == 'list'):
-                manualOrder = getattr(explainObj, '_order', [])
-                if manualOrder:
-                    available_methods = manualOrder
-                else:
-                    available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
-                    available_methods = set(available_methods) - {role}
-                table = Table(show_lines=True, width=40)
-                table.add_column(f"{role}", justify="center")
-                for m in available_methods:
-                    table.add_row(f"[cyan][italic]{m}[/][/]")
-                console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:")))
-                return
-
-            if hasattr(explainObj, methodName):
-                method = getattr(explainObj, methodName)
-                explanation = method()
-
-
-                explanation_renderables = []
-
-                if 'concept' in keysToShow and explanation.get('concept'):
-                    explanation_renderables.append(Markdown(f"# Concept: {explanation['concept']}"))
-                    explanation_renderables.append(Text("\n"))
-
-                if 'what' in keysToShow and explanation.get('what'):
-                    explanation_renderables.append(Markdown(f"**What does it do?**"))
-                    explanation_renderables.append(Padding.indent(Markdown(explanation['what'],), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                if 'technical' in keysToShow and explanation.get('technical'):
-                    explanation_renderables.append(Markdown(f"**Technical details:**"))
-                    explanation_renderables.append(Padding.indent(Markdown(explanation['technical']), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                if 'why' in keysToShow and explanation.get('why'):
-                    explanation_renderables.append(Markdown(f"**Why use it:**"))
-                    explanation_renderables.append(Padding.indent(Markdown(explanation['why']), 5))
-                    explanation_renderables.append(Text("\n"))
-
-
-                if 'how' in keysToShow and explanation.get('how'):
-                    explanation_renderables.append(Markdown(f"**How it works:**"))
-                    explanation_renderables.append(Padding.indent(Markdown(explanation['how']), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                if 'validation' in keysToShow and explanation.get('validation'):
-                    explanation_renderables.append(Markdown(f"**Validation:**"))
-                    explanation_renderables.append(Padding.indent(Syntax(explanation['validation'], "bash", line_numbers=True), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                examples = explanation.get('examples', [])
-                if 'examples' in keysToShow and len(examples) > 0:
-                    explanation_renderables.append(Markdown("**Examples:**"))
-                    for ex in examples:
-                        if 'yaml' in ex:
-                            explanation_renderables.append(Padding.indent(Syntax(ex['yaml'], "yaml", line_numbers=True), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                if 'equivalent' in keysToShow and explanation.get('equivalent'):
-                    explanation_renderables.append(Markdown("**Equivalent script:**"))
-                    equivalent = explanation['equivalent']
-                    if isinstance(equivalent, list):
-                        for cmd in equivalent:
-                            explanation_renderables.append(Padding.indent(Syntax(cmd, "bash", line_numbers=True), 5))
-                    else:
-                        explanation_renderables.append(Padding.indent(Syntax(equivalent, "bash", line_numbers=True), 5))
-                    explanation_renderables.append(Text("\n"))
-
-                files = explanation.get('files', [])
-                if 'files' in keysToShow and files:
-                    tree = Tree("[bold]Related files[/]", )
-                    for f in files:
-                        tree.add(f"[green]{f}[/green]")
-                    explanation_renderables.append(tree)
-                    explanation_renderables.append(Text("\n"))
-
-                commands = explanation.get('commands', [])
-                if 'commands' in keysToShow and commands:
-                    tree = Tree("[bold]Related Commands:[/]")
-                    for command in commands:
-                        tree.add(f"[cyan]{command}[/cyan]")
-                    explanation_renderables.append(tree)
-                    explanation_renderables.append(Text("\n"))
-                learn_more = explanation.get('learn_more', [])
-
-                if 'learn_more' in keysToShow and learn_more:
-                    tree = Tree("[bold]Learn more[/]")
-                    for item in learn_more:
-                        tree.add(f"[blue]{item}[/blue]")
-                    explanation_renderables.append(tree)
-                    explanation_renderables.append(Text("\n"))
-
-                if 'security' in keysToShow and explanation.get('security'):
-                    explanation_renderables.append(Align.center(Panel(Markdown(explanation['security']), title="[bold yellow]Security considerations[/]", border_style="yellow", expand=False)))
-                    explanation_renderables.append(Text("\n"))
-
-                console.print(
-                    Align.center(
-                        Panel(
-                            Group(*explanation_renderables),
-                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{args.details}[/])",
-                            border_style="green",
-                            expand=False,
-                            width=80 if len(explanation_renderables) > 1 else None,
-                        )
-                    )
-                )
-
-            else:
-                if (sub_topic != 'list'):
-                    available_methods = [m.replace('explain_', '') for m in dir(explainObj) if m.startswith('explain_') and m != 'explain_']
-                    console.print(f"[bold red]ERROR:[/] No explanation found for sub-topic '{sub_topic}' in role '{role}'.")
-                    if available_methods:
-                        console.print(f"Available sub-topics for '{role}': [yellow]{available_methods}[/yellow]")
-                    else:
-                        console.print(f"[bold red]ERROR:[/] Poorly configured explanation module. \n(if you're a dev, make sure your module has a class with functions that simply return a dict with your needed explanations.)")
-        else:
-            console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
 
 """
 Just handles configuring the tool.

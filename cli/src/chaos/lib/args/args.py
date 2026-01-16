@@ -241,6 +241,7 @@ def addExplainParsers(parser):
 
     topics = expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
+    expParser.add_argument('-c', '--complexity', type=str, choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of complexity for the explanation.")
     topics.completer = ExplainCompleter() # type: ignore
 
 def addCheckParsers(parser):
