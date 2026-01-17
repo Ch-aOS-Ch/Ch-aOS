@@ -38,6 +38,8 @@ class Boat(ABC):
         param config: A DictConfig object containing the configuration for this boat.
         """
         self.config = config
+        if self.name == "override_me":
+            raise NotImplementedError
 
     @abstractmethod
     def check_connection(self) -> bool:
@@ -73,9 +75,6 @@ class Boat(ABC):
                 f"Boat provider '{self.__class__.name}' failed to establish a connection."
             )
             
-        if self.name == "override_me":
-            raise NotImplementedError
-
         this_fleet_config = self.get_fleet_config()
         hosts_to_add = self.handle_boat_logic(this_fleet_config)
 
