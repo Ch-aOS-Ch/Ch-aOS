@@ -87,8 +87,8 @@ class Boat(ABC):
         if not isinstance(hosts_to_add, list):
             raise ValueError(f"Boat provider '{self.__class__.name}' returned invalid hosts format.")
 
-        curent_hosts = old_state.get("fleet", {}).get("hosts", [])
-        merged_hosts = curent_hosts + hosts_to_add
+        current_hosts = old_state.get("fleet", {}).get("hosts", [])
+        merged_hosts = current_hosts + hosts_to_add
 
         new_state = old_state.copy()
         new_state.fleet.hosts = merged_hosts
