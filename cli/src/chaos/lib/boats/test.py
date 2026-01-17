@@ -21,7 +21,6 @@ try:
     print("--- Old State ---")
     print(OmegaConf.to_yaml(initial_state))
 
-    my_boat.connect()
     new_state = my_boat.get_fleet(old_state=initial_state)
 
     print("\n--- New State (Merged) ---")
