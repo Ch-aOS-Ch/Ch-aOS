@@ -3,11 +3,6 @@ from chaos.lib.boats.base import Boat
 class PaperBoat(Boat):
     name = "mock"
 
-    def connect(self) -> None:
-        """Mock connect method for the PaperBoat."""
-        print("[PaperBoat] Simulating connection to mock provider...")
-        pass
-
     def check_connection(self) -> bool:
         """Mock check_connection method for the PaperBoat."""
         return True
