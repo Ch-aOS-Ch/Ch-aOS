@@ -85,7 +85,7 @@ class Boat(ABC):
         current_hosts = old_state.get("fleet", {}).get("hosts", [])
         merged_hosts = current_hosts + hosts_to_add
 
-        new_state = old_state.copy()
+        new_state = OmegaConf.create(OmegaConf.to_container(old_state, resolve=True))
         new_state.fleet.hosts = merged_hosts
 
         return new_state
