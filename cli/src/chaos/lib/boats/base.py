@@ -40,11 +40,6 @@ class Boat(ABC):
         self.config = config
 
     @abstractmethod
-    def connect(self) -> None:
-        """Connect to the external inventory provider."""
-        raise NotImplementedError
-
-    @abstractmethod
     def check_connection(self) -> bool:
         """Check if the connection to the external provider is active."""
         raise NotImplementedError
