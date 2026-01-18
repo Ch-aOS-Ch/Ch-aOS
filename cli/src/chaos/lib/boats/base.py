@@ -74,7 +74,7 @@ class Boat(ABC):
             raise ConnectionError(
                 f"Boat provider '{self.__class__.name}' failed to establish a connection."
             )
-            
+
         this_fleet_config = self.get_fleet_config()
         hosts_to_add = self.handle_boat_logic(this_fleet_config)
 
@@ -87,7 +87,7 @@ class Boat(ABC):
         current_hosts = old_state.get("fleet", {}).get("hosts", [])
         merged_hosts = current_hosts + hosts_to_add
 
-        new_state = OmegaConf.create(OmegaConf.to_container(old_state, resolve=True))
+        new_state = DictConfig(OmegaConf.create(OmegaConf.to_container(old_state, resolve=True)))
         new_state.fleet.hosts = merged_hosts
 
         return new_state
