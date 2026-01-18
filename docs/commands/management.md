@@ -104,3 +104,21 @@ Lists all documentation topics that you can read about with `chaos explain`.
 ```bash
 chaos check explanations
 ```
+
+#### `check providers`
+
+Lists all available secret providers.
+
+**Usage:**
+```bash
+chaos check providers
+```
+
+#### `check boats`
+
+Lists all available fleet boats.
+
+**Usage:**
+```bash
+chaos check boats
+```
