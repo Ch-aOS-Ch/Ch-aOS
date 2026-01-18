@@ -146,7 +146,7 @@ fleet:
     - my-server-03: {}
 ```
 
-We provide a mock boat to exemplify how boats work, you can find it [here](../../cli/src/chaos/lib/boats/paperBoat.py), note that it isn't registered inside of the default Ch-aOS installation, since it is only for demonstration purposes.
+We provide a mock boat to exemplify how boats work, you can find it [here](https://github.com/Ch-aOS-Ch/Ch-aOS/blob/main/cli/src/chaos/lib/boats/paperBoat.py), note that it isn't registered inside of the default Ch-aOS installation, since it is only for demonstration purposes.
 
 ## Why?
 
