@@ -155,6 +155,9 @@ def handleApply(args, Console):
     except pyinfra_exceptions.PyinfraError as e:
         print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
         sys.exit(1)
+    except RuntimeError as e:
+        Console.print(f"[bold red]ERROR:[/] {e}")
+        sys.exit(1)
 
 def handleSecrets(args, Console):
     try:

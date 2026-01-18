@@ -64,7 +64,7 @@ def _get_configs(args):
     global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
-        global_config = cast(DictConfig, global_config)
+    global_config = cast(DictConfig, global_config)
 
     chobolo_path = args.chobolo or global_config.get('chobolo_file', None)
     secrets_file_override = args.secrets_file_override or global_config.get('secrets_file', None)
@@ -105,7 +105,12 @@ def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
                 console.print(f"Running boat '{boat_class.name}'...")
                 instance_config = boat_config.get('config', OmegaConf.create())
                 boat_instance = boat_class(config=instance_config)
-                global_state = boat_instance.get_fleet(global_state)
+                try:
+                    global_state = boat_instance.get_fleet(global_state)
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Boat '{boat_class.name}' failed to process fleet configuration: {e}"
+                    ) from e
 
     return global_state
 
@@ -291,6 +296,8 @@ def _run_tags(
                             args
                         )
 
+                # HACK: Special handling for 'packages' role to determine mode
+                # To be refactored later (with the role as well)
                     elif normalized_tag == 'packages':
                         mode = ''
                         if tag in ['allPkgs', 'packages', 'pkgs']:
