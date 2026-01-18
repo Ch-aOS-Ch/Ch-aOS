@@ -140,3 +140,6 @@ my_role_keys = [{
 
 Registers a new secret provider. This is a more advanced topic that requires implementing a class that inherits from the base `Provider` class. See **[Plugin Providers](./provider-plugins.md)** for examples.
 
+### `chaos.boats`
+
+Registers a new boat for use with `chaos apply --fleet`. This is an advanced topic for managing fleets of hosts. See **[Boat Plugins](../advanced/boats.md)** for more details.
