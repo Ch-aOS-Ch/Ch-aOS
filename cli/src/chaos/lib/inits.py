@@ -345,7 +345,7 @@ def initSecrets():
         key, keyValue = setupAge()
     elif engine == "gpg":
         key, keyValue = setupGpg()
-    elif engine == 'ssh':
+    elif engine == 'pure-ssh':
         key, keyValue = setupSsh()
 
     configDir = Path(os.path.expanduser("~/.config/chaos"))
