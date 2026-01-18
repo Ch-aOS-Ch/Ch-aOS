@@ -12,7 +12,7 @@
 
 ## Better Fleet Manaegment
 
-!! success this has been implemented!
+!!! success this has been implemented!
 
 **You know Ansible's dinamic inventories?** Something similar, but following Ch-aOS' design principles. A way to manage multiple systems declaratively through an plugin-based declarative inventory system, think "chaos-ec2-boat" that dinamically fetches instances from AWS EC2 and applies Ch-aOS configurations to them. (chaos.boats)
 
