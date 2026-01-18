@@ -168,3 +168,9 @@ chaos apply [role_tags] --fleet
 So, you see those @abstractmethod decorators in the Boat class? Those are the methods you need to implement to create your own boat!
 
 So you need to create a new Python class that inherits from the Boat base class and implement the required methods, that means that all of the logic for connecting and retrieving the data is up to you (since I can't really read minds you know?)
+
+After allat, you just need to register your boat class in the Ch-aOS plugin system, so it can be discovered and used when specified in the fleet configuration.
+```toml
+[project.entry_points."chaos.boats"]
+my-boat = "my_module:MyBoatClass"
+```
