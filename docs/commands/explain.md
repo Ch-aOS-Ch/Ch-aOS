@@ -11,6 +11,7 @@ chaos explain [topic] [options]
 ```
 
 -   `[topic]`: The topic you want an explanation for.
+
 -   `[options]`: Flags to modify the command's behavior.
 
 ## Discovering Topics
@@ -35,6 +36,7 @@ chaos explain apply
 Many topics are broken down into more specific sub-topics. You can access them using a dot (`.`) notation.
 
 -   To list all available sub-topics for a given topic, use `.list`.
+
 -   To read a specific sub-topic, use `topic.subtopic`.
 
 **Examples:**
@@ -46,13 +48,18 @@ chaos explain secrets.list
 chaos explain secrets.edit
 ```
 
-### Detail Level (`-d`, `--details`)
+### Detail Level (`-d`, `--details`, `-c`, `--complexity`)
 
 You can request more detailed information using the `--details` flag. This allows you to progressively drill down from a high-level concept to technical specifics.
 
+You can also specify the complexity level of the explanation using the `--complexity` flag. This adjusts the depth and technicality of the content.
+
 The available levels are:
+
 -   `basic` (default)
+
 -   `intermediate`
+
 -   `advanced`
 
 **Example:**

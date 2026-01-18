@@ -9,9 +9,13 @@ Providers are integrations with external password managers (like Bitwarden and 1
 The primary benefit of using a provider is enabling an **ephemeral key workflow**.
 
 1.  The master key (e.g., your team's `age` private key) is stored securely in the password manager.
+
 2.  When you run a command like `chaos apply --secrets -p bw.age`, `chaos` fetches that key from the provider.
+
 3.  The key exists **only in memory** for the duration of that single command.
+
 4.  `sops` uses the in-memory key to decrypt your secrets file.
+
 5.  Once the command finishes, the key is gone from your local machine.
 
 This significantly enhances security by reducing the attack surface. An attacker would need to compromise your machine *while* a `chaos` command is running and also compromise your (likely locked) password manager.
@@ -69,8 +73,10 @@ chaos secrets edit -b "ITEM_ID" "age"
 
 Ch-aOS has built-in support for:
 
--   **Bitwarden (`bw`)**: Integrates with the standard Bitwarden CLI (`bw`).
+-   **Bitwarden (`bw`, `rbw`)**: Integrates with the standard Bitwarden CLI (`bw` and `rbw`).
+
 -   **Bitwarden Secrets (`bws`)**: Integrates with the Bitwarden Secrets Manager CLI (`bws`).
+
 -   **1Password (`op`)**: Integrates with the 1Password CLI (`op`).
 
 The provider system is extensible, allowing new plugins to add support for other backends.

@@ -16,6 +16,7 @@ chaos ramble create <journal.page>
 ```
 
 -   If you provide `journal.page`, it creates `page.yml` inside the `journal` directory.
+
 -   You can use the `-e` flag to encrypt the note immediately after creation.
 
 **Example:**
@@ -37,6 +38,7 @@ chaos ramble read <journal.page_or_list>
 ```
 
 -   Use `journal.page` to read a specific page.
+
 -   Use `journal.list` to list all pages in a journal and be prompted to select one.
 
 **Example:**

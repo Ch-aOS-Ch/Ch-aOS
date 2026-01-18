@@ -6,12 +6,17 @@ A "Provider" plugin integrates Ch-aOS with an external secret manager, enabling 
 
 A provider plugin is a Python package that:
 1.  Implements the `Provider` abstract base class from `chaos.lib.secret_backends.base`.
+
 2.  Registers itself using the `chaos.providers` entry point and the Provider required functions.
 
 The `Provider` class defines a standard interface for how `chaos` interacts with different secret manager CLIs. Its main purpose is to abstract the logic for:
+
 -   Reading secrets (e.g., `bw get notes <id>`, `op read op://...`).
+
 -   Writing/exporting secrets (e.g., `bw create item`, `op item create`).
+
 -   Checking the status of the provider's CLI tool (e.g., ensuring it's installed and authenticated).
+
 -   That's it! The rest of the integration is handled by the base class.
 
 ## Implementing the `Provider` Class

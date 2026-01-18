@@ -78,6 +78,7 @@ def my_role_function(state, host, chobolo_path, skip_confirm):
 Registers a class that provides documentation for your role, accessible via `chaos explain`.
 
 -   **Key:** The topic name, which should usually match your role's tag (e.g., `my-role`).
+
 -   **Value:** A string pointing to a Python class in the format `path.to.module:ClassName`.
 
 The class should contain methods named `explain_<subtopic>` that return a dictionary with the explanation content.
@@ -109,6 +110,7 @@ class MyRoleExplain:
 Registers a shorter alias for a role tag.
 
 -   **Key:** The alias (e.g., `mr`).
+
 -   **Value:** The full role tag it points to (e.g., `my-role`).
 
 Now you can run `chaos apply mr` instead of `chaos apply my-role`.
@@ -118,6 +120,7 @@ Now you can run `chaos apply mr` instead of `chaos apply my-role`.
 Registers the configuration keys that your role uses. This allows `chaos init chobolo` to automatically include them in the generated template.
 
 -   **Key:** The name of the role tag (e.g., `my-role`).
+
 -   **Value:** A string pointing to a Python object (usually a list of dictionaries) in the format `path.to.module:object_name`.
 
 **Example `roles.py`:**
