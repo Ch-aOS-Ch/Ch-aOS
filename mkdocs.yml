@@ -58,6 +58,7 @@ nav:
     - 'ramble': 'commands/ramble.md'
   - 'Advanced':
     - 'Fleet Management': 'advanced/fleet.md'
+    - 'Boats for your Fleet': 'advanced/boats.md'
     - 'Secret Providers': 'advanced/providers.md'
   - 'Plugins':
     - 'Provider Plugins': 'plugins/provider-plugins.md'

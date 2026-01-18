@@ -1,6 +1,5 @@
 class ApplyExplain():
     _order = ['chobolo', 'tags', 'secrets', 'dry']
-
     def explain_chobolo(self, detail_level='basic'):
         return {
             'concept': 'Ch-obolo: Separation of Data from Logic',
@@ -10,7 +9,7 @@ class ApplyExplain():
             'examples': [{
                 'yaml': """# The Ch-obolo declares the *data* for a user:
 users:
-  - name: "myuser"
+- name: "myuser"
     shell: "zsh"
     sudo: True
 """
@@ -37,10 +36,10 @@ users:
             'how': 'When you run `chaos apply users pkgs`, Ch-aOS looks up the roles registered by plugins for the tags `users` and `pkgs` and executes them in order.',
             'examples': [{
                 'yaml': """# Apply the configuration for users and packages
-chaos apply users packages
+    chaos apply users packages
 
-# You can use aliases defined by plugins
-chaos apply usr pkgs"""
+    # You can use aliases defined by plugins
+    chaos apply usr pkgs"""
             }]
         }
 
@@ -53,10 +52,10 @@ chaos apply usr pkgs"""
             'security': 'The decrypted secrets are only held in memory for the duration of the `apply` command and are not logged.',
             'examples': [{
                 'yaml': """# The 'users' role requires passwords, so --secrets is needed
-chaos apply users --secrets
+    chaos apply users --secrets
 
-# Decrypt using an ephemeral key from a configured provider
-chaos apply users --secrets -p bw.age"""
+    # Decrypt using an ephemeral key from a configured provider
+    chaos apply users --secrets -p bw.age"""
             }]
         }
 
@@ -69,11 +68,11 @@ chaos apply users --secrets -p bw.age"""
             'equivalent': 'pyinfra --dry @local my-role.py',
             'examples': [{
                 'yaml': """# See what changes would be made for the 'packages' role
-chaos apply --dry packages
+    chaos apply --dry packages
 
-# Combine with -s and -vvv to get detailed, secret having output
-chaos apply -dsvvv packages
-"""
+    # Combine with -s and -vvv to get detailed, secret having output
+    chaos apply -dsvvv packages
+    """
             }]
         }
 

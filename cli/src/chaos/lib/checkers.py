@@ -33,7 +33,7 @@ def printCheck(namespace, dispatcher):
         console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:")))
         return
 
-    title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]:"
+    title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
     render_list_as_table(list(dispatcher.keys()), title)
 
 def _handleAliases(dispatcher):
@@ -66,6 +66,12 @@ def checkExplanations(EXPLANATIONS, **kwargs):
 def checkAliases(ROLE_ALIASES, **kwargs):
     printCheck("alias", ROLE_ALIASES)
 
+def checkProviders(providers, **kwargs):
+    printCheck("provider", providers)
+
+def checkBoats(boats, **kwargs):
+    printCheck("boat", boats)
+
 """
 checks if vault is in use in the sops file
 yeah, just that
@@ -97,7 +103,7 @@ def check_vault_auth():
         return False, "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault."
 
     try:
-        import hvac
+        import hvac # type: ignore
         client = hvac.Client(url=vault_addr, token=vault_token)
         if client.is_authenticated():
             return True, "[green]INFO:[/] Vault token is valid."

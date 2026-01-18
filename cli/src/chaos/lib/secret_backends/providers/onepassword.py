@@ -1,7 +1,7 @@
 import argparse
 from typing import Tuple
 from .base import Provider
-from .utils import get_sops_files, setup_vault_keys, extract_gpg_keys
+from ..utils import get_sops_files, setup_vault_keys, extract_gpg_keys
 import subprocess
 import json
 from pathlib import Path
@@ -135,7 +135,7 @@ class OnePasswordProvider(Provider):
                 f"{keyType}_url": path,
                 "field": loc
             }
-            from .utils import _save_to_config
+            from ..utils import _save_to_config
             _save_to_config(backend='op', data_to_save=data_to_save)
 
     def readKeys(self, item_id: str) -> str:

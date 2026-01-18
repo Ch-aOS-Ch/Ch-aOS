@@ -55,3 +55,6 @@ chaos apply users services --fleet --dry
 ```
 
 `chaos` will then connect to each host defined in your fleet and execute the roles, respecting the `parallelism` setting.
+
+!!! note Want to have dynamicicity in your fleet?
+    Take a look at our [boats](boats.md) to learn how to use the built-in dynamic fleet management system!

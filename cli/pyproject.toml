@@ -47,8 +47,8 @@ apply = "chaos.lib.explanations.apply.apply:ApplyExplain"
 yourself = "chaos.lib.explanations.myself.myself:ExplainMyself"
 
 [project.entry-points."chaos.providers"]
-bitwarden = "chaos.lib.secret_backends.bitwarden:BitwardenPasswordProvider"
-bitwarden-secrets = "chaos.lib.secret_backends.bitwarden:BitwardenSecretsProvider"
-bitwarden-rbw = "chaos.lib.secret_backends.bitwarden:BitwardenRbwProvider"
-onepassword = "chaos.lib.secret_backends.onepassword:OnePasswordProvider"
+bitwarden = "chaos.lib.secret_backends.providers.bitwarden:BitwardenPasswordProvider"
+bitwarden-secrets = "chaos.lib.secret_backends.providers.bitwarden:BitwardenSecretsProvider"
+bitwarden-rbw = "chaos.lib.secret_backends.providers.bitwarden:BitwardenRbwProvider"
+onepassword = "chaos.lib.secret_backends.providers.onepassword:OnePasswordProvider"
 

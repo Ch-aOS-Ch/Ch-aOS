@@ -6,7 +6,7 @@ import os
 import shlex
 import subprocess
 from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
-from .utils import (
+from ..utils import (
     _import_age_keys,
     _import_gpg_keys,
     _import_vault_keys,

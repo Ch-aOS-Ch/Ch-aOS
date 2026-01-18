@@ -116,10 +116,10 @@ def handleTeam(args, Console):
         sys.exit(1)
 
 def handleExplain(args):
-    from chaos.lib.handlers import handleExplain
+    from chaos.lib.explain import handleExplain
     if args.topics:
         from chaos.lib.plugDiscovery import get_plugins
-        _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
+        EXPLANATIONS = get_plugins(args.update_plugins)[2]
         handleExplain(args, EXPLANATIONS)
     else:
         print("No explanation passed.")
@@ -137,7 +137,7 @@ def handleApply(args, Console):
     """
     try:
         from chaos.lib.plugDiscovery import get_plugins
-        role_specs, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
+        role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)[0:2]
         ROLES_DISPATCHER = load_roles(role_specs)
         ikwid = args.i_know_what_im_doing
         dry = args.dry
@@ -154,6 +154,9 @@ def handleApply(args, Console):
         sys.exit(1)
     except pyinfra_exceptions.PyinfraError as e:
         print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except RuntimeError as e:
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handleSecrets(args, Console):
@@ -191,21 +194,30 @@ def handleSecrets(args, Console):
         sys.exit(1)
 
 def handleCheck(args):
-    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles
+    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles, checkProviders, checkBoats
 
     match args.checks:
         case 'explanations':
             from chaos.lib.plugDiscovery import get_plugins
-            _, _, EXPLANATIONS, _, _ = get_plugins(args.update_plugins)
+            EXPLANATIONS = get_plugins(args.update_plugins)[2]
             checkExplanations(EXPLANATIONS)
         case 'aliases':
             from chaos.lib.plugDiscovery import get_plugins
-            _, ROLE_ALIASES, _, _, _ = get_plugins(args.update_plugins)
+            ROLE_ALIASES = get_plugins(args.update_plugins)[1]
             checkAliases(ROLE_ALIASES)
         case 'roles':
             from chaos.lib.plugDiscovery import get_plugins
-            role_specs, _, _, _, _ = get_plugins(args.update_plugins)
+            role_specs = get_plugins(args.update_plugins)[0]
             checkRoles(role_specs)
+        case 'providers':
+            from chaos.lib.plugDiscovery import get_plugins
+            providers = get_plugins(args.update_plugins)[4]
+            checkProviders(providers)
+
+        case 'boats':
+            from chaos.lib.plugDiscovery import get_plugins
+            boats = get_plugins(args.update_plugins)[5]
+            checkBoats(boats)
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
     sys.exit(0)
@@ -253,7 +265,7 @@ def handleInit(args, Console):
         match args.init_command:
             case 'chobolo':
                 from chaos.lib.plugDiscovery import get_plugins
-                _, _, _, keys, _ = get_plugins(args.update_plugins)
+                keys = get_plugins(args.update_plugins)[3]
                 initChobolo(keys)
             case 'secrets': initSecrets()
             case _:

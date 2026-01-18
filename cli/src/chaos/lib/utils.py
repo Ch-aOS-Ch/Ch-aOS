@@ -10,17 +10,6 @@ def checkDep(bin):
         return False
     return True
 
-@functools.lru_cache(maxsize=None)
-def get_providerEps():
-    from importlib.metadata import EntryPoint
-    from chaos.lib.plugDiscovery import get_plugins
-    _, _, _, _, providers = get_plugins()
-    provider_eps = []
-    if providers:
-        for name, value in providers.items():
-            provider_eps.append(EntryPoint(name=name, value=value, group='chaos.providers'))
-    return provider_eps
-
 def render_list_as_table(items: list[str], panel_title: str):
     """Renders a list of strings into a responsive multi-column table using rich."""
     from rich.console import Console

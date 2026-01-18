@@ -16,8 +16,6 @@ else:
             return []
 
 
-from chaos.lib.utils import get_providerEps
-
 """
 gets the argument parser for chaos
 """
@@ -30,7 +28,7 @@ class RolesCompleter:
     def __call__(self, prefix, **kwargs):
         if self._roles is None or self._aliases is None:
             from chaos.lib.plugDiscovery import get_plugins
-            self. _roles, self._aliases, _, _, _ = get_plugins()
+            self._roles, self._aliases = get_plugins()[:2]
 
         all_comps = list(self._roles.keys()) + list(self._aliases.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
@@ -41,7 +39,7 @@ class ExplainCompleter:
     def __call__(self, prefix, **kwargs):
         if self._topics is None:
             from chaos.lib.plugDiscovery import get_plugins
-            _, _, self._topics, _, _ = get_plugins()
+            self._topics = get_plugins()[2]
 
         all_comps = list(self._topics.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
@@ -51,7 +49,8 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
-    providerEps = get_providerEps()
+    from chaos.lib.plugDiscovery import get_plugins
+    providerEps = get_plugins()[4]
     loaded_providers = []
     if not providerEps:
         return loaded_providers
@@ -241,12 +240,13 @@ def addExplainParsers(parser):
 
     topics = expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
+    expParser.add_argument('-c', '--complexity', type=str, choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of complexity for the explanation.")
     topics.completer = ExplainCompleter() # type: ignore
 
 def addCheckParsers(parser):
     checkParser = parser.add_parser('check', help='Check and list roles, aliases and explanations')
 
-    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases'], help='The operations you want to check.')
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
 
 def addSetParsers(parser):

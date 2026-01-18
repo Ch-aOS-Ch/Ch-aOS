@@ -6,7 +6,7 @@ from pathlib import Path
 
 @contextmanager
 def ephemeralAgeKey(key_content: str):
-    from .utils import conc_age_keys, setup_pipe
+    from ..utils import conc_age_keys, setup_pipe
     """
     Create a temporary file containing the provided Age key content.
     Args:
@@ -34,7 +34,7 @@ def ephemeralAgeKey(key_content: str):
 
 @contextmanager
 def ephemeralGpgKey(key_bytes: bytes):
-    from .utils import setup_gpg_keys
+    from ..utils import setup_gpg_keys
     """
     Creates a temporary GNUPGHOME in memory (/dev/shm)
     Imports the gotten key to this GNUPGHOME and returns the env path
@@ -62,7 +62,7 @@ def ephemeralGpgKey(key_bytes: bytes):
 
 @contextmanager
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
-    from .utils import setup_pipe
+    from ..utils import setup_pipe
     """
     Creates pipes for setting up the address and token for vault.
     """
