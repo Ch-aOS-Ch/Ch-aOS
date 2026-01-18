@@ -47,18 +47,24 @@ def initChobolo(keys):
 
 # -------------- SECRET INITING -------------
 
-"""
-Setup age keys using ssh-to-age conversion.
+def checkForSsh():
+    ssh_dir = Path(os.path.expanduser("~/.ssh"))
+    public_keys = list(ssh_dir.glob("*.pub"))
+    return public_keys
 
-Deps: ssh-to-age
-"""
+
 def setupSshToAge():
+    """
+    Setup age keys using ssh-to-age conversion.
+
+    Deps: ssh-to-age
+    """
     if not checkDep('ssh-to-age'):
         raise EnvironmentError("ssh-to-age is not installed. Please install it to use this feature.")
 
     console.print("[cyan]Info:[/] Looking for SSH public keys in ~/.ssh")
-    ssh_dir = Path(os.path.expanduser("~/.ssh"))
-    public_keys = list(ssh_dir.glob("*.pub"))
+
+    public_keys = checkForSsh()
 
     if not public_keys:
         raise FileNotFoundError("No SSH public keys found in ~/.ssh. Cannot use ssh-to-age.")
@@ -114,12 +120,12 @@ def setupSshToAge():
 
     return "age", pubkey
 
-"""
-Setup Age keys for Sops encryption.
-
-deps: age-keygen
-"""
 def setupAge():
+    """
+    Setup Age keys for Sops encryption.
+
+    deps: age-keygen
+    """
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
 
@@ -177,14 +183,14 @@ def setupAge():
 
     return "age", pubkey
 
-"""
-Generate GPG key in batch mode using provided name and email.
-
-Uses the best practices for key generation with EdDSA and Curve25519.
-
-deps: gpg
-"""
 def genBatchGpg(name, email):
+    """
+    Generate GPG key in batch mode using provided name and email.
+
+    Uses the best practices for key generation with EdDSA and Curve25519.
+
+    deps: gpg
+    """
     batch = f"""
 Key-Type: EdDSA
 Key-Curve: ed25519
@@ -225,10 +231,10 @@ Expire-Date: 0
         if os.path.exists(tmpPath):
             os.unlink(tmpPath)
 
-"""
-Lists all existing GPG secret keys and prompts user to select one by fingerprint.
-"""
 def genGpgManual():
+    """
+    Lists all existing GPG secret keys and prompts user to select one by fingerprint.
+    """
     try:
         proc = subprocess.run(['gpg', '--list-secret-keys', '--keyid-format', 'LONG'], capture_output=True, text=True, check=True)
         output = proc.stdout
@@ -248,8 +254,8 @@ def genGpgManual():
 
     return "pgp", fingerprint
 
-"Setup GPG keys for Sops encryption."
 def setupGpg():
+    "Setup GPG keys for Sops encryption."
     if not checkDep('gpg'):
         raise EnvironmentError("Could not find gpg binary, please install gnupg and try again.")
 
@@ -273,12 +279,48 @@ def setupGpg():
     else:
         raise RuntimeError("Operation cancelled by user.")
 
-"Main Entry point for initializing secrets management with SOPS."
+def setupSsh():
+    amount = None
+    public_keys = checkForSsh()
+    if public_keys:
+        amount = len(public_keys)
+        want_existing_ssh = Confirm.ask(f"{len(public_keys)} ssh keys found, do you wish to use one of them?", default=True)
+        if want_existing_ssh:
+            key_choices = [str(k) for k in public_keys]
+            selected_key_path = Prompt.ask("Choose a SSH public key to use", choices=key_choices, default=key_choices[0])
+
+            with open(selected_key_path, 'r') as f:
+                ssh_key = f.read()
+
+            if not ssh_key:
+                raise ValueError(f"Selected key does not contain a ssh key.")
+
+            return "age", ssh_key
+
+
+    email = Prompt.ask("Please, insert your email(s), if more than one, sepparate them with \",\" (like: email1,email2): ")
+    while(True):
+        password = Prompt.ask("Please, insert your password, input will be hidden: ", password=True)
+        check = Prompt.ask("Please, insert it again: ", password=True)
+        if password == check:
+            break
+        console.print("Passwords don't match.")
+
+    loc = Path(os.path.expanduser("~/.ssh/id_ed25519"))
+
+    subprocess.run(['ssh-keygen', '-B', '-t', 'ed25519', '-C', email, '-N', password, '-f', f"{loc}_{amount}" if amount else f"{loc}"])
+    with open(f"{loc}.pub", 'r') as f:
+        pub_key = f.read()
+
+    return 'age', pub_key
+
 def initSecrets():
+    "Main Entry point for initializing secrets management with SOPS."
     if not checkDep('sops'):
         raise EnvironmentError("sops is not installed. It is required for this software.")
 
     hasAge = checkDep('age-keygen')
+    hasSsh = checkDep('ssh-keygen')
     hasGpg = checkDep('gpg')
 
     if not hasAge and not hasGpg:
@@ -287,12 +329,14 @@ def initSecrets():
     choices = []
     if hasAge:
         choices.append('age')
+        if hasSsh:
+            choices.append('pure-ssh')
     if hasGpg:
         choices.append('gpg')
 
-    default="gpg" if hasGpg else "age"
+    default="gpg" if hasGpg else "ssh" if hasSsh else "age"
     console.print(Panel("Chaos uses [bold]SOPS[/] for encryption.\nYou need to choose a backend engine to handle the keys.", title="Secrets Initialization", border_style="green"))
-    engine = Prompt.ask("Choose encryption engine", choices=choices, default=default)
+    engine = Prompt.ask("Choose an encryption engine", choices=choices, default=default)
 
     key = ""
     keyValue = ""
@@ -301,6 +345,8 @@ def initSecrets():
         key, keyValue = setupAge()
     elif engine == "gpg":
         key, keyValue = setupGpg()
+    elif engine == 'ssh':
+        key, keyValue = setupSsh()
 
     configDir = Path(os.path.expanduser("~/.config/chaos"))
     configDir.mkdir(parents=True, exist_ok=True)

@@ -149,8 +149,8 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                         tree.add(f"[cyan]{command}[/cyan]")
                     explanation_renderables.append(tree)
                     explanation_renderables.append(Text("\n"))
-                learn_more = explanation.get('learn_more', [])
 
+                learn_more = explanation.get('learn_more', [])
                 if 'learn_more' in keysToShow and learn_more:
                     tree = Tree("[bold]Learn more[/]")
                     for item in learn_more:

@@ -7,6 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 import getpass
+from .boats.base import Boat
 
 console = Console()
 
@@ -14,8 +15,8 @@ console = Console()
 Orchestration/Explanation Handlers for Chaos CLI
 """
 
-""" Handle verbosity levels for logging """
 def handleVerbose(args):
+    """ Handle verbosity levels for logging """
     log_level = None
     if args.verbose:
         if args.verbose == 1:
@@ -75,15 +76,52 @@ def _get_configs(args):
 
     return global_config, chobolo_path, secrets_file_override, sops_file_override
 
+def _load_boats() -> list[type[Boat]]:
+    from importlib.metadata import EntryPoint
+    from .plugDiscovery import get_plugins
+    boats = get_plugins()[5]
+    loaded_boat_classes = []
+    if boats:
+        try:
+            for ep in boats.values():
+                ep = cast(EntryPoint, ep)
+                loaded_boat_class = ep.load()
+                loaded_boat_classes.append(loaded_boat_class)
+        except ImportError as e:
+            print(f"Error loading boat entry points: {e}")
+    return loaded_boat_classes
+
+def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
+    loaded_boat_classes = _load_boats()
+    if not loaded_boat_classes:
+        return global_state
+
+    if not boats:
+        return global_state
+
+    for boat_config in boats:
+        for boat_class in loaded_boat_classes:
+            if boat_config.provider == boat_class.name:
+                console.print(f"Running boat '{boat_class.name}'...")
+                instance_config = boat_config.get('config', OmegaConf.create())
+                boat_instance = boat_class(config=instance_config)
+                global_state = boat_instance.get_fleet(global_state)
+
+    return global_state
+
 def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
     isFleet = False
     if hasattr(args, 'fleet') and args.fleet:
         chobolo_config = cast(DictConfig, chobolo_config)
-        fleet_config = chobolo_config.get('fleet')
+        fleet_config = chobolo_config.get('fleet', {})
 
         if fleet_config:
             parallels = fleet_config.get('parallelism', 0)
-            fleet_hosts = fleet_config.get('hosts', [])
+
+            fleet_boats = fleet_config.get('boats', [])
+            boat_config = _handle_boats(chobolo_config, fleet_boats).get('fleet', {})
+
+            fleet_hosts = boat_config.get('hosts', [])
 
             if fleet_hosts:
                 hosts = []
@@ -107,7 +145,12 @@ def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
                 isFleet = True
 
                 if not hosts:
-                    console.print(f"[bold yellow]WARNING:[/] No valid fleet hosts found in chobolo file in {chobolo_path}, defaulting to localhost.")
+                    confirm = False if ikwid else Confirm.ask(f"[bold yellow]WARNING:[/] No valid fleet hosts found in chobolo file in {chobolo_path}, defaulting to localhost.", default=False)
+
+                    if not confirm:
+                        console.print('Exiting...')
+                        sys.exit(0)
+
                     hosts = ["@local"]
                     isFleet = False
                     parallels = 0
@@ -127,8 +170,8 @@ def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
             return False, 0, ["@local"]
     return False, 0, ["@local"]
 
-def setup_fleet_hosts(args, chobolo_config, chobolo_path, ikwid):
-    from pyinfra.api.inventory import Inventory
+def setup_hosts(args, chobolo_config, chobolo_path, ikwid):
+    from pyinfra.api.inventory import Inventory # type: ignore
     parallels = 0
     hosts = ["@local"]
 
@@ -143,13 +186,13 @@ def setup_fleet_hosts(args, chobolo_config, chobolo_path, ikwid):
 
 def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     # --- Lazy import pyinfra components ---
-    from pyinfra.api.config import Config
-    from pyinfra.api.connect import connect_all
-    from pyinfra.api.state import StateStage, State
-    from pyinfra.context import ctx_state
+    from pyinfra.api.config import Config # type: ignore
+    from pyinfra.api.connect import connect_all # type: ignore
+    from pyinfra.api.state import StateStage, State # type: ignore
+    from pyinfra.context import ctx_state # type: ignore
     # ------------------------------------
 
-    inventory, hosts, parallels = setup_fleet_hosts(args, chobolo_config, chobolo_path, ikwid)
+    inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
 
     config = Config(parallel=parallels)
     state = State(inventory, config)
@@ -271,9 +314,9 @@ def _run_tags(
                     console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
-    from pyinfra.api.connect import disconnect_all
-    from pyinfra.api.exceptions import PyinfraError
-    from pyinfra.api.operations import run_ops
+    from pyinfra.api.connect import disconnect_all # type: ignore
+    from pyinfra.api.exceptions import PyinfraError # type: ignore
+    from pyinfra.api.operations import run_ops # type: ignore
     console = Console()
     console_err = Console(stderr=True)
 
@@ -328,10 +371,10 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         disconnect_all(state)
         console.print("[bold green]Finalized.[/bold green]")
 
-"""
-Just handles configuring the tool.
-"""
 def setMode(args):
+    """
+    Just handles configuring the tool.
+    """
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 

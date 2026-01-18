@@ -103,7 +103,7 @@ def check_vault_auth():
         return False, "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault."
 
     try:
-        import hvac
+        import hvac # type: ignore
         client = hvac.Client(url=vault_addr, token=vault_token)
         if client.is_authenticated():
             return True, "[green]INFO:[/] Vault token is valid."

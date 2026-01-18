@@ -16,8 +16,6 @@ else:
             return []
 
 
-from chaos.lib.utils import get_providerEps
-
 """
 gets the argument parser for chaos
 """
@@ -51,7 +49,8 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
-    providerEps = get_providerEps()
+    from chaos.lib.plugDiscovery import get_plugins
+    providerEps = get_plugins()[4]
     loaded_providers = []
     if not providerEps:
         return loaded_providers
