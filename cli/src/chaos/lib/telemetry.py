@@ -1,5 +1,7 @@
 import json
+import os
 import time
+import psutil
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
@@ -27,7 +29,7 @@ class ChaosTelemetry(BaseStateCallback):
         Executed during the chaos experiment to a JSON file.
     """
 
-
+    _process = None
     _timers = {}
     _report_data = {
         'summary': {
@@ -37,10 +39,28 @@ class ChaosTelemetry(BaseStateCallback):
             'failed_operations': 0,
             'status': 'success',
             'total_duration': 0.0,
+            'peak_memory_mb': 0.0,
+            'peak_cpu_percent': 0.0,
         },
         'hosts': {},
         # 'operations': []
+        'resource_history': []
     }
+
+    @staticmethod
+    def capture_system_metrics():
+        if ChaosTelemetry._process is None:
+            ChaosTelemetry._process = psutil.Process(os.getpid())
+
+        try:
+            mem_info = ChaosTelemetry._process.memory_info()
+            mem_mb = mem_info.rss / 1024 / 1024
+            cpu_pct = ChaosTelemetry._process.cpu_percent(interval=None)
+
+            return round(mem_mb, 2), round(cpu_pct, 1)
+        except Exception:
+            return 0.0, 0.0
+
 
     @staticmethod
     def _get_safe_logs(meta: OperationMeta):
@@ -67,6 +87,8 @@ class ChaosTelemetry(BaseStateCallback):
         Optionally, includes an way to save the event history, not currently used because of
         hosts history tracking.
         """
+        ram_use, cpu_use = ChaosTelemetry.capture_system_metrics()
+
         payload = {
             "type": "progress",
             "host": host.name,
@@ -76,7 +98,24 @@ class ChaosTelemetry(BaseStateCallback):
             'retry_count': retry_count,
             'duration': duration,
             'logs': logs,
+            'resources': {
+                    'memory_mb': ram_use,
+                    'cpu_percent': cpu_use,
+            }
         }
+
+        summary = ChaosTelemetry._report_data['summary']
+        if ram_use > summary['peak_memory_mb']:
+            summary['peak_memory_mb'] = ram_use
+
+        if cpu_use > summary['peak_cpu_percent']:
+            summary['peak_cpu_percent'] = cpu_use
+
+        ChaosTelemetry._report_data['resource_history'].append({
+            'time': time.time(),
+            'ram': ram_use,
+            'cpu': cpu_use
+        })
 
         print(f"CHAOS_EVENT::{json.dumps(payload)}", flush=True)
         # _report = ChaosTelemetry._report_data
@@ -153,7 +192,6 @@ class ChaosTelemetry(BaseStateCallback):
             'stderr': stderr,
             'retry_attempts': runtime_meta.retry_attempts,
             'max_retries': runtime_meta.max_retries,
-            'retry_succeeded': runtime_meta.retry_succeeded,
             'retry_info': runtime_meta.get_retry_info(),
         }
 

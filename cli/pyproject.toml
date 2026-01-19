@@ -27,6 +27,7 @@ dependencies = [
     "cffi",
     "PyYAML",
     "charset_normalizer",
+    "psutil",
 ]
 
 [project.scripts]
