@@ -49,8 +49,8 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
-    from chaos.lib.plugDiscovery import get_plugins
-    providerEps = get_plugins()[4]
+    from chaos.lib.utils import get_providerEps
+    providerEps = get_providerEps()
     loaded_providers = []
     if not providerEps:
         return loaded_providers
