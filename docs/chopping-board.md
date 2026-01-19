@@ -54,6 +54,8 @@ Also, this would absolutely be a FOSS initiative, such as the rest of Ch-aOS, an
 ALTERNATIVE:
 An TUI for managing, scheduling and doing all sorts of things with Ch-aOS, being both git-centric and easy to deploy, main difference being: it is a tui, not a web-server, so I could just implement it to read the same things as Ch-aOS reads and just manage the manager, observability could come as a grafana/prometheus integration for metrics, plus, I'd have the foundation laid out for a full web service in the future, if the situation requires it
 
+BTW: I have to rethink the way in which the roles do stuff, since I have to get metrics frim them to integrate with Ch-apetanios.
+
 ## (something I don't even know how I'd implement) Ch-aOS Styx
 
 **Ansible has Galaxy, Puppet has Forge, Chef has Supermarket, SaltStack has the SaltStack Community Repository...** Ch-aOS Styx would be an git repo with a bunch of plugin metadata and pointers, this saves me from buying a server to keep all of this info since... well, I have no money... this could integrate with chaos and make installing plugins quick n easy, plus, since it's just a bunch of metadata, I can futurally create a fully operational website to discover new plugins
