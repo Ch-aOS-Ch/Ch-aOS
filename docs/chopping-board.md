@@ -28,9 +28,9 @@
 +1 I can already hear you say "but what about using filesystem snapshots?" Well, yes, that could be an option, but it would require users to use specific filesystems (like btrfs or zfs) and would add complexity to the core. This approach would be more universal and easier to implement across different systems.
 +1 I can and will implement a dedicated role abstract class to help role developers, with an apply() and undo() methods, but the _rollbacks_ mechanism would be built into the core.
 
-## (Another big task) Ch-aOS Capitain
+## (Another big task) Ch-aOS Capitain... or should I say, Ch-apetanios
 
-**So, you know Ansible Tower and you know Puppet Master, get ready for...** Ch-aOS Capitain! A centralized server that should provide a single point of management for multiple Ch-aOS managed systems. There are a... "few" steps to achieve this, such as:
+**So, you know Ansible Tower and you know Puppet Master, get ready for...** Ch-aOS Ch-apetanios! A centralized server that should provide a single point of management for multiple Ch-aOS managed systems. There are a... "few" steps to achieve this, such as:
 
   - API server to handle requests from Ch-aOS clients.
 
