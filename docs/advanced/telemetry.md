@@ -72,9 +72,7 @@ Stay safe.
         "successful_operations": 5,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 3.8412585258483887,
-        "peak_memory_mb": 86.89,
-        "peak_cpu_percent": 0.8
+        "total_duration": 3.467130184173584
     },
     "hosts": {
         "@local": {
@@ -82,13 +80,13 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 5,
             "failed_operations": 0,
-            "duration": 3.8412585258483887,
+            "duration": 3.467130184173584,
             "history": [
                 {
                     "operation": "Ensure sudo rule 99-charonte-dexmachina",
                     "changed": false,
                     "success": true,
-                    "duration": 1.0065,
+                    "duration": 0.8551,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -108,7 +106,7 @@ Stay safe.
                     "operation": "Validate sudo rule 99-charonte-dexmachina",
                     "changed": true,
                     "success": true,
-                    "duration": 0.327,
+                    "duration": 0.279,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -128,7 +126,7 @@ Stay safe.
                     "operation": "server.group",
                     "changed": false,
                     "success": true,
-                    "duration": 0.7307,
+                    "duration": 0.5867,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -148,7 +146,7 @@ Stay safe.
                     "operation": "server.group",
                     "changed": false,
                     "success": true,
-                    "duration": 0.5881,
+                    "duration": 0.5327,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -168,7 +166,7 @@ Stay safe.
                     "operation": "server.user",
                     "changed": false,
                     "success": true,
-                    "duration": 1.189,
+                    "duration": 1.2136,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -189,29 +187,30 @@ Stay safe.
     },
     "resource_history": [
         {
-            "time": 1768833420.8202586,
-            "ram": 86.89,
-            "cpu": 0.0
+            "type": "health_check",
+            "host": "@local",
+            "stage": "pre_operations",
+            "timestamp": 1768843613.0964332,
+            "metrics": {
+                "cpu_load_1min": 1.65,
+                "cpu_load_5min": 1.29,
+                "ram_percent": 45.6,
+                "ram_used_gb": 7.01,
+                "ram_total_gb": 15.37
+            }
         },
         {
-            "time": 1768833421.147708,
-            "ram": 86.89,
-            "cpu": 0.0
-        },
-        {
-            "time": 1768833421.8787887,
-            "ram": 86.89,
-            "cpu": 0.0
-        },
-        {
-            "time": 1768833422.467202,
-            "ram": 86.89,
-            "cpu": 0.0
-        },
-        {
-            "time": 1768833423.6565268,
-            "ram": 86.89,
-            "cpu": 0.8
+            "type": "health_check",
+            "host": "@local",
+            "stage": "post_operations",
+            "timestamp": 1768843624.8570013,
+            "metrics": {
+                "cpu_load_1min": 1.75,
+                "cpu_load_5min": 1.33,
+                "ram_percent": 45.7,
+                "ram_used_gb": 7.02,
+                "ram_total_gb": 15.37
+            }
         }
     ]
 }

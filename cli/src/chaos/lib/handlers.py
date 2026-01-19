@@ -60,6 +60,33 @@ This allows for better performance and error handling.
 
 I really should wrap this in a try/finally to ensure disconnection happens, but for now, this will do.
 """
+def _collect_fleet_health(state, stage):
+    from .facts.facts import RamUsage, LoadAverage
+    """
+    Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
+
+    if state.pool is available, it uses it to parallelize fact collection across hosts.
+    Otherwise, it falls back to sequential collection.
+    Args:
+        state (State): The current pyinfra state containing the inventory and connection pool.
+        stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
+    """
+    def _fetch_and_record(host):
+        ram_data = host.get_fact(RamUsage)
+        load_data = host.get_fact(LoadAverage)
+        ChaosTelemetry.record_snapshot(
+            host,
+            ram_data,
+            load_data,
+            stage=stage
+        )
+
+    if state.pool:
+        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
+    else:
+        for host in state.inventory.iter_activated_hosts():
+            _fetch_and_record(host)
+
 def _get_configs(args):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
@@ -352,6 +379,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     decrypted_secrets = ()
     try:
+        if args.logbook:
+            _collect_fleet_health(state, stage="pre_operations")
         for host in state.inventory.iter_activated_hosts():
             console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
             commonArgs = (state, host, chobolo_path, skip)
@@ -373,6 +402,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
         if not dry:
             run_ops(state)
+            if args.logbook:
+                _collect_fleet_health(state, stage="post_operations")
         else:
             console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
 
