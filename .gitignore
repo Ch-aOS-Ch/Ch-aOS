@@ -44,3 +44,7 @@ cli/src/chaos/__pycache__
 cli/src/chaos/lib/__pycache__
 cli/src/chaos.egg-info
 cli/tests/__pycache__
+cli/src/chaos/lib/args/__pycache__
+cli/src/chaos/lib/secret_backends/__pycache__
+cli/src/chaos/lib/secret_backends/providers/__pycache__
+cli/src/chaos/lib/boats/__pycache__

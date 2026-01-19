@@ -7,6 +7,8 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 import getpass
+from .telemetry import ChaosTelemetry
+
 from .boats.base import Boat
 
 console = Console()
@@ -202,6 +204,10 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     config = Config(parallel=parallels)
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
+
+    if args.logbook:
+        state.add_callback_handler(ChaosTelemetry())
+
     ctx_state.set(state)
 
     console.print("[bold magenta]Sudo password:[/bold magenta] ")
@@ -352,7 +358,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
             _run_tags(
                 ROLES_DISPATCHER,
-                ROLE_ALIASES,
+        ROLE_ALIASES,
                 SEC_HAVING_ROLES,
                 skip,
                 decrypted_secrets,
@@ -374,6 +380,9 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
     finally:
+        if args.logbook:
+            ChaosTelemetry.export_report()
+
         console.print("\nDisconnecting...")
         disconnect_all(state)
         console.print("[bold green]Finalized.[/bold green]")
