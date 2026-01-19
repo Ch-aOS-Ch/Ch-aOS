@@ -72,7 +72,9 @@ Stay safe.
         "successful_operations": 5,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 3.7454774379730225
+        "total_duration": 3.8412585258483887,
+        "peak_memory_mb": 86.89,
+        "peak_cpu_percent": 0.8
     },
     "hosts": {
         "@local": {
@@ -80,13 +82,13 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 5,
             "failed_operations": 0,
-            "duration": 3.7454774379730225,
+            "duration": 3.8412585258483887,
             "history": [
                 {
                     "operation": "Ensure sudo rule 99-charonte-dexmachina",
                     "changed": false,
                     "success": true,
-                    "duration": 0.9548,
+                    "duration": 1.0065,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -94,7 +96,6 @@ Stay safe.
                         "stderr": "",
                         "retry_attempts": 0,
                         "max_retries": 0,
-                        "retry_succeeded": null,
                         "retry_info": {
                             "retry_attempts": 0,
                             "max_retries": 0,
@@ -107,7 +108,7 @@ Stay safe.
                     "operation": "Validate sudo rule 99-charonte-dexmachina",
                     "changed": true,
                     "success": true,
-                    "duration": 0.3911,
+                    "duration": 0.327,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -115,7 +116,6 @@ Stay safe.
                         "stderr": "",
                         "retry_attempts": 0,
                         "max_retries": 0,
-                        "retry_succeeded": null,
                         "retry_info": {
                             "retry_attempts": 0,
                             "max_retries": 0,
@@ -128,7 +128,7 @@ Stay safe.
                     "operation": "server.group",
                     "changed": false,
                     "success": true,
-                    "duration": 0.575,
+                    "duration": 0.7307,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -136,7 +136,6 @@ Stay safe.
                         "stderr": "",
                         "retry_attempts": 0,
                         "max_retries": 0,
-                        "retry_succeeded": null,
                         "retry_info": {
                             "retry_attempts": 0,
                             "max_retries": 0,
@@ -149,7 +148,7 @@ Stay safe.
                     "operation": "server.group",
                     "changed": false,
                     "success": true,
-                    "duration": 0.5165,
+                    "duration": 0.5881,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -157,7 +156,6 @@ Stay safe.
                         "stderr": "",
                         "retry_attempts": 0,
                         "max_retries": 0,
-                        "retry_succeeded": null,
                         "retry_info": {
                             "retry_attempts": 0,
                             "max_retries": 0,
@@ -170,7 +168,7 @@ Stay safe.
                     "operation": "server.user",
                     "changed": false,
                     "success": true,
-                    "duration": 1.3081,
+                    "duration": 1.189,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -178,7 +176,6 @@ Stay safe.
                         "stderr": "",
                         "retry_attempts": 0,
                         "max_retries": 0,
-                        "retry_succeeded": null,
                         "retry_info": {
                             "retry_attempts": 0,
                             "max_retries": 0,
@@ -189,6 +186,33 @@ Stay safe.
                 }
             ]
         }
-    }
+    },
+    "resource_history": [
+        {
+            "time": 1768833420.8202586,
+            "ram": 86.89,
+            "cpu": 0.0
+        },
+        {
+            "time": 1768833421.147708,
+            "ram": 86.89,
+            "cpu": 0.0
+        },
+        {
+            "time": 1768833421.8787887,
+            "ram": 86.89,
+            "cpu": 0.0
+        },
+        {
+            "time": 1768833422.467202,
+            "ram": 86.89,
+            "cpu": 0.0
+        },
+        {
+            "time": 1768833423.6565268,
+            "ram": 86.89,
+            "cpu": 0.8
+        }
+    ]
 }
 ```
