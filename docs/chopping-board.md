@@ -51,8 +51,9 @@
 So, as you can see, this is not a small task... like, at all, but it could turn Ch-aOS into a more enterprise-ready solution for managing large fleets of systems.
 Also, this would absolutely be a FOSS initiative, such as the rest of Ch-aOS, and I would love to have contributors for this one! (please, I hate web-dev with a passion).
 
+ALTERNATIVE:
+An TUI for managing, scheduling and doing all sorts of things with Ch-aOS, being both git-centric and easy to deploy, main difference being: it is a tui, not a web-server, so I could just implement it to read the same things as Ch-aOS reads and just manage the manager, observability could come as a grafana/prometheus integration for metrics, plus, I'd have the foundation laid out for a full web service in the future, if the situation requires it
+
 ## (something I don't even know how I'd implement) Ch-aOS Styx
 
-**Ansible has Galaxy, Puppet has Forge, Chef has Supermarket, SaltStack has the SaltStack Community Repository...** Ch-aOS needs its own centralized repository for sharing and discovering Ch-obolos, and plugins. This would foster a community around Ch-aOS, making it easier for users to find and share configurations and extensions.
-I... don't really know how I'd implement this, since I'm 1 not a web-dev person and 2... well, I don't have money to host a server for this. First ever step would probably be an awesome-list, or even a git repo with a dedicated registry of metadata for plugins and whatnot, but a full-fledged web platform would be the goal here, probably even integrated with the CLI and the Capitain server.
-Again, if anyone knows how this mess could be achieved, I'm all ears at this point.
+**Ansible has Galaxy, Puppet has Forge, Chef has Supermarket, SaltStack has the SaltStack Community Repository...** Ch-aOS Styx would be an git repo with a bunch of plugin metadata and pointers, this saves me from buying a server to keep all of this info since... well, I have no money... this could integrate with chaos and make installing plugins quick n easy, plus, since it's just a bunch of metadata, I can futurally create a fully operational website to discover new plugins
