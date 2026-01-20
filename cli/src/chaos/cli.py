@@ -30,17 +30,6 @@ def main():
     try:
         parser = argParsing()
 
-        subParser = parser.add_subparsers(dest="command", help="Available subcommands")
-
-        addTeamParsers(subParser)
-        addExplainParsers(subParser)
-        addApplyParsers(subParser)
-        addSecParsers(subParser)
-        addCheckParsers(subParser)
-        addSetParsers(subParser)
-        addRambleParsers(subParser)
-        addInitParsers(subParser)
-
         if "_ARGCOMPLETE" in os.environ:
             import argcomplete
             argcomplete.autocomplete(parser)
@@ -56,6 +45,9 @@ def main():
         match args.command:
             case 'team':
                 handleTeam(args, Console())
+
+            case 'styx':
+                handleStyx(args, Console())
 
             case 'explain':
                 handleExplain(args)
@@ -86,6 +78,30 @@ def main():
         sys.exit(1)
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
+        sys.exit(1)
+
+def handleStyx(args, Console):
+    try:
+        match args.styx_commands:
+            case 'invoke':
+                from chaos.lib.styx import install_styx_entries
+                entries = args.entries
+                install_styx_entries(entries)
+
+            case 'list':
+                from chaos.lib.styx import list_styx_entries
+                entries = args.entries
+                listing = list_styx_entries(entries)
+                Console.print(listing)
+
+            case 'destroy':
+                from chaos.lib.styx import uninstall_styx_entries
+                entries = args.entries
+                uninstall_styx_entries(entries)
+            case _:
+                Console.print("Unsupported styx subcommand.")
+    except (ValueError, FileNotFoundError, RuntimeError, EnvironmentError) as e:
+        Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
 
 def handleTeam(args, Console):

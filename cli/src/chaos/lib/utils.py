@@ -55,3 +55,14 @@ def render_list_as_table(items: list[str], panel_title: str):
             table.add_row(*styled_row)
 
     console.print(Align.center(Panel(Align.center(table), border_style="green", expand=False, title=panel_title)), justify="center")
+
+@functools.lru_cache(maxsize=None)
+def get_providerEps():
+    from importlib.metadata import EntryPoint
+    from chaos.lib.plugDiscovery import get_plugins
+    providers = get_plugins()[4]
+    provider_eps = []
+    if providers:
+        for name, value in providers.items():
+            provider_eps.append(EntryPoint(name=name, value=value, group='chaos.providers'))
+    return provider_eps
