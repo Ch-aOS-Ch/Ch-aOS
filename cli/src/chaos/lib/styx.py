@@ -152,7 +152,7 @@ def list_styx_entries(entries: list[str] | None = None) -> str:
             print(f"Warning: No repository URL for '{name}'.")
             continue
 
-        output.append(f"{name} ({ver})\n   ├─ {desc}\n   └─ 🔗 {repo}")
+        output.append(f"{name} ({ver})\n   ┬\n   ├─ {desc}\n   ╰─ 🔗 {repo}")
 
     return "\n\n".join(output)
 
