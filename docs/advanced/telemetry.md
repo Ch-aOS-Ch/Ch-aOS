@@ -95,7 +95,7 @@ Stay safe.
                         "global_arguments": {
                             "_sudo": "True",
                             "_use_sudo_login": "False",
-                            "_sudo_password": "********",
+                            "_sudo_password": "********", # Automatically redacted
                             "_preserve_sudo_env": "False",
                             "_use_su_login": "False",
                             "_preserve_su_env": "False",
