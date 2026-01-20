@@ -63,4 +63,5 @@ nav:
     - 'Telemetry': 'advanced/telemetry.md'
   - 'Plugins':
     - 'Provider Plugins': 'plugins/provider-plugins.md'
+    - 'Registry': 'plugins/styx.md'
     - 'Development': 'plugins/development.md'
