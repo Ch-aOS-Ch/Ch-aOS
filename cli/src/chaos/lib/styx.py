@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import shutil
 from typing import cast
 import requests
 from omegaconf import DictConfig, OmegaConf
@@ -83,11 +82,10 @@ def install_styx_entries(entries: list[str]):
                 print(f"Invalid wheel filename '{wheel_filename}'. Skipping installation.")
                 continue
 
-            with open(wheel_filename, "wb") as wheel_file:
+            with open(f"{dir_name}/{wheel_filename}", "wb") as wheel_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     wheel_file.write(chunk)
 
-            shutil.move(wheel_filename, dir_name / wheel_filename)
             from chaos.lib.plugDiscovery import get_plugins
             get_plugins(update_cache=True)
 
