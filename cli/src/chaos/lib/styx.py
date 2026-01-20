@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 
 def get_styx_registry():
     """Fetches the Styx registry data from the specified URL."""
-    url = "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registy.yaml"
+    url = "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml"
 
     try:
         response = requests.get(url, stream=True)
