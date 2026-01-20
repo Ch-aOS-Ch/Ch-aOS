@@ -72,7 +72,7 @@ Stay safe.
         "successful_operations": 5,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 3.467130184173584
+        "total_duration": 4.262628078460693
     },
     "hosts": {
         "@local": {
@@ -80,13 +80,43 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 5,
             "failed_operations": 0,
-            "duration": 3.467130184173584,
+            "duration": 4.262628078460693,
             "history": [
                 {
+                    "type": "setup_phase",
+                    "stage": "connection_and_facts",
+                    "timestamp": 1768879044.729711,
+                    "duration": 3.0866,
+                    "success": true
+                },
+                {
                     "operation": "Ensure sudo rule 99-charonte-dexmachina",
+                    "operation_arguments": {
+                        "global_arguments": {
+                            "_sudo": "True",
+                            "_use_sudo_login": "False",
+                            "_sudo_password": "********",
+                            "_preserve_sudo_env": "False",
+                            "_use_su_login": "False",
+                            "_preserve_su_env": "False",
+                            "_su_shell": "False",
+                            "_doas": "False",
+                            "_shell_executable": "sh",
+                            "_env": "{}",
+                            "_success_exit_codes": "[0]",
+                            "_get_pty": "False",
+                            "_retries": "0",
+                            "_retry_delay": "5",
+                            "name": "Ensure sudo rule 99-charonte-dexmachina",
+                            "_ignore_errors": "False",
+                            "_continue_on_error": "False",
+                            "_if": "[]"
+                        },
+                        "operation_meta": "OperationMeta(executed=False, maybeChange=False, hash=784a97bf1955d5f7a2b9dd6c1e371e17b73c42bc)"
+                    },
                     "changed": false,
                     "success": true,
-                    "duration": 0.8551,
+                    "duration": 1.0475,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -104,9 +134,32 @@ Stay safe.
                 },
                 {
                     "operation": "Validate sudo rule 99-charonte-dexmachina",
+                    "operation_arguments": {
+                        "global_arguments": {
+                            "_sudo": "True",
+                            "_use_sudo_login": "False",
+                            "_sudo_password": "********",
+                            "_preserve_sudo_env": "False",
+                            "_use_su_login": "False",
+                            "_preserve_su_env": "False",
+                            "_su_shell": "False",
+                            "_doas": "False",
+                            "_shell_executable": "sh",
+                            "_env": "{}",
+                            "_success_exit_codes": "[0]",
+                            "_get_pty": "False",
+                            "_retries": "0",
+                            "_retry_delay": "5",
+                            "name": "Validate sudo rule 99-charonte-dexmachina",
+                            "_ignore_errors": "False",
+                            "_continue_on_error": "False",
+                            "_if": "[]"
+                        },
+                        "operation_meta": "OperationMeta(executed=False, maybeChange=True, hash=9c1c01dc3ac1445a500251fc34a15d3e75a849df)"
+                    },
                     "changed": true,
                     "success": true,
-                    "duration": 0.279,
+                    "duration": 0.3188,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -124,9 +177,31 @@ Stay safe.
                 },
                 {
                     "operation": "server.group",
+                    "operation_arguments": {
+                        "global_arguments": {
+                            "_sudo": "True",
+                            "_use_sudo_login": "False",
+                            "_sudo_password": "********",
+                            "_preserve_sudo_env": "False",
+                            "_use_su_login": "False",
+                            "_preserve_su_env": "False",
+                            "_su_shell": "False",
+                            "_doas": "False",
+                            "_shell_executable": "sh",
+                            "_env": "{}",
+                            "_success_exit_codes": "[0]",
+                            "_get_pty": "False",
+                            "_retries": "0",
+                            "_retry_delay": "5",
+                            "_ignore_errors": "False",
+                            "_continue_on_error": "False",
+                            "_if": "[]"
+                        },
+                        "operation_meta": "OperationMeta(executed=False, maybeChange=False, hash=f4f59e822581d785ba910fbf3f268eca79db8204)"
+                    },
                     "changed": false,
                     "success": true,
-                    "duration": 0.5867,
+                    "duration": 0.6878,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -144,9 +219,31 @@ Stay safe.
                 },
                 {
                     "operation": "server.group",
+                    "operation_arguments": {
+                        "global_arguments": {
+                            "_sudo": "True",
+                            "_use_sudo_login": "False",
+                            "_sudo_password": "********",
+                            "_preserve_sudo_env": "False",
+                            "_use_su_login": "False",
+                            "_preserve_su_env": "False",
+                            "_su_shell": "False",
+                            "_doas": "False",
+                            "_shell_executable": "sh",
+                            "_env": "{}",
+                            "_success_exit_codes": "[0]",
+                            "_get_pty": "False",
+                            "_retries": "0",
+                            "_retry_delay": "5",
+                            "_ignore_errors": "False",
+                            "_continue_on_error": "False",
+                            "_if": "[]"
+                        },
+                        "operation_meta": "OperationMeta(executed=False, maybeChange=False, hash=08743582456b52abe1182f5a5a3e12b457ba28b8)"
+                    },
                     "changed": false,
                     "success": true,
-                    "duration": 0.5327,
+                    "duration": 0.6676,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -164,9 +261,31 @@ Stay safe.
                 },
                 {
                     "operation": "server.user",
+                    "operation_arguments": {
+                        "global_arguments": {
+                            "_sudo": "True",
+                            "_use_sudo_login": "False",
+                            "_sudo_password": "********",
+                            "_preserve_sudo_env": "False",
+                            "_use_su_login": "False",
+                            "_preserve_su_env": "False",
+                            "_su_shell": "False",
+                            "_doas": "False",
+                            "_shell_executable": "sh",
+                            "_env": "{}",
+                            "_success_exit_codes": "[0]",
+                            "_get_pty": "False",
+                            "_retries": "0",
+                            "_retry_delay": "5",
+                            "_ignore_errors": "False",
+                            "_continue_on_error": "False",
+                            "_if": "[]"
+                        },
+                        "operation_meta": "OperationMeta(executed=False, maybeChange=False, hash=6a58b6c7e02f6d92150e84bffa4418d987f54dc9)"
+                    },
                     "changed": false,
                     "success": true,
-                    "duration": 1.2136,
+                    "duration": 1.541,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -190,12 +309,12 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "pre_operations",
-            "timestamp": 1768843613.0964332,
+            "timestamp": 1768879044.7355642,
             "metrics": {
-                "cpu_load_1min": 1.65,
-                "cpu_load_5min": 1.29,
-                "ram_percent": 45.6,
-                "ram_used_gb": 7.01,
+                "cpu_load_1min": 1.49,
+                "cpu_load_5min": 1.37,
+                "ram_percent": 50.6,
+                "ram_used_gb": 7.77,
                 "ram_total_gb": 15.37
             }
         },
@@ -203,15 +322,53 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "post_operations",
-            "timestamp": 1768843624.8570013,
+            "timestamp": 1768879058.006732,
             "metrics": {
-                "cpu_load_1min": 1.75,
-                "cpu_load_5min": 1.33,
-                "ram_percent": 45.7,
-                "ram_used_gb": 7.02,
+                "cpu_load_1min": 1.57,
+                "cpu_load_5min": 1.39,
+                "ram_percent": 50.6,
+                "ram_used_gb": 7.78,
                 "ram_total_gb": 15.37
             }
         }
-    ]
+    ],
+    "operation_summary": {
+        "Ensure sudo rule 99-charonte-dexmachina": {
+            "count": 1,
+            "total_duration": 1.0475,
+            "average_duration": 1.0475,
+            "p50_duration": 1.0475,
+            "p90_duration": 1.0475,
+            "p95_duration": 1.0475,
+            "p99_duration": 1.0475
+        },
+        "Validate sudo rule 99-charonte-dexmachina": {
+            "count": 1,
+            "total_duration": 0.3188,
+            "average_duration": 0.3188,
+            "p50_duration": 0.3188,
+            "p90_duration": 0.3188,
+            "p95_duration": 0.3188,
+            "p99_duration": 0.3188
+        },
+        "server.group": {
+            "count": 2,
+            "total_duration": 1.3554,
+            "average_duration": 0.6777,
+            "p50_duration": 0.6777,
+            "p90_duration": 0.6858,
+            "p95_duration": 0.6868,
+            "p99_duration": 0.6876
+        },
+        "server.user": {
+            "count": 1,
+            "total_duration": 1.541,
+            "average_duration": 1.541,
+            "p50_duration": 1.541,
+            "p90_duration": 1.541,
+            "p95_duration": 1.541,
+            "p99_duration": 1.541
+        }
+    }
 }
 ```
