@@ -224,6 +224,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     from pyinfra.api.connect import connect_all # type: ignore
     from pyinfra.api.state import StateStage, State # type: ignore
     from pyinfra.context import ctx_state # type: ignore
+    import time
     # ------------------------------------
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
@@ -231,6 +232,8 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     config = Config(parallel=parallels)
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
+
+    start_time = time.time()
 
     if args.logbook:
         state.add_callback_handler(ChaosTelemetry())
@@ -244,6 +247,13 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     console.print(f"Connecting to {hosts}...")
     connect_all(state)
     console.print("[bold green]Connection established.[/bold green]")
+
+    end_time = time.time()
+
+    setup_duration = end_time - start_time
+
+    if args.logbook:
+        ChaosTelemetry.record_setup_phase(state, setup_duration)
 
     return state, skip
 

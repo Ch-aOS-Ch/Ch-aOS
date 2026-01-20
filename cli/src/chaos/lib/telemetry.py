@@ -40,8 +40,36 @@ class ChaosTelemetry(BaseStateCallback):
         },
         'hosts': {},
         # 'operations': []
-        'resource_history': []
+        'resource_history': [],
+        'operation_summary': {}
     }
+
+    @staticmethod
+    def record_setup_phase(state: State, setup_duration: float):
+        """
+        Records the setup phase duration in the telemetry report.
+        """
+        setup_event = {
+            "type": "setup_phase",
+            "stage": "connection_and_facts",
+            "timestamp": time.time(),
+            "duration": round(setup_duration, 4),
+            "success": True
+        }
+
+        for host in state.inventory.iter_activated_hosts():
+            if host.name not in ChaosTelemetry._report_data['hosts']:
+                ChaosTelemetry._report_data['hosts'][host.name] = {
+                    'total_operations': 0,
+                    'changed_operations': 0,
+                    'successful_operations': 0,
+                    'failed_operations': 0,
+                    'duration': 0.0,
+                    'history': []
+                }
+
+            ChaosTelemetry._report_data['hosts'][host.name]['history'].insert(0, setup_event)
+            print(f"CHAOS_EVENT::{json.dumps(setup_event)}", flush=True)
 
     @staticmethod
     def record_snapshot(host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"):
@@ -158,7 +186,41 @@ class ChaosTelemetry(BaseStateCallback):
         ChaosTelemetry._timers[key] = time.time()
 
     @staticmethod
+    def _sanitize_op_data(raw_data) -> dict:
+        """
+        cleanse op data to remove sensitive information before logging
+        """
+        clean_data = {}
+
+        IGNORED_KEYS = ['state', 'host', 'command_generator']
+
+        SENSITIVE_TERMS = ['password', 'secret', 'token', 'key', 'auth', 'sudo_pass']
+
+        for key, value in raw_data.items():
+            if key in IGNORED_KEYS:
+                continue
+
+            if key == 'global_arguments':
+                clean_data[key] = ChaosTelemetry._sanitize_op_data(value)
+                continue
+
+            if any(term in key.lower() for term in SENSITIVE_TERMS):
+                clean_data[key] = "********"
+                continue
+
+            if value is None:
+                continue
+
+            if hasattr(value, '__call__'):
+                clean_data[key] = "<function>"
+            else:
+                clean_data[key] = str(value)
+
+        return clean_data
+
+    @staticmethod
     def operation_host_success(state: State, host: Host, op_hash, retry_count: int = 0):
+        from omegaconf import OmegaConf
         """Handles the successful completion of an operation on a specific host."""
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
@@ -181,8 +243,13 @@ class ChaosTelemetry(BaseStateCallback):
             'retry_info': runtime_meta.get_retry_info(),
         }
 
+        raw_data = vars(op_data)
+
+        operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
+
         op_details = {
             'operation': op_name,
+            'operation_arguments': operation_arguments,
             'changed': changed,
             'success': True,
             'duration': round(duration, 4),
@@ -237,9 +304,58 @@ class ChaosTelemetry(BaseStateCallback):
         ChaosTelemetry._stream_event(host, op_name, False, is_failure)
         ChaosTelemetry._update_statistics(host, False, is_failure, duration, op_details)
 
+    @staticmethod
+    def add_op_durations():
+        """Gathers all operation durations from the report history."""
+        op_durations = {}
+        for host_data in ChaosTelemetry._report_data['hosts'].values():
+            for op in host_data.get('history', []):
+                if 'operation' in op:
+                    op_name = op['operation']
+                    duration = op.get('duration', 0.0)
+                    if op_name not in op_durations:
+                        op_durations[op_name] = []
+                    op_durations[op_name].append(duration)
+        return op_durations
+
+    @staticmethod
+    def percentile(data: list, percentile_val: float):
+        """Calculates the given percentile from a list of numbers."""
+        if not data: return 0.0
+        size = len(data)
+        sorted_data = sorted(data)
+        k = (size - 1) * (percentile_val / 100)
+        f = int(k)
+        c = k - f
+        if f + 1 < size:
+            return round(sorted_data[f] + (c * (sorted_data[f + 1] - sorted_data[f])), 4)
+        else:
+            return round(sorted_data[f], 4)
+
+    @staticmethod
+    def add_operation_percentiles(op_durations: dict):
+        """Calculates and adds operation duration percentiles to the report data."""
+        op_summary = {}
+        for name, durations in op_durations.items():
+            count = len(durations)
+            total_duration = round(sum(durations), 4)
+            op_summary[name] = {
+                'count': count,
+                'total_duration': total_duration,
+                'average_duration': round(total_duration / count, 4) if count > 0 else 0.0,
+                'p50_duration': ChaosTelemetry.percentile(durations, 50),
+                'p90_duration': ChaosTelemetry.percentile(durations, 90),
+                'p95_duration': ChaosTelemetry.percentile(durations, 95),
+                'p99_duration': ChaosTelemetry.percentile(durations, 99),
+            }
+        ChaosTelemetry._report_data['operation_summary'] = op_summary
+
     @classmethod
     def export_report(cls, filepath: str = "chaos_report.json"):
         """Exports the collected telemetry data to a JSON file and prints it to standard output."""
+        op_durations = cls.add_op_durations()
+        cls.add_operation_percentiles(op_durations)
+
         print(f"CHAOS_REPORT::{json.dumps(cls._report_data)}", flush=True)
         try:
             with open(filepath, 'w') as f:
