@@ -49,8 +49,8 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
-    from chaos.lib.plugDiscovery import get_plugins
-    providerEps = get_plugins()[4]
+    from chaos.lib.utils import get_providerEps
+    providerEps = get_providerEps()
     loaded_providers = []
     if not providerEps:
         return loaded_providers
@@ -112,6 +112,18 @@ def argParsing():
     parser.add_argument('-u', '--update-plugins', action='store_true', help="Force update of the plugin cache.")
     parser.add_argument('-t', '--generate-tab', action='store_true', help="Generate shell tab-completion script.")
     parser.add_argument('-ec', '--edit-chobolo', action='store_true', help="Edit the Ch-obolo file using the default editor.")
+
+    subParser = parser.add_subparsers(dest="command", help="Available subcommands")
+
+    addStyxParsers(subParser)
+    addTeamParsers(subParser)
+    addExplainParsers(subParser)
+    addApplyParsers(subParser)
+    addSecParsers(subParser)
+    addCheckParsers(subParser)
+    addSetParsers(subParser)
+    addRambleParsers(subParser)
+    addInitParsers(subParser)
 
     return parser
 
@@ -182,7 +194,6 @@ def addSecParsers(parser):
     secShamir.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
     secShamir.add_argument('-ikwid', '-u', '--i-know-what-im-doing', action='store_true', help="Update all shares directly.")
     add_provider_args(secShamir)
-
 
 def addRambleParsers(parser):
     rambleParser = parser.add_parser('ramble', help="Annotate your rambles!")
@@ -316,6 +327,16 @@ def addInitParsers(parser):
 
     initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
+
+def addStyxParsers(parser):
+    styxParser = parser.add_parser('styx', help="Manage Styx registry entries.")
+    styxSubParser = styxParser.add_subparsers(dest="styx_commands", help="Styx subcommands", required=True)
+    styxInstall = styxSubParser.add_parser('invoke', help="Install Styx registry entries.")
+    styxInstall.add_argument('entries', nargs='+', help="Names of the Styx registry entries to install.")
+    styxList = styxSubParser.add_parser('list', help="List available Styx registry entries.")
+    styxList.add_argument('entries', nargs='*', help="Names of the Styx registry entries to list, if none given, lists all available entries.")
+    styxUninstall = styxSubParser.add_parser('destroy', help="Uninstall Styx registry entries.")
+    styxUninstall.add_argument('entries', nargs='+', help="Names of the Styx registry entries to uninstall.")
 
 """Handles the -t/--generate-tab argument, generating the tab-completion script"""
 def handleGenerateTab():
