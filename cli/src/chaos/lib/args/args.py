@@ -326,7 +326,8 @@ def addInitParsers(parser):
     initParser = parser.add_parser('init', help="Let Ch-aOS handle the boiler plates!")
     initSubParser = initParser.add_subparsers(dest='init_command', help='What to initialize', required=True)
 
-    initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
+    chobolo_parser = initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
+    chobolo_parser.add_argument('-t', '--template', action='store_true', help="Don't save the Ch-obolo file, just print it to the screen.")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
 
 def addStyxParsers(parser):

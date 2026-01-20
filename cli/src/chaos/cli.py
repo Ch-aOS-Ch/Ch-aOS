@@ -282,7 +282,7 @@ def handleInit(args, Console):
             case 'chobolo':
                 from chaos.lib.plugDiscovery import get_plugins
                 keys = get_plugins(args.update_plugins)[3]
-                initChobolo(keys)
+                initChobolo(keys, args)
             case 'secrets': initSecrets()
             case _:
                 Console.print("Unsupported init.")
