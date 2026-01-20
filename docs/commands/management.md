@@ -21,9 +21,13 @@ This will create a `ch-obolo_template.yml` in `~/.config/chaos/`.
 #### `init secrets`
 
 This command runs an interactive wizard to set up your secret management with `sops`. It helps you:
+
 -   Choose between `age` and `gpg` as your encryption backend.
+
 -   Generate new keys or use existing ones.
+
 -   Create a `.sops.yaml` configuration file.
+
 -   Create an initial `secrets.yml` file.
 
 **Usage:**
@@ -99,4 +103,22 @@ Lists all documentation topics that you can read about with `chaos explain`.
 **Usage:**
 ```bash
 chaos check explanations
+```
+
+#### `check providers`
+
+Lists all available secret providers.
+
+**Usage:**
+```bash
+chaos check providers
+```
+
+#### `check boats`
+
+Lists all available fleet boats.
+
+**Usage:**
+```bash
+chaos check boats
 ```

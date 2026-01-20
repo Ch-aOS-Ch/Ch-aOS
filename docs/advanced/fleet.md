@@ -7,8 +7,11 @@ This is essential for managing any infrastructure with more than one machine, su
 ## How It Works
 
 When you run an `apply` command with the `--fleet` flag, `chaos` will:
+
 1. Read the `fleet` block from your Ch-obolo file.
+
 2. For each host defined, connect to it via SSH.
+
 3. Execute the specified roles on all hosts, either in sequence or in parallel.
 
 ## Defining Your Fleet

@@ -7,6 +7,8 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 import getpass
+from .telemetry import ChaosTelemetry
+
 from .boats.base import Boat
 
 console = Console()
@@ -58,6 +60,33 @@ This allows for better performance and error handling.
 
 I really should wrap this in a try/finally to ensure disconnection happens, but for now, this will do.
 """
+def _collect_fleet_health(state, stage):
+    from .facts.facts import RamUsage, LoadAverage
+    """
+    Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
+
+    if state.pool is available, it uses it to parallelize fact collection across hosts.
+    Otherwise, it falls back to sequential collection.
+    Args:
+        state (State): The current pyinfra state containing the inventory and connection pool.
+        stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
+    """
+    def _fetch_and_record(host):
+        ram_data = host.get_fact(RamUsage)
+        load_data = host.get_fact(LoadAverage)
+        ChaosTelemetry.record_snapshot(
+            host,
+            ram_data,
+            load_data,
+            stage=stage
+        )
+
+    if state.pool:
+        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
+    else:
+        for host in state.inventory.iter_activated_hosts():
+            _fetch_and_record(host)
+
 def _get_configs(args):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
@@ -195,6 +224,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     from pyinfra.api.connect import connect_all # type: ignore
     from pyinfra.api.state import StateStage, State # type: ignore
     from pyinfra.context import ctx_state # type: ignore
+    import time
     # ------------------------------------
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
@@ -202,6 +232,12 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     config = Config(parallel=parallels)
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
+
+    start_time = time.time()
+
+    if args.logbook:
+        state.add_callback_handler(ChaosTelemetry())
+
     ctx_state.set(state)
 
     console.print("[bold magenta]Sudo password:[/bold magenta] ")
@@ -211,6 +247,13 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     console.print(f"Connecting to {hosts}...")
     connect_all(state)
     console.print("[bold green]Connection established.[/bold green]")
+
+    end_time = time.time()
+
+    setup_duration = end_time - start_time
+
+    if args.logbook:
+        ChaosTelemetry.record_setup_phase(state, setup_duration)
 
     return state, skip
 
@@ -346,13 +389,15 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     decrypted_secrets = ()
     try:
+        if args.logbook:
+            _collect_fleet_health(state, stage="pre_operations")
         for host in state.inventory.iter_activated_hosts():
             console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
             commonArgs = (state, host, chobolo_path, skip)
 
             _run_tags(
                 ROLES_DISPATCHER,
-                ROLE_ALIASES,
+        ROLE_ALIASES,
                 SEC_HAVING_ROLES,
                 skip,
                 decrypted_secrets,
@@ -367,6 +412,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
         if not dry:
             run_ops(state)
+            if args.logbook:
+                _collect_fleet_health(state, stage="post_operations")
         else:
             console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
 
@@ -374,6 +421,9 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
     finally:
+        if args.logbook:
+            ChaosTelemetry.export_report()
+
         console.print("\nDisconnecting...")
         disconnect_all(state)
         console.print("[bold green]Finalized.[/bold green]")

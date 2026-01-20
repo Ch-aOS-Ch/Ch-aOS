@@ -14,8 +14,11 @@ chaos team init <company.team.person> [path]
 ```
 
 -   It generates a `.chaos.yml` file defining the team's metadata.
+
 -   It creates a `sops-config.yml` with secure defaults for team secrets (using Shamir's Secret Sharing).
+
 -   It creates the `secrets/` and `ramblings/` directories.
+
 -   It initializes a Git repository if one is not already present.
 
 **Example:**

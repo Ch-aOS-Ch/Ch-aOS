@@ -11,6 +11,7 @@ chaos apply [tags...] [options]
 ```
 
 -   `[tags...]`: One or more tags corresponding to the [roles](../core-concepts.md/#roles-the-logic) you want to execute.
+
 -   `[options]`: Flags to modify the command's behavior.
 
 ## Key Concepts & Options
@@ -65,6 +66,9 @@ chaos apply --dry packages
 # Combine with verbosity for more detail
 chaos apply -d -vvv packages
 ```
+
+!!! note about secret having plugins
+    You NEED to have a "secret_plugins" section inside of your global config file (~/.config/chaos/config.yml) in order to use secrets inside of a specific role.
 
 ### Fleet Mode (`-f`, `--fleet`)
 

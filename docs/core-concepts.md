@@ -10,7 +10,9 @@ A "Ch-obolo" is a YAML file where you declare the desired state of your system. 
 
 This makes your configurations:
 -   **Readable:** All your variables are in one place, not scattered around a massive file.
+
 -   **Reusable:** Use the same roles with different Ch-obolo files for different systems.
+
 -   **Version-Controllable:** Track changes to your system's desired state using Git.
 
 You can specify a Ch-obolo file with the `-c` flag or set a default path using `chaos set chobolo`.
@@ -51,10 +53,15 @@ Ch-aOS is designed to be minimal and modular. Most of its functionality is provi
 There are several types of plugins:
 
 -   **Cores**: A "core" is a plugin that provides the basic set of roles for managing a specific Linux distribution. For example, `Ch-aronte` is the core for Arch Linux, providing roles like `users`, `pkgs`, `services`, etc.
+
 -   **Functionality Plugins**: These plugins add specialized tools. For example, `chaos-dots` is a plugin for managing dotfiles.
+
 -   **Secret Providers**: These plugins integrate with external password managers like Bitwarden or 1Password to securely fetch encryption keys.
+
 -   **Explanations**: These plugins add documentation and explanations for various roles, concepts, or anything really, accessible via the `chaos explain` command.
+
 -   **Keys**: These plugins add boiler plate for `chaos init chobolo`, in order to help users get started faster with pre-defined configurations for specific use cases.
+
 -   **Aliases**: These plugins add shortcuts to chaos roles (kinda basic ik).
 
 ??? quote "Hey, hey you there, I've got a secret to tell you"
