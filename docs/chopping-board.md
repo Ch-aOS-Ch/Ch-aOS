@@ -27,6 +27,7 @@
 **Atomicity is Important. Period.** Implementing atomic operations is more of a roles problem than a core one, however, Ch-aOS' core could provide a built-in mechanism to support atomic and granular _rollbacks_, for instance, saving the state of the *Ch-obolos* inside ovf /var/lib after applying all changes, this would allow users to revert to a previous state in case of breakage. Atomicity can be achieved by using try/except blocks in python roles, this approach would require roles to be written with atomicity in mind, like normal configuration managers do.
 +1 I can already hear you say "but what about using filesystem snapshots?" Well, yes, that could be an option, but it would require users to use specific filesystems (like btrfs or zfs) and would add complexity to the core. This approach would be more universal and easier to implement across different systems.
 +1 I can and will implement a dedicated role abstract class to help role developers, with an apply() and undo() methods, but the _rollbacks_ mechanism would be built into the core.
+BTW: hey, not even Ansible has atomicity and rollbacks out of the box, this is something complex to do, and the lack of it does not really stop Ansible from being very popular, so this would not be a deal breaker for Ch-aOS either!
 
 ## (Another big task) Ch-aOS Capitain... or should I say, Ch-apetanios
 
@@ -55,5 +56,8 @@ Also, yeah, its going to be written in Go, since... well, its a server, and Go i
     I've implemented a complete metrics collection for Ch-aOS that can be seen [here](./advanced/telemetry.md), this is a first step towards Ch-apetanios, since it provides a way to collect data from multiple systems. (Also, I had to create a pyinfra FACT for this to get system hardware info, kinda cooool huuuuh?)
 
 ## (Something I'd enjoy using) Ch-aOS Styx
+
+!!! success "this has been implemented!"
+    Check out the [docs](./commands/styx.md) for more information.
 
 **Ansible has Galaxy, Puppet has Forge, Chef has Supermarket, SaltStack has the SaltStack Community Repository...** Ch-aOS Styx would be an git repo with a bunch of plugin metadata and pointers, this saves me from buying a server to keep all of this info since... well, I have no money... this could integrate with chaos and make installing plugins quick n easy, plus, since it's just a bunch of metadata, I can futurally create a fully operational website to discover new plugins
