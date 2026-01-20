@@ -72,7 +72,12 @@ Stay safe.
         "successful_operations": 5,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 4.262628078460693
+        "total_duration": 6.550549507141113
+    },
+    "hailer": {
+        "user": "dexmachina",
+        "boatswain": "192.168.1.2",
+        "hostname": "Dionysus"
     },
     "hosts": {
         "@local": {
@@ -80,13 +85,13 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 5,
             "failed_operations": 0,
-            "duration": 4.262628078460693,
+            "duration": 6.550549507141113,
             "history": [
                 {
                     "type": "setup_phase",
                     "stage": "connection_and_facts",
-                    "timestamp": 1768879044.729711,
-                    "duration": 3.0866,
+                    "timestamp": 1768881124.799683,
+                    "duration": 3.0237,
                     "success": true
                 },
                 {
@@ -95,7 +100,7 @@ Stay safe.
                         "global_arguments": {
                             "_sudo": "True",
                             "_use_sudo_login": "False",
-                            "_sudo_password": "********", # Automatically redacted
+                            "_sudo_password": "********",
                             "_preserve_sudo_env": "False",
                             "_use_su_login": "False",
                             "_preserve_su_env": "False",
@@ -116,7 +121,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 1.0475,
+                    "duration": 1.1187,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -159,7 +164,7 @@ Stay safe.
                     },
                     "changed": true,
                     "success": true,
-                    "duration": 0.3188,
+                    "duration": 0.4154,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -201,7 +206,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 0.6878,
+                    "duration": 0.7984,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -243,7 +248,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 0.6676,
+                    "duration": 2.3203,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -285,7 +290,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 1.541,
+                    "duration": 1.8978,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -309,12 +314,12 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "pre_operations",
-            "timestamp": 1768879044.7355642,
+            "timestamp": 1768881124.8052301,
             "metrics": {
-                "cpu_load_1min": 1.49,
-                "cpu_load_5min": 1.37,
-                "ram_percent": 50.6,
-                "ram_used_gb": 7.77,
+                "cpu_load_1min": 1.53,
+                "cpu_load_5min": 1.4,
+                "ram_percent": 53.1,
+                "ram_used_gb": 8.15,
                 "ram_total_gb": 15.37
             }
         },
@@ -322,12 +327,12 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "post_operations",
-            "timestamp": 1768879058.006732,
+            "timestamp": 1768881140.6177595,
             "metrics": {
-                "cpu_load_1min": 1.57,
+                "cpu_load_1min": 1.46,
                 "cpu_load_5min": 1.39,
-                "ram_percent": 50.6,
-                "ram_used_gb": 7.78,
+                "ram_percent": 53.1,
+                "ram_used_gb": 8.16,
                 "ram_total_gb": 15.37
             }
         }
@@ -335,39 +340,39 @@ Stay safe.
     "operation_summary": {
         "Ensure sudo rule 99-charonte-dexmachina": {
             "count": 1,
-            "total_duration": 1.0475,
-            "average_duration": 1.0475,
-            "p50_duration": 1.0475,
-            "p90_duration": 1.0475,
-            "p95_duration": 1.0475,
-            "p99_duration": 1.0475
+            "total_duration": 1.1187,
+            "average_duration": 1.1187,
+            "p50_duration": 1.1187,
+            "p90_duration": 1.1187,
+            "p95_duration": 1.1187,
+            "p99_duration": 1.1187
         },
         "Validate sudo rule 99-charonte-dexmachina": {
             "count": 1,
-            "total_duration": 0.3188,
-            "average_duration": 0.3188,
-            "p50_duration": 0.3188,
-            "p90_duration": 0.3188,
-            "p95_duration": 0.3188,
-            "p99_duration": 0.3188
+            "total_duration": 0.4154,
+            "average_duration": 0.4154,
+            "p50_duration": 0.4154,
+            "p90_duration": 0.4154,
+            "p95_duration": 0.4154,
+            "p99_duration": 0.4154
         },
         "server.group": {
             "count": 2,
-            "total_duration": 1.3554,
-            "average_duration": 0.6777,
-            "p50_duration": 0.6777,
-            "p90_duration": 0.6858,
-            "p95_duration": 0.6868,
-            "p99_duration": 0.6876
+            "total_duration": 3.1187,
+            "average_duration": 1.5594,
+            "p50_duration": 1.5594,
+            "p90_duration": 2.1681,
+            "p95_duration": 2.2442,
+            "p99_duration": 2.3051
         },
         "server.user": {
             "count": 1,
-            "total_duration": 1.541,
-            "average_duration": 1.541,
-            "p50_duration": 1.541,
-            "p90_duration": 1.541,
-            "p95_duration": 1.541,
-            "p99_duration": 1.541
+            "total_duration": 1.8978,
+            "average_duration": 1.8978,
+            "p50_duration": 1.8978,
+            "p90_duration": 1.8978,
+            "p95_duration": 1.8978,
+            "p99_duration": 1.8978
         }
     }
 }

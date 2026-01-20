@@ -38,6 +38,7 @@ class ChaosTelemetry(BaseStateCallback):
             'status': 'success',
             'total_duration': 0.0,
         },
+        'hailer': {},
         'hosts': {},
         # 'operations': []
         'resource_history': [],
@@ -350,11 +351,26 @@ class ChaosTelemetry(BaseStateCallback):
             }
         ChaosTelemetry._report_data['operation_summary'] = op_summary
 
+    @staticmethod
+    def add_hailer_info():
+        """Adds information about the hailer (the machine running Ch-aOS) to the report."""
+        import os
+        import socket
+        hailer_info = {
+            'user': os.getenv('USER') or os.getenv('USERNAME') or 'unknown',
+            'boatswain': socket.gethostbyname(socket.gethostname()),
+            'hostname': socket.gethostname(),
+        }
+
+        ChaosTelemetry._report_data['hailer'] = hailer_info
+
+
     @classmethod
     def export_report(cls, filepath: str = "chaos_report.json"):
         """Exports the collected telemetry data to a JSON file and prints it to standard output."""
         op_durations = cls.add_op_durations()
         cls.add_operation_percentiles(op_durations)
+        cls.add_hailer_info()
 
         print(f"CHAOS_REPORT::{json.dumps(cls._report_data)}", flush=True)
         try:
