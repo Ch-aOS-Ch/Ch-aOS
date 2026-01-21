@@ -216,19 +216,19 @@ def handleCheck(args):
         case 'explanations':
             from chaos.lib.plugDiscovery import get_plugins
             EXPLANATIONS = get_plugins(args.update_plugins)[2]
-            checkExplanations(EXPLANATIONS)
+            checkExplanations(EXPLANATIONS, args.json)
         case 'aliases':
             from chaos.lib.plugDiscovery import get_plugins
             ROLE_ALIASES = get_plugins(args.update_plugins)[1]
-            checkAliases(ROLE_ALIASES)
+            checkAliases(ROLE_ALIASES, args.json)
         case 'roles':
             from chaos.lib.plugDiscovery import get_plugins
             role_specs = get_plugins(args.update_plugins)[0]
-            checkRoles(role_specs)
+            checkRoles(role_specs, args.json)
         case 'providers':
             from chaos.lib.plugDiscovery import get_plugins
             providers = get_plugins(args.update_plugins)[4]
-            checkProviders(providers)
+            checkProviders(providers, args.json)
 
         case 'boats':
             from chaos.lib.plugDiscovery import get_plugins

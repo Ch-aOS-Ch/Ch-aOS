@@ -259,6 +259,7 @@ def addCheckParsers(parser):
 
     checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
+    checkParser.add_argument('-j', '--json', action='store_true', help="Output in JSON format.", default=False)
 
 def addSetParsers(parser):
     setParser = parser.add_parser('set', help='Set configuration files')

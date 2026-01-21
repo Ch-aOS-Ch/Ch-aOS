@@ -12,29 +12,33 @@ Handles listing of roles/explanations/aliases with rich rendering.
 """
 Handles the printing of the lists.
 """
-def printCheck(namespace, dispatcher):
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich.align import Align
-    console = Console()
-    if not dispatcher:
-        console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
-        return
+def printCheck(namespace, dispatcher, json_output=False):
+    if not json_output:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.align import Align
+        console = Console()
+        if not dispatcher:
+            console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
+            return
 
-    if namespace == 'alias':
-        dispatcher = _handleAliases(dispatcher)
+        if namespace == 'alias':
+            dispatcher = _handleAliases(dispatcher)
 
-        table = Table(show_lines=True)
-        table.add_column("[green]Alias[/]", justify="center")
-        table.add_column("[green]Maps to[/]", justify="center")
-        for p, r in dispatcher.items():
-            table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
-        console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:")))
-        return
+            table = Table(show_lines=True)
+            table.add_column("[green]Alias[/]", justify="center")
+            table.add_column("[green]Maps to[/]", justify="center")
+            for p, r in dispatcher.items():
+                table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
+            console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:")))
+            return
 
-    title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
-    render_list_as_table(list(dispatcher.keys()), title)
+        title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
+        render_list_as_table(list(dispatcher.keys()), title)
+    else:
+        import json
+        print(json.dumps(list(dispatcher.keys()), indent=2))
 
 def _handleAliases(dispatcher):
     from rich.console import Console
@@ -57,20 +61,20 @@ def _handleAliases(dispatcher):
     return dispatcher
 
 
-def checkRoles(ROLES_DISPATCHER, **kwargs):
-    printCheck("role", ROLES_DISPATCHER)
+def checkRoles(ROLES_DISPATCHER, isJson=False):
+    printCheck("role", ROLES_DISPATCHER, json_output=isJson)
 
-def checkExplanations(EXPLANATIONS, **kwargs):
-    printCheck("explanation", EXPLANATIONS)
+def checkExplanations(EXPLANATIONS, isJson=False):
+    printCheck("explanation", EXPLANATIONS, json_output=isJson)
 
-def checkAliases(ROLE_ALIASES, **kwargs):
-    printCheck("alias", ROLE_ALIASES)
+def checkAliases(ROLE_ALIASES, isJson=False):
+    printCheck("alias", ROLE_ALIASES, json_output=isJson)
 
-def checkProviders(providers, **kwargs):
-    printCheck("provider", providers)
+def checkProviders(providers, isJson=False):
+    printCheck("provider", providers, json_output=isJson)
 
-def checkBoats(boats, **kwargs):
-    printCheck("boat", boats)
+def checkBoats(boats, isJson=False):
+    printCheck("boat", boats, json_output=isJson)
 
 """
 checks if vault is in use in the sops file
