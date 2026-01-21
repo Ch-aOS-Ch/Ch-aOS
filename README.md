@@ -1,4 +1,3 @@
-[versão pt br](./READMEpt_BR.md)
 # ***Ch-aOS project suite***
 
 [![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
