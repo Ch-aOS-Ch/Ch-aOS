@@ -328,6 +328,7 @@ def addInitParsers(parser):
 
     chobolo_parser = initSubParser.add_parser('chobolo', help="Initialize a boiler plate chobolo based on the plugins/core you have installed!")
     chobolo_parser.add_argument('-t', '--template', action='store_true', help="Don't save the Ch-obolo file, just print it to the screen.")
+    chobolo_parser.add_argument('-u', '--human', action='store_true', help="In case of -t, makes the output more human-readable.")
     initSubParser.add_parser('secrets', help="Initialize both a secrets file and a sops file!")
 
 def addStyxParsers(parser):

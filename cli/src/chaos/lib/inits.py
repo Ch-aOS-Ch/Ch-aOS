@@ -36,8 +36,6 @@ def initChobolo(keys, args):
                     else:
                         addedKeys.add(rootKey)
 
-                addedKeys.add(v)
-
                 finalConf = oc.merge(finalConf, newCfg)
         elif lis is not None:
             console.print(f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped.")
@@ -46,7 +44,10 @@ def initChobolo(keys, args):
         path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
         oc.save(finalConf, path)
     else:
-        print(finalConf)
+        if args.human:
+            print(oc.to_yaml(finalConf, resolve=True))
+        else:
+            print(finalConf)
 
 # -------------- SECRET INITING -------------
 
