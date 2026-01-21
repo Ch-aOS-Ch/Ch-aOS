@@ -7,3 +7,6 @@
 [submodule "external_plugins/chaos-secrets"]
 	path = external_plugins/chaos-secrets
 	url = git@github.com:Ch-aOS-Ch/chaos-secrets
+[submodule "tui"]
+	path = tui
+	url = git@github.com:Ch-aOS-Ch/Ch-apetanios
