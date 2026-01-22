@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chaos"
-version = "0.1.0"
+version = "0.6"
 description = "Declarative OS configuration manager"
 readme = "README.md"
 requires-python = ">=3.11,<=3.14.2"
@@ -29,6 +29,9 @@ dependencies = [
     "charset_normalizer",
     "psutil",
 ]
+
+[project.optional-dependencies]
+build = ["shiv"]
 
 [project.scripts]
 chaos = "chaos.cli:main"
