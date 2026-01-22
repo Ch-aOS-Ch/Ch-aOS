@@ -1,4 +1,5 @@
 from importlib import import_module
+from omegaconf import OmegaConf
 from rich.text import Text
 from rich.console import Console
 import sys
@@ -83,6 +84,12 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             if hasattr(ExplainObj, methodName):
                 method = getattr(ExplainObj, methodName)
                 explanation = method(complexity)
+                if args.no_pretty:
+                    if args.json:
+                        print(OmegaConf.to_container(OmegaConf.create(explanation), resolve=True))
+                        continue
+                    print(OmegaConf.to_yaml(OmegaConf.create(explanation)))
+                    continue
 
                 explanation_renderables = []
 

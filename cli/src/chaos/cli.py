@@ -91,7 +91,7 @@ def handleStyx(args, Console):
             case 'list':
                 from chaos.lib.styx import list_styx_entries
                 entries = args.entries
-                listing = list_styx_entries(entries)
+                listing = list_styx_entries(entries, args.no_pretty, args.json)
                 Console.print(listing)
 
             case 'destroy':

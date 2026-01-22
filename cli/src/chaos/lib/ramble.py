@@ -123,14 +123,20 @@ Prints the ramble content in a formatted manner.
 Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
 """
 def _print_ramble(ramble_path, sops_config, target_name, team, args, global_config):
+    ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
+    if args.no_pretty:
+        if not args.json:
+            console.print(OmegaConf.to_yaml(ramble_data))
+            return
+        console.print(OmegaConf.to_container(ramble_data, resolve=True))
+        return
+
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.markdown import Markdown
     from rich.padding import Padding
     from rich.console import Group
     from rich.align import Align
-
-    ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
 
     renderables = []
     standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
@@ -644,6 +650,13 @@ def handleFindRamble(args):
 
     if not results:
         console.print("Could not find any rambles.")
+        return
+
+    if args.no_pretty:
+        if args.json:
+            print(OmegaConf.to_container(OmegaConf.create(results), resolve=True))
+            return
+        print(OmegaConf.to_yaml(OmegaConf.create(results)))
         return
 
     title = "[italic][green]Found ramblings:[/][/]"

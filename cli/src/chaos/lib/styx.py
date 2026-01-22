@@ -123,7 +123,7 @@ def install_styx_entries(entries: list[str], force: bool = False):
         except Exception as e:
             print(f"Error installing {pkg_name}: {e}")
 
-def list_styx_entries(entries: list[str] | None = None) -> str:
+def list_styx_entries(entries: list[str] | None, no_pretty: bool, json: bool) -> str:
     """Lists the available Styx registry entries."""
     registry_text = get_styx_registry()
     if registry_text is None:
@@ -152,6 +152,11 @@ def list_styx_entries(entries: list[str] | None = None) -> str:
             print(f"Warning: No repository URL for '{name}'.")
             continue
 
+        if no_pretty:
+            if json:
+                json_format = OmegaConf.create({name: data})
+                return str(json_format)
+            return OmegaConf.to_yaml(OmegaConf.create({name: data}))
         output.append(f"{name} ({ver})\n   ┬\n   ├─ {desc}\n   ╰─ 🔗 {repo}")
 
     return "\n\n".join(output)

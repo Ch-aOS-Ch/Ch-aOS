@@ -247,6 +247,8 @@ def handleSecPrint(args):
         else:
             from .secret_backends.utils import decrypt_secrets
             decrypted_output = decrypt_secrets(secretsFile, sopsFile, global_config, args)
+        if args.json:
+            decrypted_output = OmegaConf.to_container(OmegaConf.create(decrypted_output), resolve=True)
         print(decrypted_output)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
@@ -291,6 +293,10 @@ def handleSecCat(args):
             value = OmegaConf.select(ocLoadResult, key, default=None)
             if value is None:
                 console.print(f"[bold yellow]WARNING:[/]{key} not found in {secretsFile}.")
+                continue
+
+            if args.value:
+                print (value)
                 continue
 
             if not isJson:

@@ -173,6 +173,7 @@ def addSecParsers(parser):
 
     secPrint = secSubParser.add_parser('print', help="Print your secrets to the screen. Be careful where you use this.")
     secPrint.add_argument('-t', '--team', type=str, help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.")
+    secPrint.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
     secPrint.add_argument('-s', '--sops', help="Print the sops file instead of the secrets file.", action='store_true')
     secPrint.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secPrint.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
@@ -185,6 +186,7 @@ def addSecParsers(parser):
     secCat.add_argument('-sf', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secCat.add_argument('-ss', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secCat.add_argument('-j', '--json', action="store_true", help="Make the output be JSON")
+    secCat.add_argument('-v', '--value', action="store_true", help="Only print the value of the key(s), useful for piping.")
     add_provider_args(secCat)
 
     secShamir = secSubParser.add_parser('set-shamir', help="Manage Shamir's Secret Sharing configuration.")
@@ -224,6 +226,8 @@ def addRambleParsers(parser):
     rambleRead.add_argument('targets', nargs='+', help='The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.')
     rambleRead.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
+    rambleRead.add_argument('-j', '--json', action="store_true", help="Make --no-pretty the output be JSON")
+    rambleRead.add_argument('--no-pretty', action='store_true', help="Disable pretty printing of the ramble output.")
     add_provider_args(rambleRead)
 
     rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
@@ -231,6 +235,8 @@ def addRambleParsers(parser):
     rambleFind.add_argument('--tag', help='Filter rambles by a specific tag.')
     rambleFind.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
     rambleFind.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    rambleFind.add_argument('--no-pretty', action='store_true', help="Disable pretty printing of the ramble output.")
+    rambleFind.add_argument('-j', '--json', action="store_true", help="Make --no-pretty the output be JSON")
 
     rambleMove = rambSubParser.add_parser('move', help='Move a rambling through rambles')
     rambleMove.add_argument('old', help='Your old rambling')
@@ -252,6 +258,8 @@ def addExplainParsers(parser):
     topics = expParser.add_argument('topics', nargs="+", help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic")
     expParser.add_argument('-d', '--details', choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of detail for the explanation.")
     expParser.add_argument('-c', '--complexity', type=str, choices=['basic', 'intermediate', 'advanced'], default='basic', help="Level of complexity for the explanation.")
+    expParser.add_argument('-n', '--no-pretty', action='store_true', help="Disable pretty printing of the explanation output.")
+    expParser.add_argument('-j', '--json', action='store_true', help="--no-pretty output in JSON format.", default=False)
     topics.completer = ExplainCompleter() # type: ignore
 
 def addCheckParsers(parser):
@@ -306,6 +314,8 @@ def addTeamParsers(parser):
 
     listTeams = teamSubParser.add_parser('list', help="List all available teams.")
     listTeams.add_argument('company', nargs='?', help="Company to filter teams, if not passed, will list all companies.")
+    listTeams.add_argument('-n', '--no-pretty', action='store_true', help="Disable pretty printing of the team output.")
+    listTeams.add_argument('-j', '--json', action='store_true', help="--no-pretty output in JSON format.", default=False)
 
     # TODO: teamPersonParser = teamSubParser.add_parser('person-add', help="Add a person to a team.")
     # TODO: teamPersonParser.add_argument('target', help="Target person in the format company.team.person")
@@ -338,11 +348,17 @@ def addInitParsers(parser):
 
 def addStyxParsers(parser):
     styxParser = parser.add_parser('styx', help="Manage Styx registry entries.")
+
     styxSubParser = styxParser.add_subparsers(dest="styx_commands", help="Styx subcommands", required=True)
+
     styxInstall = styxSubParser.add_parser('invoke', help="Install Styx registry entries.")
     styxInstall.add_argument('entries', nargs='+', help="Names of the Styx registry entries to install.")
+
     styxList = styxSubParser.add_parser('list', help="List available Styx registry entries.")
     styxList.add_argument('entries', nargs='*', help="Names of the Styx registry entries to list, if none given, lists all available entries.")
+    styxList.add_argument('-n', '--no-pretty', action='store_true', help="Disable pretty printing of the Styx registry entries output.")
+    styxList.add_argument('-j', '--json', action='store_true', help="Output in JSON format.", default=False)
+
     styxUninstall = styxSubParser.add_parser('destroy', help="Uninstall Styx registry entries.")
     styxUninstall.add_argument('entries', nargs='+', help="Names of the Styx registry entries to uninstall.")
 
