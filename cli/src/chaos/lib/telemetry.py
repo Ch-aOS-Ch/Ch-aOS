@@ -240,8 +240,6 @@ class ChaosTelemetry(BaseStateCallback):
 
         op_data: StateOperationHostData = state.get_op_data_for_host(host, op_hash)
         runtime_meta: OperationMeta = op_data.operation_meta
-        changed = runtime_meta.changed
-
         stdout, stderr = ChaosTelemetry._get_safe_logs(runtime_meta)
 
         logs = {
@@ -251,6 +249,8 @@ class ChaosTelemetry(BaseStateCallback):
             'max_retries': runtime_meta.max_retries,
             'retry_info': runtime_meta.get_retry_info(),
         }
+
+        changed = runtime_meta.changed
 
         raw_data = vars(op_data)
 
@@ -291,13 +291,15 @@ class ChaosTelemetry(BaseStateCallback):
         if hasattr(op_data, 'global_arguments'):
              is_failure = not getattr(op_data.global_arguments, 'ignore_errors', False)
 
+        op_data: StateOperationHostData = state.get_op_data_for_host(host, op_hash)
+        runtime_meta: OperationMeta = op_data.operation_meta
+
         logs = {
             'stdout': stdout,
             'stderr': stderr,
-            'retry_attempts': retry_count,
-            'max_retries': max_retries,
-            'retry_succeeded': False,
-            'retry_info': None,
+            'retry_attempts': runtime_meta.retry_attempts,
+            'max_retries': runtime_meta.max_retries,
+            'retry_info': runtime_meta.get_retry_info(),
         }
 
         op_details = {
