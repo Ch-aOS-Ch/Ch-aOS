@@ -146,6 +146,15 @@ class ChaosTelemetry(BaseStateCallback):
         failed operations, and total duration.
 
         Basically used for generating the final report.
+
+        "Why not just use the streamed events?" - Because we want to avoid parsing
+        "Why not just use pyinfra's StateHostResults?" - Because we want to track more detailed info like logs
+        + We need _overall_ summary stats, not just per-host stats.
+        + We want to avoid relying on pyinfra internals that may change.
+        + pyinfra only tracks amount of ops, success/failure/ignore_errors/partial_ops, not detailed info we want.
+        + We need a way to track changed operations specifically.
+        + Since we use streaming events, the logic for implementing this would make it so we'd have to re-get all info
+        from pyinfra's StateHostResults anyway, so might as well just track it here directly.
         """
 
         stats = ChaosTelemetry._report_data
@@ -221,7 +230,6 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def operation_host_success(state: State, host: Host, op_hash, retry_count: int = 0):
-        from omegaconf import OmegaConf
         """Handles the successful completion of an operation on a specific host."""
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
