@@ -77,3 +77,8 @@ Yes, this means that something like this is possible:
 ```bash
 chaos secrets cat ssh_pass -v | chaos apply users -slye -ps
 ```
+
+
+??? quote "Hey, hey you there, I've got a secret to tell you"
+    Wanna use Ch-aOS like a big' ol `pass`? `chaos ramble read <encrypted.note> -v <all> <these> <keys>` will output the decrypted keys directly to stdout for easy piping, You can basically use it like a password manager CLI! (Not really the intention, but hey, it works!)
+

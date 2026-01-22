@@ -122,12 +122,13 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
     ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
     if args.no_pretty:
         from omegaconf import DictConfig, OmegaConf
-        value = args.value
-        if value:
-            p_value = OmegaConf.select(ramble_data, value)
-            if not p_value:
-                raise ValueError(f"Key '{value}' not found in ramble.")
-            print(p_value)
+        values = args.values
+        if values:
+            for value in values:
+                p_value = OmegaConf.select(ramble_data, value)
+                if not p_value:
+                    continue
+                print(p_value)
             return
         if not args.json:
             print(OmegaConf.to_yaml(ramble_data))

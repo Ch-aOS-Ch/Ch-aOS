@@ -228,7 +228,7 @@ def addRambleParsers(parser):
     rambleRead.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.person")
     rambleRead.add_argument('-j', '--json', action="store_true", help="Make --no-pretty the output be JSON")
     rambleRead.add_argument('--no-pretty', action='store_true', help="Disable pretty printing of the ramble output.")
-    rambleRead.add_argument('-v', '--value', type=str, help="Only print the value of the rambling(s), useful for piping, only available with --no-pretty.")
+    rambleRead.add_argument('-v', '--values', nargs="+", help="Only print the value of the rambling(s), useful for piping, only available with --no-pretty.")
     add_provider_args(rambleRead)
 
     rambleFind = rambSubParser.add_parser('find', help='Find rambles by keyword or tag.')
