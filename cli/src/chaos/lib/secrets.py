@@ -1,19 +1,9 @@
-from io import StringIO
-import json
 from typing import cast
-from rich.console import Console
-from omegaconf import OmegaConf, ListConfig, DictConfig
-from chaos.lib.checkers import is_vault_in_use, check_vault_auth
-from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg, _resolveProvider, _getProviderByName
-from chaos.lib.utils import render_list_as_table
-import os
-import subprocess
-
-console = Console()
 
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
+
 
 """
 Adds a new key to the sops config file and (if -u), updates all secrets.
@@ -21,6 +11,7 @@ Adds a new key to the sops config file and (if -u), updates all secrets.
 Check secret_backends/utils.py for shared functions + their docs.
 """
 def handleRotateAdd(args):
+    from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -53,6 +44,7 @@ def handleRotateAdd(args):
 
 """Removes a key from the sops config file and (if -u), updates all secrets."""
 def handleRotateRemove(args):
+    from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -84,6 +76,7 @@ def handleRotateRemove(args):
 
 """Lists all keys of a certain type from the sops config file."""
 def listFp(args):
+    from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -107,11 +100,16 @@ def listFp(args):
             raise ValueError("No available type passed.")
 
     if results:
+        from chaos.lib.utils import render_list_as_table
         title = f"[italic][green]Found {args.type} Keys:[/][/]"
         render_list_as_table(list(results), title)
 
 """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):
+    from rich.console import Console
+    from chaos.lib.secret_backends.utils import get_sops_files
+    import os
+    console = Console()
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
     team = getattr(args, 'team', None)
@@ -129,6 +127,7 @@ def handleSetShamir(args):
     ikwid = getattr(args, 'i_know_what_im_doing', False)
 
     try:
+        from omegaconf import OmegaConf, DictConfig
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get('creation_rules')
@@ -184,6 +183,10 @@ def handleSetShamir(args):
 
 """Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
+    from chaos.lib.secret_backends.utils import get_sops_files,  _resolveProvider
+    import subprocess
+    from chaos.lib.checkers import is_vault_in_use
+    import os
     team = args.team
     sops_file_override = args.sops_file_override
     secrets_file_override = args.secrets_file_override
@@ -192,6 +195,7 @@ def handleSecEdit(args):
     provider = _resolveProvider(args, global_config)
 
     if is_vault_in_use(sopsFile):
+        from chaos.lib.checkers import check_vault_auth
         is_authed, message = check_vault_auth()
         if not is_authed:
             raise PermissionError(message)
@@ -211,6 +215,8 @@ def handleSecEdit(args):
             subprocess.run(['sops', '--config', sopsFile, secretsFile], check=True)
 
     except subprocess.CalledProcessError as e:
+        from rich.console import Console
+        console = Console()
         if e.returncode == 200: # sops exit code for no changes
             console.print("File has not changed, exiting.")
             return
@@ -221,6 +227,10 @@ def handleSecEdit(args):
 
 """Prints the decrypted secrets file to stdout."""
 def handleSecPrint(args):
+    import json
+    import subprocess
+    from chaos.lib.checkers import is_vault_in_use
+    from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
     team = args.team
     isSops = args.sops
     sops_file_override = args.sops_file_override
@@ -238,6 +248,7 @@ def handleSecPrint(args):
                             "       Configure one using 'chaos set sops', or pass it with '-ss'.")
 
     if is_vault_in_use(sopsFile):
+        from chaos.lib.checkers import check_vault_auth
         is_authed, message = check_vault_auth()
         if not is_authed:
             raise PermissionError(message)
@@ -249,6 +260,7 @@ def handleSecPrint(args):
             from .secret_backends.utils import decrypt_secrets
             decrypted_output = decrypt_secrets(secretsFile, sopsFile, global_config, args)
         if args.json:
+            from omegaconf import OmegaConf
             decrypted_output = json.dumps(OmegaConf.to_container(OmegaConf.create(decrypted_output), resolve=True), indent=2)
         print(decrypted_output)
     except subprocess.CalledProcessError as e:
@@ -259,6 +271,11 @@ def handleSecPrint(args):
 
 """Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
+    from chaos.lib.checkers import is_vault_in_use
+    from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
+    import json
+    import subprocess
+    from io import StringIO
     team = args.team
     sops_file_override = args.sops_file_override
     keys = args.keys
@@ -272,6 +289,7 @@ def handleSecCat(args):
                             "       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'.")
 
     if is_vault_in_use(sopsFile):
+        from chaos.lib.checkers import check_vault_auth
         is_authed, message = check_vault_auth()
         if not is_authed:
             raise PermissionError(message)
@@ -288,11 +306,14 @@ def handleSecCat(args):
         if sopsDecryptResult is None:
             raise RuntimeError("SOPS decryption result is None. This should not happen.")
 
+        from omegaconf import OmegaConf, ListConfig, DictConfig
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
         isJson = args.json
         for key in keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)
             if value is None:
+                from rich.console import Console
+                console = Console()
                 console.print(f"[bold yellow]WARNING:[/]{key} not found in {secretsFile}.")
                 continue
 
@@ -316,11 +337,13 @@ def handleSecCat(args):
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
 def handleExportSec(args, global_config):
+    from chaos.lib.secret_backends.utils import _getProviderByName
     provider_subcommand_name = args.export_commands
     provider = _getProviderByName(provider_subcommand_name, args, global_config)
     provider.export_secrets()
 
 def handleImportSec(args, global_config):
+    from chaos.lib.secret_backends.utils import _getProviderByName
     provider_subcommand_name = args.import_commands
     provider = _getProviderByName(provider_subcommand_name, args, global_config)
     provider.import_secrets()
