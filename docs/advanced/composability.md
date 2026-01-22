@@ -69,3 +69,11 @@ learn_more:
 By the way, most of the features that have a `--json` tag need to be used with `--no-pretty` to get valid JSON output. Just a heads up!
 
 By using these flags, you can easily integrate Ch-aOS features into your own scripts and tools, making it a powerful and flexible tool for system management and automation.
+
+OH YEAH, forgot to mention!
+In some rare cases, you can see a teeny tiny `--value` `-v` flag. This is for when you just want the raw value of something, like a secret or a config value, without any extra formatting or metadata.
+Yes, this means that something like this is possible:
+
+```bash
+chaos secrets cat ssh_pass -v | chaos apply users -slye -ps
+```
