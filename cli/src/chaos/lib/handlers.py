@@ -1,12 +1,11 @@
 import sys
 from typing import cast
 from rich.console import Console
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 import logging
 import os
-import getpass
 from .telemetry import ChaosTelemetry
 
 from .boats.base import Boat
@@ -229,7 +228,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
 
-    config = Config(parallel=parallels)
+    config = Config(PARALLEL=parallels)
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
 
@@ -239,9 +238,38 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
         state.add_callback_handler(ChaosTelemetry())
 
     ctx_state.set(state)
+    sudo_password = None
+    sudo_password = None
+    if args.sudo_password_file:
+        sudo_file = Path(args.sudo_password_file)
+        if not sudo_file.exists():
+            raise FileNotFoundError(f"Sudo password file not found: {sudo_file}")
 
-    console.print("[bold magenta]Sudo password:[/bold magenta] ")
-    config.SUDO_PASSWORD = getpass.getpass("")
+        if not sudo_file.is_file():
+            raise ValueError(f"Sudo password file path is not a file: {sudo_file}")
+
+        with open(sudo_file, 'r') as f:
+            sudo_password = f.read().strip()
+
+    if args.password is True:
+        if not sys.stdin.isatty():
+            sudo_password = sys.stdin.read().strip()
+        else:
+            raise ValueError("'-ps' argument without value requires piped input or a value. "
+                             "When using pipes, ensure stdin is not a TTY (e.g., 'cat file | chaos apply -ps').")
+    elif args.password is not None:
+        sudo_password = args.password.strip()
+
+    if not sudo_password:
+        sudo_password = Prompt.ask("Please, enter sudo password: ", password=True)
+
+    if not sudo_password:
+        raise ValueError("Sudo password is required to proceed.")
+
+    print(sudo_password)
+
+    state.config.SUDO_PASSWORD = sudo_password
+
     skip = ikwid
 
     console.print(f"Connecting to {hosts}...")
@@ -397,7 +425,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
             _run_tags(
                 ROLES_DISPATCHER,
-        ROLE_ALIASES,
+                ROLE_ALIASES,
                 SEC_HAVING_ROLES,
                 skip,
                 decrypted_secrets,
