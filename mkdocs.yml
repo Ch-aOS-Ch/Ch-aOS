@@ -60,7 +60,7 @@ nav:
     - 'Fleet Management': 'advanced/fleet.md'
     - 'Boats for your Fleet': 'advanced/boats.md'
     - 'Secret Providers': 'advanced/providers.md'
-    - 'Telemetry': 'advanced/telemetry.md'
+    - 'Logbook': 'advanced/logbook.md'
   - 'Plugins':
     - 'Provider Plugins': 'plugins/provider-plugins.md'
     - 'Registry': 'plugins/styx.md'

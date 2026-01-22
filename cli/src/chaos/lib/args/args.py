@@ -296,7 +296,7 @@ def addApplyParsers(parser):
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
     applyParser.add_argument('-e', '--serial', action="store_true", help="Run all ops in serial, each server at a time.")
     applyParser.add_argument('-nw', '--no-wait', action='store_true', help="Run all ops in parallel all servers at once.")
-    applyParser.add_argument('-l', '--logbook', action='store_true', help="Get detailed logbook of run telemetry after execution.")
+    applyParser.add_argument('-l', '--logbook', action='store_true', help="Get detailed logbook of run data after and during execution.")
     applyParser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")
     applyParser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly.")
     applyParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore

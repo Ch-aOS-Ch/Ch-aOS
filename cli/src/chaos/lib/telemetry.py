@@ -374,15 +374,24 @@ class ChaosTelemetry(BaseStateCallback):
 
 
     @classmethod
-    def export_report(cls, filepath: str = "chaos_report.json"):
-        """Exports the collected telemetry data to a JSON file and prints it to standard output."""
+    def export_report(cls, filepath: str = "chaos_logbook.json"):
+        """Exports the collected data to a JSON file and prints it to standard output."""
+        from pathlib import Path
+        import os
+        import time
+        import shutil
         op_durations = cls.add_op_durations()
         cls.add_operation_percentiles(op_durations)
         cls.add_hailer_info()
 
-        print(f"CHAOS_REPORT::{json.dumps(cls._report_data)}", flush=True)
+        print(f"CHAOS_LOGBOOK::{json.dumps(cls._report_data)}", flush=True)
         try:
             with open(filepath, 'w') as f:
                 json.dump(cls._report_data, f, indent=4)
+            logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
+            if not logbook_dir.exists():
+                logbook_dir.mkdir(parents=True, exist_ok=True)
+            amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
+            shutil.copy(filepath, logbook_dir / f"chaos_logbook_run{amount+1}_{int(time.time())}.json")
         except Exception:
             pass

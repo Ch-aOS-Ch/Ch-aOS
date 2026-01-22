@@ -266,8 +266,6 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     if not sudo_password:
         raise ValueError("Sudo password is required to proceed.")
 
-    print(sudo_password)
-
     state.config.SUDO_PASSWORD = sudo_password
 
     skip = ikwid
