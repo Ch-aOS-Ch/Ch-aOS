@@ -158,7 +158,8 @@ def listTeams(args):
 
     if args.no_pretty:
         if args.json:
-            print(OmegaConf.to_container(OmegaConf.create(list(teams))))
+            import json as js
+            print(js.dumps(OmegaConf.to_container(OmegaConf.create(list(teams))), indent=2))
             return
         print(OmegaConf.to_yaml(OmegaConf.create(list(teams))))
         return

@@ -92,7 +92,10 @@ def handleStyx(args, Console):
                 from chaos.lib.styx import list_styx_entries
                 entries = args.entries
                 listing = list_styx_entries(entries, args.no_pretty, args.json)
-                Console.print(listing)
+                if args.no_pretty:
+                    print(listing)
+                else:
+                    Console.print(listing)
 
             case 'destroy':
                 from chaos.lib.styx import uninstall_styx_entries

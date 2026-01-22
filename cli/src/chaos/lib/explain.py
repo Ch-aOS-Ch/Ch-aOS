@@ -86,11 +86,11 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                 explanation = method(complexity)
                 if args.no_pretty:
                     if args.json:
-                        print(OmegaConf.to_container(OmegaConf.create(explanation), resolve=True))
+                        import json
+                        print(json.dumps(OmegaConf.to_container(OmegaConf.create(explanation), resolve=True), indent=2))
                         continue
                     print(OmegaConf.to_yaml(OmegaConf.create(explanation)))
                     continue
-
                 explanation_renderables = []
 
                 if 'concept' in keysToShow and explanation.get('concept'):

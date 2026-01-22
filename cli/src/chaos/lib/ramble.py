@@ -1,8 +1,4 @@
-from rich.prompt import Confirm
-from rich.console import Console
-from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
-from rich.text import Text
 from typing import cast
 from chaos.lib.checkers import is_vault_in_use, check_vault_auth
 from chaos.lib.secret_backends.utils import _handle_provider_arg, _getProvider, decrypt_secrets
@@ -13,7 +9,6 @@ import tempfile
 import os
 import argparse
 
-console = Console()
 
 """
 Module for managing ramble journals and pages.
@@ -80,6 +75,7 @@ def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
         raise FileNotFoundError(f'Ramble page not found: {ramble_path}')
 
     try:
+        from omegaconf import OmegaConf
         data = OmegaConf.load(ramble_path)
         is_encrypted = 'sops' in data
 
@@ -125,10 +121,19 @@ Utilizes rich with markdown and syntax highlighting. The Panel is intentionally 
 def _print_ramble(ramble_path, sops_config, target_name, team, args, global_config):
     ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
     if args.no_pretty:
-        if not args.json:
-            console.print(OmegaConf.to_yaml(ramble_data))
+        from omegaconf import DictConfig, OmegaConf
+        value = args.value
+        if value:
+            p_value = OmegaConf.select(ramble_data, value)
+            if not p_value:
+                raise ValueError(f"Key '{value}' not found in ramble.")
+            print(p_value)
             return
-        console.print(OmegaConf.to_container(ramble_data, resolve=True))
+        if not args.json:
+            print(OmegaConf.to_yaml(ramble_data))
+            return
+        import json as js
+        print(js.dumps(OmegaConf.to_container(ramble_data, resolve=True), indent=2))
         return
 
     from rich.panel import Panel
@@ -140,6 +145,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
 
     renderables = []
     standard_keys = {'title', 'concept', 'what', 'why', 'how', 'scripts', 'sops'}
+    from rich.text import Text
 
     if 'concept' in ramble_data and ramble_data.concept:
         renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
@@ -160,6 +166,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
     scripts = ramble_data.get('scripts')
     if scripts:
         renderables.append(Markdown("**Scripts:**"))
+        from omegaconf import DictConfig
         if isinstance(scripts, DictConfig):
             knownLangs = ['python', 'c', 'java', 'javascript', 'rust', 'bash', 'go', 'c++', 'json']
             for lang, code in scripts.items():
@@ -181,6 +188,7 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
             elif isinstance(content, str):
                 formatted_content = content
             elif isinstance(content, (dict, list)):
+                from omegaconf import DictConfig, OmegaConf
                 formatted_content = OmegaConf.to_yaml(content).strip()
             else:
                 formatted_content = str(content)
@@ -189,6 +197,8 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
             renderables.append(Text("\n"))
 
     title = ramble_data.get('title', target_name)
+    from rich.console import Console
+    console = Console()
     console.print(
         Align.center(
             Panel(
@@ -222,6 +232,8 @@ def _process_ramble_target(target, sops_file_override, team, args, global_config
     if is_list_request:
         is_safe_path(path, team)
         try:
+            from rich.console import Console
+            console = Console()
             entries = sorted([f.name for f in path.iterdir() if f.is_file()])
             if not entries:
                 console.print(f"[yellow]No pages found in the '{journal}' journal.[/]")
@@ -290,14 +302,20 @@ how:
 scripts:
 """
         if not path.exists():
+            from rich.console import Console
+            console = Console()
             path.mkdir(parents=True, exist_ok=True)
             console.print(f'[yellow]Created new journal: {directory}![/]')
 
         try:
+            from rich.console import Console
+            console = Console()
             with open(CONFIG_FILE_PATH, 'x') as f:
                 f.write(baseText)
             console.print(f'[bold green][italic]Page {page} created![/][/] [dim]{directory}.{page}[/]')
         except FileExistsError:
+            from rich.console import Console
+            console = Console()
             ask = console.input(f'[bold yellow]WARNING:[/] page {page} already exists!\n Do you want to go write on it? (y/N) ')
             if not ask.lower() == 'y':
                 return
@@ -333,6 +351,8 @@ how:
 scripts:
 """
         try:
+            from rich.console import Console
+            console = Console()
             path.mkdir(parents=True, exist_ok=True)
             console.print(f'[bold green]Journal "{ramble}" created![/]')
             try:
@@ -345,13 +365,15 @@ scripts:
                     return
 
         except FileExistsError:
+            from rich.console import Console
+            console = Console()
             console.print(f"[yellow]Journal '{ramble}' already exists.[/]")
 
-        editor = os.getenv('EDITOR', 'nano')
-        try:
-            subprocess.run([editor, fullPath], check=True)
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f'Ramble editing failed: {e}') from e
+            editor = os.getenv('EDITOR', 'nano')
+            try:
+                subprocess.run([editor, fullPath], check=True)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f'Ramble editing failed: {e}') from e
         if shouldEncrypt:
             encryptArgs = argparse.Namespace()
             encryptArgs.target = ramble
@@ -363,6 +385,7 @@ scripts:
 
 """Edits an existing ramble journal or page, handling decryption if necessary."""
 def handleEditRamble(args):
+    from omegaconf import DictConfig, OmegaConf
     from rich.table import Table
     from rich.panel import Panel
     from rich.align import Align
@@ -467,6 +490,8 @@ def handleEditRamble(args):
         raise FileNotFoundError(f"Journal not found: {path}.")
 
     if not entries:
+        from rich.console import Console
+        console = Console()
         console.print(f"[yellow]No pages found in the '{ramble}' journal.[/]")
         return
 
@@ -476,6 +501,8 @@ def handleEditRamble(args):
     for i, e in enumerate(entries, start=1):
         table.add_row(str(i), Path(e).stem)
 
+    from rich.console import Console
+    console = Console()
     console.print(Align.center(Panel(table, expand=False, border_style="green", title=f'Journal: [cyan]{ramble}[/]')))
     inp = console.input("Which page do you want to edit? (index) ")
 
@@ -499,6 +526,7 @@ If -k not passed, encrypts everything except base keys.
 The tags key is never encrypted, helping to optimize searching.
 """
 def handleEncryptRamble(args):
+    from omegaconf import DictConfig, OmegaConf
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -550,11 +578,15 @@ def handleEncryptRamble(args):
         keys = [str(key) for key in keysInData if key not in baseKeys]
 
     if not keys:
+        from rich.console import Console
+        console = Console()
         console.print('[yellow]No new keys to encrypt. Exiting.[/]')
         return
 
     joinKeys = '|'.join(keys)
     regex = f"^({joinKeys})$"
+    from rich.console import Console
+    console = Console()
     console.print(f'[italic][yellow]Encrypting these keys:[/][cyan] {keys}[/][/]')
 
     try:
@@ -580,6 +612,7 @@ def handleEncryptRamble(args):
 Handles the display of the ramble content.
 """
 def handleReadRamble(args):
+    from omegaconf import DictConfig, OmegaConf
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -601,6 +634,7 @@ Searches for rambles containing a specific term, optionally filtered by tag.
 If nothing passed, lists all rambles.
 """
 def handleFindRamble(args):
+    from omegaconf import DictConfig, OmegaConf
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
     search_term = getattr(args, 'find_term', None)
@@ -645,16 +679,21 @@ def handleFindRamble(args):
             page = ramble_file.stem
             results.append(f"{ramble}.{page}")
         except Exception as e:
+            from rich.console import Console
+            console = Console()
             console.print(f"[bold yellow]Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}[/]")
             continue
 
     if not results:
+        from rich.console import Console
+        console = Console()
         console.print("Could not find any rambles.")
         return
 
     if args.no_pretty:
         if args.json:
-            print(OmegaConf.to_container(OmegaConf.create(results), resolve=True))
+            import json as js
+            print(js.dumps(OmegaConf.to_container(OmegaConf.create(results), resolve=True), indent=2))
             return
         print(OmegaConf.to_yaml(OmegaConf.create(results)))
         return
@@ -697,6 +736,8 @@ def handleMoveRamble(args):
     if old_is_dir and new_is_dir:
         if dest_dir_path.exists():
             raise FileExistsError(f"Destination journal (directory) already exists: {dest_dir_path}")
+        from rich.console import Console
+        console = Console()
         shutil.move(str(source_path), str(dest_dir_path))
         console.print(f"[green]Successfully moved journal '{old}' to '{new}'[/]")
 
@@ -707,6 +748,8 @@ def handleMoveRamble(args):
         dest_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         shutil.move(str(source_path), str(dest_file_path))
+        from rich.console import Console
+        console = Console()
         console.print(f"[green]Successfully moved page '{old}' to '{new}'[/]")
 
     elif old_is_dir and not new_is_dir:
@@ -720,6 +763,8 @@ def handleMoveRamble(args):
         dest_dir_path.mkdir(parents=True, exist_ok=True)
         shutil.move(str(source_path), str(final_dest_file))
         new_ramble_name = f"{new}.{source_path.stem}"
+        from rich.console import Console
+        console = Console()
         console.print(f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]")
 
 "Deletes a ramble journal or page after confirmation."
@@ -740,6 +785,9 @@ def handleDelRamble(args):
         if not rambleFile.exists():
             raise FileNotFoundError(f"{rambleFile} does not exist.")
         
+        from rich.prompt import Confirm
+        from rich.console import Console
+        console = Console()
         if Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete {ramble}?", default=False):
             console.print(f"[bold red]Removing {ramble}.[/]")
             os.remove(rambleFile)
@@ -750,6 +798,10 @@ def handleDelRamble(args):
         is_safe_path(ramblePath, team)
         if not ramblePath.exists():
             raise FileNotFoundError(f"{ramblePath} does not exist.")
+
+        from rich.prompt import Confirm
+        from rich.console import Console
+        console = Console()
         
         if Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete the entire journal '{ramble}'?", default=False):
             console.print(f"[bold red]Removing {ramble}.[/]")
@@ -759,6 +811,7 @@ def handleDelRamble(args):
 
 "Updates encryption keys for all encrypted rambles in the ramble directory."
 def handleUpdateEncryptRamble(args):
+    from omegaconf import DictConfig, OmegaConf
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
@@ -789,6 +842,8 @@ def handleUpdateEncryptRamble(args):
                     raise ValueError("An encrypted ramble was found, but no sops configuration was provided.\n"
                                      "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'.")
 
+                from rich.console import Console
+                console = Console()
                 console.print(f"Checking for key updates in [cyan]{ramble_file.relative_to(RAMBLE_DIR)}[/]...")
                 if provider:
                     provider.updatekeys(str(ramble_file), sops_file_override)
@@ -800,10 +855,16 @@ def handleUpdateEncryptRamble(args):
         except FileNotFoundError:
             raise FileNotFoundError("`sops` command not found. Please ensure sops is installed and in your PATH.")
         except Exception as e:
+            from rich.console import Console
+            console = Console()
             console.print(f'[bold yellow]Warning:[/] Could not read or parse ramble file: {ramble_file}. Skipping.')
             continue
 
     if updated_count > 0:
+        from rich.console import Console
+        console = Console()
         console.print(f"\n[bold green]Processed {updated_count} encrypted ramble(s).[/]")
     else:
+        from rich.console import Console
+        console = Console()
         console.print("[yellow]No encrypted ramble files found to update.[/]")

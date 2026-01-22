@@ -1,4 +1,5 @@
 from io import StringIO
+import json
 from typing import cast
 from rich.console import Console
 from omegaconf import OmegaConf, ListConfig, DictConfig
@@ -248,7 +249,7 @@ def handleSecPrint(args):
             from .secret_backends.utils import decrypt_secrets
             decrypted_output = decrypt_secrets(secretsFile, sopsFile, global_config, args)
         if args.json:
-            decrypted_output = OmegaConf.to_container(OmegaConf.create(decrypted_output), resolve=True)
+            decrypted_output = json.dumps(OmegaConf.to_container(OmegaConf.create(decrypted_output), resolve=True), indent=2)
         print(decrypted_output)
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
@@ -304,7 +305,7 @@ def handleSecCat(args):
                     container = OmegaConf.create({key: value})
                     print(f"{OmegaConf.to_yaml(container)}")
                 else:
-                    print(f"{key}: {value}")
+                    print(json.dumps({key: value}, indent=2))
             else:
                 output_value = str(value)
                 print(f"{key}: {output_value}")
