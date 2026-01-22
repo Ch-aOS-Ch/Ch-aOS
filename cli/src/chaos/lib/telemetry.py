@@ -40,7 +40,7 @@ class ChaosTelemetry(BaseStateCallback):
         },
         'hailer': {},
         'hosts': {},
-        # 'operations': []
+        'streamed_history': [],
         'resource_history': [],
         'operation_summary': {}
     }
@@ -133,8 +133,8 @@ class ChaosTelemetry(BaseStateCallback):
         }
 
         print(f"CHAOS_EVENT::{json.dumps(payload)}", flush=True)
-        # _report = ChaosTelemetry._report_data
-        # _report['operations'].append(payload)
+        _report = ChaosTelemetry._report_data
+        _report['streamed_history'].append(payload)
 
     @staticmethod
     def _update_statistics(host: Host, changed: bool, failed: bool, duration: float, op_details: dict):
