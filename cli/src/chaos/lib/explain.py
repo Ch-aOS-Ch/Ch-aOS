@@ -79,6 +79,15 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 
             if (sub_topic == 'list'):
+                if args.no_pretty:
+                    import json
+                    if not hasattr(ExplainObj, '_order'):
+                        exp_list = [m.replace('explain_', '') for m in dir(ExplainObj) if m.startswith('explain_') and m != 'explain_']
+                        exp_list = sorted(list(set(exp_list) - {role}))
+                    else:
+                        exp_list = ExplainObj._order
+                    print(json.dumps(exp_list, indent=2))
+                    continue
                 list_explain_subtopics(ExplainObj, role, console)
 
             if hasattr(ExplainObj, methodName):
@@ -191,5 +200,4 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                         console.print(f"[bold red]ERROR:[/] Poorly configured explanation module. \n(if you're a dev, make sure your module has a class with functions that simply return a dict with your needed explanations.)")
         else:
             console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
-
 
