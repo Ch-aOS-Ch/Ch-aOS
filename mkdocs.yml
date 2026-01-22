@@ -61,6 +61,7 @@ nav:
     - 'Boats for your Fleet': 'advanced/boats.md'
     - 'Secret Providers': 'advanced/providers.md'
     - 'Logbook': 'advanced/logbook.md'
+    - 'Composability': 'advanced/Composability.md'
   - 'Plugins':
     - 'Provider Plugins': 'plugins/provider-plugins.md'
     - 'Registry': 'plugins/styx.md'
