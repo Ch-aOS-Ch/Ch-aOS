@@ -50,6 +50,8 @@ That being said, this data can be extremely useful for users who want to monitor
 
 All data collected gets turned into a simple-to-read, simple-to-parse JSON file. This file can be easily integrated with monitoring systems like Prometheus, Grafana, or any other system that supports JSON data ingestion, or... you know, even your own brain to analyze the data manually.
 
+Each operation performed during the `chaos apply -l` execution is also streamed to the stdout in real-time, allowing users to capture and parse the data as it is currently being generated.
+
 ## Privacy Considerations
 
 Again, it's crucial to emphasize that all data collected by Ch-aOS is stored locally and is not transmitted to any external entities. Users have complete control over their data and can choose to share it or keep it private.
