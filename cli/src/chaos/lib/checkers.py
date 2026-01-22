@@ -68,12 +68,15 @@ def _handleAliases(dispatcher):
 
 def flatten_dict_keys(d, parent_key='', sep='.'):
     """
+    Flattens a nested dictionary and returns a list of keys in dot notation.
+    Skips the 'sops' key during the flattening process and appends it at the end if it exists.
     """
     items = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
 
-        if new_key == 'sops':
+        if k == 'sops':
+            items.append(new_key)
             continue
 
         if isinstance(v, dict) and v:
