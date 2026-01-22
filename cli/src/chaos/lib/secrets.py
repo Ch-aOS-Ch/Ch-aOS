@@ -305,10 +305,10 @@ def handleSecCat(args):
                     container = OmegaConf.create({key: value})
                     print(f"{OmegaConf.to_yaml(container)}")
                 else:
-                    print(json.dumps({key: value}, indent=2))
+                    output_value = str(value)
+                    print(f"{key}: {output_value}")
             else:
-                output_value = str(value)
-                print(f"{key}: {output_value}")
+                print(json.dumps(OmegaConf.to_container(OmegaConf.create({key: value})), indent=2))
     except subprocess.CalledProcessError as e:
         details = e.stderr if e.stderr else "No output."
         raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
