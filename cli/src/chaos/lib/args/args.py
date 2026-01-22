@@ -266,9 +266,12 @@ def addExplainParsers(parser):
 def addCheckParsers(parser):
     checkParser = parser.add_parser('check', help='Check and list roles, aliases and explanations')
 
-    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats'], help='The operations you want to check.')
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats', 'secrets'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
     checkParser.add_argument('-j', '--json', action='store_true', help="Output in JSON format.", default=False)
+    checkParser.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    checkParser.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
+    checkParser.add_argument('-sf', '--secrets-file', dest='secrets_file_override', help="Path to the sops-encrypted secrets file (overrides all calls).").completer = FilesCompleter() # type: ignore
 
 def addSetParsers(parser):
     setParser = parser.add_parser('set', help='Set configuration files')

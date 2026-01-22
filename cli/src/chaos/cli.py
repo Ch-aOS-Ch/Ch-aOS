@@ -237,6 +237,17 @@ def handleCheck(args):
             from chaos.lib.plugDiscovery import get_plugins
             boats = get_plugins(args.update_plugins)[5]
             checkBoats(boats)
+
+        case 'secrets':
+            from chaos.lib.secret_backends.utils import get_sops_files
+            from chaos.lib.checkers import checkSecrets
+            sec_file = get_sops_files(
+                getattr(args, 'sops_file', None),
+                getattr(args, 'secrets_file', None),
+                getattr(args, 'team', None)
+            )[0]
+            checkSecrets(sec_file, args.json)
+
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 
     sys.exit(0)
