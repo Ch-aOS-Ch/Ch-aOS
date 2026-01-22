@@ -35,9 +35,15 @@ def printCheck(namespace, dispatcher, json_output=False):
             return
 
         title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
+        if namespace == 'secret':
+            render_list_as_table(dispatcher, title)
+            return
         render_list_as_table(list(dispatcher.keys()), title)
     else:
         import json
+        if namespace == 'secret':
+            print (json.dumps(dispatcher, indent=2))
+            return
         print(json.dumps(list(dispatcher.keys()), indent=2))
 
 def _handleAliases(dispatcher):
@@ -60,6 +66,31 @@ def _handleAliases(dispatcher):
     dispatcher.update(userAliases)
     return dispatcher
 
+def flatten_dict_keys(d, parent_key='', sep='.'):
+    """
+    Flattens a nested dictionary and returns a list of keys in dot notation.
+    Skips the 'sops' key during the flattening process and appends it at the end if it exists.
+    """
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+
+        if k == 'sops':
+            items.append(new_key)
+            continue
+
+        if isinstance(v, dict) and v:
+            items.extend(flatten_dict_keys(v, new_key, sep=sep))
+        else:
+            items.append(new_key)
+
+    return items
+
+def checkSecrets(secrets_file, isJson=False):
+    from omegaconf import OmegaConf
+    secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
+    flat_secrets = flatten_dict_keys(secrets_dict)
+    printCheck("secret", flat_secrets, json_output=isJson)
 
 def checkRoles(ROLES_DISPATCHER, isJson=False):
     printCheck("role", ROLES_DISPATCHER, json_output=isJson)

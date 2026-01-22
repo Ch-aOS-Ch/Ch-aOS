@@ -1,3 +1,4 @@
+from omegaconf import OmegaConf
 from rich.console import Console
 from rich.prompt import Confirm
 from pathlib import Path
@@ -155,6 +156,13 @@ def listTeams(args):
         console.print("[bold yellow]No teams have been activated yet.[/]")
         return
 
+    if args.no_pretty:
+        if args.json:
+            import json as js
+            print(js.dumps(OmegaConf.to_container(OmegaConf.create(list(teams))), indent=2))
+            return
+        print(OmegaConf.to_yaml(OmegaConf.create(list(teams))))
+        return
     title = "[italic][green]Found teams:[/][/]"
     render_list_as_table(list(teams), title)
 

@@ -123,8 +123,9 @@ def install_styx_entries(entries: list[str], force: bool = False):
         except Exception as e:
             print(f"Error installing {pkg_name}: {e}")
 
-def list_styx_entries(entries: list[str] | None = None) -> str:
+def list_styx_entries(entries: list[str] | None, no_pretty: bool, json_flag: bool) -> str:
     """Lists the available Styx registry entries."""
+    import json
     registry_text = get_styx_registry()
     if registry_text is None:
         return "Could not fetch Styx registry data."
@@ -138,23 +139,37 @@ def list_styx_entries(entries: list[str] | None = None) -> str:
 
     keys_to_show = entries if entries else list(styx_entries.keys())
 
-    output = []
-    for name in keys_to_show:
-        if name not in styx_entries:
-            continue
+    if no_pretty:
+        output_data = {}
+        for name in keys_to_show:
+            if name in styx_entries:
+                output_data[name] = styx_entries[name]
 
-        data = styx_entries[name]
-        desc = data.get('about', 'No description')
-        ver = data.get('version', 'unknown')
-        repo = data.get('repo', '')
+        if not output_data:
+            return "{}" if json_flag else ""
 
-        if not repo:
-            print(f"Warning: No repository URL for '{name}'.")
-            continue
+        if json_flag:
+            return json.dumps(OmegaConf.to_container(OmegaConf.create(output_data), resolve=True), indent=2)
+        else:
+            return OmegaConf.to_yaml(OmegaConf.create(output_data))
+    else:
+        output = []
+        for name in keys_to_show:
+            if name not in styx_entries:
+                continue
 
-        output.append(f"{name} ({ver})\n   ┬\n   ├─ {desc}\n   ╰─ 🔗 {repo}")
+            data = styx_entries[name]
+            desc = data.get('about', 'No description')
+            ver = data.get('version', 'unknown')
+            repo = data.get('repo', '')
 
-    return "\n\n".join(output)
+            if not repo:
+                print(f"Warning: No repository URL for '{name}'.")
+                continue
+
+            output.append(f"{name} ({ver})\n   ┬\n   ├─ {desc}\n   ╰─ 🔗 {repo}")
+
+        return "\n\n".join(output)
 
 def uninstall_styx_entries(entries: list[str]):
     """Uninstalls the given Styx registry entries."""
