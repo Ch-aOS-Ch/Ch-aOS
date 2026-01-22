@@ -261,7 +261,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
         sudo_password = args.password.strip()
 
     if not sudo_password:
-        sudo_password = Prompt.ask("Please, enter sudo password: ", password=True)
+        sudo_password = Prompt.ask("[magenta]Please, enter sudo password[/]", password=True)
 
     if not sudo_password:
         raise ValueError("Sudo password is required to proceed.")
