@@ -411,7 +411,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
             )
 
         if not dry:
-            run_ops(state)
+            run_ops(state, args.serial, args.no_wait)
             if args.logbook:
                 _collect_fleet_health(state, stage="post_operations")
         else:

@@ -280,6 +280,8 @@ def addApplyParsers(parser):
     tags = applyParser.add_argument('tags', nargs='+', help="The tag(s) for the role(s) to be executed.")
     applyParser.add_argument('-f', '--fleet', action='store_true', help="Apply to a fleet of hosts defined in the Ch-obolo file.")
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
+    applyParser.add_argument('-e', '--serial', action="store_true", help="Run all ops in serial waiting for each to finish.")
+    applyParser.add_argument('-nw', '--no-wait', action='store_true', help="Run all ops in parallel without waiting for each to finish.")
     applyParser.add_argument('-l', '--logbook', action='store_true', help="Get detailed logbook of run telemetry after execution.")
     applyParser.add_argument('-v', action='count', default=0, help="Increase verbosity level.")
     applyParser.add_argument('--verbose', type=int, choices=[1, 2, 3], help="Set log level directly.")
