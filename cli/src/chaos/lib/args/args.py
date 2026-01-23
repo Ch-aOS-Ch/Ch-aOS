@@ -16,21 +16,19 @@ else:
             return []
 
 
-"""
-gets the argument parser for chaos
-"""
 class RolesCompleter:
+    """
+    gets the argument parser for chaos
+    """
     def __init__(self):
         self._roles = None
-        self._aliases = None
-        self.explain = None
 
     def __call__(self, prefix, **kwargs):
-        if self._roles is None or self._aliases is None:
+        if self._roles is None:
             from chaos.lib.plugDiscovery import get_plugins
-            self._roles, self._aliases = get_plugins()[:2]
+            self._roles = get_plugins()[0]
 
-        all_comps = list(self._roles.keys()) + list(self._aliases.keys())
+        all_comps = list(self._roles.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 class ExplainCompleter:

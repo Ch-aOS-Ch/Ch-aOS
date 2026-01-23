@@ -12,13 +12,13 @@ console = Console()
 
 """Team Utilities for Chaos CLI."""
 
-"""
-Checks the existence of some dependencies, be them required or optional.
-
-If adding a new dependency, make sure to make it clear whether it's required or optional.
-The ONLY required dependency should be sops, if you need to add more, something might be wrong.
-"""
 def _validate_deps():
+    """
+    Checks the existence of some dependencies, be them required or optional.
+
+    If adding a new dependency, make sure to make it clear whether it's required or optional.
+    The ONLY required dependency should be sops, if you need to add more, something might be wrong.
+    """
     hasAge = checkDep('age-keygen')
     hasSops = checkDep('sops')
     hasPgp = checkDep('gpg')
@@ -31,16 +31,16 @@ def _validate_deps():
 
     return hasAge, hasPgp
 
-"""
-Creates a symlink from the team directory to the chaos teams activation directory.
-
-If the symlink already exists and points to the same location, it does nothing.
-If it points to a different location, it raises an error.
-If a file or directory already exists at the activation path, it raises an error.
-
-If neither of those, it creates the symlink and notifies the user.
-"""
 def _symlink_teamDir(company: str, base_path: Path, team: str):
+    """
+    Creates a symlink from the team directory to the chaos teams activation directory.
+
+    If the symlink already exists and points to the same location, it does nothing.
+    If it points to a different location, it raises an error.
+    If a file or directory already exists at the activation path, it raises an error.
+
+    If neither of those, it creates the symlink and notifies the user.
+    """
     try:
         src = base_path
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
@@ -62,8 +62,8 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
     except Exception as e:
         raise RuntimeError(f"Failed to activate team: {e}") from e
 
-"""Protection against path traversal and invalid names."""
 def _validate_paths(args):
+    """Protection against path traversal and invalid names."""
     batch = args.target
 
     parts = batch.split('.')
@@ -88,10 +88,10 @@ def _validate_paths(args):
 
     return company, team, person
 
-"""
-Creates a .chaos.yml file in the specified path with the given parameters.
-"""
 def _create_chaos_file(path, company: str, team: str, person: str|None, engine: str):
+    """
+    Creates a .chaos.yml file in the specified path with the given parameters.
+    """
     chaos_file = Path(os.path.join(os.getcwd())) / ".chaos.yml" if not path else Path(path) / ".chaos.yml"
     if not chaos_file.exists():
         chaosContent = {
@@ -102,10 +102,10 @@ def _create_chaos_file(path, company: str, team: str, person: str|None, engine: 
         }
         yaml.dump(chaosContent, open(chaos_file, 'w'), default_flow_style=False)
 
-"""
-Loads and validates the .chaos.yml file in the specified path.
-"""
 def _get_chaos_file(path) -> DictConfig:
+    """
+    Loads and validates the .chaos.yml file in the specified path.
+    """
     chaos_file = Path(os.path.join(os.getcwd())) / ".chaos.yml" if not path else Path(path) / ".chaos.yml"
     if not chaos_file.exists():
         raise FileNotFoundError("No .chaos.yml file found in current directory.")
@@ -117,22 +117,22 @@ def _get_chaos_file(path) -> DictConfig:
 
     return chaosContent
 
-"""
-Creates a sops-config.yml file in the team directory with the appropriate configuration.
-
-The config follows the following structure:
-For RAMBLINGS:
-4kSSS: 4 keys with a shamir of 3, it has the team member's key (this group can have more keys, if the dev wants to share their ramblings) and the backup keys, as well as the team vault key and company vault key if vault is used.
-
-For DEV:
-4kSSS-U: 4 keys with a shamir of 3, it has the team's unified key and the backup keys, as well as the team vault key and company vault key if vault is used.
-
-For PROD:
-6kSSS: 6 keys with a shamir of 4, it has each team member's key inside one singular group and the backup keys, as well as the team vault key, company vault key, security team vault key and compliance team vault key if vault is used.
-
-Yeah Yeah, it's kinda big, but it's flexible, secure and more importantly: It does one singular thing.
-"""
 def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|None, ikwid) -> Optional[str]:
+    """
+    Creates a sops-config.yml file in the team directory with the appropriate configuration.
+
+    The config follows the following structure:
+    For RAMBLINGS:
+    4kSSS: 4 keys with a shamir of 3, it has the team member's key (this group can have more keys, if the dev wants to share their ramblings) and the backup keys, as well as the team vault key and company vault key if vault is used.
+
+    For DEV:
+    4kSSS-U: 4 keys with a shamir of 3, it has the team's unified key and the backup keys, as well as the team vault key and company vault key if vault is used.
+
+    For PROD:
+    6kSSS: 6 keys with a shamir of 4, it has each team member's key inside one singular group and the backup keys, as well as the team vault key, company vault key, security team vault key and compliance team vault key if vault is used.
+
+    Yeah Yeah, it's kinda big, but it's flexible, secure and more importantly: It does one singular thing.
+    """
     sops_file = teamDir / "sops-config.yml"
     if sops_file.exists():
         if not Confirm.ask(f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?", default=False):
@@ -235,8 +235,8 @@ def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|N
 
     return engine
 
-"""Generates the list of choices for encryption engines based on available dependencies."""
 def _get_choices(hasAge: bool, hasPgp: bool) -> list[str]:
+    """Generates the list of choices for encryption engines based on available dependencies."""
     choices = []
     if hasAge:
         choices.append('age')
@@ -246,8 +246,8 @@ def _get_choices(hasAge: bool, hasPgp: bool) -> list[str]:
         choices.append('both')
     return choices
 
-"""Validates and constructs the team directory path."""
 def _validate_teamDir(path: str, company: str, team: str) -> Path:
+    """Validates and constructs the team directory path."""
     if not path:
         teamDir = Path(os.path.join(os.getcwd(), company, team))
     else:
@@ -260,8 +260,8 @@ def _validate_teamDir(path: str, company: str, team: str) -> Path:
         teamDir = Path(os.path.join(path, company, team))
     return teamDir
 
-"""Lists all teams in the specified base directory."""
 def _list_teams_in_dir(baseDir: Path) -> set[str]:
+    """Lists all teams in the specified base directory."""
     if not baseDir.is_dir():
         return set()
     teams = set([d.name for d in baseDir.iterdir() if d.is_dir() or d.is_symlink()])

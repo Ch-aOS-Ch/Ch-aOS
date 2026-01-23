@@ -26,13 +26,13 @@ console = Console()
 Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
 """
 
-"""
-Initializes a new team structure with the specified parameters.
-
-Check the corresponding functions in teamUtils.py for detailed implementations of each step.
-+ the documentation there.
-"""
 def initTeam(args):
+    """
+    Initializes a new team structure with the specified parameters.
+
+    Check the corresponding functions in teamUtils.py for detailed implementations of each step.
+    + the documentation there.
+    """
     hasAge, hasPgp = _validate_deps()
     choices = _get_choices(hasAge, hasPgp)
 
@@ -74,10 +74,10 @@ def initTeam(args):
     base_path = Path(path).resolve() if path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
-"""
-Activates a team by reading the .chaos.yml file and creating necessary symlinks.
-"""
 def activateTeam(args):
+    """
+    Activates a team by reading the .chaos.yml file and creating necessary symlinks.
+    """
     path = args.path
     chaosContent = _get_chaos_file(path)
     company = chaosContent.get('company')
@@ -109,12 +109,12 @@ def activateTeam(args):
     base_path = Path(args.path).resolve() if args.path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
-"""
-Clones a git repository and activates the team if valid.
-
-Validity = presence of .chaos.yml with required fields.
-"""
 def cloneGitTeam(args):
+    """
+    Clones a git repository and activates the team if valid.
+
+    Validity = presence of .chaos.yml with required fields.
+    """
     from git import Repo
 
     repo = args.target
@@ -144,8 +144,8 @@ def cloneGitTeam(args):
     _ = _validate_teamDir(clone_dir, company, team)
     _symlink_teamDir(company, base_path, team)
 
-"""Lists all activated teams, optionally filtered by company."""
 def listTeams(args):
+    """Lists all activated teams, optionally filtered by company."""
     company = args.company
     baseDir = Path(f"~/.local/share/chaos/teams/{company}").expanduser() if company else Path(f"~/.local/share/chaos/teams").expanduser()
     if not baseDir.exists():
@@ -166,8 +166,8 @@ def listTeams(args):
     title = "[italic][green]Found teams:[/][/]"
     render_list_as_table(list(teams), title)
 
-"""Deactivates specified teams or all teams for a company."""
 def deactivateTeam(args):
+    """Deactivates specified teams or all teams for a company."""
     company = args.company
     if not company:
         raise ValueError("Company name is required to deactivate.")
@@ -222,8 +222,8 @@ def deactivateTeam(args):
     except OSError:
         pass
 
-"""Prunes stale team symlinks that point to non-existent directories."""
 def pruneTeams(args):
+    """Prunes stale team symlinks that point to non-existent directories."""
     confirm = True if args.i_know_what_im_doing else Confirm.ask("Prune stale team symlinks? This may take some time.", default=False)
     if not confirm:
         console.print("[yellow]Operation cancelled by user.[/]")

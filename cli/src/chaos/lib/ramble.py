@@ -18,41 +18,41 @@ Amazing for keeping track of random knowledge, scripts, concepts, and ideas rela
 Also, great for documenting secrets management strategies, configurations, and best practices.
 """
 
-"""
-Validates and returns the ramble directory with the support for teams.
-"""
 def _get_ramble_dir(team) -> Path:
+    """
+    Validates and returns the ramble directory with the support for teams.
+    """
     if team:
         if not '.' in team:
             raise ValueError("Must set a company for your team. (company.team.person)")
 
-        parts = team.split('.')
-        if len(parts) != 3:
-            raise ValueError("Must set a person for your team. (company.team.person)")
+            parts = team.split('.')
+            if len(parts) != 3:
+                raise ValueError("Must set a person for your team. (company.team.person)")
 
-        company, team, person = parts
+            company, team, person = parts
 
-        if ".." in person or person.startswith("/"):
-             raise ValueError(f"Invalid person name '{person}'.")
+            if ".." in person or person.startswith("/"):
+                raise ValueError(f"Invalid person name '{person}'.")
 
-        if ".." in company or company.startswith("/"):
-             raise ValueError(f"Invalid company name '{company}'.")
+            if ".." in company or company.startswith("/"):
+                raise ValueError(f"Invalid company name '{company}'.")
 
-        if ".." in team or team.startswith("/"):
-             raise ValueError(f"Invalid team name '{team}'.")
+            if ".." in team or team.startswith("/"):
+                raise ValueError(f"Invalid team name '{team}'.")
 
-        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/'))
+            team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/'))
 
-        if not team_ramble_path.exists():
-            raise FileNotFoundError(f"Team ramble directory for '{team}' not found at {team_ramble_path}.")
-        team_ramble_path = team_ramble_path / 'ramblings' / person
-        return team_ramble_path
-    return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+            if not team_ramble_path.exists():
+                raise FileNotFoundError(f"Team ramble directory for '{team}' not found at {team_ramble_path}.")
+            team_ramble_path = team_ramble_path / 'ramblings' / person
+            return team_ramble_path
+        return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
-"""
-Validates that the target path is within the ramble directory to prevent path traversal.
-"""
 def is_safe_path(target_path: Path, team) -> bool:
+    """
+    Validates that the target path is within the ramble directory to prevent path traversal.
+    """
     try:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
         resolved_target = target_path.resolve(strict=False)
@@ -65,10 +65,10 @@ def is_safe_path(target_path: Path, team) -> bool:
     except Exception as e:
         raise RuntimeError(f"Secure validation failed: {e}") from e
 
-"""
-Reads the content of a ramble file, handling decryption if necessary.
-"""
 def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
+    """
+    Reads the content of a ramble file, handling decryption if necessary.
+    """
     is_safe_path(ramble_path, team)
 
     if not ramble_path.exists():
@@ -113,12 +113,12 @@ def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
     except Exception as e:
         raise RuntimeError(f'Could not read or parse ramble file: {ramble_path}\n{e}') from e
 
-"""
-Prints the ramble content in a formatted manner.
-
-Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
-"""
 def _print_ramble(ramble_path, sops_config, target_name, team, args, global_config):
+    """
+    Prints the ramble content in a formatted manner.
+
+    Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
+    """
     ramble_data, _ = _read_ramble_content(ramble_path, sops_config, team, args, global_config)
     if args.no_pretty:
         from omegaconf import DictConfig, OmegaConf
@@ -212,10 +212,10 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
         )
     )
 
-"""
-Handles the ambiguity of ramble targets, allowing for listing pages or reading specific pages.
-"""
 def _process_ramble_target(target, sops_file_override, team, args, global_config):
+    """
+    Handles the ambiguity of ramble targets, allowing for listing pages or reading specific pages.
+    """
     from rich.table import Table
     from rich.panel import Panel
     from rich.align import Align
@@ -273,12 +273,12 @@ def _process_ramble_target(target, sops_file_override, team, args, global_config
         full_path = path / f'{page}.yml'
         _print_ramble(full_path, sops_file_override, target, team, args, global_config)
 
-"""
-Creates a new ramble journal or page, and opens it in the user's editor.
-
-If the ramble passed does not include a dot, the journal name is used for both the journal and page.
-"""
 def handleCreateRamble(args):
+    """
+    Creates a new ramble journal or page, and opens it in the user's editor.
+
+    If the ramble passed does not include a dot, the journal name is used for both the journal and page.
+    """
     ramble = args.target
     team = getattr(args, 'team', None)
     CONFIG_DIR = _get_ramble_dir(team)
@@ -384,8 +384,8 @@ scripts:
             handleEncryptRamble(encryptArgs)
     return
 
-"""Edits an existing ramble journal or page, handling decryption if necessary."""
 def handleEditRamble(args):
+    """Edits an existing ramble journal or page, handling decryption if necessary."""
     from omegaconf import DictConfig, OmegaConf
     from rich.table import Table
     from rich.panel import Panel
@@ -520,13 +520,13 @@ def handleEditRamble(args):
     else:
         console.print("No page selected. Exiting.")
 
-"""
-Encrypts specified keys in a ramble page using sops.
-
-If -k not passed, encrypts everything except base keys.
-The tags key is never encrypted, helping to optimize searching.
-"""
 def handleEncryptRamble(args):
+    """
+    Encrypts specified keys in a ramble page using sops.
+
+    If -k not passed, encrypts everything except base keys.
+    The tags key is never encrypted, helping to optimize searching.
+    """
     from omegaconf import DictConfig, OmegaConf
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -609,10 +609,10 @@ def handleEncryptRamble(args):
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f'Ramble encryption/decryption failed: {e}') from e
 
-"""
-Handles the display of the ramble content.
-"""
 def handleReadRamble(args):
+    """
+    Handles the display of the ramble content.
+    """
     from omegaconf import DictConfig, OmegaConf
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
@@ -629,12 +629,12 @@ def handleReadRamble(args):
     for target in args.targets:
         _process_ramble_target(target, sops_file_override, team, args, global_config)
 
-"""
-Searches for rambles containing a specific term, optionally filtered by tag.
-
-If nothing passed, lists all rambles.
-"""
 def handleFindRamble(args):
+    """
+    Searches for rambles containing a specific term, optionally filtered by tag.
+
+    If nothing passed, lists all rambles.
+    """
     from omegaconf import DictConfig, OmegaConf
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
@@ -702,8 +702,8 @@ def handleFindRamble(args):
     title = "[italic][green]Found ramblings:[/][/]"
     render_list_as_table(results, title)
 
-"Moves or renames a ramble journal or page."
 def handleMoveRamble(args):
+    "Moves or renames a ramble journal or page."
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
     old = args.old
@@ -768,8 +768,8 @@ def handleMoveRamble(args):
         console = Console()
         console.print(f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]")
 
-"Deletes a ramble journal or page after confirmation."
 def handleDelRamble(args):
+    "Deletes a ramble journal or page after confirmation."
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)
     ramble = args.ramble
@@ -810,8 +810,8 @@ def handleDelRamble(args):
         else:
             console.print("[green]Alright![/] Aborting.")
 
-"Updates encryption keys for all encrypted rambles in the ramble directory."
 def handleUpdateEncryptRamble(args):
+    "Updates encryption keys for all encrypted rambles in the ramble directory."
     from omegaconf import DictConfig, OmegaConf
     team = getattr(args, 'team', None)
     RAMBLE_DIR = _get_ramble_dir(team)

@@ -13,8 +13,8 @@ def _resolveProvider(args, global_config):
 
     return _getProvider(args, global_config)
 
-"""Returns the appropriate secret provider based on the command-line arguments."""
 def _getProvider(args, global_config):
+    """Returns the appropriate secret provider based on the command-line arguments."""
     from chaos.lib.utils import get_providerEps
     provider_eps = get_providerEps()
 
@@ -52,10 +52,10 @@ def _getProviderByName(provider_subcommand_name: str, args, global_config) -> "P
         raise ValueError(f"No secret provider found for '{provider_subcommand_name}'.")
     return provider
 
-"""
-Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
-"""
 def setup_gpg_keys(gnupghome) -> None:
+    """
+    Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
+    """
     import subprocess
     from rich.console import Console
     console = Console()
@@ -100,10 +100,10 @@ def setup_gpg_keys(gnupghome) -> None:
         except:
             pass
 
-"""
-Concatenates existing age keys with imported ones
-"""
 def conc_age_keys(secKey: str) -> str:
+    """
+    Concatenates existing age keys with imported ones
+    """
     sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
     if not sops_file_env or not Path(sops_file_env).exists():
         return secKey
@@ -115,10 +115,10 @@ def conc_age_keys(secKey: str) -> str:
 
     return concResult
 
-"""
-Checks for gpg fingerprint validity
-"""
 def is_valid_fp(fp):
+    """
+    Checks for gpg fingerprint validity
+    """
     import re
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
     if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
@@ -126,10 +126,10 @@ def is_valid_fp(fp):
     else:
         return False
 
-"""
-Checks for gpg fp existence
-"""
 def pgp_exists(fp):
+    """
+    Checks for gpg fp existence
+    """
     import subprocess
     try:
         subprocess.run(
@@ -142,10 +142,10 @@ def pgp_exists(fp):
     except subprocess.CalledProcessError:
         return False
 
-"""
-Validates public age keys
-"""
 def is_valid_age_key(pubKey: str) -> bool:
+    """
+    Validates public age keys
+    """
     import re
     isValid = False
     testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey) 
@@ -153,10 +153,10 @@ def is_valid_age_key(pubKey: str) -> bool:
         isValid = True
     return isValid
 
-"""
-Validates private age keys
-"""
 def is_valid_age_secret_key(secKey: str) -> bool:
+    """
+    Validates private age keys
+    """
     import re
     isValid = False
     testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) 
@@ -164,10 +164,10 @@ def is_valid_age_secret_key(secKey: str) -> bool:
         isValid = True
     return isValid
 
-"""
-Sets up the vault keys for exporting, validating them on the way
-"""
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
+    """
+    Sets up the vault keys for exporting, validating them on the way
+    """
     from chaos.lib.utils import checkDep
     if not checkDep("vault"): raise EnvironmentError("The 'vault' CLI tool is required but not found in PATH.")
     with open(keyPath, 'r') as f:
@@ -180,20 +180,20 @@ Vault Key: {key}
 """
     return key_content
 
-"""
-Creates a pipe for passing inside a FD
-"""
 def setup_pipe(token: str) -> int:
+    """
+    Creates a pipe for passing inside a FD
+    """
     r, w = os.pipe()
     os.write(w, token.encode())
     os.fchmod(w, 0o600)
     os.close(w)
     return r
 
-"""
-checks if vault key is valid
-"""
 def _is_valid_vault_key(key):
+    """
+    checks if vault key is valid
+    """
     import hvac # type: ignore
     import requests.exceptions
     try:
@@ -212,10 +212,10 @@ def _is_valid_vault_key(key):
     except Exception as e:
         return False, f"An unexpected error occurred while validating Vault URI '{key}': {e}"
 
-"""
-extracts age private and public keys
-"""
 def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
+    """
+    extracts age private and public keys
+    """
     pubKey, secKey = None, None
     for line in key_content.splitlines():
         line = line.strip()
@@ -225,10 +225,10 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
             secKey = line
     return pubKey, secKey
 
-"""
-Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
-"""
 def extract_gpg_keys(fingerprints: list[str]) -> str:
+    """
+    Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
+    """
     import subprocess
     try:
         result = subprocess.run(
@@ -252,10 +252,10 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
-"""
-Compression/Decompression for gpg keys. This is the only way they can fit inside a bw notes
-"""
 def compress(data: bytes) -> str:
+    """
+    Compression/Decompression for gpg keys. This is the only way they can fit inside a bw notes
+    """
     import zlib
     import base64
     try:
@@ -275,10 +275,10 @@ def decompress(encoded_data: str) -> bytes:
     except Exception as e:
         raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
 
-"""
-Gets sops files, secrets files and config files
-"""
 def get_sops_files(sops_file_override, secrets_file_override, team):
+    """
+    Gets sops files, secrets files and config files
+    """
     from omegaconf import OmegaConf, DictConfig
     from rich.console import Console
     console = Console()
@@ -372,10 +372,10 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
     return secretsFile, sopsFile, global_config
 
-"""
-Turns a concatenated list into a singular list
-"""
 def flatten(items):
+    """
+    Turns a concatenated list into a singular list
+    """
     from omegaconf import ListConfig
     for i in items:
         if isinstance(i, (list, ListConfig)):
@@ -383,9 +383,6 @@ def flatten(items):
         else:
             yield i
 
-"""
-Saves freshly exported keys to the specified provider
-"""
 def _save_to_config(backend: str, data_to_save: dict) -> None:
     """
     Saves provider-specific data to the chaos config file.
@@ -406,10 +403,10 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
 
     OmegaConf.save(config, config_path)
 
-"""
-The rest of the functions should be auto explicative.
-"""
 def handleUpdateAllSecrets(args):
+    """
+    The rest of the functions should be auto explicative.
+    """
     from chaos.lib.checkers import is_vault_in_use, check_vault_auth
     import subprocess
     from rich.console import Console

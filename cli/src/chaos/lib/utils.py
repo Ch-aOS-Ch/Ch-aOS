@@ -3,8 +3,8 @@ import math
 import functools
 from itertools import zip_longest
 
-"""This just checks if a SHELL COMMAND exists in the system PATH."""
 def checkDep(bin):
+    """This just checks if a SHELL COMMAND exists in the system PATH."""
     path = shutil.which(bin)
     if path is None:
         return False

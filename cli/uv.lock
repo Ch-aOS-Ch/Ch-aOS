@@ -168,7 +168,7 @@ wheels = [
 
 [[package]]
 name = "chaos"
-version = "0.1.0"
+version = "0.6"
 source = { editable = "." }
 dependencies = [
     { name = "argcomplete" },
@@ -192,6 +192,11 @@ dependencies = [
     { name = "zope-interface" },
 ]
 
+[package.optional-dependencies]
+build = [
+    { name = "shiv" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "argcomplete" },
@@ -210,10 +215,12 @@ requires-dist = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
+    { name = "shiv", marker = "extra == 'build'" },
     { name = "urllib3", specifier = ">=2.6.3" },
     { name = "zope-event" },
     { name = "zope-interface" },
 ]
+provides-extras = ["build"]
 
 [[package]]
 name = "charset-normalizer"
@@ -670,6 +677,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pip"
+version = "25.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/6e/74a3f0179a4a73a53d66ce57fdb4de0080a8baa1de0063de206d6167acc2/pip-25.3.tar.gz", hash = "sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343", size = 1803014, upload-time = "2025-10-25T00:55:41.394Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/3c/d717024885424591d5376220b5e836c2d5293ce2011523c9de23ff7bf068/pip-25.3-py3-none-any.whl", hash = "sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd", size = 1778622, upload-time = "2025-10-25T00:55:39.247Z" },
+]
+
+[[package]]
 name = "psutil"
 version = "7.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -862,6 +878,29 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fb/d2/8920e102050a0de7bfabeb4c4614a49248cf8d5d7a8d01885fbb24dc767a/rich-14.2.0.tar.gz", hash = "sha256:73ff50c7c0c1c77c8243079283f4edb376f0f6442433aecb8ce7e6d0b92d1fe4", size = 219990, upload-time = "2025-10-09T14:16:53.064Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/25/7a/b0178788f8dc6cafce37a212c99565fa1fe7872c70c6c9c1e1a372d9d88f/rich-14.2.0-py3-none-any.whl", hash = "sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd", size = 243393, upload-time = "2025-10-09T14:16:51.245Z" },
+]
+
+[[package]]
+name = "setuptools"
+version = "80.10.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/ff/f75651350db3cf2ef767371307eb163f3cc1ac03e16fdf3ac347607f7edb/setuptools-80.10.1.tar.gz", hash = "sha256:bf2e513eb8144c3298a3bd28ab1a5edb739131ec5c22e045ff93cd7f5319703a", size = 1229650, upload-time = "2026-01-21T09:42:03.061Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/76/f963c61683a39084aa575f98089253e1e852a4417cb8a3a8a422923a5246/setuptools-80.10.1-py3-none-any.whl", hash = "sha256:fc30c51cbcb8199a219c12cc9c281b5925a4978d212f84229c909636d9f6984e", size = 1099859, upload-time = "2026-01-21T09:42:00.688Z" },
+]
+
+[[package]]
+name = "shiv"
+version = "1.0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "pip" },
+    { name = "setuptools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/06/85/004e7123b4821c64be6d9bfed27f63147b4dde929a1cd848f137befeada4/shiv-1.0.8.tar.gz", hash = "sha256:2a68d69e98ce81cb5b8fdafbfc1e27efa93e6d89ca14bfae33482e4176f561d6", size = 32806, upload-time = "2024-11-01T19:47:46.189Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/ec/afbb46f7c1ab071a50d92424daf149420ca1f0e02dc51239485747151d6c/shiv-1.0.8-py2.py3-none-any.whl", hash = "sha256:a60e4b05a2d2f8b820d567b1d89ee59af731759771c32c282d03c4ceae6aba24", size = 20516, upload-time = "2024-11-01T19:47:45.061Z" },
 ]
 
 [[package]]

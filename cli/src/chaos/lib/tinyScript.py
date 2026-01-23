@@ -3,10 +3,10 @@ import subprocess
 from typing import cast
 from omegaconf import DictConfig, OmegaConf
 
-"""
-This is quite literally a tiny script to open the Ch-obolo file in the user's preferred text editor.
-"""
 def runChoboloEdit(chobolo_path):
+    """
+    This is quite literally a tiny script to open the Ch-obolo file in the user's preferred text editor.
+    """
     editor = os.getenv('EDITOR', 'nano')
     if not chobolo_path:
         CONFIG_DIR = os.path.expanduser("~/.config/chaos")

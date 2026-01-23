@@ -9,10 +9,10 @@ Handles listing of roles/explanations/aliases with rich rendering.
 + some validity checks for vault
 """
 
-"""
-Handles the printing of the lists.
-"""
 def printCheck(namespace, dispatcher, json_output=False):
+    """
+    Handles the printing of the lists.
+    """
     if not json_output:
         from rich.console import Console
         from rich.panel import Panel
@@ -107,11 +107,11 @@ def checkProviders(providers, isJson=False):
 def checkBoats(boats, isJson=False):
     printCheck("boat", boats, json_output=isJson)
 
-"""
-checks if vault is in use in the sops file
-yeah, just that
-"""
 def is_vault_in_use(sops_file_path: str) -> bool:
+    """
+    checks if vault is in use in the sops file
+    yeah, just that
+    """
     from omegaconf import DictConfig, OmegaConf
     if not sops_file_path or not os.path.exists(sops_file_path):
         return False
@@ -127,8 +127,8 @@ def is_vault_in_use(sops_file_path: str) -> bool:
         return False
     return False
 
-"""checks if vault auth is valid"""
 def check_vault_auth():
+    """checks if vault auth is valid"""
     vault_addr = os.getenv('VAULT_ADDR')
     if not vault_addr:
         return False, "[bold red]ERROR:[/] VAULT_ADDR environment variable is not set, which is required when using Vault keys."

@@ -33,21 +33,21 @@ def list_explain_subtopics(explainObj, role, console):
     console.print(Align.center(Panel(table, border_style="green", expand=False, title=f"[italic][bold green]Available subtopics for[/] [bold magenta]{role}[/bold magenta][/]:")))
     sys.exit(0)
 
-"""
-Another Chunker:
-
-This function handles the 'explain' command.
-It basically loads the appropriate explanation class based on the topic passed.
-Then it calls the appropriate method to get the explanation data.
-Then it formats and displays the explanation using rich.
-
-The explanation data is expected to be a dictionary with various keys like 'concept', 'what', 'why', 'how', 'examples', etc.
-The level of detail to show is determined by the 'details' argument (basic, intermediate, advanced).
-If the sub-topic is 'list', it lists all available sub-topics for the given role.
-
-I really should add a "--complexity" flag to extend the capability of detailing even further.
-"""
 def handleExplain(args, EXPLAIN_DISPATCHER):
+    """
+    Another Chunker:
+
+    This function handles the 'explain' command.
+    It basically loads the appropriate explanation class based on the topic passed.
+    Then it calls the appropriate method to get the explanation data.
+    Then it formats and displays the explanation using rich.
+
+    The explanation data is expected to be a dictionary with various keys like 'concept', 'what', 'why', 'how', 'examples', etc.
+    The level of detail to show is determined by the 'details' argument (basic, intermediate, advanced).
+    If the sub-topic is 'list', it lists all available sub-topics for the given role.
+
+    I really should add a "--complexity" flag to extend the capability of detailing even further.
+    """
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.markdown import Markdown

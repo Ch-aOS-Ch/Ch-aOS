@@ -18,8 +18,8 @@ console = Console()
 Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
 """
 
-"Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
 def initChobolo(keys, args):
+    "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
     finalConf = oc.create()
     addedKeys = set()
 
@@ -52,10 +52,10 @@ def initChobolo(keys, args):
 # -------------- SECRET INITING -------------
 
 def checkForSsh():
+    """Checks for SSH public keys in ~/.ssh directory."""
     ssh_dir = Path(os.path.expanduser("~/.ssh"))
     public_keys = list(ssh_dir.glob("*.pub"))
     return public_keys
-
 
 def setupSshToAge():
     """
@@ -193,7 +193,7 @@ def genBatchGpg(name, email):
 
     Uses the best practices for key generation with EdDSA and Curve25519.
 
-    deps: gpg
+    deps: gnupg
     """
     batch = f"""
 Key-Type: EdDSA
@@ -284,6 +284,7 @@ def setupGpg():
         raise RuntimeError("Operation cancelled by user.")
 
 def setupSsh():
+    """Setup SSH key for Sops encryption."""
     amount = None
     public_keys = checkForSsh()
     if public_keys:

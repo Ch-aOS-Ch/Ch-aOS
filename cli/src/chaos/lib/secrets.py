@@ -5,12 +5,12 @@ Module for handling secret management operations such as adding/removing keys, e
 """
 
 
-"""
-Adds a new key to the sops config file and (if -u), updates all secrets.
-
-Check secret_backends/utils.py for shared functions + their docs.
-"""
 def handleRotateAdd(args):
+    """
+    Adds a new key to the sops config file and (if -u), updates all secrets.
+
+    Check secret_backends/utils.py for shared functions + their docs.
+    """
     from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -42,8 +42,8 @@ def handleRotateAdd(args):
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
-"""Removes a key from the sops config file and (if -u), updates all secrets."""
 def handleRotateRemove(args):
+    """Removes a key from the sops config file and (if -u), updates all secrets."""
     from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -74,8 +74,8 @@ def handleRotateRemove(args):
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
         handleUpdateAllSecrets(args)
 
-"""Lists all keys of a certain type from the sops config file."""
 def listFp(args):
+    """Lists all keys of a certain type from the sops config file."""
     from chaos.lib.secret_backends.utils import get_sops_files
     sops_file_override = getattr(args, 'sops_file_override', None)
     secrets_file_override = getattr(args, 'secrets_file_override', None)
@@ -86,26 +86,26 @@ def listFp(args):
     if not sops_file_override:
         raise FileNotFoundError("No sops config file found.")
 
-    match args.type:
-        case 'pgp':
-            from chaos.lib.secret_backends.pgp import listPgp
-            results = listPgp(sops_file_override)
-        case 'age':
-            from chaos.lib.secret_backends.age import listAge
-            results = listAge(sops_file_override)
-        case 'vault':
-            from chaos.lib.secret_backends.vault import listVault
-            results = listVault(sops_file_override)
-        case _:
-            raise ValueError("No available type passed.")
+        match args.type:
+            case 'pgp':
+                from chaos.lib.secret_backends.pgp import listPgp
+                results = listPgp(sops_file_override)
+            case 'age':
+                from chaos.lib.secret_backends.age import listAge
+                results = listAge(sops_file_override)
+            case 'vault':
+                from chaos.lib.secret_backends.vault import listVault
+                results = listVault(sops_file_override)
+            case _:
+                raise ValueError("No available type passed.")
 
-    if results:
-        from chaos.lib.utils import render_list_as_table
-        title = f"[italic][green]Found {args.type} Keys:[/][/]"
-        render_list_as_table(list(results), title)
+        if results:
+            from chaos.lib.utils import render_list_as_table
+            title = f"[italic][green]Found {args.type} Keys:[/][/]"
+            render_list_as_table(list(results), title)
 
-"""Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
 def handleSetShamir(args):
+    """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
     from rich.console import Console
     from chaos.lib.secret_backends.utils import get_sops_files
     import os
@@ -181,8 +181,8 @@ def handleSetShamir(args):
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
-"""Opens the secrets file in SOPS for editing."""
 def handleSecEdit(args):
+    """Opens the secrets file in SOPS for editing."""
     from chaos.lib.secret_backends.utils import get_sops_files,  _resolveProvider
     import subprocess
     from chaos.lib.checkers import is_vault_in_use
@@ -225,8 +225,8 @@ def handleSecEdit(args):
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
-"""Prints the decrypted secrets file to stdout."""
 def handleSecPrint(args):
+    """Prints the decrypted secrets file to stdout."""
     import json
     import subprocess
     from chaos.lib.checkers import is_vault_in_use
@@ -269,8 +269,8 @@ def handleSecPrint(args):
     except FileNotFoundError as e:
         raise FileNotFoundError("'sops' command not found. Please ensure sops is installed and in your PATH.") from e
 
-"""Prints specific keys from the decrypted secrets file to stdout."""
 def handleSecCat(args):
+    """Prints specific keys from the decrypted secrets file to stdout."""
     from chaos.lib.checkers import is_vault_in_use
     from chaos.lib.secret_backends.utils import get_sops_files, _handle_provider_arg
     import json

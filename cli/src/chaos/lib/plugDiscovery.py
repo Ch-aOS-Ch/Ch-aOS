@@ -20,19 +20,19 @@ if pluginDevPath:
         print(f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr)
 
 
-"""
-Discover and load Ch-aOS plugins from specified directories and cache the results.
-
-Helps with performance through caching discovered plugins.
-
-Current Plugin Capabilities:
-Roles: Define new chaos roles for applying and managing an OS.
-Aliases: Define new aliases for existing roles.
-Keys: Define new keys for existing roles, allowing for better `chaos init chobolo`.
-Explanations: Define explanations for existing roles, enhancing user understanding.
-"""
 @functools.lru_cache(maxsize=None)
 def get_plugins(update_cache=False):
+    """
+    Discover and load Ch-aOS plugins from specified directories and cache the results.
+
+    Helps with performance through caching discovered plugins.
+
+    Current Plugin Capabilities:
+    Roles: Define new chaos roles for applying and managing an OS.
+    Aliases: Define new aliases for existing roles.
+    Keys: Define new keys for existing roles, allowing for better `chaos init chobolo`.
+    Explanations: Define explanations for existing roles, enhancing user understanding.
+    """
     plugin_dirs = [
         Path.home() / ".local/share/chaos/plugins",
         Path("/usr/share/chaos/plugins")
@@ -110,10 +110,10 @@ def get_plugins(update_cache=False):
 
     return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys, discovered_providers, discovered_boats
 
-"""
-Load role functions based on their specifications.
-"""
 def load_roles(roles_spec):
+    """
+    Load role functions based on their specifications.
+    """
     loaded_roles = {}
     for name, spec in roles_spec.items():
         try:
@@ -124,8 +124,8 @@ def load_roles(roles_spec):
             print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
     return loaded_roles
 
-"""Load a key based on its specification."""
 def loadList(spec):
+    """Load a key based on its specification."""
     try:
         moduleName, obj = spec.split(':', 1)
         module = import_module(moduleName)
