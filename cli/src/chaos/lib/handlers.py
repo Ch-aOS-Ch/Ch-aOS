@@ -7,6 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 import os
 from .telemetry import ChaosTelemetry
+from .utils import validate_path
 
 from .boats.base import Boat
 
@@ -60,7 +61,6 @@ This allows for better performance and error handling.
 I really should wrap this in a try/finally to ensure disconnection happens, but for now, this will do.
 """
 def _collect_fleet_health(state, stage):
-    from .facts.facts import RamUsage, LoadAverage
     """
     Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
 
@@ -70,6 +70,7 @@ def _collect_fleet_health(state, stage):
         state (State): The current pyinfra state containing the inventory and connection pool.
         stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
     """
+    from .facts.facts import RamUsage, LoadAverage
     def _fetch_and_record(host):
         ram_data = host.get_fact(RamUsage)
         load_data = host.get_fact(LoadAverage)
@@ -95,8 +96,13 @@ def _get_configs(args):
     global_config = cast(DictConfig, global_config)
 
     chobolo_path = args.chobolo or global_config.get('chobolo_file', None)
+    validate_path(chobolo_path)
+
     secrets_file_override = args.secrets_file_override or global_config.get('secrets_file', None)
+    validate_path(secrets_file_override)
+
     sops_file_override = args.sops_file_override or global_config.get('sops_file', None)
+    validate_path(sops_file_override)
 
     if not chobolo_path:
         raise FileNotFoundError("No Ch-obolo passed\n"
@@ -241,6 +247,8 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     sudo_password = None
     sudo_password = None
     if args.sudo_password_file:
+        validate_path(args.sudo_password_file)
+
         sudo_file = Path(args.sudo_password_file)
         if not sudo_file.exists():
             raise FileNotFoundError(f"Sudo password file not found: {sudo_file}")
@@ -348,46 +356,46 @@ def _run_tags(
     console_err,
     host,
 ):
-            for tag in args.tags:
-                normalized_tag = _setup_normalized_tag(tag, ROLE_ALIASES)
-                if normalized_tag in ROLES_DISPATCHER:
-                    if normalized_tag in SEC_HAVING_ROLES:
-                        handleSecRoles(
-                            normalized_tag,
-                            SEC_HAVING_ROLES,
-                            skip,
-                            decrypted_secrets,
-                            commonArgs,
-                            ROLES_DISPATCHER,
-                            secrets_file_override,
-                            sops_file_override,
-                            global_config,
-                            args
-                        )
+    for tag in args.tags:
+        normalized_tag = _setup_normalized_tag(tag, ROLE_ALIASES)
+        if normalized_tag in ROLES_DISPATCHER:
+            if normalized_tag in SEC_HAVING_ROLES:
+                handleSecRoles(
+                    normalized_tag,
+                    SEC_HAVING_ROLES,
+                    skip,
+                    decrypted_secrets,
+                    commonArgs,
+                    ROLES_DISPATCHER,
+                    secrets_file_override,
+                    sops_file_override,
+                    global_config,
+                    args
+                )
 
-                # HACK: Special handling for 'packages' role to determine mode
-                # To be refactored later (with the role as well)
-                    elif normalized_tag == 'packages':
-                        mode = ''
-                        if tag in ['allPkgs', 'packages', 'pkgs']:
-                            mode = 'all'
-                        elif tag == 'natPkgs':
-                            mode = 'native'
-                        elif tag == 'aurPkgs':
-                            mode = 'aur'
+        # HACK: Special handling for 'packages' role to determine mode
+        # To be refactored later (with the role as well)
+            elif normalized_tag == 'packages':
+                mode = ''
+                if tag in ['allPkgs', 'packages', 'pkgs']:
+                    mode = 'all'
+                elif tag == 'natPkgs':
+                    mode = 'native'
+                elif tag == 'aurPkgs':
+                    mode = 'aur'
 
-                        if not mode:
-                            console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
+                if not mode:
+                    console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
 
-                        pkgArgs = commonArgs + (mode,)
-                        ROLES_DISPATCHER[normalized_tag](*pkgArgs)
+                pkgArgs = commonArgs + (mode,)
+                ROLES_DISPATCHER[normalized_tag](*pkgArgs)
 
-                    else:
-                        ROLES_DISPATCHER[normalized_tag](*commonArgs)
+            else:
+                ROLES_DISPATCHER[normalized_tag](*commonArgs)
 
-                    console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized for {host.name}. ---\n")
-                else:
-                    console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
+            console.print(f"\n--- '[bold blue]{normalized_tag}[/bold blue]' role finalized for {host.name}. ---\n")
+        else:
+            console_err.print(f"\n[bold yellow]WARNING:[/] Unknown tag '{normalized_tag}'. Skipping.")
 
 def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALIASES: DictConfig = OmegaConf.create()):
     from pyinfra.api.connect import disconnect_all # type: ignore

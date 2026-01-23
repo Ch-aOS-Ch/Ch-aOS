@@ -3,6 +3,11 @@ import math
 import functools
 from itertools import zip_longest
 
+def validate_path(path: str) -> str:
+    """Validates given file system path."""
+    if ".." in path or "//" in path or (path.startswith("/") and not path.startswith(shutil.os.path.expanduser("~"))):
+        raise ValueError("Invalid file path.")
+
 def checkDep(bin):
     """This just checks if a SHELL COMMAND exists in the system PATH."""
     path = shutil.which(bin)

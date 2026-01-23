@@ -2,6 +2,7 @@ import os
 import subprocess
 from typing import cast
 from omegaconf import DictConfig, OmegaConf
+from chaos.lib.utils import validate_path
 
 def runChoboloEdit(chobolo_path):
     """
@@ -18,6 +19,8 @@ def runChoboloEdit(chobolo_path):
         chobolo_path = cfg.get('chobolo_file', None)
 
     if chobolo_path:
+        validate_path(chobolo_path)
+
         try:
             subprocess.run(
                 [editor, chobolo_path],

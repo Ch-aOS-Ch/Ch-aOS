@@ -2,6 +2,7 @@ import shutil
 from typing import cast
 from pathlib import Path
 import os
+from ..utils import validate_path
 
 """
 Now now, I KNOW this is way too big of a file, but bear with me here
@@ -369,6 +370,9 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             except Exception as e:
                 import sys
                 print(f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}", file=sys.stderr)
+
+    validate_path(secretsFile)
+    validate_path(sopsFile)
 
     return secretsFile, sopsFile, global_config
 

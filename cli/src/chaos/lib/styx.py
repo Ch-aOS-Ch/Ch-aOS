@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import cast
 import requests
 from omegaconf import DictConfig, OmegaConf
+from chaos.lib.utils import validate_path
 
 TIMEOUT = 10
 
@@ -175,6 +176,8 @@ def uninstall_styx_entries(entries: list[str]):
     """Uninstalls the given Styx registry entries."""
     for name in entries:
         wheel_filename = f"{name}.whl"
+        validate_path(wheel_filename)
+
         wheel_path = Path(os.path.expanduser(f"~/.local/share/chaos/plugins/{wheel_filename}"))
 
         if not wheel_path.exists():

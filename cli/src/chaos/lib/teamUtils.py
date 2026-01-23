@@ -4,6 +4,7 @@ from typing import cast, Optional
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from pathlib import Path
+from .utils import validate_path
 import yaml
 import os
 from rich.console import Console
@@ -251,8 +252,7 @@ def _validate_teamDir(path: str, company: str, team: str) -> Path:
     if not path:
         teamDir = Path(os.path.join(os.getcwd(), company, team))
     else:
-        if '..' in path or path.startswith("/"):
-            raise ValueError(f"Invalid path '{path}'.")
+        validate_path(path)
 
         if not Path(path).exists():
             raise FileNotFoundError(f"Specified path '{path}' does not exist.")

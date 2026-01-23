@@ -3,9 +3,9 @@ from rich.console import Console
 from rich.prompt import Confirm
 from pathlib import Path
 import subprocess
-import shutil
+import shutils
 
-from chaos.lib.utils import checkDep, render_list_as_table
+from chaos.lib.utils import checkDep, render_list_as_table, validate_path
 """Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 from chaos.lib.teamUtils import (
     _validate_deps,
@@ -120,6 +120,8 @@ def cloneGitTeam(args):
     repo = args.target
     path = args.path
     clone_dir = path if path else repo.split('/')[-1].replace('.git', '')
+    validate_path(clone_dir)
+
     try:
         if path:
             Repo.clone_from(repo, path)
