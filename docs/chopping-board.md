@@ -53,7 +53,7 @@ So, as you can see, this is not a small task... like, at all, but it could turn 
 Also, yeah, its going to be written in Go, since... well, its a server, and Go is great for that, plus, I want to learn Go, plus plus, its a TUI, not a web app, so... yeah.
 
 !!! experiment "Metrics are on the table!"
-    I've implemented a complete metrics collection for Ch-aOS that can be seen [here](./advanced/telemetry.md), this is a first step towards Ch-apetanios, since it provides a way to collect data from multiple systems. (Also, I had to create a pyinfra FACT for this to get system hardware info, kinda cooool huuuuh?)
+    I've implemented a complete metrics collection for Ch-aOS that can be seen [here](./advanced/logbook.md), this is a first step towards Ch-apetanios, since it provides a way to collect data from multiple systems. (Also, I had to create a pyinfra FACT for this to get system hardware info, kinda cooool huuuuh?)
 
 ## (Something I'd enjoy using) Ch-aOS Styx
 

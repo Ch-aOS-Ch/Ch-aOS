@@ -1,6 +1,11 @@
 # ***Ch-aOS project suite***
 
 [![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/Dexmachi/Ch-aronte)
+## Just wanna get ready? Aight.
+
+`curl -LsSf https://raw.githubusercontent.com/Ch-aOS-Ch/Ch-aOS/refs/heads/main/install.sh | sudo bash`
+here you go, hot-head!
+
 ## What is it about?
 
 - Ch-aOS is meant to be a way to declaratively manage your linux system, from installation to post-install configuration, in a modular, safe, and didactic way.

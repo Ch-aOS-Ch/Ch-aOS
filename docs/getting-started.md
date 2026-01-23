@@ -5,35 +5,11 @@ This guide will walk you through the initial setup of the `chaos` CLI and its co
 ## Installation
 
 !!! warning
-    Currently, Ch-aOS is not available on package managers like `pip` or AUR (I'm working on it ok?) The only way to install it is by cloning the repository.
+    Currently, Ch-aOS is not available on package managers like `pip` or AUR (I'm working on it ok?) using the following command:
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/Dexmachi/Ch-aOS.git
-    cd Ch-aOS
-    ```
-
-2.  **Install the `chaos` CLI:**
-    The project uses `makepkg` to build and install the components.
-    ```bash
-    cd cli/build/b-coin/
-    makepkg -fcsi
-    ```
-
-3.  **Install Optional Components:**
-    Ch-aOS is modular. You can install "cores" for specific distributions and other plugins.
-
-    -   **Ch-aronte (Arch Linux Core):**
-        ```bash
-        cd ../../Ch-aronte/build/core/
-        makepkg -fcsi
-        ```
-
-    -   **chaos-dots (Dotfile Manager Plugin):**
-        ```bash
-        cd ../../external_plugins/chaos-dots/
-        makepkg -fcsi
-        ```
+```bash
+curl -LsSf https://raw.githubusercontent.com/Ch-aOS-Ch/Ch-aOS/refs/heads/main/install.sh | sudo bash
+```
 
 ## Verify Installation
 
