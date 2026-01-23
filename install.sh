@@ -45,30 +45,24 @@ fi
 
 echo "Package successfully downloaded to $TEMP_DIR/$ARTIFACT_FILENAME"
 
-echo "Untaring the package..."
-
+echo "Untarring the package..."
 tar -xzvf "$TEMP_DIR/$ARTIFACT_FILENAME" -C "$TEMP_DIR"
+echo "Package successfully extracted to $TEMP_DIR"
 
-EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -mindepth 1 -type d -name "chaos-v*")
+echo "Executing the installer script..."
+INSTALLER_IN_TEMP="$TEMP_DIR/$INSTALLER_SCRIPT"
 
-if [ -z "$EXTRACTED_DIR" ]; then
-  echo "Erro: Failed to extract the package."
-  cleanup
-  exit 1
-fi
-echo "Package extracted to $EXTRACTED_DIR"
-
-echo "Running internal installer script..."
-if [ ! -f "$EXTRACTED_DIR/$INSTALLER_SCRIPT" ]; then
+if [ ! -f "$INSTALLER_IN_TEMP" ]; then
   echo "Error: Installer script not found in the extracted package. Exiting..."
   cleanup
   exit 1
 fi
-chmod +x "$EXTRACTED_DIR/$INSTALLER_SCRIPT"
-"$EXTRACTED_DIR/$INSTALLER_SCRIPT"
 
-echo "Installation script completed."
-echo "Cleansing temporary files..."
+chmod +x "$INSTALLER_IN_TEMP"
+"$INSTALLER_IN_TEMP"
+
+echo "Installation script executed successfully."
+echo "Cleaning up"
 trap - EXIT
 cleanup
 
