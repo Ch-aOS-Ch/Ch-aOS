@@ -3,11 +3,11 @@ set -e
 
 function check_command() {
   if ! command -v "$1" &>/dev/null; then
-    echo "❌ ERRO: O comando '$1' não foi encontrado, mas é necessário para o build."
+    echo "Error: Command '$1' not found."
     if [ "$1" == "uv" ]; then
-      echo "   Por favor, instale-o com: curl -LsSf https://astral.sh/uv/install.sh | sh"
+      echo "   Please install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
     elif [ "$1" == "shiv" ]; then
-      echo "   Por favor, instale-o com: uv pip install shiv  (ou pip install shiv)"
+      echo "   Please install with: uv pip install shiv  (ou pip install shiv)"
     fi
     exit 1
   fi
