@@ -35,7 +35,7 @@ uv pip compile "$CLI_DIR/pyproject.toml" -o "$ARTIFACTS_DIR/requirements.txt"
 echo "Building the .pyz with shiv --no-deps..."
 (
   cd "$CLI_DIR" || exit
-  shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos.pyz"
+  shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
 )
 
 echo "Placing install script..."
