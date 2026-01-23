@@ -4,7 +4,7 @@ set -e
 APP_DIR="/opt/chaos-app"
 VENV_DIR="$APP_DIR/venv"
 INSTALL_PATH="/usr/bin/chaos"
-PYZ_PATH="$APP_DIR/chaos.pyz"
+PYZ_PATH="$APP_DIR/chaos"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 function check_command() {
