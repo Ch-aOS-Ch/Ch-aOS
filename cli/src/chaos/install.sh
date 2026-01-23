@@ -26,7 +26,7 @@ echo "Checking for required commands..."
 check_command "python3"
 PYTHON_EXEC=$(command -v python3)
 
-echo "AVISO: 'uv' não encontrado. Usando 'pip' do ambiente virtual, que pode ser mais lento."
+echo "Warning: uv not, using pip instead."
 
 echo "(1/4) Creating APP dir, $APP_DIR"
 mkdir -p "$APP_DIR"
@@ -48,8 +48,8 @@ if [ ! -f "chaos" ]; then
   exit 1
 fi
 
-echo "(4/4) Installing chaos.pyz to $PYZ_PATH..."
-mv chaos.pyz "$PYZ_PATH"
+echo "(4/4) Installing chaos to $PYZ_PATH..."
+mv chaos "$PYZ_PATH"
 
 tee "$INSTALL_PATH" >/dev/null <<EOF
 VENV_PYTHON="$VENV_DIR/bin/python"
