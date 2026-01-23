@@ -51,8 +51,6 @@ Now to the juicy part:
 IF the role is HARD CODED _OR_ configured to be a secret having role, it handles accordingly, if it isn't hard coded, it asks for permission to proceed.
 Then it gets the decrypted secrets and passes them to the role function.
 
-If the role is 'packages', it determines the mode (all, native, aur) based on the tag used. (This is a bit of a hack, but works for now).
-
 If the role is standard, it just calls the role function with common args.
 
 The roles should be using pyinfra's add_op() function to queue operations, which are then executed in bulk at the end (unless dry run is active).
@@ -307,7 +305,7 @@ def _setup_normalized_tag(tag: str, ROLE_ALIASES: DictConfig):
 
 def handleSecRoles(normalized_tag, enabledSecPlugins, skip, decrypted_secrets, commonArgs, ROLES_DISPATCHER: DictConfig, secrets_file_override, sops_file_override, global_config, args):
     if normalized_tag in enabledSecPlugins:
-        confirm = True if skip else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want to continue?", default=False)
+        confirm = True if skip or not sys.stdin.isatty() else Confirm.ask(f"You are about to use a external plugin as Secret having plugin:\n[bold yellow]{normalized_tag}[/]\nAre you sure you want tocontinue?", default=False)
         if not confirm:
             return
 
@@ -372,23 +370,6 @@ def _run_tags(
                     global_config,
                     args
                 )
-
-        # HACK: Special handling for 'packages' role to determine mode
-        # To be refactored later (with the role as well)
-            elif normalized_tag == 'packages':
-                mode = ''
-                if tag in ['allPkgs', 'packages', 'pkgs']:
-                    mode = 'all'
-                elif tag == 'natPkgs':
-                    mode = 'native'
-                elif tag == 'aurPkgs':
-                    mode = 'aur'
-
-                if not mode:
-                    console_err.print(f"\n[bold yellow]WARNING:[/] Could not determine a mode for tag '{tag}'. Skipping.")
-
-                pkgArgs = commonArgs + (mode,)
-                ROLES_DISPATCHER[normalized_tag](*pkgArgs)
 
             else:
                 ROLES_DISPATCHER[normalized_tag](*commonArgs)
