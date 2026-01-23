@@ -26,28 +26,28 @@ def _get_ramble_dir(team) -> Path:
         if not '.' in team:
             raise ValueError("Must set a company for your team. (company.team.person)")
 
-            parts = team.split('.')
-            if len(parts) != 3:
-                raise ValueError("Must set a person for your team. (company.team.person)")
+        parts = team.split('.')
+        if len(parts) != 3:
+            raise ValueError("Must set a person for your team. (company.team.person)")
 
-            company, team, person = parts
+        company, team, person = parts
 
-            if ".." in person or person.startswith("/"):
-                raise ValueError(f"Invalid person name '{person}'.")
+        if ".." in person or person.startswith("/"):
+             raise ValueError(f"Invalid person name '{person}'.")
 
-            if ".." in company or company.startswith("/"):
-                raise ValueError(f"Invalid company name '{company}'.")
+        if ".." in company or company.startswith("/"):
+             raise ValueError(f"Invalid company name '{company}'.")
 
-            if ".." in team or team.startswith("/"):
-                raise ValueError(f"Invalid team name '{team}'.")
+        if ".." in team or team.startswith("/"):
+             raise ValueError(f"Invalid team name '{team}'.")
 
-            team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/'))
+        team_ramble_path = Path(os.path.expanduser(f'~/.local/share/chaos/teams/{company}/{team}/'))
 
-            if not team_ramble_path.exists():
-                raise FileNotFoundError(f"Team ramble directory for '{team}' not found at {team_ramble_path}.")
-            team_ramble_path = team_ramble_path / 'ramblings' / person
-            return team_ramble_path
-        return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+        if not team_ramble_path.exists():
+            raise FileNotFoundError(f"Team ramble directory for '{team}' not found at {team_ramble_path}.")
+        team_ramble_path = team_ramble_path / 'ramblings' / person
+        return team_ramble_path
+    return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
 
 def is_safe_path(target_path: Path, team) -> bool:
     """
@@ -785,7 +785,7 @@ def handleDelRamble(args):
         is_safe_path(rambleFile, team)
         if not rambleFile.exists():
             raise FileNotFoundError(f"{rambleFile} does not exist.")
-        
+
         from rich.prompt import Confirm
         from rich.console import Console
         console = Console()
@@ -803,7 +803,7 @@ def handleDelRamble(args):
         from rich.prompt import Confirm
         from rich.console import Console
         console = Console()
-        
+
         if Confirm.ask(f"Are you [red][italic]sure[/][/] you want to delete the entire journal '{ramble}'?", default=False):
             console.print(f"[bold red]Removing {ramble}.[/]")
             shutil.rmtree(ramblePath)
