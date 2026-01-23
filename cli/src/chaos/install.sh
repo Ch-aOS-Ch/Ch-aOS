@@ -43,8 +43,8 @@ fi
 echo "(3/4) Installing deps..."
 "$VENV_DIR/bin/pip" install -r "$SCRIPT_DIR/requirements.txt" 2>/dev/null
 
-if [ ! -f "chaos.pyz" ]; then
-  echo "error: 'chaos.pyz' not found in $SCRIPT_DIR."
+if [ ! -f "chaos" ]; then
+  echo "error: 'chaos' not found in $SCRIPT_DIR."
   exit 1
 fi
 
