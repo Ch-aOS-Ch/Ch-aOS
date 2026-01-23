@@ -3,7 +3,7 @@ set -e
 
 REPO_OWNER="Ch-aOS-Ch"
 REPO_NAME="Ch-aOS"
-VERSION="0.6.2"
+VERSION="0.6.3"
 ARTIFACT_FILENAME="chaos-v${VERSION}-shiv-dist.tar.gz"
 
 DOWNLOAD_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${ARTIFACT_FILENAME}"
