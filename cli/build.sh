@@ -14,7 +14,7 @@ function check_command() {
 }
 
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-VERSION="0.6.1"
+VERSION="0.6.2"
 DIST_DIR="$CLI_DIR/dist"
 ARTIFACTS_DIR="$DIST_DIR/artifacts"
 
@@ -32,7 +32,7 @@ mkdir -p "$ARTIFACTS_DIR"
 echo "Creating new requirements.txt..."
 uv pip compile "$CLI_DIR/pyproject.toml" -o "$ARTIFACTS_DIR/requirements.txt"
 
-echo "Building the .pyz with shiv --no-deps..."
+echo "Building the with shiv --no-deps..."
 (
   cd "$CLI_DIR" || exit
   shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
