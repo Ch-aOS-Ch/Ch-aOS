@@ -4,6 +4,8 @@ The `ramble` subsystem is an integrated, file-based personal knowledge base or w
 
 **Why?** It's a convenient place to store technical notes, documentation, code snippets, and ideas co-located with your system management tools. Since notes can be encrypted with `sops`, it's also a safe place for sensitive information.
 
+Note that chaos ramble is completely intagrated with chaos team and chaos secrets, this makes the documentation something you can share with your team and all of you will be able to share the same versionated, encryptad and auditable documentation, all from inside the same CLI that helps you with your workflow.
+
 Rambles are organized into "journals" (directories) and "pages" (YAML files) within `~/.local/share/chaos/ramblings/`.
 
 ## `ramble create`
