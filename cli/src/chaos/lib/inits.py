@@ -82,7 +82,7 @@ def setupSshToAge():
     console.print("[bold yellow]WARNING:[/] Your secrets will be tied to this SSH key. If you lose it, you will lose access to your secrets.")
     env = os.environ.copy()
     prefix = f"read SSH_TO_AGE_PASSPHRASE </dev/fd/{r_ssh}; export SSH_TO_AGE_PASSPHRASE;"
-    private_cmd = f"ssh-to-age -i {selected_key_path.replace(".pub", "")} -private-key"
+    private_cmd = f"ssh-to-age -i {selected_key_path.replace('.pub', '')} -private-key"
     full_cmd = f"{prefix} {private_cmd}"
 
     try:
