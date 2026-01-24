@@ -324,9 +324,6 @@ class ChaosTelemetry(BaseStateCallback):
         raw_data = vars(op_data)
         operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
 
-        health_fact_key = f"__facts_for_{host.name}"
-        health_fact_logs = ChaosTelemetry._fact_log_buffer.pop(health_fact_key, [])
-
         op_details = {
             'operation': op_name,
             'operation_arguments': operation_arguments,
@@ -335,7 +332,6 @@ class ChaosTelemetry(BaseStateCallback):
             'duration': round(duration, 4),
             'stdout': logs['stdout'],
             'stderr': logs['stderr'],
-            'fact_logs': health_fact_logs,
             'retry_statistics': logs,
         }
 
@@ -364,9 +360,6 @@ class ChaosTelemetry(BaseStateCallback):
         op_data: StateOperationHostData = state.get_op_data_for_host(host, op_hash)
         runtime_meta: OperationMeta = op_data.operation_meta
 
-        health_fact_key = f"__facts_for_{host.name}"
-        health_fact_logs = ChaosTelemetry._fact_log_buffer.pop(health_fact_key, [])
-
         logs = {
             'stdout': stdout,
             'stderr': stderr,
@@ -382,7 +375,6 @@ class ChaosTelemetry(BaseStateCallback):
             'duration': round(duration, 4),
             'stdout': stdout,
             'stderr': stderr,
-            'fact_logs': health_fact_logs,
             'retry_statistics': logs,
         }
 
