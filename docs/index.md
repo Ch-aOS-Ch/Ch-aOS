@@ -22,6 +22,9 @@ So, I've made a little role that is a jinja2 secrets templater, you can see it i
 
 ![secrets templater gif](./assets/sec_template.gif)
 
+!!! danger "Why is this SO VERBOSE?"
+    Well, that's Ch-aOS's optional and local [logbook](./advanced/logbook.md)!
+
 Ready to get started? Head over to the **[Getting Started](getting-started.md)** guide.
 
 Want to learn more about advanced features? Check some of the **[Advanced Topics](advanced/providers.md)**!

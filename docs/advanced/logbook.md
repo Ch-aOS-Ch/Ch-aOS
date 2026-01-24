@@ -2,29 +2,9 @@
 
 The `chaos apply` command includes a built-in observability feature that collects data about the operations performed. This information is optionally used to help users integrate the project with monitoring systems.
 
-It saves all data related to a specific `chaos apply` execution in a JSON file located at `./chaos_report.json`. This file contains detailed information about the execution, including:
+It's important to note that the logbook pulls absolutely, completely and undoubtedly 0 punches. It has complete operation reconstruction from fact gathering to command execution with UNIX timestamps and multi-host support. It is feature complete, even with log streaming for real-time analysis.
 
-  - total run operations,
-
-  -  number of changed operations,
-
-  - number of successful and failed operations,
-
-  - total run time,
-
-  - run status,
-
-  - hosts:
-
-    - host name,
-
-    - operations performed on the host,
-
-    - successful and failed operations per host,
-
-    - time taken per host.
-
-A LOT MORE BRO, I CAN'T FIT IT ALL HERE. SEE THE EXAMPLE AT THE BOTTOM, THERE'S TOO MUCH.
+Moreover, It is completely optional, and is only enabled by:
 
 ## Enabling/Disabling Logbook
 
