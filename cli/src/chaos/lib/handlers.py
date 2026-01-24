@@ -232,7 +232,10 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
 
-    config = Config(PARALLEL=parallels)
+    config = Config(
+        PARALLEL=parallels,
+        DIFF=args.logbook,
+    )
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
 

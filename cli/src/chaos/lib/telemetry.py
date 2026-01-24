@@ -2,6 +2,7 @@ import json
 import time
 import logging
 import contextvars
+import re
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
@@ -16,7 +17,7 @@ class ChaosTelemetry(BaseStateCallback):
     and logs (stdout and stderr) associated with each operation.
 
     Key Features:
-    - Operation Timing: Measures the duration of each operation on a per-host basis.
+    - Operation Timing: Measures the duration of each operation on a per-host-basis.
 
     - Event Streaming: Streams real-time progress events to standard output, which can be captured by
         external systems for monitoring or logging purposes.
@@ -34,6 +35,8 @@ class ChaosTelemetry(BaseStateCallback):
     _process = None
     _timers = {}
     _fact_log_buffer = {}
+    _diff_log_buffer = {}
+    _active_diffs = set()
     _report_data = {
         'api_version': 'v1',
         'hailer': {},
@@ -52,6 +55,28 @@ class ChaosTelemetry(BaseStateCallback):
         'streamed_history': [],
         'operation_summary': {},
     }
+
+    @staticmethod
+    def _strip_ansi_codes(text: str) -> str:
+        # Regex to remove ANSI escape codes
+        ansi_escape = re.compile(r'\x1b\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]')
+        return ansi_escape.sub('', text)
+
+    @staticmethod
+    def _sanitize_diff_text(text):
+
+        sensitive_terms = ['password', 'secret', 'token', 'key', 'auth', 'sudo_pass']
+
+        for term in sensitive_terms:
+            if term in text.lower():
+                lines = text.split('\n')
+                sanitized_lines = [
+                    f"[SENSITIVE DATA FILTERED]" if term in line.lower() else line
+                    for line in lines
+                ]
+                text = '\n'.join(sanitized_lines)
+
+        return text
 
     @staticmethod
     def record_setup_phase(state: State, setup_duration: float):
@@ -126,8 +151,33 @@ class ChaosTelemetry(BaseStateCallback):
             msg = record.getMessage()
             op_hash = op_hash_context.get()
 
-            is_fact_gathering = "Getting fact:" in msg
-            is_command_running = "--> Running command" in msg
+            if record.levelname == 'INFO' and op_hash:
+                is_diff_start = 'Will modify' in msg
+                is_part_of_active_diff = op_hash in ChaosTelemetry._active_diffs
+
+                if is_diff_start:
+                    ChaosTelemetry._active_diffs.add(op_hash)
+                    is_part_of_active_diff = True
+
+                if is_part_of_active_diff:
+                    if op_hash not in ChaosTelemetry._diff_log_buffer:
+                        ChaosTelemetry._diff_log_buffer[op_hash] = []
+
+                    cleaned_msg = ChaosTelemetry._strip_ansi_codes(msg)
+
+                    if ']' in cleaned_msg:
+                        cleaned_msg = cleaned_msg.split(']', 1)[-1].strip()
+
+                    cleaned_msg = ChaosTelemetry._sanitize_diff_text(cleaned_msg)
+
+                    ChaosTelemetry._diff_log_buffer[op_hash].append(cleaned_msg)
+
+                    if 'Success' in msg or 'No changes' in msg:
+                        ChaosTelemetry._active_diffs.discard(op_hash)
+                    return
+
+            is_fact_gathering = "Getting fact:" in msg and record.levelname == 'DEBUG'
+            is_command_running = "--> Running command" in msg and record.levelname == 'DEBUG'
 
             if not op_hash and not is_fact_gathering and not is_command_running:
                 return
@@ -176,7 +226,7 @@ class ChaosTelemetry(BaseStateCallback):
                     ChaosTelemetry._report_data['command_history'].append(log_entry)
 
     @staticmethod
-    def _stream_event(host: Host, op_name, changed: bool, failed: bool, retry_count: int = 0, duration: float = 0.0, logs: dict = {}, op_hash: str = ""):
+    def _stream_event(host: Host, op_name, changed: bool, failed: bool, retry_count: int = 0, duration: float = 0.0, logs: dict = {}, op_hash: str = "", diff_log: str = ""):
         """
         Streams a progress event to standard output in JSON format.
 
@@ -206,6 +256,7 @@ class ChaosTelemetry(BaseStateCallback):
             'operation_commands': commands,
             'command_n_facts_in_order': operation_fact_logs,
             'logs': logs,
+            'diff': diff_log,
         }
 
         print(f"CHAOS_EVENT::{json.dumps(payload)}", flush=True)
@@ -352,6 +403,9 @@ class ChaosTelemetry(BaseStateCallback):
         raw_data = vars(op_data)
         operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
 
+        diff_log = ChaosTelemetry._diff_log_buffer.pop(op_hash, [])
+        diff_text = "\n".join(diff_log) if diff_log else ""
+
         op_details = {
             'operation': op_name,
             'operation_arguments': operation_arguments,
@@ -361,9 +415,10 @@ class ChaosTelemetry(BaseStateCallback):
             'stdout': logs['stdout'],
             'stderr': logs['stderr'],
             'retry_statistics': logs,
+            'diff': diff_text,
         }
 
-        ChaosTelemetry._stream_event(host, op_name, changed, False, retry_count, duration, logs, op_hash)
+        ChaosTelemetry._stream_event(host, op_name, changed, False, retry_count, duration, logs, op_hash, diff_text)
         ChaosTelemetry._update_statistics(host, changed, False, duration, op_details)
 
     @staticmethod
