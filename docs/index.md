@@ -13,6 +13,15 @@
 
 The `chaos` CLI is the engine of the project, powered by Python, Pyinfra, and OmegaConf. It uses "Ch-obolos" (YAML files) to read data and executes "roles" (Python scripts) to apply the desired state to your system. This strict separation of data from logic makes your configurations readable, reusable, and version-controllable.
 
+
+## Little example:
+
+So, you have some secrets you want to use in your operational system, you want to place them in some files or something, but you don't want to keep decrypting, copying and printing them.
+
+So, I've made a little role that is a jinja2 secrets templater, you can see it in action as well!
+
+![secrets templater gif](./assets/sec_template.gif)
+
 Ready to get started? Head over to the **[Getting Started](getting-started.md)** guide.
 
 Want to learn more about advanced features? Check some of the **[Advanced Topics](advanced/providers.md)**!

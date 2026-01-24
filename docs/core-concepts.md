@@ -9,6 +9,7 @@ A "Ch-obolo" is a YAML file where you declare the desired state of your system. 
 **Key Idea:** Ch-obolos strictly separate data (what you want) from roles (logic) (how to achieve it).
 
 This makes your configurations:
+
 -   **Readable:** All your variables are in one place, not scattered around a massive file.
 
 -   **Reusable:** Use the same roles with different Ch-obolo files for different systems.
