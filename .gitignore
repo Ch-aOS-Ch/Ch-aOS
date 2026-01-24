@@ -49,3 +49,4 @@ cli/src/chaos/lib/secret_backends/__pycache__
 cli/src/chaos/lib/secret_backends/providers/__pycache__
 cli/src/chaos/lib/boats/__pycache__
 cli/src/chaos/lib/facts/__pycache__
+cli/build/lib/chaos
