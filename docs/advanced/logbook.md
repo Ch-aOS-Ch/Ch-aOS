@@ -1,10 +1,16 @@
 # Ch-aOS Logbook
 
-The `chaos apply` command includes a built-in observability feature that collects data about the operations performed. This information is optionally used to help users integrate the project with monitoring systems.
+Ch-aOS has a built-in state of the art data collection mechanism called the "Logbook". It was designed to collect the most ammount of pure useful data while minimizing the performance impact on the system.
 
-It's important to note that the logbook pulls absolutely, completely and undoubtedly 0 punches. It has complete operation reconstruction from fact gathering to command execution with UNIX timestamps and multi-host support. It is feature complete, even with log streaming for real-time analysis.
+It collects data about each operation performed during a `chaos apply --logbook` execution. It has a "pull absolutely, undoubtedly and completely ZERO punches" philosophy when it comes to data collection. This means that it collects EVERYTHING that could be useful for analysis, debugging, and optimization purposes.
 
-Moreover, It is completely optional, and is only enabled by:
+It goes from simple "how much has changed" metrics, to detailed per-operation data including command outputs, execution times, retry statistics, diffs, and uniquelly, even the exact commands and facts, along with their timestamps and sequence of execution that led to the final state of each operation.
+
+All of this data is stored LOCALLY in a structured JSON format, making it easy to parse and analyze using various tools and techniques.
+
+"Oh, but no operations ran on this host, so no data was collected!" - you say? Fear not, Ch-aOS is smart enough to still collect host-level metrics such as CPU load and RAM usage before and after the operations phase, and even the fact history that led to the decision of not running any operations.
+
+All of this is Free and Open Source. Forever. No ifs or elses or buts. FOREVER.
 
 ## Enabling/Disabling Logbook
 
