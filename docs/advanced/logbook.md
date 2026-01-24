@@ -1,6 +1,6 @@
 # Ch-aOS Logbook
 
-Ch-aOS has a built-in state of the art data collection mechanism called the "Logbook". It was designed to collect the most ammount of pure useful data while minimizing the performance impact on the system.
+Ch-aOS has a built-in state of the art data collection mechanism called the "Logbook". It was designed to collect the most amount of pure useful data while minimizing the performance impact on the system.
 
 It is a complete execution journal that captures a precise, structured and replayable record of everything that happened during a `chaos apply` run, from the high-level operations down to the EXACT commands, facts, timestamps, and system state before and after each operation.
 
