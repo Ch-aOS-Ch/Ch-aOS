@@ -50,13 +50,13 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 5,
             "failed_operations": 0,
-            "duration": 4.33034348487854,
+            "duration": 4.865419149398804,
             "history": [
                 {
                     "type": "setup_phase",
                     "stage": "connection_and_facts",
-                    "timestamp": 1769280624.3093789,
-                    "duration": 0.0022,
+                    "timestamp": 1769283344.1297991,
+                    "duration": 0.0024,
                     "success": true
                 },
                 {
@@ -100,7 +100,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 0.8225,
+                    "duration": 1.2744,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -157,7 +157,7 @@ Stay safe.
                     },
                     "changed": true,
                     "success": true,
-                    "duration": 0.2675,
+                    "duration": 0.4153,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -214,7 +214,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 1.147,
+                    "duration": 0.8033,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -271,7 +271,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 0.5592,
+                    "duration": 0.7676,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -328,7 +328,7 @@ Stay safe.
                     },
                     "changed": false,
                     "success": true,
-                    "duration": 1.5341,
+                    "duration": 1.6048,
                     "stdout": "",
                     "stderr": "",
                     "retry_statistics": {
@@ -353,19 +353,19 @@ Stay safe.
         "successful_operations": 5,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 4.33034348487854
+        "total_duration": 4.865419149398804
     },
     "resource_history": [
         {
             "type": "health_check",
             "host": "@local",
             "stage": "pre_operations",
-            "timestamp": 1769280624.314448,
+            "timestamp": 1769283344.1355467,
             "metrics": {
-                "cpu_load_1min": 0.63,
-                "cpu_load_5min": 0.69,
-                "ram_percent": 37.8,
-                "ram_used_gb": 5.82,
+                "cpu_load_1min": 0.75,
+                "cpu_load_5min": 0.64,
+                "ram_percent": 42.9,
+                "ram_used_gb": 6.58,
                 "ram_total_gb": 15.37
             }
         },
@@ -373,97 +373,97 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "post_operations",
-            "timestamp": 1769280634.2866626,
+            "timestamp": 1769283355.3631995,
             "metrics": {
-                "cpu_load_1min": 0.61,
-                "cpu_load_5min": 0.68,
-                "ram_percent": 37.8,
-                "ram_used_gb": 5.81,
+                "cpu_load_1min": 0.64,
+                "cpu_load_5min": 0.62,
+                "ram_percent": 42.6,
+                "ram_used_gb": 6.54,
                 "ram_total_gb": 15.37
             }
         }
     ],
     "command_history": [
         {
-            "timestamp": 1769280629.95035,
+            "timestamp": 1769283350.4924953,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d/99-charonte-dexmachina || test -L /etc/sudoers.d/99-charonte-dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d/99-charonte-dexmachina || ls -ld /etc/sudoers.d/99-charonte-dexmachina )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d/99-charonte-dexmachina || test -L /etc/sudoers.d/99-charonte-dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d/99-charonte-dexmachina || ls -ld /etc/sudoers.d/99-charonte-dexmachina )'"
         },
         {
-            "timestamp": 1769280630.2204306,
+            "timestamp": 1769283350.9429545,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d || test -L /etc/sudoers.d ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d || ls -ld /etc/sudoers.d )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d || test -L /etc/sudoers.d ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d || ls -ld /etc/sudoers.d )'"
         },
         {
-            "timestamp": 1769280630.492867,
+            "timestamp": 1769283351.3872619,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'test -e /etc/sudoers.d/99-charonte-dexmachina && ( sha1sum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || shasum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || sha1 /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null ) || true'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'test -e /etc/sudoers.d/99-charonte-dexmachina && ( sha1sum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || shasum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || sha1 /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null ) || true'"
         },
         {
-            "timestamp": 1769280630.77278,
+            "timestamp": 1769283351.7668397,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'visudo -c -f /etc/sudoers.d/99-charonte-dexmachina'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'visudo -c -f /etc/sudoers.d/99-charonte-dexmachina'"
         },
         {
-            "timestamp": 1769280631.040778,
+            "timestamp": 1769283352.1826324,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
         },
         {
-            "timestamp": 1769280631.9352598,
+            "timestamp": 1769283352.5135996,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
         },
         {
-            "timestamp": 1769280632.1880965,
+            "timestamp": 1769283352.9861417,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
         },
         {
-            "timestamp": 1769280632.483669,
+            "timestamp": 1769283353.3532543,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
         },
         {
-            "timestamp": 1769280632.7476382,
+            "timestamp": 1769283353.7540562,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'for i in `cat /etc/passwd | cut -d: -f1`; do\n            ENTRY=`grep ^$i: /etc/passwd`;\n            LASTLOG=`(((lastlog -u $i || lastlogin $i) 2> /dev/null) | grep ^$i | tr -s '\"'\"' '\"'\"')`;\n            PASSWORD=`(grep ^$i: /etc/shadow || grep ^$i: /etc/master.passwd) 2> /dev/null | cut -d: -f2`;\n            echo \"$ENTRY|`id -gn $i`|`id -Gn $i`|$LASTLOG|$PASSWORD\";\n        done'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'for i in `cat /etc/passwd | cut -d: -f1`; do\n            ENTRY=`grep ^$i: /etc/passwd`;\n            LASTLOG=`(((lastlog -u $i || lastlogin $i) 2> /dev/null) | grep ^$i | tr -s '\"'\"' '\"'\"')`;\n            PASSWORD=`(grep ^$i: /etc/shadow || grep ^$i: /etc/master.passwd) 2> /dev/null | cut -d: -f2`;\n            echo \"$ENTRY|`id -gn $i`|`id -Gn $i`|$LASTLOG|$PASSWORD\";\n        done'"
         },
         {
-            "timestamp": 1769280633.2401931,
+            "timestamp": 1769283354.3316107,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
         },
         {
-            "timestamp": 1769280633.7356608,
+            "timestamp": 1769283354.7419145,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
         },
         {
-            "timestamp": 1769280634.027669,
+            "timestamp": 1769283355.1060386,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
         },
         {
-            "timestamp": 1769280634.2819686,
+            "timestamp": 1769283355.3591557,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
             "command": "sh -c 'cat /proc/meminfo'"
         },
         {
-            "timestamp": 1769280634.2843003,
+            "timestamp": 1769283355.36148,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
             "command": "sh -c 'cat /proc/loadavg'"
@@ -471,175 +471,175 @@ Stay safe.
     ],
     "fact_history": [
         {
-            "timestamp": 1769280624.310126,
+            "timestamp": 1769283344.1306696,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.RamUsage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280624.3126369,
+            "timestamp": 1769283344.1335003,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.LoadAverage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280624.4931345,
+            "timestamp": 1769283344.3140237,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Command (command=awk -F: '($3>=1000 && $7 ~ /(bash|zsh|fish|sh)$/){print $1}' /etc/passwd) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280624.4962306,
+            "timestamp": 1769283344.3172941,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Command (command=awk -F: '($3<1000){print $1}' /etc/passwd) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280624.4997163,
+            "timestamp": 1769283344.3208873,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Command (command=find /etc/sudoers.d/ -type f -name '99-charonte-*' -printf '%f\n') (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280625.8478572,
+            "timestamp": 1769283346.2189002,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280626.221,
+            "timestamp": 1769283346.779401,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/etc/sudoers.d) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280626.5004282,
+            "timestamp": 1769283347.0662026,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280626.7809956,
+            "timestamp": 1769283347.335263,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280627.0560772,
+            "timestamp": 1769283348.0377762,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280627.42367,
+            "timestamp": 1769283348.3058684,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280627.6751213,
+            "timestamp": 1769283348.5773158,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280628.2240274,
+            "timestamp": 1769283348.8177865,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Users () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280628.9042232,
+            "timestamp": 1769283349.4835556,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280629.3155444,
+            "timestamp": 1769283349.7342293,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280629.6473732,
+            "timestamp": 1769283350.0660543,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280629.9502127,
+            "timestamp": 1769283350.4923735,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280630.2203064,
+            "timestamp": 1769283350.9428334,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/etc/sudoers.d) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280630.4927106,
+            "timestamp": 1769283351.3870976,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280631.040727,
+            "timestamp": 1769283352.1825817,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280631.9351888,
+            "timestamp": 1769283352.5135427,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280632.1880445,
+            "timestamp": 1769283352.9860904,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280632.483618,
+            "timestamp": 1769283353.3531942,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280632.747566,
+            "timestamp": 1769283353.7540016,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Users () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280633.240112,
+            "timestamp": 1769283354.3315556,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Groups () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280633.7356057,
+            "timestamp": 1769283354.741862,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Os () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280634.0275388,
+            "timestamp": 1769283355.10591,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280634.28192,
+            "timestamp": 1769283355.3590994,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.RamUsage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769280634.2842562,
+            "timestamp": 1769283355.3614388,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.LoadAverage () (ensure_hosts: None)"
@@ -653,43 +653,83 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 0.8224871158599854,
-            "operation_commands": [
+            "duration": 1.2744176387786865,
+            "facts_collected": [
                 {
-                    "timestamp": 1769280629.9502127,
+                    "timestamp": 1769283350.4923735,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280629.95035,
-                    "log_level": "DEBUG",
-                    "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d/99-charonte-dexmachina || test -L /etc/sudoers.d/99-charonte-dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d/99-charonte-dexmachina || ls -ld /etc/sudoers.d/99-charonte-dexmachina )'"
-                },
-                {
-                    "timestamp": 1769280630.2203064,
+                    "timestamp": 1769283350.9428334,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/etc/sudoers.d) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280630.2204306,
+                    "timestamp": 1769283351.3870976,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "files.Sha1File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
+                }
+            ],
+            "operation_commands": [
+                {
+                    "timestamp": 1769283350.4924953,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d || test -L /etc/sudoers.d ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d || ls -ld /etc/sudoers.d )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d/99-charonte-dexmachina || test -L /etc/sudoers.d/99-charonte-dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d/99-charonte-dexmachina || ls -ld /etc/sudoers.d/99-charonte-dexmachina )'"
                 },
                 {
-                    "timestamp": 1769280630.4927106,
+                    "timestamp": 1769283350.9429545,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d || test -L /etc/sudoers.d ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d || ls -ld /etc/sudoers.d )'"
+                },
+                {
+                    "timestamp": 1769283351.3872619,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'test -e /etc/sudoers.d/99-charonte-dexmachina && ( sha1sum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || shasum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || sha1 /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null ) || true'"
+                }
+            ],
+            "command_n_facts_in_order": [
+                {
+                    "timestamp": 1769283350.4923735,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "files.File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283350.4924953,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d/99-charonte-dexmachina || test -L /etc/sudoers.d/99-charonte-dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d/99-charonte-dexmachina || ls -ld /etc/sudoers.d/99-charonte-dexmachina )'"
+                },
+                {
+                    "timestamp": 1769283350.9428334,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "files.Directory (path=/etc/sudoers.d) (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283350.9429545,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /etc/sudoers.d || test -L /etc/sudoers.d ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /etc/sudoers.d 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /etc/sudoers.d || ls -ld /etc/sudoers.d )'"
+                },
+                {
+                    "timestamp": 1769283351.3870976,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Sha1File (path=/etc/sudoers.d/99-charonte-dexmachina) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280630.492867,
+                    "timestamp": 1769283351.3872619,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'test -e /etc/sudoers.d/99-charonte-dexmachina && ( sha1sum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || shasum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || sha1 /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null ) || true'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'test -e /etc/sudoers.d/99-charonte-dexmachina && ( sha1sum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || shasum /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null || sha1 /etc/sudoers.d/99-charonte-dexmachina 2> /dev/null ) || true'"
                 }
             ],
             "logs": {
@@ -712,13 +752,22 @@ Stay safe.
             "changed": true,
             "success": true,
             "retry_count": 0,
-            "duration": 0.2675018310546875,
+            "duration": 0.4152531623840332,
+            "facts_collected": [],
             "operation_commands": [
                 {
-                    "timestamp": 1769280630.77278,
+                    "timestamp": 1769283351.7668397,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'visudo -c -f /etc/sudoers.d/99-charonte-dexmachina'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'visudo -c -f /etc/sudoers.d/99-charonte-dexmachina'"
+                }
+            ],
+            "command_n_facts_in_order": [
+                {
+                    "timestamp": 1769283351.7668397,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'visudo -c -f /etc/sudoers.d/99-charonte-dexmachina'"
                 }
             ],
             "logs": {
@@ -741,31 +790,59 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 1.1470427513122559,
-            "operation_commands": [
+            "duration": 0.8032639026641846,
+            "facts_collected": [
                 {
-                    "timestamp": 1769280631.040727,
+                    "timestamp": 1769283352.1825817,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Groups () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280631.040778,
+                    "timestamp": 1769283352.5135427,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Os () (ensure_hosts: None)"
+                }
+            ],
+            "operation_commands": [
+                {
+                    "timestamp": 1769283352.1826324,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
                 },
                 {
-                    "timestamp": 1769280631.9351888,
+                    "timestamp": 1769283352.5135996,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
+                }
+            ],
+            "command_n_facts_in_order": [
+                {
+                    "timestamp": 1769283352.1825817,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Groups () (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283352.1826324,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
+                },
+                {
+                    "timestamp": 1769283352.5135427,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Os () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280631.9352598,
+                    "timestamp": 1769283352.5135996,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
                 }
             ],
             "logs": {
@@ -788,31 +865,59 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 0.5591933727264404,
-            "operation_commands": [
+            "duration": 0.7676396369934082,
+            "facts_collected": [
                 {
-                    "timestamp": 1769280632.1880445,
+                    "timestamp": 1769283352.9860904,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Groups () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280632.1880965,
+                    "timestamp": 1769283353.3531942,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Os () (ensure_hosts: None)"
+                }
+            ],
+            "operation_commands": [
+                {
+                    "timestamp": 1769283352.9861417,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
                 },
                 {
-                    "timestamp": 1769280632.483618,
+                    "timestamp": 1769283353.3532543,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
+                }
+            ],
+            "command_n_facts_in_order": [
+                {
+                    "timestamp": 1769283352.9860904,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Groups () (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283352.9861417,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
+                },
+                {
+                    "timestamp": 1769283353.3531942,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Os () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280632.483669,
+                    "timestamp": 1769283353.3532543,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
                 }
             ],
             "logs": {
@@ -835,55 +940,107 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 1.534118413925171,
-            "operation_commands": [
+            "duration": 1.6048448085784912,
+            "facts_collected": [
                 {
-                    "timestamp": 1769280632.747566,
+                    "timestamp": 1769283353.7540016,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Users () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280632.7476382,
-                    "log_level": "DEBUG",
-                    "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'for i in `cat /etc/passwd | cut -d: -f1`; do\n            ENTRY=`grep ^$i: /etc/passwd`;\n            LASTLOG=`(((lastlog -u $i || lastlogin $i) 2> /dev/null) | grep ^$i | tr -s '\"'\"' '\"'\"')`;\n            PASSWORD=`(grep ^$i: /etc/shadow || grep ^$i: /etc/master.passwd) 2> /dev/null | cut -d: -f2`;\n            echo \"$ENTRY|`id -gn $i`|`id -Gn $i`|$LASTLOG|$PASSWORD\";\n        done'"
-                },
-                {
-                    "timestamp": 1769280633.240112,
+                    "timestamp": 1769283354.3315556,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Groups () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280633.2401931,
-                    "log_level": "DEBUG",
-                    "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'cat /etc/group'"
-                },
-                {
-                    "timestamp": 1769280633.7356057,
+                    "timestamp": 1769283354.741862,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "server.Os () (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280633.7356608,
+                    "timestamp": 1769283355.10591,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
+                }
+            ],
+            "operation_commands": [
+                {
+                    "timestamp": 1769283353.7540562,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c 'uname -s'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'for i in `cat /etc/passwd | cut -d: -f1`; do\n            ENTRY=`grep ^$i: /etc/passwd`;\n            LASTLOG=`(((lastlog -u $i || lastlogin $i) 2> /dev/null) | grep ^$i | tr -s '\"'\"' '\"'\"')`;\n            PASSWORD=`(grep ^$i: /etc/shadow || grep ^$i: /etc/master.passwd) 2> /dev/null | cut -d: -f2`;\n            echo \"$ENTRY|`id -gn $i`|`id -Gn $i`|$LASTLOG|$PASSWORD\";\n        done'"
                 },
                 {
-                    "timestamp": 1769280634.0275388,
+                    "timestamp": 1769283354.3316107,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
+                },
+                {
+                    "timestamp": 1769283354.7419145,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
+                },
+                {
+                    "timestamp": 1769283355.1060386,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+                }
+            ],
+            "command_n_facts_in_order": [
+                {
+                    "timestamp": 1769283353.7540016,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Users () (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283353.7540562,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'for i in `cat /etc/passwd | cut -d: -f1`; do\n            ENTRY=`grep ^$i: /etc/passwd`;\n            LASTLOG=`(((lastlog -u $i || lastlogin $i) 2> /dev/null) | grep ^$i | tr -s '\"'\"' '\"'\"')`;\n            PASSWORD=`(grep ^$i: /etc/shadow || grep ^$i: /etc/master.passwd) 2> /dev/null | cut -d: -f2`;\n            echo \"$ENTRY|`id -gn $i`|`id -Gn $i`|$LASTLOG|$PASSWORD\";\n        done'"
+                },
+                {
+                    "timestamp": 1769283354.3315556,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Groups () (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283354.3316107,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'cat /etc/group'"
+                },
+                {
+                    "timestamp": 1769283354.741862,
+                    "log_level": "DEBUG",
+                    "context": "fact_gathering",
+                    "command": "server.Os () (ensure_hosts: None)"
+                },
+                {
+                    "timestamp": 1769283354.7419145,
+                    "log_level": "DEBUG",
+                    "context": "running_command_on_localhost",
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c 'uname -s'"
+                },
+                {
+                    "timestamp": 1769283355.10591,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769280634.027669,
+                    "timestamp": 1769283355.1060386,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-TSZBwUyhQFLm *** sudo -H -A -k sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-vAWcg6yD1B70 *** sudo -H -A -k sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
                 }
             ],
             "logs": {
@@ -903,39 +1060,39 @@ Stay safe.
     "operation_summary": {
         "Ensure sudo rule 99-charonte-dexmachina": {
             "count": 1,
-            "total_duration": 0.8225,
-            "average_duration": 0.8225,
-            "p50_duration": 0.8225,
-            "p90_duration": 0.8225,
-            "p95_duration": 0.8225,
-            "p99_duration": 0.8225
+            "total_duration": 1.2744,
+            "average_duration": 1.2744,
+            "p50_duration": 1.2744,
+            "p90_duration": 1.2744,
+            "p95_duration": 1.2744,
+            "p99_duration": 1.2744
         },
         "Validate sudo rule 99-charonte-dexmachina": {
             "count": 1,
-            "total_duration": 0.2675,
-            "average_duration": 0.2675,
-            "p50_duration": 0.2675,
-            "p90_duration": 0.2675,
-            "p95_duration": 0.2675,
-            "p99_duration": 0.2675
+            "total_duration": 0.4153,
+            "average_duration": 0.4153,
+            "p50_duration": 0.4153,
+            "p90_duration": 0.4153,
+            "p95_duration": 0.4153,
+            "p99_duration": 0.4153
         },
         "server.group": {
             "count": 2,
-            "total_duration": 1.7062,
-            "average_duration": 0.8531,
-            "p50_duration": 0.8531,
-            "p90_duration": 1.0882,
-            "p95_duration": 1.1176,
-            "p99_duration": 1.1411
+            "total_duration": 1.5709,
+            "average_duration": 0.7854,
+            "p50_duration": 0.7854,
+            "p90_duration": 0.7997,
+            "p95_duration": 0.8015,
+            "p99_duration": 0.8029
         },
         "server.user": {
             "count": 1,
-            "total_duration": 1.5341,
-            "average_duration": 1.5341,
-            "p50_duration": 1.5341,
-            "p90_duration": 1.5341,
-            "p95_duration": 1.5341,
-            "p99_duration": 1.5341
+            "total_duration": 1.6048,
+            "average_duration": 1.6048,
+            "p50_duration": 1.6048,
+            "p90_duration": 1.6048,
+            "p95_duration": 1.6048,
+            "p99_duration": 1.6048
         }
     }
 }

@@ -188,6 +188,11 @@ class ChaosTelemetry(BaseStateCallback):
         """
 
         operation_fact_logs = ChaosTelemetry._fact_log_buffer.pop(op_hash, [])
+        commands = []
+        facts = []
+        for op in operation_fact_logs:
+            if op.get('context') == "fact_gathering": facts.append(op)
+            elif "running_command" in op.get('context'): commands.append(op)
 
         payload = {
             "type": "progress",
@@ -197,7 +202,9 @@ class ChaosTelemetry(BaseStateCallback):
             "success": not failed,
             'retry_count': retry_count,
             'duration': duration,
-            'operation_commands': operation_fact_logs,
+            'facts_collected': facts,
+            'operation_commands': commands,
+            'command_n_facts_in_order': operation_fact_logs,
             'logs': logs,
         }
 
