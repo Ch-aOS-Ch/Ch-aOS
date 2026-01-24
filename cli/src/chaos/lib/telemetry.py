@@ -1,3 +1,4 @@
+from ast import literal_eval
 import json
 import time
 import logging
@@ -266,6 +267,26 @@ class ChaosTelemetry(BaseStateCallback):
         ChaosTelemetry._timers[key] = time.time()
 
     @staticmethod
+    def _parse_meta(meta: str) -> dict:
+        vars = meta.split("(")[1].split(")")[0]
+        executed = vars.split("executed=")[1].split(",")[0]
+        maybeChange = vars.split("maybeChange=")[1].split(",")[0]
+        hash = vars.split("hash")[1].split(",")[0]
+        return {
+            'executed': executed,
+            'maybe_change': maybeChange,
+            'hash': hash
+        }
+
+    @staticmethod
+    def _clean_value(value: str):
+        import ast
+        try:
+            return ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            return value
+
+    @staticmethod
     def _sanitize_op_data(raw_data) -> dict:
         """
         cleanse op data to remove sensitive information before logging
@@ -280,21 +301,19 @@ class ChaosTelemetry(BaseStateCallback):
             if key in IGNORED_KEYS:
                 continue
 
-            if key == 'global_arguments':
+            elif key == 'global_arguments':
                 clean_data[key] = ChaosTelemetry._sanitize_op_data(value)
-                continue
 
-            if any(term in key.lower() for term in SENSITIVE_TERMS):
+            elif key == 'operation_meta':
+                clean_data[key] = ChaosTelemetry._parse_meta(value)
+
+            elif any(term in key.lower() for term in SENSITIVE_TERMS):
                 clean_data[key] = "********"
-                continue
 
-            if value is None:
-                continue
-
-            if hasattr(value, '__call__'):
+            elif hasattr(value, '__call__'):
                 clean_data[key] = "<function>"
             else:
-                clean_data[key] = str(value)
+                clean_data[key] = ChaosTelemetry._clean_value(value)
 
         return clean_data
 
