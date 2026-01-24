@@ -14,7 +14,7 @@ function check_command() {
 }
 
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-VERSION="0.6.3"
+VERSION="0.6.4"
 DIST_DIR="$CLI_DIR/dist"
 ARTIFACTS_DIR="$DIST_DIR/artifacts"
 

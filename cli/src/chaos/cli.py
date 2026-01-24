@@ -5,14 +5,6 @@ from typing import cast
 from chaos.lib.args.args import (
     handleGenerateTab,
     argParsing,
-    addTeamParsers,
-    addExplainParsers,
-    addApplyParsers,
-    addSecParsers,
-    addCheckParsers,
-    addSetParsers,
-    addRambleParsers,
-    addInitParsers
 )
 from chaos.lib.args.types import ChaosArguments
 

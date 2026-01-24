@@ -1,8 +1,12 @@
 import json
 import time
+import logging
+import contextvars
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
+
+op_hash_context: contextvars.ContextVar[str | None] = contextvars.ContextVar('op_hash', default=None)
 
 class ChaosTelemetry(BaseStateCallback):
     """
@@ -29,7 +33,10 @@ class ChaosTelemetry(BaseStateCallback):
 
     _process = None
     _timers = {}
+    _fact_log_buffer = {}
     _report_data = {
+        'hailer': {},
+        'hosts': {},
         'summary': {
             'total_operations': 0,
             'changed_operations': 0,
@@ -38,11 +45,11 @@ class ChaosTelemetry(BaseStateCallback):
             'status': 'success',
             'total_duration': 0.0,
         },
-        'hailer': {},
-        'hosts': {},
-        'streamed_history': [],
         'resource_history': [],
-        'operation_summary': {}
+        'command_history': [],
+        'fact_history': [],
+        'streamed_history': [],
+        'operation_summary': {},
     }
 
     @staticmethod
@@ -109,8 +116,66 @@ class ChaosTelemetry(BaseStateCallback):
 
         return "", ""
 
+    class PyinfraFactLogHandler(logging.Handler):
+        """
+        gets command logs from pyinfra's logger
+        """
+
+        def emit(self, record):
+            msg = record.getMessage()
+            op_hash = op_hash_context.get()
+
+            is_fact_gathering = "Getting fact:" in msg
+            is_command_running = "--> Running command" in msg
+
+            if not op_hash and not is_fact_gathering and not is_command_running:
+                return
+
+            key = op_hash
+
+            if not op_hash and is_fact_gathering:
+                parts = msg.split(":")
+                command = parts[1].strip().replace(" ", "_").lower()
+                key = f"__facts_for_{command}"
+
+            if not key:
+                return
+
+            context = None
+            command = None
+
+            if is_fact_gathering:
+                context = "fact_gathering"
+                command = msg.split(":", 1)[-1].strip()
+
+            elif is_command_running:
+                try:
+                    context_part, command_part = msg.split(":", 1)
+                    context_text = context_part.split("-->")[1].strip()
+                    context = context_text.replace(" ", "_").lower()
+                    command = command_part.strip()
+                except (ValueError, IndexError):
+                    context = "running_command"
+                    command = msg
+
+            if context and command:
+                if key not in ChaosTelemetry._fact_log_buffer:
+                    ChaosTelemetry._fact_log_buffer[key] = []
+
+                log_entry = {
+                    "timestamp": record.created,
+                    "log_level": record.levelname,
+                    "context": context,
+                    "command": command,
+                }
+                ChaosTelemetry._fact_log_buffer[key].append(log_entry)
+                if is_fact_gathering:
+                    ChaosTelemetry._report_data['fact_history'].append(log_entry)
+                elif is_command_running:
+                    ChaosTelemetry._report_data['command_history'].append(log_entry)
+
     @staticmethod
-    def _stream_event(host: Host, op_name, changed: bool, failed: bool, retry_count: int = 0, duration: float = 0.0, logs: dict = {}):
+    def _stream_event(host: Host, op_name, changed: bool, failed: bool, retry_count: int = 0, duration: float = 0.0, logs: dict = {}, op_hash: str = ""):
         """
         Streams a progress event to standard output in JSON format.
 
@@ -121,6 +186,8 @@ class ChaosTelemetry(BaseStateCallback):
         hosts history tracking.
         """
 
+        operation_fact_logs = ChaosTelemetry._fact_log_buffer.pop(op_hash, [])
+
         payload = {
             "type": "progress",
             "host": host.name,
@@ -129,6 +196,7 @@ class ChaosTelemetry(BaseStateCallback):
             "success": not failed,
             'retry_count': retry_count,
             'duration': duration,
+            'operation_commands': operation_fact_logs,
             'logs': logs,
         }
 
@@ -192,6 +260,7 @@ class ChaosTelemetry(BaseStateCallback):
     @staticmethod
     def operation_host_start(state: State, host: Host, op_hash):
         """Records the start time of an operation on a specific host."""
+        op_hash_context.set(op_hash)
         key = f"{host.name}:{op_hash}"
         ChaosTelemetry._timers[key] = time.time()
 
@@ -253,8 +322,10 @@ class ChaosTelemetry(BaseStateCallback):
         changed = runtime_meta.changed
 
         raw_data = vars(op_data)
-
         operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
+
+        health_fact_key = f"__facts_for_{host.name}"
+        health_fact_logs = ChaosTelemetry._fact_log_buffer.pop(health_fact_key, [])
 
         op_details = {
             'operation': op_name,
@@ -264,10 +335,11 @@ class ChaosTelemetry(BaseStateCallback):
             'duration': round(duration, 4),
             'stdout': logs['stdout'],
             'stderr': logs['stderr'],
+            'fact_logs': health_fact_logs,
             'retry_statistics': logs,
         }
 
-        ChaosTelemetry._stream_event(host, op_name, changed, False, retry_count)
+        ChaosTelemetry._stream_event(host, op_name, changed, False, retry_count, duration, logs, op_hash)
         ChaosTelemetry._update_statistics(host, changed, False, duration, op_details)
 
     @staticmethod
@@ -288,11 +360,12 @@ class ChaosTelemetry(BaseStateCallback):
                  stdout, stderr = s_out, s_err
 
         is_failure = True
-        if hasattr(op_data, 'global_arguments'):
-             is_failure = not getattr(op_data.global_arguments, 'ignore_errors', False)
 
         op_data: StateOperationHostData = state.get_op_data_for_host(host, op_hash)
         runtime_meta: OperationMeta = op_data.operation_meta
+
+        health_fact_key = f"__facts_for_{host.name}"
+        health_fact_logs = ChaosTelemetry._fact_log_buffer.pop(health_fact_key, [])
 
         logs = {
             'stdout': stdout,
@@ -309,10 +382,11 @@ class ChaosTelemetry(BaseStateCallback):
             'duration': round(duration, 4),
             'stdout': stdout,
             'stderr': stderr,
+            'fact_logs': health_fact_logs,
             'retry_statistics': logs,
         }
 
-        ChaosTelemetry._stream_event(host, op_name, False, is_failure)
+        ChaosTelemetry._stream_event(host, op_name, False, is_failure, retry_count, duration, logs, op_hash)
         ChaosTelemetry._update_statistics(host, False, is_failure, duration, op_details)
 
     @staticmethod
@@ -373,7 +447,6 @@ class ChaosTelemetry(BaseStateCallback):
         }
 
         ChaosTelemetry._report_data['hailer'] = hailer_info
-
 
     @classmethod
     def export_report(cls, filepath: str = "chaos_logbook.json"):

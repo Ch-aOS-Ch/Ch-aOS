@@ -240,6 +240,10 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     if args.logbook:
         state.add_callback_handler(ChaosTelemetry())
+        pyinfra_logger = logging.getLogger("pyinfra")
+        pyinfra_logger.setLevel(logging.DEBUG)
+        handler = ChaosTelemetry.PyinfraFactLogHandler()
+        pyinfra_logger.addHandler(handler)
 
     ctx_state.set(state)
     sudo_password = None
