@@ -264,6 +264,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     if args.password is True:
         if not sys.stdin.isatty():
             sudo_password = sys.stdin.read().strip()
+            ikwid = True
         else:
             raise ValueError("'-ps' argument without value requires piped input or a value. "
                              "When using pipes, ensure stdin is not a TTY (e.g., 'cat file | chaos apply -ps').")
