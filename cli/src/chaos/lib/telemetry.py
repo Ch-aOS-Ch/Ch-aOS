@@ -35,6 +35,7 @@ class ChaosTelemetry(BaseStateCallback):
     _timers = {}
     _fact_log_buffer = {}
     _report_data = {
+        'api_version': 'v1',
         'hailer': {},
         'hosts': {},
         'summary': {
