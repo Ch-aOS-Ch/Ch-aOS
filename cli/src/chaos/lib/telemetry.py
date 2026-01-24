@@ -39,6 +39,8 @@ class ChaosTelemetry(BaseStateCallback):
     _active_diffs = set()
     _report_data = {
         'api_version': 'v1',
+        'run_id': f"chaos-{time.strftime('%Y/%m/%d-%H:%M:%S', time.gmtime())}",
+        'uggly_run_id': f"chaos-{int(time.time())}-{time.perf_counter_ns()}",
         'hailer': {},
         'hosts': {},
         'summary': {

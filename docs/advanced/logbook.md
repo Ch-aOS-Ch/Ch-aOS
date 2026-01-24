@@ -2,52 +2,92 @@
 
 Ch-aOS has a built-in state of the art data collection mechanism called the "Logbook". It was designed to collect the most ammount of pure useful data while minimizing the performance impact on the system.
 
-It collects data about each operation performed during a `chaos apply --logbook` execution. It has a "pull absolutely, undoubtedly and completely ZERO punches" philosophy when it comes to data collection. This means that it collects EVERYTHING that could be useful for analysis, debugging, and optimization purposes.
+It is a complete execution journal that captures a precise, structured and replayable record of everything that happened during a `chaos apply` run, from the high-level operations down to the EXACT commands, facts, timestamps, and system state before and after each operation.
 
-It goes from simple "how much has changed" metrics, to detailed per-operation data including command outputs, execution times, retry statistics, diffs, and uniquelly, even the exact commands and facts, along with their timestamps and sequence of execution that led to the final state of each operation.
+When I designed the Logbook, I had one singular goal in mind: collect as many useful data with as little as possible of a performance hit.
 
-All of this data is stored LOCALLY in a structured JSON format, making it easy to parse and analyze using various tools and techniques.
+To put it to the exact thoughts that ran through my mind when designing it: "**Pull absolutely, undoubtedly, and completely ZERO punches**" when it comes to observability. If a piece of data can be useful on any level, it BELONGS to the Logbook. No compromises.
 
-"Oh, but no operations ran on this host, so no data was collected!" - you say? Fear not, Ch-aOS is smart enough to still collect host-level metrics such as CPU load and RAM usage before and after the operations phase, and even the fact history that led to the decision of not running any operations.
+## What data is collected?
 
-All of this is Free and Open Source. Forever. No ifs or elses or buts. FOREVER.
+For each execution, the Logbook captures:
 
-## Enabling/Disabling Logbook
+- Per-operation metadata and outcomes
 
-Just run `chaos apply` together with `--logbook` to enable data collection for that specific execution. If you want to disable data collection, simply omit the `--logbook` flag when running the command. (it will still run, but no data data will be collected).
+- Exact commands executed, with timestamps and execution order
+
+- Fact history and fact changes that influenced decisions
+
+- Retry statistics and execution timings
+
+- Diffs and change detection
+
+- Command outputs (with sensitive data filtered when applicable)
+
+- Host-level metrics (CPU, RAM, health checks)
+
+And even the exact sequence of commands and facts gathered for each operation, both alone and together, in order. This comes from the times where I needed to debug a ansible playbook and it simply wouldn't give me enough info to figure out what was going on. With this level of detail, you can reconstruct the entire execution flow and understand exactly what happened, when, and why.
+
+## No ops? Boohoo, still logged!
+
+Even when no operations are executed (say, when everything is already in the desired state), the Logbook still captures:
+
+- pre and post operation health checks
+
+- exact fact history and timestamps that led to... Well, to no ops being ran
+
+Again, debugging background, "No operations" is still a state that needs to be understood sometimes. The Logbook captures it all.
+
+## Storage and format:
+
+"Data collection" has a bad ring to it doesn't it? Well, not in Ch-aOS. All logbooks are stored in a structured json format. Locally.
+
+They can be found in these places:
+
+- `./chaos-logbook.json`
+
+- `~/.local/share/chaos/logbooks/chaos_logbook_run{run_id}_{timestamp}.json`
+
+Your data is yours, it is never streamed anywhere other than the stdout (in real time btw).
+
+## Enabling and disabling:
+
+To enable, run
+```bash
+chaos apply --logbook
+```
+
+To disable, simply omit the `--logbook` flag. That simple. The logging system is not even enabled on the background.
+
+## Privacy and Ownership:
+
+The Logbook is *local by design*.
+
+NO data is transmitted to any external servers. NO third-party is involved.
+
+If the `--logbook` is omitted, the data collection system doesn't even turn on.
+
+Also, it is Free and Open Source. No ifs or elses or buts about it. Forever.
 
 ## Why?
 
-Well, "Data collection" has a bad name to it doesn't it? People often associate telemetry with invasive data collection practices. However, in the case of Ch-aOS, telemetry is designed to enhance user experience and provide valuable insights into the operations performed.
+The Logbook is designed for an old me who needed to debug some serious infra issues. It was made to empower YOU to debug your own infra issues.
 
-It's important to note that telemetry in Ch-aOS is NEVER streamed to any external servers or third-party services. All telemetry data is stored locally on the user's machine in the `chaos_logbook.json` file AND inside of `~/.local/share/chaos/logbooks/`. This ensures that users have full control over their data and can choose to share it or not.
+If you ever needed to figure out why something didn't go as expected, the Logbook is your friend. It gives you the power to reconstruct and analyze every detail of your infrastructure changes.
 
-That being said, this data can be extremely useful for users who want to monitor and analyze the performance of their Ch-aOS operations. By collecting detailed information about each execution, users can gain insights into the efficiency of their workflows, identify potential bottlenecks, and make informed decisions about optimizing their processes. Plus, you know, Ch-apetanios, Ch-aOS' future centralized management self-hosted server, could use this data to provide better insights and reports to users managing multiple systems.
+It was made to be useful for users, not only machines or senior engineers.
 
-## Using Data
-
-All data collected gets turned into a simple-to-read, simple-to-parse JSON file. This file can be easily integrated with monitoring systems like Prometheus, Grafana, or any other system that supports JSON data ingestion, or... you know, even your own brain to analyze the data manually.
-
-Each operation performed during the `chaos apply -l` execution is also streamed to the stdout in real-time, allowing users to capture and parse the data as it is currently being generated.
-
-## Privacy Considerations
-
-Again, it's crucial to emphasize that all data collected by Ch-aOS is stored locally and is not transmitted to any external entities. Users have complete control over their data and can choose to share it or keep it private.
-
-In case of the non use of the `--logbook` flag, no data is collected, ensuring that users who prioritize privacy can operate without any data collection concerns.
-
-By providing these features, Ch-aOS aims to empower users with valuable insights while respecting their privacy and data ownership.
-
-Stay safe.
-
-### Example data collected (1 role, 1 host):
+### Example:
+Here goes a simple Logbook of a singular role being applied to a singular host:
 
 ```json
 {
     "api_version": "v1",
+    "run_id": "chaos-2026/01/24-22:41:15",
+    "uggly_run_id": "chaos-1769294475-35764876269780",
     "hailer": {
         "user": "dexmachina",
-        "boatswain": "...",
+        "boatswain": "[Nah, you're no getting my IP]",
         "hostname": "Dionysus"
     },
     "hosts": {
@@ -56,17 +96,23 @@ Stay safe.
             "changed_operations": 1,
             "successful_operations": 3,
             "failed_operations": 0,
-            "duration": 1.4079294204711914,
+            "duration": 1.5996980667114258,
             "history": [
                 {
                     "type": "setup_phase",
                     "stage": "connection_and_facts",
-                    "timestamp": 1769288851.090979,
-                    "duration": 2.8256,
+                    "timestamp": 1769294478.5274992,
+                    "duration": 2.7274,
                     "success": true
                 },
                 {
                     "operation": "Ensuring secrets state directory exists",
+                    "changed": false,
+                    "success": true,
+                    "duration": 0.284,
+                    "stdout": "",
+                    "stderr": "",
+                    "diff": "",
                     "operation_arguments": {
                         "global_arguments": {
                             "_sudo": true,
@@ -92,7 +138,6 @@ Stay safe.
                             "_retries": 0,
                             "_retry_delay": 5,
                             "_retry_until": null,
-                            "_temp_dir": null,
                             "name": "Ensuring secrets state directory exists",
                             "_ignore_errors": false,
                             "_continue_on_error": false,
@@ -105,11 +150,6 @@ Stay safe.
                         },
                         "parent_op_hash": null
                     },
-                    "changed": false,
-                    "success": true,
-                    "duration": 0.3768,
-                    "stdout": "",
-                    "stderr": "",
                     "retry_statistics": {
                         "stdout": "",
                         "stderr": "",
@@ -121,11 +161,16 @@ Stay safe.
                             "was_retried": false,
                             "retry_succeeded": null
                         }
-                    },
-                    "diff": ""
+                    }
                 },
                 {
                     "operation": "Recording new secrets state",
+                    "changed": false,
+                    "success": true,
+                    "duration": 1.2315,
+                    "stdout": "",
+                    "stderr": "",
+                    "diff": "",
                     "operation_arguments": {
                         "global_arguments": {
                             "_sudo": true,
@@ -151,7 +196,6 @@ Stay safe.
                             "_retries": 0,
                             "_retry_delay": 5,
                             "_retry_until": null,
-                            "_temp_dir": null,
                             "name": "Recording new secrets state",
                             "_ignore_errors": false,
                             "_continue_on_error": false,
@@ -164,11 +208,6 @@ Stay safe.
                         },
                         "parent_op_hash": null
                     },
-                    "changed": false,
-                    "success": true,
-                    "duration": 0.9512,
-                    "stdout": "",
-                    "stderr": "",
                     "retry_statistics": {
                         "stdout": "",
                         "stderr": "",
@@ -180,11 +219,16 @@ Stay safe.
                             "was_retried": false,
                             "retry_succeeded": null
                         }
-                    },
-                    "diff": ""
+                    }
                 },
                 {
                     "operation": "Deploy secret template to /home/dexmachina/hi.txt for user dexmachina",
+                    "changed": true,
+                    "success": true,
+                    "duration": 0.0842,
+                    "stdout": "",
+                    "stderr": "",
+                    "diff": "Will modify /home/dexmachina/hi.txt\n  @@ -1 +1 @@\n  - nooooooooo\n[SENSITIVE DATA FILTERED]\n\nSuccess",
                     "operation_arguments": {
                         "global_arguments": {
                             "_sudo": true,
@@ -210,7 +254,6 @@ Stay safe.
                             "_retries": 0,
                             "_retry_delay": 5,
                             "_retry_until": null,
-                            "_temp_dir": null,
                             "name": "Deploy secret template to /home/dexmachina/hi.txt for user dexmachina",
                             "_ignore_errors": false,
                             "_continue_on_error": false,
@@ -223,11 +266,6 @@ Stay safe.
                         },
                         "parent_op_hash": null
                     },
-                    "changed": true,
-                    "success": true,
-                    "duration": 0.0799,
-                    "stdout": "",
-                    "stderr": "",
                     "retry_statistics": {
                         "stdout": "",
                         "stderr": "",
@@ -239,8 +277,7 @@ Stay safe.
                             "was_retried": false,
                             "retry_succeeded": null
                         }
-                    },
-                    "diff": "Will modify /home/dexmachina/hi.txt\n  @@ -1 +1 @@\n  - nooooooooo\n[SENSITIVE DATA FILTERED]\n\nSuccess"
+                    }
                 }
             ]
         }
@@ -251,19 +288,19 @@ Stay safe.
         "successful_operations": 3,
         "failed_operations": 0,
         "status": "success",
-        "total_duration": 1.4079294204711914
+        "total_duration": 1.5996980667114258
     },
     "resource_history": [
         {
             "type": "health_check",
             "host": "@local",
             "stage": "pre_operations",
-            "timestamp": 1769288851.0968199,
+            "timestamp": 1769294478.5326884,
             "metrics": {
-                "cpu_load_1min": 0.68,
-                "cpu_load_5min": 0.67,
-                "ram_percent": 47.9,
-                "ram_used_gb": 7.37,
+                "cpu_load_1min": 0.63,
+                "cpu_load_5min": 0.7,
+                "ram_percent": 42.0,
+                "ram_used_gb": 6.46,
                 "ram_total_gb": 15.37
             }
         },
@@ -271,219 +308,219 @@ Stay safe.
             "type": "health_check",
             "host": "@local",
             "stage": "post_operations",
-            "timestamp": 1769288855.5686376,
+            "timestamp": 1769294484.327481,
             "metrics": {
-                "cpu_load_1min": 0.7,
-                "cpu_load_5min": 0.68,
-                "ram_percent": 48.0,
-                "ram_used_gb": 7.37,
+                "cpu_load_1min": 0.66,
+                "cpu_load_5min": 0.7,
+                "ram_percent": 41.8,
+                "ram_used_gb": 6.43,
                 "ram_total_gb": 15.37
             }
         }
     ],
     "command_history": [
         {
-            "timestamp": 1769288854.1554756,
+            "timestamp": 1769294482.7225926,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
         },
         {
-            "timestamp": 1769288854.5327759,
+            "timestamp": 1769294483.0070384,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
         },
         {
-            "timestamp": 1769288854.800163,
+            "timestamp": 1769294483.3427455,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
         },
         {
-            "timestamp": 1769288855.1644516,
+            "timestamp": 1769294483.7029817,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
         },
         {
-            "timestamp": 1769288855.484477,
+            "timestamp": 1769294484.2389967,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
         },
         {
-            "timestamp": 1769288855.4963365,
+            "timestamp": 1769294484.2502532,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
         },
         {
-            "timestamp": 1769288855.5107565,
+            "timestamp": 1769294484.264085,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
         },
         {
-            "timestamp": 1769288855.524469,
+            "timestamp": 1769294484.2741976,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
         },
         {
-            "timestamp": 1769288855.5363626,
+            "timestamp": 1769294484.286225,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpvyiemkf2 /home/dexmachina/hi.txt'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpjqks7iuv /home/dexmachina/hi.txt'"
         },
         {
-            "timestamp": 1769288855.5463538,
+            "timestamp": 1769294484.2978399,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
         },
         {
-            "timestamp": 1769288855.555044,
+            "timestamp": 1769294484.3105054,
             "log_level": "DEBUG",
             "context": "running_command_on_localhost",
-            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
+            "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
         }
     ],
     "fact_history": [
         {
-            "timestamp": 1769288851.0926516,
+            "timestamp": 1769294478.528359,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.RamUsage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288851.095104,
+            "timestamp": 1769294478.530887,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.LoadAverage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288851.2491794,
+            "timestamp": 1769294478.6753526,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Command (command=cat /var/lib/chaos/secrets.yml || true) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288852.9489954,
+            "timestamp": 1769294481.1138546,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288853.2125235,
+            "timestamp": 1769294481.4634337,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288853.4926178,
+            "timestamp": 1769294481.9300227,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288853.772122,
+            "timestamp": 1769294482.282992,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.091587,
+            "timestamp": 1769294482.659639,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.Home (user=dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.0942059,
+            "timestamp": 1769294482.662006,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.1055932,
+            "timestamp": 1769294482.6732168,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.1166964,
+            "timestamp": 1769294482.6843333,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.1353545,
+            "timestamp": 1769294482.7025495,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.FileContents (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.145277,
+            "timestamp": 1769294482.7123551,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "server.TmpDir () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.155345,
+            "timestamp": 1769294482.7224584,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.5326447,
+            "timestamp": 1769294483.00692,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288854.8000238,
+            "timestamp": 1769294483.342619,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.1643276,
+            "timestamp": 1769294483.7028704,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.4843462,
+            "timestamp": 1769294484.2388754,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.4961774,
+            "timestamp": 1769294484.2499976,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.5105786,
+            "timestamp": 1769294484.2639694,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.Sha1File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.5243855,
+            "timestamp": 1769294484.27409,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "files.FileContents (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.56445,
+            "timestamp": 1769294484.3233132,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.RamUsage () (ensure_hosts: None)"
         },
         {
-            "timestamp": 1769288855.5669143,
+            "timestamp": 1769294484.3256319,
             "log_level": "DEBUG",
             "context": "fact_gathering",
             "command": "chaos.lib.facts.facts.LoadAverage () (ensure_hosts: None)"
@@ -497,10 +534,10 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 0.3768434524536133,
+            "duration": 0.2840418815612793,
             "facts_collected": [
                 {
-                    "timestamp": 1769288854.155345,
+                    "timestamp": 1769294482.7224584,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
@@ -508,24 +545,24 @@ Stay safe.
             ],
             "operation_commands": [
                 {
-                    "timestamp": 1769288854.1554756,
+                    "timestamp": 1769294482.7225926,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
                 }
             ],
             "command_n_facts_in_order": [
                 {
-                    "timestamp": 1769288854.155345,
+                    "timestamp": 1769294482.7224584,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288854.1554756,
+                    "timestamp": 1769294482.7225926,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
                 }
             ],
             "logs": {
@@ -549,22 +586,22 @@ Stay safe.
             "changed": false,
             "success": true,
             "retry_count": 0,
-            "duration": 0.9511985778808594,
+            "duration": 1.2314767837524414,
             "facts_collected": [
                 {
-                    "timestamp": 1769288854.5326447,
+                    "timestamp": 1769294483.00692,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288854.8000238,
+                    "timestamp": 1769294483.342619,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.1643276,
+                    "timestamp": 1769294483.7028704,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Sha1File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
@@ -572,60 +609,60 @@ Stay safe.
             ],
             "operation_commands": [
                 {
-                    "timestamp": 1769288854.5327759,
+                    "timestamp": 1769294483.0070384,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
                 },
                 {
-                    "timestamp": 1769288854.800163,
+                    "timestamp": 1769294483.3427455,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
                 },
                 {
-                    "timestamp": 1769288855.1644516,
+                    "timestamp": 1769294483.7029817,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
                 }
             ],
             "command_n_facts_in_order": [
                 {
-                    "timestamp": 1769288854.5326447,
+                    "timestamp": 1769294483.00692,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288854.5327759,
+                    "timestamp": 1769294483.0070384,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos/secrets.yml || test -L /var/lib/chaos/secrets.yml ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos/secrets.yml 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos/secrets.yml || ls -ld /var/lib/chaos/secrets.yml )'"
                 },
                 {
-                    "timestamp": 1769288854.8000238,
+                    "timestamp": 1769294483.342619,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/var/lib/chaos) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288854.800163,
+                    "timestamp": 1769294483.3427455,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c '! (test -e /var/lib/chaos || test -L /var/lib/chaos ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /var/lib/chaos 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /var/lib/chaos || ls -ld /var/lib/chaos )'"
                 },
                 {
-                    "timestamp": 1769288855.1643276,
+                    "timestamp": 1769294483.7028704,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Sha1File (path=/var/lib/chaos/secrets.yml) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.1644516,
+                    "timestamp": 1769294483.7029817,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k sh -c 'test -e /var/lib/chaos/secrets.yml && ( sha1sum /var/lib/chaos/secrets.yml 2> /dev/null || shasum /var/lib/chaos/secrets.yml 2> /dev/null || sha1 /var/lib/chaos/secrets.yml 2> /dev/null ) || true'"
                 }
             ],
             "logs": {
@@ -649,28 +686,28 @@ Stay safe.
             "changed": true,
             "success": true,
             "retry_count": 0,
-            "duration": 0.07988739013671875,
+            "duration": 0.08417940139770508,
             "facts_collected": [
                 {
-                    "timestamp": 1769288855.4843462,
+                    "timestamp": 1769294484.2388754,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.4961774,
+                    "timestamp": 1769294484.2499976,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.5105786,
+                    "timestamp": 1769294484.2639694,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Sha1File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.5243855,
+                    "timestamp": 1769294484.27409,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.FileContents (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
@@ -678,114 +715,114 @@ Stay safe.
             ],
             "operation_commands": [
                 {
-                    "timestamp": 1769288855.484477,
+                    "timestamp": 1769294484.2389967,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
                 },
                 {
-                    "timestamp": 1769288855.4963365,
+                    "timestamp": 1769294484.2502532,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
                 },
                 {
-                    "timestamp": 1769288855.5107565,
+                    "timestamp": 1769294484.264085,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
                 },
                 {
-                    "timestamp": 1769288855.524469,
+                    "timestamp": 1769294484.2741976,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.5363626,
+                    "timestamp": 1769294484.286225,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpvyiemkf2 /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpjqks7iuv /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.5463538,
+                    "timestamp": 1769294484.2978399,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.555044,
+                    "timestamp": 1769294484.3105054,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
                 }
             ],
             "command_n_facts_in_order": [
                 {
-                    "timestamp": 1769288855.4843462,
+                    "timestamp": 1769294484.2388754,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.484477,
+                    "timestamp": 1769294484.2389967,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina/hi.txt || test -L /home/dexmachina/hi.txt ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina/hi.txt 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina/hi.txt || ls -ld /home/dexmachina/hi.txt )'"
                 },
                 {
-                    "timestamp": 1769288855.4961774,
+                    "timestamp": 1769294484.2499976,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Directory (path=/home/dexmachina) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.4963365,
+                    "timestamp": 1769294484.2502532,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c '! (test -e /home/dexmachina || test -L /home/dexmachina ) || ( stat -c '\"'\"'user=%U group=%G mode=%A atime=%X mtime=%Y ctime=%Z size=%s %N'\"'\"' /home/dexmachina 2> /dev/null || stat -f '\"'\"'user=%Su group=%Sg mode=%Sp atime=%a mtime=%m ctime=%c size=%z %N%SY'\"'\"' /home/dexmachina || ls -ld /home/dexmachina )'"
                 },
                 {
-                    "timestamp": 1769288855.5105786,
+                    "timestamp": 1769294484.2639694,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.Sha1File (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.5107565,
+                    "timestamp": 1769294484.264085,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'test -e /home/dexmachina/hi.txt && ( sha1sum /home/dexmachina/hi.txt 2> /dev/null || shasum /home/dexmachina/hi.txt 2> /dev/null || sha1 /home/dexmachina/hi.txt 2> /dev/null ) || true'"
                 },
                 {
-                    "timestamp": 1769288855.5243855,
+                    "timestamp": 1769294484.27409,
                     "log_level": "DEBUG",
                     "context": "fact_gathering",
                     "command": "files.FileContents (path=/home/dexmachina/hi.txt) (ensure_hosts: None)"
                 },
                 {
-                    "timestamp": 1769288855.524469,
+                    "timestamp": 1769294484.2741976,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cat /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.5363626,
+                    "timestamp": 1769294484.286225,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpvyiemkf2 /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'cp /tmp/tmpjqks7iuv /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.5463538,
+                    "timestamp": 1769294484.2978399,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chown dexmachina /home/dexmachina/hi.txt'"
                 },
                 {
-                    "timestamp": 1769288855.555044,
+                    "timestamp": 1769294484.3105054,
                     "log_level": "DEBUG",
                     "context": "running_command_on_localhost",
-                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-qlvMKpM14cAg *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
+                    "command": "env SUDO_ASKPASS=/tmp/pyinfra-sudo-askpass-7XMslrbaHmy1 *** sudo -H -A -k -u dexmachina sh -c 'chmod 600 /home/dexmachina/hi.txt'"
                 }
             ],
             "logs": {
@@ -806,30 +843,30 @@ Stay safe.
     "operation_summary": {
         "Ensuring secrets state directory exists": {
             "count": 1,
-            "total_duration": 0.3768,
-            "average_duration": 0.3768,
-            "p50_duration": 0.3768,
-            "p90_duration": 0.3768,
-            "p95_duration": 0.3768,
-            "p99_duration": 0.3768
+            "total_duration": 0.284,
+            "average_duration": 0.284,
+            "p50_duration": 0.284,
+            "p90_duration": 0.284,
+            "p95_duration": 0.284,
+            "p99_duration": 0.284
         },
         "Recording new secrets state": {
             "count": 1,
-            "total_duration": 0.9512,
-            "average_duration": 0.9512,
-            "p50_duration": 0.9512,
-            "p90_duration": 0.9512,
-            "p95_duration": 0.9512,
-            "p99_duration": 0.9512
+            "total_duration": 1.2315,
+            "average_duration": 1.2315,
+            "p50_duration": 1.2315,
+            "p90_duration": 1.2315,
+            "p95_duration": 1.2315,
+            "p99_duration": 1.2315
         },
         "Deploy secret template to /home/dexmachina/hi.txt for user dexmachina": {
             "count": 1,
-            "total_duration": 0.0799,
-            "average_duration": 0.0799,
-            "p50_duration": 0.0799,
-            "p90_duration": 0.0799,
-            "p95_duration": 0.0799,
-            "p99_duration": 0.0799
+            "total_duration": 0.0842,
+            "average_duration": 0.0842,
+            "p50_duration": 0.0842,
+            "p90_duration": 0.0842,
+            "p95_duration": 0.0842,
+            "p99_duration": 0.0842
         }
     }
 }
