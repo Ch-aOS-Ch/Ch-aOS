@@ -1,4 +1,3 @@
-from ast import literal_eval
 import json
 import time
 import logging
@@ -272,9 +271,11 @@ class ChaosTelemetry(BaseStateCallback):
         executed = vars.split("executed=")[1].split(",")[0]
         maybeChange = vars.split("maybeChange=")[1].split(",")[0]
         hash = vars.split("hash")[1].split(",")[0]
+        clean_executed = ChaosTelemetry._clean_value(executed)
+        clean_maybe = ChaosTelemetry._clean_value(maybeChange)
         return {
-            'executed': executed,
-            'maybe_change': maybeChange,
+            'executed': clean_executed,
+            'maybe_change': clean_maybe,
             'hash': hash
         }
 
@@ -305,7 +306,7 @@ class ChaosTelemetry(BaseStateCallback):
                 clean_data[key] = ChaosTelemetry._sanitize_op_data(value)
 
             elif key == 'operation_meta':
-                clean_data[key] = ChaosTelemetry._parse_meta(value)
+                clean_data[key] = ChaosTelemetry._parse_meta(str(value))
 
             elif any(term in key.lower() for term in SENSITIVE_TERMS):
                 clean_data[key] = "********"
