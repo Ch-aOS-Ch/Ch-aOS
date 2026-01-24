@@ -408,14 +408,14 @@ class ChaosTelemetry(BaseStateCallback):
 
         op_details = {
             'operation': op_name,
-            'operation_arguments': operation_arguments,
             'changed': changed,
             'success': True,
             'duration': round(duration, 4),
             'stdout': logs['stdout'],
             'stderr': logs['stderr'],
-            'retry_statistics': logs,
             'diff': diff_text,
+            'operation_arguments': operation_arguments,
+            'retry_statistics': logs,
         }
 
         ChaosTelemetry._stream_event(host, op_name, changed, False, retry_count, duration, logs, op_hash, diff_text)
@@ -431,6 +431,12 @@ class ChaosTelemetry(BaseStateCallback):
         static_meta = state.get_op_meta(op_hash)
         op_name = list(static_meta.names)[0] if static_meta.names else "Unknown Task"
         op_data = state.get_op_data_for_host(host, op_hash)
+
+        raw_data = vars(op_data)
+        operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
+
+        diff_log = ChaosTelemetry._diff_log_buffer.pop(op_hash, [])
+        diff_text = "\n".join(diff_log) if diff_log else ""
 
         stdout, stderr = '', 'Operation Failed.'
         if hasattr(op_data, 'operation_meta') and op_data.operation_meta:
@@ -458,10 +464,12 @@ class ChaosTelemetry(BaseStateCallback):
             'duration': round(duration, 4),
             'stdout': stdout,
             'stderr': stderr,
+            'diff': diff_text,
+            'operation_arguments': operation_arguments,
             'retry_statistics': logs,
         }
 
-        ChaosTelemetry._stream_event(host, op_name, False, is_failure, retry_count, duration, logs, op_hash)
+        ChaosTelemetry._stream_event(host, op_name, False, False, retry_count, duration, logs, op_hash, diff_text)
         ChaosTelemetry._update_statistics(host, False, is_failure, duration, op_details)
 
     @staticmethod
