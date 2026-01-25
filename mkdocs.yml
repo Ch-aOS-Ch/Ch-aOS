@@ -59,6 +59,7 @@ nav:
   - 'Advanced':
     - 'Fleet Management': 'advanced/fleet.md'
     - 'Boats for your Fleet': 'advanced/boats.md'
+    - 'Pyinfra Connectors': 'advanced/connectors.md'
     - 'Secret Providers': 'advanced/providers.md'
     - 'Logbook': 'advanced/logbook.md'
     - 'Composability': 'advanced/composability.md'
@@ -66,3 +67,4 @@ nav:
     - 'Provider Plugins': 'plugins/provider-plugins.md'
     - 'Registry': 'plugins/styx.md'
     - 'Development': 'plugins/development.md'
+    - 'Connector development': 'plugins/connectors.md'

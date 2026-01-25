@@ -49,6 +49,7 @@ class MyProvider(Provider):
     def get_cli_name() -> Tuple[str, str]:
         """
         Returns the flag name and the config name for the provider.
+
         - The first element is the attribute name for the direct CLI flag (e.g., '--from-my-provider' becomes 'from_my_provider').
         - The second element is the key used in the chaos config file.
         """
@@ -98,6 +99,7 @@ class MyProvider(Provider):
         """
         if not checkDep("my-provider-cli"):
             raise EnvironmentError("MyProvider CLI is not installed.")
+
         # Add authentication checks here
         return True, "MyProvider is ready."
 
