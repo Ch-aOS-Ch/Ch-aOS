@@ -220,4 +220,54 @@ Some other methods that are well documented (`connect`, `disconnect`)
 
 These behaviours should be the same accross all other methods until `check_can_rsync` and `rsync` which... well, they do exactly what the name suggests.
 
-I quite recommend you to check the Connectors inside of pyinfra's source code, they can teach you quite a lot.
+I quite recommend you to check the Connectors inside of pyinfra's source code, they can teach you quite a lot. Also, I do recommend looking at their [documentation](https://docs.pyinfra.com/en/3.x/api/connectors.html) for more details and examples!
+
+## Quirks, Tips and Shticks worth pointing out
+
+Firstly: On a connection failed, make sure to raise a `ConnectError` exception, Pyinfra will catch it and handle it properly.
+
+Secondly: `make_names_data` is a staticmethod, meaning you can't access `self` or any instance variables inside of it. This is because each yield will create a new instance of your connector.
+
+To "get" data inside of `make_names_data`, you need to do outside functions, like documented in their official docs:
+```py
+def load_settings():
+  settings = {}
+  # logic here
+  return settings
+
+class InventoryConnector(BaseConnector):
+  api_instance = external.ApiClient()
+  ...
+
+  @staticmethod
+  def make_names_data(_=None)
+    api_client = getattr(InventoryConnector, 'api_instance')
+    api_settings = load_settings()
+    ...
+```
+
+3: About `run_shell_command`, You should use their official function `make_unix_command_for_host()` and `extract_control_commands()` from `pyinfra.connectors.util` to properly handle control commands like `_sudo`, `_doas`, etc. Official example:
+```py
+    control_commands = extract_control_commands(arguments) # returns a dict of control commands
+    wrapped_command = make_unix_command_for_host(
+        self.state,
+        self.host,
+        command,
+        **arguments, # Be sure to pass ARGUMENTS, not control_commands
+    )
+
+    timeout = control_commands.get("_timeout")
+    success_exit_codes = control_commands.get("_success_exit_codes", [0])
+    exit_code, output = self._execute(wrapped_command, timeout=timeout)
+
+    success = exit_code in success_exit_codes
+    return success, output
+```
+
+This is because Pyinfra has a lot of built-in logic to handle these control commands, and you should leverage that instead of re-inventing the wheel.
+
+Also it parses commands correctly which ensures that these run correctly on the target system.
+
+## How are them different from Ch-aOS' Boats?
+
+Well, quite a lot actually. Boats provide you with _dynamic inventories_, Pyinfra Connectors provide you with _connection methods_, which are quite different things. Both can be used together in harmony, Boats can provide dynamic inventories that use different Connectors for different hosts, providing you with a lot of flexibility and power!
