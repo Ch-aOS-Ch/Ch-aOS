@@ -34,14 +34,17 @@ fleet:
         ssh_key: /path/to/private/key
 
     # --- You can define multiple hosts ---
-    - my-server-02:
+    - "@dockerssh/my-server-02":
         ssh_user: admin
         ssh_port: 2222
         ssh_key: /path/to/another/key
 
     # --- Minimal definition, relying on defaults or ssh config ---
-    - my-server-03: {}
+    - "@chroot/mnt/my/root": {}
 ```
+
+!!! note
+    Since Ch-aOS uses base `pyinfra` for remote execution, all `pyinfra connectors` are supported. This includes special connection types like `@dockerssh/`, `@chroot/`, `@terrafor,/`, and more. Refer to the [pyinfra documentation](https://docs.pyinfra.com/en/3.x/connectors/vagrant.html#vagrant-connector) and, better yet, [pyinfra connector repo](https://github.com/pyinfra-dev/pyinfra/tree/3.x/src/pyinfra/connectors) for more details on connection strings.
 
 The hosts are defined as a list of dictionaries, where each dictionary contains a single host and its connection data. All `pyinfra` connection arguments (like `ssh_user`, `ssh_port`, `ssh_key`, etc.) are supported.
 
