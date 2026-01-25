@@ -29,13 +29,13 @@ fleet:
 
 Since Ch-aOS uses Pyinfra under the hood, you can use any Pyinfra Connector available on [PyPI](https://pypi.org/search/?q=pyinfra+connector&type=packages) or even create your own! Since Ch-aOS' plugins are simple .whl files that install Python packages, you can easily create/install any custom connectors through `chaos styx invoke`, since it is quite literally just an entry point to Pyinfra's connector system.
 
-This means that, since there are multiple [Pyinfra plugins]() being developped inside of [Pyinfra-dev](https://github.com/pyinfra-dev), Ch-aOS could, theoretically, support even windows!
+This means that, since there are multiple Pyinfra plugins are being developped inside of [Pyinfra-dev](https://github.com/pyinfra-dev), Ch-aOS could, theoretically, support even [windows](https://github.com/pyinfra-dev/pyinfra-windows) in the future!
 
 ## Developing Custom Connectors
 
 Well, Pyinfra's documentation on creating custom connectors is a bit sparse, but the general idea is that you need to create a Python package that defines a new connector class inheriting from `pyinfra.api.connectors.BaseConnector`. You then need to register this connector in your package's `setup.py` or `pyproject.toml` file under the `entry_points` section.
 
-A bit more can be found in (Our documentation)[../plugins/connectors.md] and also in (Pyinfra's documentation)[https://docs.pyinfra.com/en/3.x/api/connectors.html].
+A bit more can be found in [Our own documentation](../plugins/connectors.md) and also in [Pyinfra's documentation](https://docs.pyinfra.com/en/3.x/api/connectors.html).
 
 I'll try my best to explain exactly how to create a working Connector.
 
