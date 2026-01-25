@@ -68,3 +68,4 @@ nav:
     - 'Registry': 'plugins/styx.md'
     - 'Development': 'plugins/development.md'
     - 'Connector development': 'plugins/connectors.md'
+    - 'Roles': 'plugins/roles.md'
