@@ -561,6 +561,94 @@ class ChaosTelemetry(BaseStateCallback):
         ChaosTelemetry._report_data['hailer'] = hailer_info
 
     @classmethod
+    def _process_data(cls):
+        if cls._temp_log_dir is None:
+                return  # No logs were generated
+
+        if hasattr(cls._thread_local, 'log_file_handle'):
+            cls._thread_local.log_file_handle.close()
+
+        all_events = []
+        for temp_file in cls._temp_log_files:
+            with open(temp_file, 'r') as f:
+                for line in f:
+                    try:
+                        all_events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue # Ignore malformed lines
+
+        all_events.sort(key=lambda x: x.get('timestamp', 0))
+
+        final_report = cls._report_data
+        final_report['resource_history'] = []
+        final_report['fact_history'] = []
+        # final_report['command_history'] = []
+        final_report['streamed_history'] = []
+
+        op_events_for_percentiles = []
+
+        for host_name, host_data in final_report['hosts'].items():
+            host_data['history'] = []
+
+            for event in all_events:
+                event_type = event.get('type')
+                if event_type == 'progress':
+
+                    for fact in event.get('facts_collected', []):
+                        final_report['fact_history'].append(fact)
+
+                    host_name = event.get('host')
+                    if host_name in final_report['hosts']:
+                        op_details = {
+                            'operation': event.get('operation'),
+                            'changed': event.get('changed'),
+                            'success': event.get('success'),
+                            'duration': event.get('duration'),
+                            'stdout': event.get('logs', {}).get('stdout'),
+                            'stderr': event.get('logs', {}).get('stderr'),
+                            'diff': event.get('diff'),
+                            'operation_arguments': event.get('operation_arguments'),
+                            'retry_statistics': event.get('retry_statistics'),
+                        }
+
+                        final_report['hosts'][host_name]['history'].append(op_details)
+
+                        op_events_for_percentiles.append(event)
+
+                    final_report['streamed_history'].append(event)
+
+                elif event_type == 'health_check':
+                    final_report['resource_history'].append(event)
+
+                elif event_type == 'fact_log_event':
+                    log_entry = {
+                        "timestamp": event.get('timestamp'),
+                        "log_level": event.get('log_level'),
+                        "context": event.get('context'),
+                        "command": event.get('command'),
+                    }
+
+                    if event.get('context') == "fact_gathering":
+                        final_report['fact_history'].append(log_entry)
+
+                    # elif "running_command" in event.get('context', ''):
+                    #     final_report['command_history'].append(log_entry)
+
+                elif event_type == 'setup_phase':
+                     for host_data in final_report['hosts'].values():
+                        host_data['history'].insert(0, event)
+
+            # final_report['command_history'].sort(key=lambda x: x.get('timestamp', 0))
+            final_report['fact_history'].sort(key=lambda x: x.get('timestamp', 0))
+
+            op_durations = cls.add_op_durations(op_events_for_percentiles)
+            cls.add_operation_percentiles(op_durations)
+            cls.add_hailer_info()
+            final_report['operation_summary'] = cls._report_data['operation_summary']
+            final_report['hailer'] = cls._report_data['hailer']
+            return final_report
+
+    @classmethod
     def export_report(cls, filepath: str = "chaos_logbook.json"):
         """
         Processes temporary log files to generate the final structured JSON report.
@@ -568,90 +656,7 @@ class ChaosTelemetry(BaseStateCallback):
         import shutil
 
         with cls._lock:
-            if cls._temp_log_dir is None:
-                return  # No logs were generated
-
-            if hasattr(cls._thread_local, 'log_file_handle'):
-                cls._thread_local.log_file_handle.close()
-
-            all_events = []
-            for temp_file in cls._temp_log_files:
-                with open(temp_file, 'r') as f:
-                    for line in f:
-                        try:
-                            all_events.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            continue # Ignore malformed lines
-
-            all_events.sort(key=lambda x: x.get('timestamp', 0))
-
-            final_report = cls._report_data
-            final_report['resource_history'] = []
-            final_report['fact_history'] = []
-            # final_report['command_history'] = []
-            final_report['streamed_history'] = []
-
-            op_events_for_percentiles = []
-
-            for host_name, host_data in final_report['hosts'].items():
-                host_data['history'] = []
-
-                for event in all_events:
-                    event_type = event.get('type')
-                    if event_type == 'progress':
-
-                        for fact in event.get('facts_collected', []):
-                            final_report['fact_history'].append(fact)
-
-                        host_name = event.get('host')
-                        if host_name in final_report['hosts']:
-                            op_details = {
-                                'operation': event.get('operation'),
-                                'changed': event.get('changed'),
-                                'success': event.get('success'),
-                                'duration': event.get('duration'),
-                                'stdout': event.get('logs', {}).get('stdout'),
-                                'stderr': event.get('logs', {}).get('stderr'),
-                                'diff': event.get('diff'),
-                                'operation_arguments': event.get('operation_arguments'),
-                                'retry_statistics': event.get('retry_statistics'),
-                            }
-
-                            final_report['hosts'][host_name]['history'].append(op_details)
-
-                            op_events_for_percentiles.append(event)
-
-                        final_report['streamed_history'].append(event)
-
-                    elif event_type == 'health_check':
-                        final_report['resource_history'].append(event)
-
-                    elif event_type == 'fact_log_event':
-                        log_entry = {
-                            "timestamp": event.get('timestamp'),
-                            "log_level": event.get('log_level'),
-                            "context": event.get('context'),
-                            "command": event.get('command'),
-                        }
-
-                        if event.get('context') == "fact_gathering":
-                            final_report['fact_history'].append(log_entry)
-
-                        # elif "running_command" in event.get('context', ''):
-                        #     final_report['command_history'].append(log_entry)
-
-                    elif event_type == 'setup_phase':
-                         for host_data in final_report['hosts'].values():
-                            host_data['history'].insert(0, event)
-
-                # final_report['command_history'].sort(key=lambda x: x.get('timestamp', 0))
-                final_report['fact_history'].sort(key=lambda x: x.get('timestamp', 0))
-
-                op_durations = cls.add_op_durations(op_events_for_percentiles)
-                cls.add_operation_percentiles(op_durations)
-                cls.add_hailer_info()
-                final_report['operation_summary'] = cls._report_data['operation_summary']
-                final_report['hailer'] = cls._report_data['hailer']
+            final_report = cls._process_data()
 
             print(f"CHAOS_LOGBOOK::{json.dumps(final_report)}", flush=True)
             try:
