@@ -23,7 +23,7 @@ def get_db_connection() -> sqlite3.Connection:
         # The timeout parameter is important for multi-threaded applications
         conn = sqlite3.connect(db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA journal_mode=WAL; PRAGMA syncrhonous=NORMAL;")
         _thread_local.connection = conn
     return _thread_local.connection
 
