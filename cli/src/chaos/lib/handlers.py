@@ -247,6 +247,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
         pyinfra_logger.setLevel(logging.DEBUG)
         handler = ChaosTelemetry.PyinfraFactLogHandler()
         pyinfra_logger.addHandler(handler)
+        ChaosTelemetry.start_run()
 
     ctx_state.set(state)
     sudo_password = None
@@ -411,6 +412,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
         ROLE_ALIASES.update(userAliases)
 
     decrypted_secrets = ()
+    run_status = 'success'
     try:
         if args.logbook:
             _collect_fleet_health(state, stage="pre_operations")
@@ -441,11 +443,13 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
             console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
 
     except PyinfraError as e:
+        run_status = 'failure'
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
     finally:
         if args.logbook:
             ChaosTelemetry.export_report()
+            ChaosTelemetry.end_run(status=run_status)
 
         console.print("\nDisconnecting...")
         disconnect_all(state)
