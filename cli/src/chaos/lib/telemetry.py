@@ -4,107 +4,133 @@ import logging
 import contextvars
 import re
 import os
-from pathlib import Path
-import tempfile
+import socket
+import queue
 import threading
-
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
+from . import database
 
 op_hash_context: contextvars.ContextVar[str | None] = contextvars.ContextVar('op_hash', default=None)
 
 class ChaosTelemetry(BaseStateCallback):
     """
     A telemetry system for tracking operation execution details in pyinfra-based chaos engineering experiments.
-    This class captures detailed information about each operation performed on hosts, including
-    whether the operation resulted in changes, succeeded, or failed. It also records execution duration
-    and logs (stdout and stderr) associated with each operation.
-
-    Key Features:
-    - Operation Timing: Measures the duration of each operation on a per-host-basis.
-
-    - Event Streaming: Streams real-time progress events to standard output, which can be captured by
-        external systems for monitoring or logging purposes.
-
-    - Statistics Tracking: Maintains comprehensive statistics at both the summary level and per-host level,
-        including total operations, changed operations, successful operations, failed operations, and total duration.
-
-    - Detailed Logging: Captures and stores stdout and stderr logs for each operation, along with
-        retry information if applicable.
-
-    - Report Generation: Provides functionality to export a detailed report of all operations
-        Executed during the chaos experiment to a JSON file.
+    This class captures detailed information about each operation and stores it in a local SQLite database.
     """
-    _lock = threading.Lock()
-    _thread_local = threading.local()
-    _temp_log_dir = None
-    _temp_log_files = set()
-
-    _process = None
+    _run_id: str | None = None
     _timers = {}
-    _fact_log_buffer = {}
     _diff_log_buffer = {}
     _active_diffs = set()
-    _report_data = {
-        'api_version': 'v1',
-        'run_id': f"chaos-{time.strftime('%Y/%m/%d-%H:%M:%S', time.gmtime())}",
-        'uggly_run_id': f"chaos-{int(time.time())}-{time.perf_counter_ns()}",
-        'hailer': {},
-        'hosts': {},
-        'summary': {
-            'total_operations': 0,
-            'changed_operations': 0,
-            'successful_operations': 0,
-            'failed_operations': 0,
-            'status': 'success',
-            'total_duration': 0.0,
-        },
-        'operation_summary': {},
-    }
+    _db_writer_thread = None
+    _poison_pill = object()
 
     @classmethod
-    def _log_event_to_file_and_stdout(cls, event_payload: dict):
-        """
-        Aggregates the logic for printing an event to stdout and saving it to the thread-local temporary file.
-        """
-        json_payload = json.dumps(event_payload)
-        print(f"CHAOS_EVENT::{json_payload}", flush=True)
+    def _database_writer_worker(cls):
+        """Worker thread to process database write operations asynchronously."""
+        database.get_db_connection()
+        while True:
+            try:
+                if not cls._db_queue:
+                    raise RuntimeError("DB queue is not initialized.")
+                item = cls._db_queue.get()
+                if item is cls._poison_pill:
+                    cls._db_queue.task_done()
+                    break
 
-        log_file = cls._get_thread_local_log_file()
-        log_file.write(json_payload + '\n')
+                func, args, kwargs = item
+                func(*args, **kwargs)
+                cls._db_queue.task_done()
+            except Exception as e:
+                print(f"Error in telemetry DB writer thread: {e}", flush=True)
+        database.close_db_connection()
 
     @classmethod
-    def _get_thread_local_log_file(cls):
+    def start_run(cls):
         """
-        Gets or creates a thread-local log file handle.
-        This ensures that each thread writes to its own temporary file, avoiding race conditions.
+        Initializes the database, creates a new run entry, and starts the async DB writer.
+        This should be called once at the beginning of a `chaos apply` execution.
         """
-        if not hasattr(cls._thread_local, 'log_file_handle'):
-            with cls._lock:
-                if cls._temp_log_dir is None:
-                    cls._temp_log_dir = tempfile.mkdtemp(prefix="chaos_run_")
+        database.init_db()
 
-                thread_id = threading.get_ident()
-                temp_file_path = os.path.join(cls._temp_log_dir, f"thread_{thread_id}.jsonl")
+        # Start the DB writer thread
+        cls._db_queue = queue.Queue()
+        cls._db_writer_thread = threading.Thread(target=cls._database_writer_worker, daemon=True)
+        cls._db_writer_thread.start()
 
-                handle = open(temp_file_path, 'w')
-                cls._thread_local.log_file_handle = handle
-                cls._temp_log_files.add(temp_file_path)
+        run_id_human = f"chaos-{time.strftime('%Y/%m/%d-%H:%M:%S', time.gmtime())}"
+        uggly_run_id = f"chaos-{int(time.time())}-{time.perf_counter_ns()}"
 
-        return cls._thread_local.log_file_handle
+        hailer_info = {
+            'user': os.getenv('USER') or os.getenv('USERNAME') or 'unknown',
+            'boatswain': socket.gethostbyname(socket.gethostname()),
+            'hostname': socket.gethostname(),
+        }
+
+        start_time = time.time()
+        cls._run_id = database.create_run(uggly_run_id, run_id_human, start_time, hailer_info)
+        print(f"CHAOS_RUN_ID::{cls._run_id}", flush=True)
+        cls._stream_chaos_event({
+            "type": "run_start",
+            "run_id": run_id_human,
+            "uggly_run_id": cls._run_id,
+            "timestamp": start_time,
+            "hailer": hailer_info
+        })
+
+    @classmethod
+    def end_run(cls, status: str = 'success'):
+        """
+        Finalizes the run, updating its status and summary in the database.
+        This should be called once at the end of a `chaos apply` execution.
+        """
+        if cls._run_id:
+            # Wait for all pending writes to complete before finishing the run
+            if cls._db_queue:
+                cls._db_queue.join()
+
+            conn = database.get_db_connection()
+            try:
+                final_status_row = conn.execute("SELECT status FROM runs WHERE id = ?", (cls._run_id,)).fetchone()
+                final_status = final_status_row['status'] if final_status_row and final_status_row['status'] == 'failure' else status
+
+                summary = database.get_run_summary_stats(cls._run_id)
+                summary['status'] = final_status
+
+                end_time = time.time()
+                # This final update should be synchronous to ensure it's done before exporting
+                database.end_run_update(cls._run_id, end_time, final_status, summary)
+            finally:
+                database.close_db_connection()
+
+
+            cls._stream_chaos_event({
+                "type": "run_end",
+                "run_id": cls._run_id,
+                "status": final_status,
+                "timestamp": end_time,
+                "summary": summary
+            })
+
+            # Stop the writer thread
+            if cls._db_queue and cls._db_writer_thread:
+                cls._db_queue.put(cls._poison_pill)
+                cls._db_writer_thread.join()
+                cls._db_writer_thread = None
+                cls._db_queue = None
+
+            print(f"CHAOS_RUN_ENDED::{cls._run_id}", flush=True)
+            cls._run_id = None
 
     @staticmethod
     def _strip_ansi_codes(text: str) -> str:
-        # Regex to remove ANSI escape codes
         ansi_escape = re.compile(r'\x1b\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]')
         return ansi_escape.sub('', text)
 
     @staticmethod
     def _sanitize_diff_text(text):
-
         sensitive_terms = ['password', 'secret', 'token', 'key', 'auth', 'sudo_pass']
-
         for term in sensitive_terms:
             if term in text.lower():
                 lines = text.split('\n')
@@ -113,63 +139,98 @@ class ChaosTelemetry(BaseStateCallback):
                     for line in lines
                 ]
                 text = '\n'.join(sanitized_lines)
-
         return text
 
     @staticmethod
     def record_setup_phase(state: State, setup_duration: float):
         """
-        Records the setup phase duration in the telemetry report.
+        Records the setup phase duration as a special operation in the database.
         """
-        setup_event = {
-            "type": "setup_phase",
-            "stage": "connection_and_facts",
-            "timestamp": time.time(),
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
+            return
+
+        boatswain_hostname = socket.gethostname()
+        host_id = database.get_or_create_host(ChaosTelemetry._run_id, boatswain_hostname) # This can remain sync
+
+        ts = time.time()
+        op_hash = f"setup-{time.perf_counter_ns()}"
+        op_name = "chaos_setup"
+
+        arguments={'message': 'Time spent connecting to hosts and preparing the run.'}
+
+        op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
+            'changed': False,
+            'success': True,
+            'duration': round(setup_duration, 4),
+            'timestamp': ts,
+            'logs': {},
+            'diff': "",
+            'arguments': arguments,
+            'retry_stats': {},
+            'command_n_facts': []
+        }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], op_data))
+
+        streamed_event = {
+            "type": "progress",
+            "host": boatswain_hostname,
+            "operation": op_name,
+            "changed": False,
+            "success": True,
             "duration": round(setup_duration, 4),
-            "success": True
+            "timestamp": ts,
+            "logs": {},
+            "diff": "",
+            "operation_arguments": arguments,
+            "retry_statistics": {},
+            "command_n_fact_history": []
+        }
+        ChaosTelemetry._stream_chaos_event(streamed_event)
+
+    @classmethod
+    def record_snapshot(cls, host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"):
+        """
+        Records a snapshot of the host's resource usage into the database.
+        """
+        if not cls._run_id or not cls._db_queue:
+            return
+
+        metrics = {
+            "cpu_load_1min": load_data[0] if load_data else 0.0,
+            "cpu_load_5min": load_data[1] if load_data else 0.0,
+            "ram_percent": ram_data['percent'] if ram_data else 0.0,
+            "ram_used_gb": round(ram_data['used_mb'] / 1024, 2) if ram_data else 0.0,
+            "ram_total_gb": round(ram_data['total_mb'] / 1024, 2) if ram_data else 0.0,
         }
 
-        # Use the new centralized logging method
-        ChaosTelemetry._log_event_to_file_and_stdout(setup_event)
+        ts = time.time()
+        cls._stream_chaos_event({
+            'type': 'health_check',
+            'host': host.name,
+            'stage': stage,
+            'timestamp': ts,
+            'metrics': metrics
+        })
 
-        for host in state.inventory.iter_activated_hosts():
-            if host.name not in ChaosTelemetry._report_data['hosts']:
-                ChaosTelemetry._report_data['hosts'][host.name] = {
-                    'total_operations': 0,
-                    'changed_operations': 0,
-                    'successful_operations': 0,
-                    'failed_operations': 0,
-                    'duration': 0.0
-                }
-
-
-    @staticmethod
-    def record_snapshot(host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"):
-        """
-        Records a snapshot of the host's resource usage (RAM and CPU load) at a specific
-        """
-        snapshot = {
-            "type": "health_check",
-            "host": host.name,
-            "stage": stage,
-            "timestamp": time.time(),
-            "metrics": {
-                "cpu_load_1min": load_data[0] if load_data else 0.0,
-                "cpu_load_5min": load_data[1] if load_data else 0.0,
-                "ram_percent": ram_data['percent'] if ram_data else 0.0,
-                "ram_used_gb": round(ram_data['used_mb'] / 1024, 2) if ram_data else 0.0,
-                "ram_total_gb": round(ram_data['total_mb'] / 1024, 2) if ram_data else 0.0,
-            }
+        host_id = database.get_or_create_host(cls._run_id, host.name) # Sync is fine
+        snapshot_data = {
+            'run_id': cls._run_id,
+            'host_id': host_id,
+            'stage': stage,
+            'timestamp': ts,
+            'metrics': metrics
         }
+        cls._db_queue.put((database.insert_snapshot, [], snapshot_data))
 
-        ChaosTelemetry._log_event_to_file_and_stdout(snapshot)
-        return snapshot
 
     @staticmethod
     def _get_safe_logs(meta: OperationMeta):
         """
-        Since we use run_ops to run operations, the stdout/stderr may not be directly available.
-        This method safely retrieves stdout and stderr from the OperationMeta.
+        Safely retrieves stdout and stderr from the OperationMeta.
         """
         if meta.is_complete():
             return meta.stdout, meta.stderr
@@ -181,34 +242,27 @@ class ChaosTelemetry(BaseStateCallback):
 
     class PyinfraFactLogHandler(logging.Handler):
         """
-        gets command logs from pyinfra's logger
+        Gets command logs from pyinfra's logger and logs them to the database.
         """
-
         def emit(self, record):
             msg = record.getMessage()
             op_hash = op_hash_context.get()
 
+            # --- Diff handling (remains in-memory for the duration of exactly one op) ---
             if record.levelname == 'INFO' and op_hash:
                 is_diff_start = 'Will modify' in msg
                 is_part_of_active_diff = op_hash in ChaosTelemetry._active_diffs
-
                 if is_diff_start:
                     ChaosTelemetry._active_diffs.add(op_hash)
                     is_part_of_active_diff = True
-
                 if is_part_of_active_diff:
                     if op_hash not in ChaosTelemetry._diff_log_buffer:
                         ChaosTelemetry._diff_log_buffer[op_hash] = []
-
                     cleaned_msg = ChaosTelemetry._strip_ansi_codes(msg)
-
                     if ']' in cleaned_msg:
                         cleaned_msg = cleaned_msg.split(']', 1)[-1].strip()
-
                     cleaned_msg = ChaosTelemetry._sanitize_diff_text(cleaned_msg)
-
                     ChaosTelemetry._diff_log_buffer[op_hash].append(cleaned_msg)
-
                     if 'Success' in msg or 'No changes' in msg:
                         ChaosTelemetry._active_diffs.discard(op_hash)
                     return
@@ -216,22 +270,11 @@ class ChaosTelemetry(BaseStateCallback):
             is_fact_gathering = "Getting fact:" in msg and record.levelname == 'DEBUG'
             is_command_running = "--> Running command" in msg and record.levelname == 'DEBUG'
 
-            if not op_hash and not is_fact_gathering and not is_command_running:
+            run_id = ChaosTelemetry._run_id
+            if not run_id or not (is_fact_gathering or is_command_running):
                 return
 
-            key = op_hash
-
-            if not op_hash and is_fact_gathering:
-                parts = msg.split(":")
-                command = parts[1].strip().replace(" ", "_").lower()
-                key = f"__facts_for_{command}"
-
-            if not key:
-                return
-
-            context = None
-            command = None
-
+            context, command = None, None
             if is_fact_gathering:
                 context = "fact_gathering"
                 command = msg.split(":", 1)[-1].strip()
@@ -247,96 +290,23 @@ class ChaosTelemetry(BaseStateCallback):
                     command = msg
 
             if context and command:
-                if key not in ChaosTelemetry._fact_log_buffer:
-                    ChaosTelemetry._fact_log_buffer[key] = []
+                ChaosTelemetry._stream_chaos_event({
+                    'type': 'fact',
+                    'timestamp': record.created,
+                    'log_level': record.levelname,
+                    'context': context,
+                    'command': command
+                })
 
-                log_entry = {
-                    "timestamp": record.created,
-                    "log_level": record.levelname,
-                    "context": context,
-                    "command": command,
-                }
-
-                if not op_hash:
-                    fact_event = {
-                        "type": "fact_log_event",
-                        "timestamp": record.created,
-                        "log_level": record.levelname,
-                        "context": context,
-                        "command": command,
+                if ChaosTelemetry._db_queue:
+                    log_data = {
+                        'run_id': run_id,
+                        'timestamp': record.created,
+                        'log_level': record.levelname,
+                        'context': context,
+                        'command': command
                     }
-                    ChaosTelemetry._log_event_to_file_and_stdout(fact_event)
-
-                ChaosTelemetry._fact_log_buffer[key].append(log_entry)
-
-    @staticmethod
-    def _stream_event(host: Host, op_name, changed: bool, failed: bool, retry_count: int = 0, duration: float = 0.0, logs: dict = {}, op_hash: str = "", diff_log: str = "", operation_arguments: dict = {}, retry_statistics: dict = {}):
-        """
-        Streams a progress event to standard output in JSON format.
-
-        This is useful for real-time monitoring of operation execution.
-        Good for integrating with external logging or monitoring systems.
-
-        Optionally, includes an way to save the event history, not currently used because of
-        hosts history tracking.
-        """
-
-        operation_fact_logs = ChaosTelemetry._fact_log_buffer.pop(op_hash, [])
-
-        payload = {
-            "type": "progress",
-            "host": host.name,
-            "operation": op_name,
-            "changed": changed,
-            "success": not failed,
-            'retry_count': retry_count,
-            'duration': duration,
-            # 'facts_collected': facts,
-            # 'operation_commands': commands,
-            'command_n_facts_in_order': operation_fact_logs,
-            'logs': logs,
-            'diff': diff_log,
-            'operation_arguments': operation_arguments or {},
-            'retry_statistics': retry_statistics or {},
-        }
-
-        ChaosTelemetry._log_event_to_file_and_stdout(payload)
-
-    @staticmethod
-    def _update_statistics(host: Host, changed: bool, failed: bool, duration: float, op_details: dict):
-        """
-        Updates the telemetry statistics with the results of an operation executed on a host.
-        This method is now thread-safe.
-        """
-        with ChaosTelemetry._lock:
-            stats = ChaosTelemetry._report_data
-            if host.name not in stats['hosts']:
-                stats['hosts'][host.name] = {
-                    'total_operations': 0,
-                    'changed_operations': 0,
-                    'successful_operations': 0,
-                    'failed_operations': 0,
-                    'duration': 0.0,
-                }
-
-            stats['summary']['total_operations'] += 1
-            stats['summary']['total_duration'] += duration
-            if changed:
-                stats['summary']['changed_operations'] += 1
-            if failed:
-                stats['summary']['failed_operations'] += 1
-                stats['summary']['status'] = 'failure'
-
-            host_stats = stats['hosts'][host.name]
-            host_stats['total_operations'] += 1
-            host_stats['duration'] += duration
-            if changed:
-                host_stats['changed_operations'] += 1
-            if failed:
-                host_stats['failed_operations'] += 1
-
-            stats['summary']['successful_operations'] = max(0, stats['summary']['total_operations'] - stats['summary']['failed_operations'])
-            host_stats['successful_operations'] = max(0, host_stats['total_operations'] - host_stats['failed_operations'])
+                    ChaosTelemetry._db_queue.put((database.insert_fact_log, [], log_data))
 
     @staticmethod
     def operation_host_start(state: State, host: Host, op_hash):
@@ -348,11 +318,14 @@ class ChaosTelemetry(BaseStateCallback):
     @staticmethod
     def _parse_meta(meta: str) -> dict:
         vars = meta.split("(")[1].split(")")[0]
+
         executed = vars.split("executed=")[1].split(",")[0]
         maybeChange = vars.split("maybeChange=")[1].split(",")[0]
         hash = vars.split("hash")[1].split(",")[0]
+
         clean_executed = ChaosTelemetry._clean_value(executed)
         clean_maybe = ChaosTelemetry._clean_value(maybeChange)
+
         return {
             'executed': clean_executed,
             'maybe_change': clean_maybe,
@@ -372,6 +345,7 @@ class ChaosTelemetry(BaseStateCallback):
         """
         cleanse op data to remove sensitive information before logging
         """
+
         clean_data = {}
 
         IGNORED_KEYS = ['state', 'host', 'command_generator']
@@ -399,11 +373,20 @@ class ChaosTelemetry(BaseStateCallback):
         return clean_data
 
     @staticmethod
+    def _stream_chaos_event(data: dict):
+        """Helper to print event data as a structured JSON string."""
+        print(f"CHAOS_EVENT::{json.dumps(data)}", flush=True)
+
+    @staticmethod
     def operation_host_success(state: State, host: Host, op_hash, retry_count: int = 0):
-        """Handles the successful completion of an operation on a specific host."""
+        """Handles the successful completion of an operation by writing to the DB."""
+        end_time = time.time()
+
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
+
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
-        duration = time.time() - start_time if start_time else 0.0
+        duration = end_time - start_time if start_time else 0.0
 
         state_meta: StateOperationMeta = state.get_op_meta(op_hash)
         op_name = list(state_meta.names)[0] if state_meta.names else "unknown_operation"
@@ -415,6 +398,9 @@ class ChaosTelemetry(BaseStateCallback):
         logs = {
             'stdout': stdout,
             'stderr': stderr,
+        }
+
+        retry_stats = {
             'retry_attempts': runtime_meta.retry_attempts,
             'max_retries': runtime_meta.max_retries,
             'retry_info': runtime_meta.get_retry_info(),
@@ -428,36 +414,64 @@ class ChaosTelemetry(BaseStateCallback):
         diff_log = ChaosTelemetry._diff_log_buffer.pop(op_hash, [])
         diff_text = "\n".join(diff_log) if diff_log else ""
 
-        op_details = {
-            'operation': op_name,
+        command_n_facts = []
+        if start_time:
+            # This is the N+1 query. By moving it to a background thread,
+            # we mitigate the blocking impact on the main pyinfra execution loop.
+            command_n_facts = database.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
+
+        streamed_event = {
+            "type": "progress",
+            "host": host.name,
+            "operation": op_name,
+            "changed": changed,
+            "success": True,
+            "duration": round(duration, 4),
+            "timestamp": end_time,
+            "logs": logs,
+            "diff": diff_text,
+            "operation_arguments": operation_arguments,
+            "retry_statistics": retry_stats,
+            "command_n_fact_history": command_n_facts
+        }
+
+        ChaosTelemetry._stream_chaos_event(streamed_event)
+
+        host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
+
+        db_op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
             'changed': changed,
             'success': True,
             'duration': round(duration, 4),
-            'stdout': logs['stdout'],
-            'stderr': logs['stderr'],
+            'timestamp': end_time,
+            'logs': logs,
             'diff': diff_text,
-            'operation_arguments': operation_arguments,
-            'retry_statistics': logs,
+            'arguments': operation_arguments,
+            'retry_stats': retry_stats,
+            'command_n_facts': command_n_facts
         }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
 
-        ChaosTelemetry._stream_event(
-            host, op_name, changed, False, retry_count, duration, logs, op_hash, diff_text,
-            operation_arguments=operation_arguments,
-            retry_statistics=logs
-        )
-        ChaosTelemetry._update_statistics(host, changed, False, duration, op_details)
 
     @staticmethod
     def operation_host_error(state: State, host: Host, op_hash, retry_count: int = 0, max_retries: int = 0):
-        """Handles the failure of an operation on a specific host."""
+        """Handles a failed operation by writing to the DB."""
+        end_time = time.time()
+
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
+
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
-        duration = time.time() - start_time if start_time else 0.0
+        duration = end_time - start_time if start_time else 0.0
 
         static_meta = state.get_op_meta(op_hash)
+
         op_name = list(static_meta.names)[0] if static_meta.names else "Unknown Task"
         op_data = state.get_op_data_for_host(host, op_hash)
-
         raw_data = vars(op_data)
         operation_arguments = ChaosTelemetry._sanitize_op_data(raw_data)
 
@@ -470,50 +484,55 @@ class ChaosTelemetry(BaseStateCallback):
              if s_out or s_err:
                  stdout, stderr = s_out, s_err
 
-        is_failure = True
-
-        op_data: StateOperationHostData = state.get_op_data_for_host(host, op_hash)
         runtime_meta: OperationMeta = op_data.operation_meta
-
-        logs = {
-            'stdout': stdout,
-            'stderr': stderr,
+        logs = {'stdout': stdout, 'stderr': stderr}
+        retry_stats = {
             'retry_attempts': runtime_meta.retry_attempts,
             'max_retries': runtime_meta.max_retries,
             'retry_info': runtime_meta.get_retry_info(),
         }
 
-        op_details = {
-            'operation': op_name,
+        command_n_facts = []
+        if start_time:
+            command_n_facts = database.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
+
+        streamed_event = {
+            "type": "progress",
+            "host": host.name,
+            "operation": op_name,
+            "changed": False,
+            "success": False,
+            "duration": round(duration, 4),
+            "timestamp": end_time,
+            "logs": logs,
+            "diff": diff_text,
+            "operation_arguments": operation_arguments,
+            "retry_statistics": retry_stats,
+            "command_n_fact_history": command_n_facts
+        }
+
+        ChaosTelemetry._stream_chaos_event(streamed_event)
+
+        host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
+
+        db_op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
             'changed': False,
             'success': False,
             'duration': round(duration, 4),
-            'stdout': stdout,
-            'stderr': stderr,
+            'timestamp': end_time,
+            'logs': logs,
             'diff': diff_text,
-            'operation_arguments': operation_arguments,
-            'retry_statistics': logs,
+            'arguments': operation_arguments,
+            'retry_stats': retry_stats,
+            'command_n_facts': command_n_facts
         }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
+        ChaosTelemetry._db_queue.put((database.update_run_status, [ChaosTelemetry._run_id, 'failure'], {}))
 
-        ChaosTelemetry._stream_event(
-            host, op_name, False, True, retry_count, duration, logs, op_hash, diff_text,
-            operation_arguments=operation_arguments,
-            retry_statistics=logs
-        )
-        ChaosTelemetry._update_statistics(host, False, is_failure, duration, op_details)
-
-    @staticmethod
-    def add_op_durations(op_events: list):
-        """Gathers all operation durations from a list of operation events."""
-        op_durations = {}
-        for op in op_events:
-            op_name = op.get('operation')
-            duration = op.get('duration', 0.0)
-            if op_name:
-                if op_name not in op_durations:
-                    op_durations[op_name] = []
-                op_durations[op_name].append(duration)
-        return op_durations
 
     @staticmethod
     def percentile(data: list, percentile_val: float):
@@ -533,9 +552,11 @@ class ChaosTelemetry(BaseStateCallback):
     def add_operation_percentiles(op_durations: dict):
         """Calculates and adds operation duration percentiles to the report data."""
         op_summary = {}
+
         for name, durations in op_durations.items():
             count = len(durations)
             total_duration = round(sum(durations), 4)
+
             op_summary[name] = {
                 'count': count,
                 'total_duration': total_duration,
@@ -545,137 +566,149 @@ class ChaosTelemetry(BaseStateCallback):
                 'p95_duration': ChaosTelemetry.percentile(durations, 95),
                 'p99_duration': ChaosTelemetry.percentile(durations, 99),
             }
-        ChaosTelemetry._report_data['operation_summary'] = op_summary
 
-    @staticmethod
-    def add_hailer_info():
-        """Adds information about the hailer (the machine running Ch-aOS) to the report."""
-        import os
-        import socket
-        hailer_info = {
-            'user': os.getenv('USER') or os.getenv('USERNAME') or 'unknown',
-            'boatswain': socket.gethostbyname(socket.gethostname()),
-            'hostname': socket.gethostname(),
-        }
-
-        ChaosTelemetry._report_data['hailer'] = hailer_info
-
-    @classmethod
-    def _process_data(cls):
-        if cls._temp_log_dir is None:
-                return  # No logs were generated
-
-        if hasattr(cls._thread_local, 'log_file_handle'):
-            cls._thread_local.log_file_handle.close()
-
-        all_events = []
-        for temp_file in cls._temp_log_files:
-            with open(temp_file, 'r') as f:
-                for line in f:
-                    try:
-                        all_events.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue # Ignore malformed lines
-
-        all_events.sort(key=lambda x: x.get('timestamp', 0))
-
-        final_report = cls._report_data
-        final_report['resource_history'] = []
-        final_report['fact_history'] = []
-        # final_report['command_history'] = []
-        final_report['streamed_history'] = []
-
-        op_events_for_percentiles = []
-
-        for host_name, host_data in final_report['hosts'].items():
-            host_data['history'] = []
-
-            for event in all_events:
-                event_type = event.get('type')
-                if event_type == 'progress':
-
-                    for fact in event.get('facts_collected', []):
-                        final_report['fact_history'].append(fact)
-
-                    host_name = event.get('host')
-                    if host_name in final_report['hosts']:
-                        op_details = {
-                            'operation': event.get('operation'),
-                            'changed': event.get('changed'),
-                            'success': event.get('success'),
-                            'duration': event.get('duration'),
-                            'stdout': event.get('logs', {}).get('stdout'),
-                            'stderr': event.get('logs', {}).get('stderr'),
-                            'diff': event.get('diff'),
-                            'operation_arguments': event.get('operation_arguments'),
-                            'retry_statistics': event.get('retry_statistics'),
-                        }
-
-                        final_report['hosts'][host_name]['history'].append(op_details)
-
-                        op_events_for_percentiles.append(event)
-
-                    final_report['streamed_history'].append(event)
-
-                elif event_type == 'health_check':
-                    final_report['resource_history'].append(event)
-
-                elif event_type == 'fact_log_event':
-                    log_entry = {
-                        "timestamp": event.get('timestamp'),
-                        "log_level": event.get('log_level'),
-                        "context": event.get('context'),
-                        "command": event.get('command'),
-                    }
-
-                    if event.get('context') == "fact_gathering":
-                        final_report['fact_history'].append(log_entry)
-
-                    # elif "running_command" in event.get('context', ''):
-                    #     final_report['command_history'].append(log_entry)
-
-                elif event_type == 'setup_phase':
-                     for host_data in final_report['hosts'].values():
-                        host_data['history'].insert(0, event)
-
-            # final_report['command_history'].sort(key=lambda x: x.get('timestamp', 0))
-            final_report['fact_history'].sort(key=lambda x: x.get('timestamp', 0))
-
-            op_durations = cls.add_op_durations(op_events_for_percentiles)
-            cls.add_operation_percentiles(op_durations)
-            cls.add_hailer_info()
-            final_report['operation_summary'] = cls._report_data['operation_summary']
-            final_report['hailer'] = cls._report_data['hailer']
-            return final_report
+        return op_summary
 
     @classmethod
     def export_report(cls, filepath: str = "chaos_logbook.json"):
         """
-        Processes temporary log files to generate the final structured JSON report.
+        Fetches run data and generates a structured JSON report by streaming,
+        which avoids loading the entire dataset into memory.
+
+        Yeah, i know it writes directly to a file first, but it's still better than
+        loading everything into memory before writing.
         """
         import shutil
+        if not cls._run_id:
+            print("No active run to export.")
+            return
 
-        with cls._lock:
-            final_report = cls._process_data()
+        # Ensure all pending writes are finished before exporting
+        if cls._db_queue:
+            cls._db_queue.join()
 
-            print(f"CHAOS_LOGBOOK::{json.dumps(final_report)}", flush=True)
-            try:
-                with open(filepath, 'w') as f:
-                    json.dump(final_report, f, indent=4)
+        db_data = database.get_run_data(cls._run_id)
+        if not db_data:
+            print(f"Could not find data for run_id: {cls._run_id}")
+            return
 
-                logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
-                if not logbook_dir.exists():
-                    logbook_dir.mkdir(parents=True, exist_ok=True)
+        run_info = db_data['run']
 
-                amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
-                shutil.copy(filepath, logbook_dir / f"chaos_logbook_run{amount+1}_{int(time.time())}.json")
+        try:
+            with open(filepath, 'w') as f:
+                f.write('{\n')
+                # Write top-level info
+                f.write(f'    "api_version": "v1",\n')
+                f.write(f'    "run_id": {json.dumps(run_info["run_id_human"])},\n')
+                f.write(f'    "uggly_run_id": {json.dumps(run_info["id"])},\n')
+                f.write(f'    "hailer": {json.dumps(json.loads(run_info["hailer_json"]) if run_info["hailer_json"] else {})},\n')
 
-            except Exception as e:
-                print(f"Error writing final report: {e}")
+                f.write('    "hosts": {\n')
+                op_durations_for_percentiles = {}
+                host_entries = []
 
-            finally:
-                shutil.rmtree(cls._temp_log_dir)
-                cls._temp_log_dir = None
-                cls._temp_log_files.clear()
-                cls._thread_local = threading.local()
+                for host_data in db_data['hosts']:
+                    host_name = host_data['name']
+                    host_history = []
+                    host_total_ops = len(host_data['operations'])
+                    host_changed_ops = 0
+                    host_failed_ops = 0
+                    host_duration = 0.0
+
+                    for op_row in host_data['operations']:
+                        op_details = {
+                            'operation': op_row['name'],
+                            'changed': bool(op_row['changed']),
+                            'success': bool(op_row['success']),
+                            'duration': op_row['duration'],
+                            'stdout': json.loads(op_row['logs_json']).get('stdout', '') if op_row['logs_json'] else '',
+                            'stderr': json.loads(op_row['logs_json']).get('stderr', '') if op_row['logs_json'] else '',
+                            'diff': op_row['diff'],
+                            'operation_arguments': json.loads(op_row['arguments_json']) if op_row['arguments_json'] else {},
+                            'retry_statistics': json.loads(op_row['retry_stats_json']) if op_row['retry_stats_json'] else {},
+                        }
+                        host_history.append(op_details)
+
+                        host_duration += op_row['duration']
+                        if bool(op_row['changed']):
+                            host_changed_ops += 1
+                        if not bool(op_row['success']):
+                            host_failed_ops += 1
+
+                        op_name = op_row['name']
+                        if op_name not in op_durations_for_percentiles:
+                            op_durations_for_percentiles[op_name] = []
+                        op_durations_for_percentiles[op_name].append(op_row['duration'])
+
+                    host_summary = {
+                        'total_operations': host_total_ops,
+                        'changed_operations': host_changed_ops,
+                        'successful_operations': host_total_ops - host_failed_ops,
+                        'failed_operations': host_failed_ops,
+                        'duration': round(host_duration, 4),
+                        'history': host_history
+                    }
+                    host_entries.append(f'        {json.dumps(host_name)}: {json.dumps(host_summary, indent=4)}')
+
+                f.write(',\n'.join(host_entries))
+                f.write('\n    },\n')
+
+                summary_stats = database.get_run_summary_stats(cls._run_id)
+                summary_stats['status'] = run_info['status']
+                f.write(f'    "summary": {json.dumps(summary_stats, indent=4)},\n')
+
+                resource_history = [
+                    {
+                        'type': 'health_check',
+                        'host': snap_row['host_name'],
+                        'stage': snap_row['stage'],
+                        'timestamp': snap_row['timestamp'],
+                        'metrics': json.loads(snap_row['metrics_json']) if snap_row['metrics_json'] else {}
+                    }
+                    for snap_row in db_data['snapshots']
+                ]
+                f.write(f'    "resource_history": {json.dumps(resource_history, indent=4)},\n')
+
+                fact_history = [dict(log) for log in db_data['fact_logs'] if log['context'] == 'fact_gathering']
+                f.write(f'    "fact_history": {json.dumps(fact_history, indent=4)},\n')
+
+                streamed_history = []
+                for host_data in db_data['hosts']:
+                    for op in host_data['operations']:
+                        streamed_event = {
+                            "type": "progress",
+                            "host": host_data['name'],
+                            "operation": op['name'],
+                            "changed": bool(op['changed']),
+                            "success": bool(op['success']),
+                            "duration": op['duration'],
+                            "logs": json.loads(op['logs_json']) if op['logs_json'] else {},
+                            "diff": op['diff'],
+                            "operation_arguments": json.loads(op['arguments_json']) if op['arguments_json'] else {},
+                            "retry_statistics": json.loads(op['retry_stats_json']) if op['retry_stats_json'] else {},
+                            "command_n_fact_history": json.loads(op['command_n_facts_in_order_json']) if op['command_n_facts_in_order_json'] else []
+                        }
+                        streamed_history.append(streamed_event)
+
+                streamed_history.sort(key=lambda x: x.get('timestamp', 0))
+                f.write(f'    "streamed_history": {json.dumps(streamed_history, indent=4)},\n')
+
+                op_summary = cls.add_operation_percentiles(op_durations_for_percentiles)
+                f.write(f'    "operation_summary": {json.dumps(op_summary, indent=4)}\n')
+
+                f.write("}\n")
+
+            with open(filepath, 'r') as f:
+                file_content = f.read()
+
+            from omegaconf import OmegaConf
+            print(f"CHAOS_LOGBOOK::{json.dumps(OmegaConf.to_container(OmegaConf.create(file_content)))}", flush=True)
+
+
+            logbook_dir = database.get_db_path().parent
+            amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
+            shutil.copy(filepath, logbook_dir / f"chaos_logbook_run{amount+1}_{int(time.time())}.json")
+
+        except Exception as e:
+            print(f"Error writing final report: {e}")
 
