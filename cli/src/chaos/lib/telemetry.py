@@ -5,6 +5,8 @@ import contextvars
 import re
 import os
 import socket
+import queue
+import threading
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
@@ -21,15 +23,42 @@ class ChaosTelemetry(BaseStateCallback):
     _timers = {}
     _diff_log_buffer = {}
     _active_diffs = set()
+    _db_writer_thread = None
+    _poison_pill = object()
+
+    @classmethod
+    def _database_writer_worker(cls):
+        """Worker thread to process database write operations asynchronously."""
+        database.get_db_connection()
+        while True:
+            try:
+                if not cls._db_queue:
+                    raise RuntimeError("DB queue is not initialized.")
+                item = cls._db_queue.get()
+                if item is cls._poison_pill:
+                    cls._db_queue.task_done()
+                    break
+
+                func, args, kwargs = item
+                func(*args, **kwargs)
+                cls._db_queue.task_done()
+            except Exception as e:
+                print(f"Error in telemetry DB writer thread: {e}", flush=True)
+        database.close_db_connection()
 
     @classmethod
     def start_run(cls):
         """
-        Initializes the database and creates a new run entry.
-
+        Initializes the database, creates a new run entry, and starts the async DB writer.
         This should be called once at the beginning of a `chaos apply` execution.
         """
         database.init_db()
+
+        # Start the DB writer thread
+        cls._db_queue = queue.Queue()
+        cls._db_writer_thread = threading.Thread(target=cls._database_writer_worker, daemon=True)
+        cls._db_writer_thread.start()
+
         run_id_human = f"chaos-{time.strftime('%Y/%m/%d-%H:%M:%S', time.gmtime())}"
         uggly_run_id = f"chaos-{int(time.time())}-{time.perf_counter_ns()}"
 
@@ -57,15 +86,24 @@ class ChaosTelemetry(BaseStateCallback):
         This should be called once at the end of a `chaos apply` execution.
         """
         if cls._run_id:
+            # Wait for all pending writes to complete before finishing the run
+            if cls._db_queue:
+                cls._db_queue.join()
+
             conn = database.get_db_connection()
-            final_status_row = conn.execute("SELECT status FROM runs WHERE id = ?", (cls._run_id,)).fetchone()
-            final_status = final_status_row['status'] if final_status_row['status'] == 'failure' else status
+            try:
+                final_status_row = conn.execute("SELECT status FROM runs WHERE id = ?", (cls._run_id,)).fetchone()
+                final_status = final_status_row['status'] if final_status_row and final_status_row['status'] == 'failure' else status
 
-            summary = database.get_run_summary_stats(cls._run_id)
-            summary['status'] = final_status
+                summary = database.get_run_summary_stats(cls._run_id)
+                summary['status'] = final_status
 
-            end_time = time.time()
-            database.end_run_update(cls._run_id, end_time, final_status, summary)
+                end_time = time.time()
+                # This final update should be synchronous to ensure it's done before exporting
+                database.end_run_update(cls._run_id, end_time, final_status, summary)
+            finally:
+                database.close_db_connection()
+
 
             cls._stream_chaos_event({
                 "type": "run_end",
@@ -75,7 +113,13 @@ class ChaosTelemetry(BaseStateCallback):
                 "summary": summary
             })
 
-            database.close_db_connection()
+            # Stop the writer thread
+            if cls._db_queue and cls._db_writer_thread:
+                cls._db_queue.put(cls._poison_pill)
+                cls._db_writer_thread.join()
+                cls._db_writer_thread = None
+                cls._db_queue = None
+
             print(f"CHAOS_RUN_ENDED::{cls._run_id}", flush=True)
             cls._run_id = None
 
@@ -102,11 +146,11 @@ class ChaosTelemetry(BaseStateCallback):
         """
         Records the setup phase duration as a special operation in the database.
         """
-        if not ChaosTelemetry._run_id:
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
             return
 
         boatswain_hostname = socket.gethostname()
-        host_id = database.get_or_create_host(ChaosTelemetry._run_id, boatswain_hostname)
+        host_id = database.get_or_create_host(ChaosTelemetry._run_id, boatswain_hostname) # This can remain sync
 
         ts = time.time()
         op_hash = f"setup-{time.perf_counter_ns()}"
@@ -114,21 +158,22 @@ class ChaosTelemetry(BaseStateCallback):
 
         arguments={'message': 'Time spent connecting to hosts and preparing the run.'}
 
-        database.insert_operation(
-            run_id=ChaosTelemetry._run_id,
-            host_id=host_id,
-            op_hash=op_hash,
-            name=op_name,
-            changed=False,
-            success=True,
-            duration=round(setup_duration, 4),
-            timestamp=ts,
-            logs={},
-            diff="",
-            arguments=arguments,
-            retry_stats={},
-            command_n_facts=[]
-        )
+        op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
+            'changed': False,
+            'success': True,
+            'duration': round(setup_duration, 4),
+            'timestamp': ts,
+            'logs': {},
+            'diff': "",
+            'arguments': arguments,
+            'retry_stats': {},
+            'command_n_facts': []
+        }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], op_data))
 
         streamed_event = {
             "type": "progress",
@@ -151,7 +196,7 @@ class ChaosTelemetry(BaseStateCallback):
         """
         Records a snapshot of the host's resource usage into the database.
         """
-        if not cls._run_id:
+        if not cls._run_id or not cls._db_queue:
             return
 
         metrics = {
@@ -171,8 +216,15 @@ class ChaosTelemetry(BaseStateCallback):
             'metrics': metrics
         })
 
-        host_id = database.get_or_create_host(cls._run_id, host.name)
-        database.insert_snapshot(cls._run_id, host_id, stage, ts,  metrics)
+        host_id = database.get_or_create_host(cls._run_id, host.name) # Sync is fine
+        snapshot_data = {
+            'run_id': cls._run_id,
+            'host_id': host_id,
+            'stage': stage,
+            'timestamp': ts,
+            'metrics': metrics
+        }
+        cls._db_queue.put((database.insert_snapshot, [], snapshot_data))
 
 
     @staticmethod
@@ -246,13 +298,15 @@ class ChaosTelemetry(BaseStateCallback):
                     'command': command
                 })
 
-                database.insert_fact_log(
-                    run_id=run_id,
-                    timestamp=record.created,
-                    log_level=record.levelname,
-                    context=context,
-                    command=command
-                )
+                if ChaosTelemetry._db_queue:
+                    log_data = {
+                        'run_id': run_id,
+                        'timestamp': record.created,
+                        'log_level': record.levelname,
+                        'context': context,
+                        'command': command
+                    }
+                    ChaosTelemetry._db_queue.put((database.insert_fact_log, [], log_data))
 
     @staticmethod
     def operation_host_start(state: State, host: Host, op_hash):
@@ -328,7 +382,7 @@ class ChaosTelemetry(BaseStateCallback):
         """Handles the successful completion of an operation by writing to the DB."""
         end_time = time.time()
 
-        if not ChaosTelemetry._run_id: return
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
 
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
@@ -362,6 +416,8 @@ class ChaosTelemetry(BaseStateCallback):
 
         command_n_facts = []
         if start_time:
+            # This is the N+1 query. By moving it to a background thread,
+            # we mitigate the blocking impact on the main pyinfra execution loop.
             command_n_facts = database.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
 
         streamed_event = {
@@ -383,28 +439,30 @@ class ChaosTelemetry(BaseStateCallback):
 
         host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
 
-        database.insert_operation(
-            run_id=ChaosTelemetry._run_id,
-            host_id=host_id,
-            op_hash=op_hash,
-            name=op_name,
-            changed=changed,
-            success=True,
-            duration=round(duration, 4),
-            timestamp=end_time,
-            logs=logs,
-            diff=diff_text,
-            arguments=operation_arguments,
-            retry_stats=retry_stats,
-            command_n_facts=command_n_facts
-        )
+        db_op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
+            'changed': changed,
+            'success': True,
+            'duration': round(duration, 4),
+            'timestamp': end_time,
+            'logs': logs,
+            'diff': diff_text,
+            'arguments': operation_arguments,
+            'retry_stats': retry_stats,
+            'command_n_facts': command_n_facts
+        }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
+
 
     @staticmethod
     def operation_host_error(state: State, host: Host, op_hash, retry_count: int = 0, max_retries: int = 0):
         """Handles a failed operation by writing to the DB."""
         end_time = time.time()
 
-        if not ChaosTelemetry._run_id: return
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
 
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
@@ -457,23 +515,23 @@ class ChaosTelemetry(BaseStateCallback):
 
         host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
 
-        database.insert_operation(
-            run_id=ChaosTelemetry._run_id,
-            host_id=host_id,
-            op_hash=op_hash,
-            name=op_name,
-            changed=False,
-            success=False,
-            duration=round(duration, 4),
-            timestamp=end_time,
-            logs=logs,
-            diff=diff_text,
-            arguments=operation_arguments,
-            retry_stats=retry_stats,
-            command_n_facts=command_n_facts
-        )
-
-        database.update_run_status(ChaosTelemetry._run_id, 'failure')
+        db_op_data = {
+            'run_id': ChaosTelemetry._run_id,
+            'host_id': host_id,
+            'op_hash': op_hash,
+            'name': op_name,
+            'changed': False,
+            'success': False,
+            'duration': round(duration, 4),
+            'timestamp': end_time,
+            'logs': logs,
+            'diff': diff_text,
+            'arguments': operation_arguments,
+            'retry_stats': retry_stats,
+            'command_n_facts': command_n_facts
+        }
+        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
+        ChaosTelemetry._db_queue.put((database.update_run_status, [ChaosTelemetry._run_id, 'failure'], {}))
 
 
     @staticmethod
@@ -514,12 +572,20 @@ class ChaosTelemetry(BaseStateCallback):
     @classmethod
     def export_report(cls, filepath: str = "chaos_logbook.json"):
         """
-        Fetches the run data from the database and generates a structured JSON report.
+        Fetches run data and generates a structured JSON report by streaming,
+        which avoids loading the entire dataset into memory.
+
+        Yeah, i know it writes directly to a file first, but it's still better than
+        loading everything into memory before writing.
         """
         import shutil
         if not cls._run_id:
             print("No active run to export.")
             return
+
+        # Ensure all pending writes are finished before exporting
+        if cls._db_queue:
+            cls._db_queue.join()
 
         db_data = database.get_run_data(cls._run_id)
         if not db_data:
@@ -527,114 +593,117 @@ class ChaosTelemetry(BaseStateCallback):
             return
 
         run_info = db_data['run']
-        final_report = {
-            'api_version': 'v1',
-            'run_id': run_info['run_id_human'],
-            'uggly_run_id': run_info['id'],
-            'hailer': json.loads(run_info['hailer_json']) if run_info['hailer_json'] else {},
-            'hosts': {},
-            'summary': {},
-            'resource_history': [],
-            'fact_history': [
-                dict(log) for log in db_data['fact_logs'] if log['context'] == 'fact_gathering'
-            ],
 
-            'streamed_history': [],
-            'operation_summary': {}
-        }
-
-        total_ops = 0
-        changed_ops = 0
-        failed_ops = 0
-        total_duration = 0.0
-        op_durations_for_percentiles = {}
-
-        for host_data in db_data['hosts']:
-            host_name = host_data['name']
-            host_history = []
-
-            host_total_ops = len(host_data['operations'])
-            host_changed_ops = 0
-            host_failed_ops = 0
-            host_duration = 0.0
-
-            for op_row in host_data['operations']:
-                op_details = {
-                    'operation': op_row['name'],
-                    'changed': bool(op_row['changed']),
-                    'success': bool(op_row['success']),
-                    'duration': op_row['duration'],
-                    'stdout': json.loads(op_row['logs_json']).get('stdout', '') if op_row['logs_json'] else '',
-                    'stderr': json.loads(op_row['logs_json']).get('stderr', '') if op_row['logs_json'] else '',
-                    'diff': op_row['diff'],
-                    'operation_arguments': json.loads(op_row['arguments_json']) if op_row['arguments_json'] else {},
-                    'retry_statistics': json.loads(op_row['retry_stats_json']) if op_row['retry_stats_json'] else {},
-                }
-                host_history.append(op_details)
-
-                total_duration += op_row['duration']
-                host_duration += op_row['duration']
-                if bool(op_row['changed']):
-                    changed_ops += 1
-                    host_changed_ops += 1
-                if not bool(op_row['success']):
-                    host_failed_ops += 1
-
-                op_name = op_row['name']
-                if op_name not in op_durations_for_percentiles:
-                    op_durations_for_percentiles[op_name] = []
-                op_durations_for_percentiles[op_name].append(op_row['duration'])
-
-            total_ops += host_total_ops
-            failed_ops += host_failed_ops
-
-            final_report['hosts'][host_name] = {
-                'total_operations': host_total_ops,
-                'changed_operations': host_changed_ops,
-                'successful_operations': host_total_ops - host_failed_ops,
-                'failed_operations': host_failed_ops,
-                'duration': round(host_duration, 4),
-                'history': host_history
-            }
-
-        for snap_row in db_data['snapshots']:
-            final_report['resource_history'].append({
-                'type': 'health_check',
-                'host': snap_row['host_name'],
-                'stage': snap_row['stage'],
-                'timestamp': snap_row['timestamp'],
-                'metrics': json.loads(snap_row['metrics_json']) if snap_row['metrics_json'] else {}
-            })
-
-        final_report['operation_summary'] = cls.add_operation_percentiles(op_durations_for_percentiles)
-
-        final_report['summary'] = database.get_run_summary_stats(cls._run_id)
-        final_report['summary']['status'] = run_info['status']
-
-        for host_data in db_data['hosts']:
-            for op in host_data['operations']:
-                streamed_event = {
-                    "type": "progress",
-                    "host": host_data['name'],
-                    "operation": op['name'],
-                    "changed": bool(op['changed']),
-                    "success": bool(op['success']),
-                    "duration": op['duration'],
-                    "logs": json.loads(op['logs_json']) if op['logs_json'] else {},
-                    "diff": op['diff'],
-                    "operation_arguments": json.loads(op['arguments_json']) if op['arguments_json'] else {},
-                    "retry_statistics": json.loads(op['retry_stats_json']) if op['retry_stats_json'] else {},
-                    "command_n_fact_history": json.loads(op['command_n_facts_in_order_json']) if op['command_n_facts_in_order_json'] else []
-                }
-
-                final_report['streamed_history'].append(streamed_event)
-
-        final_report['streamed_history'].sort(key=lambda x: x.get('timestamp', 0))
-
-        print(f"CHAOS_LOGBOOK::{json.dumps(final_report)}", flush=True)
         try:
             with open(filepath, 'w') as f:
-                json.dump(final_report, f, indent=4)
+                f.write('{\n')
+                # Write top-level info
+                f.write(f'    "api_version": "v1",\n')
+                f.write(f'    "run_id": {json.dumps(run_info["run_id_human"])},\n')
+                f.write(f'    "uggly_run_id": {json.dumps(run_info["id"])},\n')
+                f.write(f'    "hailer": {json.dumps(json.loads(run_info["hailer_json"]) if run_info["hailer_json"] else {})},\n')
+
+                f.write('    "hosts": {\n')
+                op_durations_for_percentiles = {}
+                host_entries = []
+
+                for host_data in db_data['hosts']:
+                    host_name = host_data['name']
+                    host_history = []
+                    host_total_ops = len(host_data['operations'])
+                    host_changed_ops = 0
+                    host_failed_ops = 0
+                    host_duration = 0.0
+
+                    for op_row in host_data['operations']:
+                        op_details = {
+                            'operation': op_row['name'],
+                            'changed': bool(op_row['changed']),
+                            'success': bool(op_row['success']),
+                            'duration': op_row['duration'],
+                            'stdout': json.loads(op_row['logs_json']).get('stdout', '') if op_row['logs_json'] else '',
+                            'stderr': json.loads(op_row['logs_json']).get('stderr', '') if op_row['logs_json'] else '',
+                            'diff': op_row['diff'],
+                            'operation_arguments': json.loads(op_row['arguments_json']) if op_row['arguments_json'] else {},
+                            'retry_statistics': json.loads(op_row['retry_stats_json']) if op_row['retry_stats_json'] else {},
+                        }
+                        host_history.append(op_details)
+
+                        host_duration += op_row['duration']
+                        if bool(op_row['changed']):
+                            host_changed_ops += 1
+                        if not bool(op_row['success']):
+                            host_failed_ops += 1
+
+                        op_name = op_row['name']
+                        if op_name not in op_durations_for_percentiles:
+                            op_durations_for_percentiles[op_name] = []
+                        op_durations_for_percentiles[op_name].append(op_row['duration'])
+
+                    host_summary = {
+                        'total_operations': host_total_ops,
+                        'changed_operations': host_changed_ops,
+                        'successful_operations': host_total_ops - host_failed_ops,
+                        'failed_operations': host_failed_ops,
+                        'duration': round(host_duration, 4),
+                        'history': host_history
+                    }
+                    host_entries.append(f'        {json.dumps(host_name)}: {json.dumps(host_summary, indent=4)}')
+
+                f.write(',\n'.join(host_entries))
+                f.write('\n    },\n')
+
+                summary_stats = database.get_run_summary_stats(cls._run_id)
+                summary_stats['status'] = run_info['status']
+                f.write(f'    "summary": {json.dumps(summary_stats, indent=4)},\n')
+
+                resource_history = [
+                    {
+                        'type': 'health_check',
+                        'host': snap_row['host_name'],
+                        'stage': snap_row['stage'],
+                        'timestamp': snap_row['timestamp'],
+                        'metrics': json.loads(snap_row['metrics_json']) if snap_row['metrics_json'] else {}
+                    }
+                    for snap_row in db_data['snapshots']
+                ]
+                f.write(f'    "resource_history": {json.dumps(resource_history, indent=4)},\n')
+
+                fact_history = [dict(log) for log in db_data['fact_logs'] if log['context'] == 'fact_gathering']
+                f.write(f'    "fact_history": {json.dumps(fact_history, indent=4)},\n')
+
+                streamed_history = []
+                for host_data in db_data['hosts']:
+                    for op in host_data['operations']:
+                        streamed_event = {
+                            "type": "progress",
+                            "host": host_data['name'],
+                            "operation": op['name'],
+                            "changed": bool(op['changed']),
+                            "success": bool(op['success']),
+                            "duration": op['duration'],
+                            "logs": json.loads(op['logs_json']) if op['logs_json'] else {},
+                            "diff": op['diff'],
+                            "operation_arguments": json.loads(op['arguments_json']) if op['arguments_json'] else {},
+                            "retry_statistics": json.loads(op['retry_stats_json']) if op['retry_stats_json'] else {},
+                            "command_n_fact_history": json.loads(op['command_n_facts_in_order_json']) if op['command_n_facts_in_order_json'] else []
+                        }
+                        streamed_history.append(streamed_event)
+
+                streamed_history.sort(key=lambda x: x.get('timestamp', 0))
+                f.write(f'    "streamed_history": {json.dumps(streamed_history, indent=4)},\n')
+
+                op_summary = cls.add_operation_percentiles(op_durations_for_percentiles)
+                f.write(f'    "operation_summary": {json.dumps(op_summary, indent=4)}\n')
+
+                f.write("}\n")
+
+            with open(filepath, 'r') as f:
+                file_content = f.read()
+
+            from omegaconf import OmegaConf
+            print(f"CHAOS_LOGBOOK::{json.dumps(OmegaConf.to_container(OmegaConf.create(file_content)))}", flush=True)
+
 
             logbook_dir = database.get_db_path().parent
             amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))

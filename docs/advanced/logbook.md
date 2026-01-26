@@ -52,6 +52,12 @@ Uh... yeah, it's a database. A SQLite database to be exact. Why? Because JSON fi
 
 But don't worry, it still generates your pretty little json in your current working directory. The database is just for storage and querying.
 
+Also, it may be a little slower than normal usage, cause I've implemented a queueing system to batch writes to the database, minimizing the performance impact.
+
+That being said, I still find some issues with the scalability of the Logbook when it comes to _extremely_ large runs (tens of thousands of concurrent operations). I do accept some help here, I am not the best at databases after all.
+
+Btw: the Logbook (since it streams the data) can be consumed by other programs in real-time. More scalable programs. Mine is still simple and easy to use.
+
 ## Enabling and disabling:
 
 To enable, run
