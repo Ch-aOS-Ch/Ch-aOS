@@ -48,7 +48,7 @@ Then I made a SQLite database backend for the Logbook, which was cool and all, b
 
 So, the final solution was quite simple: plugins (Duh)! Ch-aOS has a plugin system for almost everything, so why not for the Logbook storage as well?
 
-Learn more [here](.../plugins/limani.md).!
+Learn more [here](../plugins/limani.md).!
 
 They can be found in these places while using the default "chrima" plugin:
 
@@ -62,7 +62,12 @@ Do note that the JSON file is always created, regardless of the storage backend 
 
 To enable, run
 ```bash
-chaos apply --logbook
+chaos apply --logbook --limani <limani_name>
+```
+
+Note that you can configure a default limani in your `~/.config/chaos/config.yml` like so:
+```yaml
+limani: (limani_name)
 ```
 
 To disable, simply omit the `--logbook` flag. That simple. The logging system is not even enabled on the background.
