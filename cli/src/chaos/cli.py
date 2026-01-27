@@ -205,7 +205,7 @@ def handleSecrets(args, Console):
         sys.exit(1)
 
 def handleCheck(args):
-    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles, checkProviders, checkBoats
+    from chaos.lib.checkers import checkAliases, checkExplanations, checkRoles, checkProviders, checkBoats, checkLimanis
 
     match args.checks:
         case 'explanations':
@@ -239,6 +239,11 @@ def handleCheck(args):
                 getattr(args, 'team', None)
             )[0]
             checkSecrets(sec_file, args.json)
+
+        case 'limanis':
+            from chaos.lib.plugDiscovery import get_plugins
+            limanis = get_plugins(args.update_plugins)[6]
+            checkLimanis(limanis, args.json)
 
         case _: print("No valid checks passed, valid checks: explain, alias, roles, secrets")
 

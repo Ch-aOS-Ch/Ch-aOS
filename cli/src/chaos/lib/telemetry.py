@@ -7,10 +7,12 @@ import os
 import socket
 import queue
 import threading
+from pathlib import Path
 from pyinfra.api.operation import OperationMeta
 from pyinfra.api.state import State, BaseStateCallback, StateOperationHostData, StateOperationMeta
 from pyinfra.api.host import Host
-from . import database
+from chaos.lib.plugDiscovery import get_plugins
+from .limani.limani import Limani
 
 op_hash_context: contextvars.ContextVar[str | None] = contextvars.ContextVar('op_hash', default=None)
 
@@ -25,11 +27,17 @@ class ChaosTelemetry(BaseStateCallback):
     _active_diffs = set()
     _db_writer_thread = None
     _poison_pill = object()
+    _limani_plugin: Limani | None = None
 
     @classmethod
     def _database_writer_worker(cls):
         """Worker thread to process database write operations asynchronously."""
-        database.get_db_connection()
+
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
+        cls._limani_plugin.connect()
+
         while True:
             try:
                 if not cls._db_queue:
@@ -44,7 +52,7 @@ class ChaosTelemetry(BaseStateCallback):
                 cls._db_queue.task_done()
             except Exception as e:
                 print(f"Error in telemetry DB writer thread: {e}", flush=True)
-        database.close_db_connection()
+        cls._limani_plugin.disconnect()
 
     @classmethod
     def start_run(cls):
@@ -52,7 +60,10 @@ class ChaosTelemetry(BaseStateCallback):
         Initializes the database, creates a new run entry, and starts the async DB writer.
         This should be called once at the beginning of a `chaos apply` execution.
         """
-        database.init_db()
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
+        cls._limani_plugin.init_db()
 
         # Start the DB writer thread
         cls._db_queue = queue.Queue()
@@ -69,7 +80,7 @@ class ChaosTelemetry(BaseStateCallback):
         }
 
         start_time = time.time()
-        cls._run_id = database.create_run(uggly_run_id, run_id_human, start_time, hailer_info)
+        cls._run_id = cls._limani_plugin.create_run(uggly_run_id, run_id_human, start_time, hailer_info)
         print(f"CHAOS_RUN_ID::{cls._run_id}", flush=True)
         cls._stream_chaos_event({
             "type": "run_start",
@@ -85,24 +96,27 @@ class ChaosTelemetry(BaseStateCallback):
         Finalizes the run, updating its status and summary in the database.
         This should be called once at the end of a `chaos apply` execution.
         """
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
         if cls._run_id:
             # Wait for all pending writes to complete before finishing the run
             if cls._db_queue:
                 cls._db_queue.join()
 
-            conn = database.get_db_connection()
+            conn = cls._limani_plugin.connect()
             try:
                 final_status_row = conn.execute("SELECT status FROM runs WHERE id = ?", (cls._run_id,)).fetchone()
                 final_status = final_status_row['status'] if final_status_row and final_status_row['status'] == 'failure' else status
 
-                summary = database.get_run_summary_stats(cls._run_id)
+                summary = cls._limani_plugin.get_run_summary_stats(cls._run_id)
                 summary['status'] = final_status
 
                 end_time = time.time()
                 # This final update should be synchronous to ensure it's done before exporting
-                database.end_run_update(cls._run_id, end_time, final_status, summary)
+                cls._limani_plugin.end_run_update(cls._run_id, end_time, final_status, summary)
             finally:
-                database.close_db_connection()
+                cls._limani_plugin.disconnect()
 
 
             cls._stream_chaos_event({
@@ -141,16 +155,19 @@ class ChaosTelemetry(BaseStateCallback):
                 text = '\n'.join(sanitized_lines)
         return text
 
-    @staticmethod
-    def record_setup_phase(state: State, setup_duration: float):
+    @classmethod
+    def record_setup_phase(cls, state: State, setup_duration: float):
         """
         Records the setup phase duration as a special operation in the database.
         """
-        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
+        if not cls._run_id or not cls._db_queue:
             return
 
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
         boatswain_hostname = socket.gethostname()
-        host_id = database.get_or_create_host(ChaosTelemetry._run_id, boatswain_hostname) # This can remain sync
+        host_id = cls._limani_plugin.get_or_create_host(cls._run_id, boatswain_hostname) # This can remain sync
 
         ts = time.time()
         op_hash = f"setup-{time.perf_counter_ns()}"
@@ -173,7 +190,7 @@ class ChaosTelemetry(BaseStateCallback):
             'retry_stats': {},
             'command_n_facts': []
         }
-        ChaosTelemetry._db_queue.put((database.insert_operation, [], op_data))
+        cls._db_queue.put((cls._limani_plugin.insert_operation, [], op_data))
 
         streamed_event = {
             "type": "progress",
@@ -189,7 +206,7 @@ class ChaosTelemetry(BaseStateCallback):
             "retry_statistics": {},
             "command_n_fact_history": []
         }
-        ChaosTelemetry._stream_chaos_event(streamed_event)
+        cls._stream_chaos_event(streamed_event)
 
     @classmethod
     def record_snapshot(cls, host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"):
@@ -198,6 +215,9 @@ class ChaosTelemetry(BaseStateCallback):
         """
         if not cls._run_id or not cls._db_queue:
             return
+
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
 
         metrics = {
             "cpu_load_1min": load_data[0] if load_data else 0.0,
@@ -216,7 +236,7 @@ class ChaosTelemetry(BaseStateCallback):
             'metrics': metrics
         })
 
-        host_id = database.get_or_create_host(cls._run_id, host.name) # Sync is fine
+        host_id = cls._limani_plugin.get_or_create_host(cls._run_id, host.name) # Sync is fine
         snapshot_data = {
             'run_id': cls._run_id,
             'host_id': host_id,
@@ -224,8 +244,7 @@ class ChaosTelemetry(BaseStateCallback):
             'timestamp': ts,
             'metrics': metrics
         }
-        cls._db_queue.put((database.insert_snapshot, [], snapshot_data))
-
+        cls._db_queue.put((cls._limani_plugin.insert_snapshot, [], snapshot_data))
 
     @staticmethod
     def _get_safe_logs(meta: OperationMeta):
@@ -247,6 +266,8 @@ class ChaosTelemetry(BaseStateCallback):
         def emit(self, record):
             msg = record.getMessage()
             op_hash = op_hash_context.get()
+            if not ChaosTelemetry._limani_plugin:
+                raise RuntimeError("Limani plugin is not loaded.")
 
             # --- Diff handling (remains in-memory for the duration of exactly one op) ---
             if record.levelname == 'INFO' and op_hash:
@@ -306,7 +327,7 @@ class ChaosTelemetry(BaseStateCallback):
                         'context': context,
                         'command': command
                     }
-                    ChaosTelemetry._db_queue.put((database.insert_fact_log, [], log_data))
+                    ChaosTelemetry._db_queue.put((ChaosTelemetry._limani_plugin.insert_fact_log, [], log_data))
 
     @staticmethod
     def operation_host_start(state: State, host: Host, op_hash):
@@ -384,6 +405,9 @@ class ChaosTelemetry(BaseStateCallback):
 
         if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
 
+        if not ChaosTelemetry._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
         duration = end_time - start_time if start_time else 0.0
@@ -416,9 +440,7 @@ class ChaosTelemetry(BaseStateCallback):
 
         command_n_facts = []
         if start_time:
-            # This is the N+1 query. By moving it to a background thread,
-            # we mitigate the blocking impact on the main pyinfra execution loop.
-            command_n_facts = database.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
+            command_n_facts = ChaosTelemetry._limani_plugin.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
 
         streamed_event = {
             "type": "progress",
@@ -437,7 +459,7 @@ class ChaosTelemetry(BaseStateCallback):
 
         ChaosTelemetry._stream_chaos_event(streamed_event)
 
-        host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
+        host_id = ChaosTelemetry._limani_plugin.get_or_create_host(ChaosTelemetry._run_id, host.name)
 
         db_op_data = {
             'run_id': ChaosTelemetry._run_id,
@@ -454,13 +476,15 @@ class ChaosTelemetry(BaseStateCallback):
             'retry_stats': retry_stats,
             'command_n_facts': command_n_facts
         }
-        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
-
+        ChaosTelemetry._db_queue.put((ChaosTelemetry._limani_plugin.insert_operation, [], db_op_data))
 
     @staticmethod
     def operation_host_error(state: State, host: Host, op_hash, retry_count: int = 0, max_retries: int = 0):
         """Handles a failed operation by writing to the DB."""
         end_time = time.time()
+
+        if not ChaosTelemetry._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
 
         if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
 
@@ -494,7 +518,7 @@ class ChaosTelemetry(BaseStateCallback):
 
         command_n_facts = []
         if start_time:
-            command_n_facts = database.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
+            command_n_facts = ChaosTelemetry._limani_plugin.get_facts_for_timespan(ChaosTelemetry._run_id, start_time, end_time)
 
         streamed_event = {
             "type": "progress",
@@ -513,7 +537,7 @@ class ChaosTelemetry(BaseStateCallback):
 
         ChaosTelemetry._stream_chaos_event(streamed_event)
 
-        host_id = database.get_or_create_host(ChaosTelemetry._run_id, host.name)
+        host_id = ChaosTelemetry._limani_plugin.get_or_create_host(ChaosTelemetry._run_id, host.name)
 
         db_op_data = {
             'run_id': ChaosTelemetry._run_id,
@@ -530,9 +554,8 @@ class ChaosTelemetry(BaseStateCallback):
             'retry_stats': retry_stats,
             'command_n_facts': command_n_facts
         }
-        ChaosTelemetry._db_queue.put((database.insert_operation, [], db_op_data))
-        ChaosTelemetry._db_queue.put((database.update_run_status, [ChaosTelemetry._run_id, 'failure'], {}))
-
+        ChaosTelemetry._db_queue.put((ChaosTelemetry._limani_plugin.insert_operation, [], db_op_data))
+        ChaosTelemetry._db_queue.put((ChaosTelemetry._limani_plugin.start_update_run, [ChaosTelemetry._run_id, 'failure'], {}))
 
     @staticmethod
     def percentile(data: list, percentile_val: float):
@@ -583,11 +606,14 @@ class ChaosTelemetry(BaseStateCallback):
             print("No active run to export.")
             return
 
+        if not cls._limani_plugin:
+            raise RuntimeError("Limani plugin is not loaded.")
+
         # Ensure all pending writes are finished before exporting
         if cls._db_queue:
             cls._db_queue.join()
 
-        db_data = database.get_run_data(cls._run_id)
+        db_data = cls._limani_plugin.get_run_data(cls._run_id)
         if not db_data:
             print(f"Could not find data for run_id: {cls._run_id}")
             return
@@ -653,7 +679,7 @@ class ChaosTelemetry(BaseStateCallback):
                 f.write(',\n'.join(host_entries))
                 f.write('\n    },\n')
 
-                summary_stats = database.get_run_summary_stats(cls._run_id)
+                summary_stats = cls._limani_plugin.get_run_summary_stats(cls._run_id)
                 summary_stats['status'] = run_info['status']
                 f.write(f'    "summary": {json.dumps(summary_stats, indent=4)},\n')
 
@@ -704,11 +730,26 @@ class ChaosTelemetry(BaseStateCallback):
             from omegaconf import OmegaConf
             print(f"CHAOS_LOGBOOK::{json.dumps(OmegaConf.to_container(OmegaConf.create(file_content)))}", flush=True)
 
-
-            logbook_dir = database.get_db_path().parent
+            logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
             amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
             shutil.copy(filepath, logbook_dir / f"chaos_logbook_run{amount+1}_{int(time.time())}.json")
 
         except Exception as e:
             print(f"Error writing final report: {e}")
+
+    @classmethod
+    def load_limani_plugin(cls, limani_name: str, global_config: dict):
+        from importlib.metadata import EntryPoint
+        limanis = get_plugins()[6]
+        for name, value in limanis.items():
+            if name == limani_name:
+                ep = EntryPoint(name=name, value=value, group='chaos.limani')
+                try:
+                    Plugin = ep.load()
+                    cls._limani_plugin = Plugin(global_config)
+                    return
+                except (ImportError, AttributeError, ValueError) as e:
+                    raise ImportError(f"Could not load Limani plugin '{limani_name}': {e}")
+
+        raise ValueError(f"Limani plugin '{limani_name}' not found.")
 

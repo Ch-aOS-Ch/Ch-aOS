@@ -264,7 +264,7 @@ def addExplainParsers(parser):
 def addCheckParsers(parser):
     checkParser = parser.add_parser('check', help='Check and list roles, aliases and explanations')
 
-    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats', 'secrets'], help='The operations you want to check.')
+    checkParser.add_argument('checks', choices=['explanations', 'roles', 'aliases', 'providers', 'boats', 'secrets', 'limanis'], help='The operations you want to check.')
     checkParser.add_argument('-c', dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls).").completer = FilesCompleter() # type: ignore
     checkParser.add_argument('-j', '--json', action='store_true', help="Output in JSON format.", default=False)
     checkParser.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
@@ -291,6 +291,7 @@ def addApplyParsers(parser):
     applyParser.add_argument('-f', '--fleet', action='store_true', help="Apply to a fleet of hosts defined in the Ch-obolo file.")
     applyParser.add_argument('-pf', '--sudo_password_file', dest='sudo_password_file', help="Path to a file containing the sudo password to be used.").completer = FilesCompleter() # type: ignore
     applyParser.add_argument('-ps', '--password', dest='password', nargs='?', const=True, help="Password to be used for sudo operations (use this with pipes).")
+    applyParser.add_argument('-i', '--limani', help='Set the Limani (database plugin) to be used for logbook storage.')
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
     applyParser.add_argument('-e', '--serial', action="store_true", help="Run all ops in serial, each server at a time.")
     applyParser.add_argument('-nw', '--no-wait', action='store_true', help="Run all ops in parallel all servers at once.")

@@ -56,3 +56,5 @@ bitwarden-secrets = "chaos.lib.secret_backends.providers.bitwarden:BitwardenSecr
 bitwarden-rbw = "chaos.lib.secret_backends.providers.bitwarden:BitwardenRbwProvider"
 onepassword = "chaos.lib.secret_backends.providers.onepassword:OnePasswordProvider"
 
+[project.entry-points."chaos.limanis"]
+chrima = "chaos.lib.limani.chrima:Chrima"

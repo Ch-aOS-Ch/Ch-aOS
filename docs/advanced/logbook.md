@@ -40,23 +40,23 @@ Again, debugging background, "No operations" is still a state that needs to be u
 
 ## Storage and format:
 
-"Data collection" has a bad ring to it doesn't it? Well, not in Ch-aOS. All logbooks are stored in a structured json format. Locally.
+"Data collection" has a bad ring to it doesn't it? Well, not in Ch-aOS. All logbooks are stored in a structured json format. Locally. At least out of the box.
 
-They can be found in these places:
+You see, when I was developing the logbook system, I quickly realized that storing everything in a single JSON file would not scale well for larger runs. So I had to come up with a better solution.
+
+Then I made a SQLite database backend for the Logbook, which was cool and all, but then I realized that not everyone would want to deal with databases, and that SQLite doesn't really scale well for concurrent access.
+
+So, the final solution was quite simple: plugins (Duh)! Ch-aOS has a plugin system for almost everything, so why not for the Logbook storage as well?
+
+Learn more [here](.../plugins/limani.md).!
+
+They can be found in these places while using the default "chrima" plugin:
 
 - `./chaos-logbook.json`
 
 - `~/.local/share/chaos/logbooks/logbook.db`
 
-Uh... yeah, it's a database. A SQLite database to be exact. Why? Because JSON files are great and all... for small stuff. But when you get a log from the size of, well, from the size of the _logbook_... then the size alone can make any applications choke on it, especially when you want to query it.
-
-But don't worry, it still generates your pretty little json in your current working directory. The database is just for storage and querying.
-
-Also, it may be a little slower than normal usage, cause I've implemented a queueing system to batch writes to the database, minimizing the performance impact.
-
-That being said, I still find some issues with the scalability of the Logbook when it comes to _extremely_ large runs (tens of thousands of concurrent operations). I do accept some help here, I am not the best at databases after all.
-
-Btw: the Logbook (since it streams the data) can be consumed by other programs in real-time. More scalable programs. Mine is still simple and easy to use.
+Do note that the JSON file is always created, regardless of the storage backend used. It is there for easy access and quick debugging.
 
 ## Enabling and disabling:
 
