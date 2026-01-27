@@ -36,6 +36,8 @@ requires-python = ">=3.10"
 "chaos.aliases" = { mr = "my-role" }
 "chaos.keys" = { my-role = "my_chaos_plugin.roles:my_role_keys" }
 "chaos.providers" = { myprovider = "my_chaos_plugin.providers:MyProviderClass" }
+"chaos.boats" = { myboat = "my_chaos_plugin.boats:MyBoatClass" }
+"chaos.limanis" = { mylimani = "my_chaos_plugin.limanis:MyLimaniClass" }
 ```
 
 ## Entry Points
@@ -143,3 +145,7 @@ Registers a new secret provider. This is a more advanced topic that requires imp
 ### `chaos.boats`
 
 Registers a new boat for use with `chaos apply --fleet`. This is an advanced topic for managing fleets of hosts. See **[Boat Plugins](../advanced/boats.md)** for more details.
+
+### chaos.limanis
+
+Enables a new database to use with `chaos apply --logbook --limani`. This is an advanced topic for logging operations. See **[Limani Plugins](./limani.md)** for more information.
