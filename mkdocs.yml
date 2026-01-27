@@ -69,3 +69,4 @@ nav:
     - 'Development': 'plugins/development.md'
     - 'Connector development': 'plugins/connectors.md'
     - 'Roles': 'plugins/roles.md'
+    - 'Limani': 'plugins/limani.md'
