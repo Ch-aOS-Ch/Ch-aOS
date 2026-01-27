@@ -409,8 +409,6 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     global_config, chobolo_path, secrets_file_override, sops_file_override = _get_configs(args)
 
     if args.logbook:
-        if not args.limani:
-            raise ValueError("When using --logbook, you must specify a Limani plugin with --limani or configure a default Limani.")
         limani = _resolve_limani(global_config, args)
         ChaosTelemetry.load_limani_plugin(limani, cast(dict, OmegaConf.to_container(global_config, resolve=True)))
 
