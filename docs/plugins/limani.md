@@ -211,4 +211,4 @@ As you can see, the Limani class only defines _read_ and _write_ methods for the
 
 The Logbook system automatically loads and uses the Limani plugin specified in the `--limani` flag when applying the logbook, and then uses these methods to interact with the data source.
 
-A _complete_ Limani plugin can be seen in [here](https://github.com/Ch-aOS-Ch/Ch-aOS/)
+A _complete_ Limani plugin can be seen in [here](https://github.com/Ch-aOS-Ch/Ch-aOS/blob/main/cli/src/chaos/lib/limani/chrima.py)
