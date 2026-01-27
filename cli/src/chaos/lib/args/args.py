@@ -291,7 +291,7 @@ def addApplyParsers(parser):
     applyParser.add_argument('-f', '--fleet', action='store_true', help="Apply to a fleet of hosts defined in the Ch-obolo file.")
     applyParser.add_argument('-pf', '--sudo_password_file', dest='sudo_password_file', help="Path to a file containing the sudo password to be used.").completer = FilesCompleter() # type: ignore
     applyParser.add_argument('-ps', '--password', dest='password', nargs='?', const=True, help="Password to be used for sudo operations (use this with pipes).")
-    applyParser.add_argument('-i', '--limani', help='Set the Limani (database plugin) to be used for logbook storage.')
+    applyParser.add_argument('-i', '--limani', nargs="?", help='Set the Limani (database plugin) to be used for logbook storage.')
     applyParser.add_argument('-d', '--dry', action='store_true', help="Execute roles in dry mode.")
     applyParser.add_argument('-e', '--serial', action="store_true", help="Run all ops in serial, each server at a time.")
     applyParser.add_argument('-nw', '--no-wait', action='store_true', help="Run all ops in parallel all servers at once.")
