@@ -85,6 +85,18 @@ def _collect_fleet_health(state, stage):
         for host in state.inventory.iter_activated_hosts():
             _fetch_and_record(host)
 
+def _resolve_limani(global_config: DictConfig, args):
+    if args.limani:
+        limani_name = args.limani
+    else:
+        limani_name = global_config.get('limani')
+
+    if not limani_name:
+        raise ValueError("No Limani plugin specified.\n"
+                         "   Use '[cyan]--limani limani_name[/cyan]' or configure a default Limani.")
+
+    return limani_name
+
 def _get_configs(args):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
@@ -395,6 +407,13 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     console_err = Console(stderr=True)
 
     global_config, chobolo_path, secrets_file_override, sops_file_override = _get_configs(args)
+
+    if args.logbook:
+        if not args.limani:
+            raise ValueError("When using --logbook, you must specify a Limani plugin with --limani or configure a default Limani.")
+        limani = _resolve_limani(global_config, args)
+        ChaosTelemetry.load_limani_plugin(limani, cast(dict, OmegaConf.to_container(global_config, resolve=True)))
+
     enabledSecPlugins = global_config.get('secret_plugins', [])
     userAliases = global_config.get('aliases', {})
 
@@ -416,6 +435,7 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
     try:
         if args.logbook:
             _collect_fleet_health(state, stage="pre_operations")
+
         for host in state.inventory.iter_activated_hosts():
             console.print(f"\n[bold]### Applying roles to {host.name} ###[/bold]")
             commonArgs = (state, host, chobolo_path, skip)

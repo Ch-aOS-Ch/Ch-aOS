@@ -107,6 +107,9 @@ def checkProviders(providers, isJson=False):
 def checkBoats(boats, isJson=False):
     printCheck("boat", boats, json_output=isJson)
 
+def checkLimanis(limanis, isJson=False):
+    printCheck("limani", limanis, json_output=isJson)
+
 def is_vault_in_use(sops_file_path: str) -> bool:
     """
     checks if vault is in use in the sops file

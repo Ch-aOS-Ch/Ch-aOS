@@ -2,10 +2,11 @@ import shutil
 import math
 import functools
 from itertools import zip_longest
+import os
 
-def validate_path(path: str) -> str:
+def validate_path(path: str):
     """Validates given file system path."""
-    if ".." in path or "//" in path or (path.startswith("/") and not path.startswith(shutil.os.path.expanduser("~"))):
+    if ".." in path or "//" in path or (path.startswith("/") and not path.startswith(os.path.expanduser("~"))):
         raise ValueError("Invalid file path.")
 
 def checkDep(bin):
