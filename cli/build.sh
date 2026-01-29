@@ -17,6 +17,7 @@ CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 VERSION="0.6.7"
 DIST_DIR="$CLI_DIR/dist"
 ARTIFACTS_DIR="$DIST_DIR/artifacts"
+GPG_KEY=12FEDE6E939CA1DB84C222D55B8508C9C82A572E
 
 echo "Checking for uv and shiv..."
 check_command "uv"
@@ -47,6 +48,9 @@ echo "Packaging..."
   cd "$ARTIFACTS_DIR" || exit
   tar -czvf "$DIST_DIR/chaos-v$VERSION-shiv-dist.tar.gz" .
 )
+
+echo "Signing package with GPG key $GPG_KEY..."
+gpg --detach-sign --armor -u "$GPG_KEY" "$DIST_DIR/chaos-v$VERSION-shiv-dist.tar.gz"
 
 rm -rf "$ARTIFACTS_DIR"
 echo ""

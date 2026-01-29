@@ -5,8 +5,12 @@ REPO_OWNER="Ch-aOS-Ch"
 REPO_NAME="Ch-aOS"
 VERSION="0.6.7"
 ARTIFACT_FILENAME="chaos-v${VERSION}-shiv-dist.tar.gz"
+SIG_FILE="${ARTIFACT_FILENAME}.asc"
+
+GPG_KEY_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/chaos_pubkey.asc"
 
 DOWNLOAD_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${ARTIFACT_FILENAME}"
+SIGNATURE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${SIGNATURE_FILENAME}"
 
 TEMP_DIR=$(mktemp -d)
 INSTALLER_SCRIPT="install.sh"
@@ -32,11 +36,26 @@ fi
 echo "checking for required commands..."
 check_command "curl"
 check_command "tar"
+check_command "gpg"
 
-echo "Downloading and installing Ch-aOS v$VERSION..."
+echo "Downloading and installing Ch-aOS v$VERSION and its sig..."
 echo "Trying to download from: $DOWNLOAD_URL"
 
 curl -Lsfo "$TEMP_DIR/$ARTIFACT_FILENAME" "$DOWNLOAD_URL"
+curl -Lsfo "$TEMP_DIR/$SIGNATURE_FILENAME" "$SIGNATURE_URL"
+
+echo "Importing Ch-aOS developer's GPG public key..."
+curl -sL "$GPG_PUBKEY_URL" | gpg --import -
+
+echo "Verifying package integrity..."
+if ! gpg --verify "$TEMP_DIR/$SIGNATURE_FILENAME" "$TEMP_DIR/$ARTIFACT_FILENAME"; then
+  echo "GPG verification FAILED! The package is either corrupted or has been tampered with."
+  echo "Aborting installation for security reasons."
+  cleanup
+  exit 1
+fi
+echo "GPG verification successful. The package is authentic."
+
 if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ]; then
   echo "Error: Failed to download the package. Exiting..."
   cleanup
