@@ -42,7 +42,7 @@ echo "Downloading and installing Ch-aOS v$VERSION and its sig..."
 echo "Trying to download from: $DOWNLOAD_URL"
 
 curl -Lsfo "$TEMP_DIR/$ARTIFACT_FILENAME" "$DOWNLOAD_URL"
-curl -Lsfo "$TEMP_DIR/$SIG_FILE" "$SIG_FILE"
+curl -Lsfo "$TEMP_DIR/$SIG_FILE" "$SIGNATURE_URL"
 
 if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ] || [ ! -f "$TEMP_DIR/$SIGNATURE_FILENAME" ]; then
   echo "Error: Failed to download the package or its signature. Exiting..."
