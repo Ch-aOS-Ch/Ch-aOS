@@ -39,12 +39,12 @@ check_command "tar"
 check_command "gpg"
 
 echo "Downloading and installing Ch-aOS v$VERSION and its sig..."
-echo "Trying to download from: $DOWNLOAD_URL"
+echo "Trying to download from: $DOWNLOAD_URL and $SIGNATURE_URL"
 
 curl -Lsfo "$TEMP_DIR/$ARTIFACT_FILENAME" "$DOWNLOAD_URL"
 curl -Lsfo "$TEMP_DIR/$SIG_FILE" "$SIGNATURE_URL"
 
-if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ] || [ ! -f "$TEMP_DIR/$SIGNATURE_FILENAME" ]; then
+if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ] || [ ! -f "$TEMP_DIR/$SIG_FILE" ]; then
   echo "Error: Failed to download the package or its signature. Exiting..."
   cleanup
   exit 1
