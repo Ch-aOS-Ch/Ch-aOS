@@ -52,6 +52,7 @@ nav:
   - 'Commands':
     - 'apply': 'commands/apply.md'
     - 'Management': 'commands/management.md'
+    - 'Styx': 'commands/styx.md'
     - 'explain': 'commands/explain.md'
     - 'team': 'commands/team.md'
     - 'secrets': 'commands/secrets.md'
