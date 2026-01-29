@@ -1,5 +1,7 @@
 # Commands: Management
 
+Well, Ch-aOS needs some way to manage itself, right? After all, it's not just about configuring other systems; you also need to set up and maintain the `chaos` CLI environment. I am sure that just installing a random CLI tool and it not providing any way to manage itself would be a pain, right?
+
 These commands help you manage the `chaos` CLI environment itself, from initializing configuration files to discovering available functionality.
 
 ## `chaos init`

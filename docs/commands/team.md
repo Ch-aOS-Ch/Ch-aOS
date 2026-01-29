@@ -1,5 +1,7 @@
 # Command: `chaos team`
 
+Wow, you made a massive role that uses secrets and documented it for your team on encrypted rambles about which keys to use where? Cool... now... how do you share that with your team?
+
 The `team` subsystem provides a structured way to manage and share Ch-aOS configurations (like secrets and rambles) within a team using Git repositories. It enables collaboration by providing a central, version-controlled repository for team-wide settings.
 
 A team repository is a standard Git repository with a specific directory structure (`secrets/`, `ramblings/`) and a `.chaos.yml` file for metadata.

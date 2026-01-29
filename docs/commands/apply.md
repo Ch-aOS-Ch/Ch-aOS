@@ -1,5 +1,7 @@
 # Command: `chaos apply`
 
+Well duh, how is a "system management tool" supposed to manage your system if it can't apply changes?
+
 The `chaos apply` command is the engine of Ch-aOS. It executes roles to bring your system to the state declared in your [Ch-obolo file](../core-concepts.md/#ch-obolos-the-data).
 
 This implements a **declarative state orchestration** model. `pyinfra`, the underlying engine, first inspects the current state of the system ("facts"), compares it to the desired state, calculates the necessary changes (the "delta"), and then executes the operations to reconcile the state.

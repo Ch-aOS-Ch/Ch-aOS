@@ -1,5 +1,7 @@
 # Fleet Management
 
+Ok, so you've mastered using `chaos` to configure a single machine. But what if you have multiple servers, VMs, or containers that need the same setup? What if you want to manage an entire fleet of machines with ease?
+
 The `fleet` feature extends `chaos` to orchestrate multiple machines simultaneously. By adding a `fleet` block to your Ch-obolo file, you can define a group of remote hosts and run roles across all of them from a single command.
 
 This is essential for managing any infrastructure with more than one machine, such as a cluster of web servers, a set of development VMs, or any group of computers that need consistent configuration.
@@ -44,7 +46,7 @@ fleet:
 ```
 
 !!! note
-    Since Ch-aOS uses base `pyinfra` for remote execution, all `pyinfra connectors` are supported. This includes special connection types like `@dockerssh/`, `@chroot/`, `@terrafor,/`, and more. Refer to the [pyinfra documentation](https://docs.pyinfra.com/en/3.x/connectors/vagrant.html#vagrant-connector) and, better yet, [pyinfra connector repo](https://github.com/pyinfra-dev/pyinfra/tree/3.x/src/pyinfra/connectors) for more details on connection strings.
+    Since Ch-aOS uses base `pyinfra` for remote execution, all `pyinfra connectors` are supported. This includes special connection types like `@dockerssh/`, `@chroot/`, `@terraform/`, and more. Refer to the [pyinfra documentation](https://docs.pyinfra.com/en/3.x/connectors/vagrant.html#vagrant-connector) and, better yet, [pyinfra connector repo](https://github.com/pyinfra-dev/pyinfra/tree/3.x/src/pyinfra/connectors) for more details on connection strings.
 
 The hosts are defined as a list of dictionaries, where each dictionary contains a single host and its connection data. All `pyinfra` connection arguments (like `ssh_user`, `ssh_port`, `ssh_key`, etc.) are supported.
 

@@ -1,5 +1,7 @@
 # Boat Creation and Management
 
+Well, you have a fleet of hosts, cool! Now, how do you codify your hosts? Like, I am 100% sure you don't want to write down every single IP address of every single server you have, right? That would be... tedious.
+
 Boats are a "dynamic fleet" configuration system for Ch-aOS. As always, boats are both optional and pluginable, allowing you and your team to create custom dynamic fleet solutions that fit your infrastructure needs, or even use community-created boats!
 
 ## What is a Boat?

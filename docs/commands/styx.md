@@ -1,6 +1,6 @@
 # Command `chaos styx`
 
-The `chaos styx` command is used to manage and interact with the Styx service, which is a method in which you can interact with Ch-aOS' plugin registry.
+The `chaos styx` command is used to manage and interact with the Styx plugin registry.
 
 This command allows you to install (`invoke`), list (`list`), and remove (`destroy`) plugins that extend the functionality of Ch-aOS.
 
@@ -19,13 +19,7 @@ chaos styx <action> [plugin_name]
 
 ## Sending a Plugin to Styx
 
-Styx is NOT a end all be all plugin registry. It is simple by design and only meant to _install, uninstall and list_ plugins, it does not manage dependencies or versions.
-
-If you have created a plugin that depends on another plugin, or a specific version of a plugin, you will need to rethink how your plugin is designed to avoid these issues.
-
-Plugins in Ch-aOS should be as self contained as possible, in order to avoid dependency hell scenarios.
-
-That being said, if you have created a plugin in Ch-aOS, and would like to share it with the community via Styx, please open a PR on the [Styx GitHub repository](https://github.com/Ch-aOS-Ch/styx)
+If you have created a plugin in Ch-aOS, and would like to share it with the community via Styx, please open a PR on the [Styx GitHub repository](https://github.com/Ch-aOS-Ch/styx)
 
 It is quite simply a dict of dicts in a yaml file with the following structure:
 ```yaml
@@ -37,6 +31,9 @@ styx: # global dict
     version: "v0.1.1" # the version of your plugin, cannot be "latest", be specific
 ```
 
+!!! important
+    Styx was _created_ to be simple, it is NOT a package manager. It was created from the start to be as simple as possible (either you have the plugin, or not), it is a _plugin registry_, managed and contributed by the community. There should NOT be a "chaos-utils" inside of styx, since plugins should be auto contained solutions. All of the tools for creating an auto contained solution for Ch-aOS are available and should be used. _PyPI managed utilities_ are not only recommended, they are the correct way to distribute an utils package for styx plugins. Plugins may use any PyPI package, but it is required to have undergone an "pip-audit" run before the styx installation.
+
 ## About security:
 
 ATTENTION, THIS IS IMPORTANT.
@@ -47,7 +44,7 @@ ALL plugins should be submitted with a proper LICENSE file, and a proper SECURIT
 
 ALL plugins should be added with a SIGNED COMMIT AND PR. No Plugins will be accepted without such.
 
-All plugins are installed via the repo url provided in the styx registry, only installed inside of a user's home directory and only downloades a .whl file with the "this_name-version-py3-none-any.whl" format.
+All plugins are installed via the repo url provided in the styx registry only download a .whl file with the "this_name-version-py3-none-any.whl" format.
 
 All plugins are installed in the user's home directory, and should have documentation about if they require elevated permissions OR if they require secrets access.
 

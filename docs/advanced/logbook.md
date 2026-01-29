@@ -1,5 +1,7 @@
 # Ch-aOS Logbook
 
+Ok, you've managed your system beautifully, incredible! But what if something goes wrong? What if you need to uncover why something is not going fast enough, or why a change didn't apply as expected? You don't want to be left to check massive `--verbose` logs, and most certainly not check each host individually. So...
+
 Ch-aOS has a built-in state of the art data collection mechanism called the "Logbook". It was designed to collect the most amount of pure useful data while minimizing the performance impact on the system.
 
 It is a complete execution journal that captures a precise, structured and replayable record of everything that happened during a `chaos apply` run, from the high-level operations down to the EXACT commands, facts, timestamps, and system state before and after each operation.

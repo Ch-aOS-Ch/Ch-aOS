@@ -1,5 +1,7 @@
 # Secret Providers
 
+So, you don't use passwords for file encryption, you use keys, fantastic! But then, where in the nine hells of Dante do you *store* those keys? They aren't physical objects you can just put in a keyring, nor are they something you want to leave lying around in your home directory. Most certainly it is not something you want to lose!
+
 While `sops` provides the encryption, a "Secret Provider" in Ch-aOS answers the question: "Where do you securely store the master key itself?"
 
 Providers are integrations with external password managers (like Bitwarden and 1Password) that allow `chaos` to access master encryption keys (like `age` or `gpg` keys) without needing to keep them as plaintext files on the local filesystem.
