@@ -10,7 +10,7 @@ SIG_FILE="${ARTIFACT_FILENAME}.asc"
 GPG_KEY_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/chaos_pubkey.asc"
 
 DOWNLOAD_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${ARTIFACT_FILENAME}"
-SIGNATURE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${SIGNATURE_FILENAME}"
+SIGNATURE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${SIG_FILE}"
 
 TEMP_DIR=$(mktemp -d)
 INSTALLER_SCRIPT="install.sh"
@@ -42,27 +42,25 @@ echo "Downloading and installing Ch-aOS v$VERSION and its sig..."
 echo "Trying to download from: $DOWNLOAD_URL"
 
 curl -Lsfo "$TEMP_DIR/$ARTIFACT_FILENAME" "$DOWNLOAD_URL"
-curl -Lsfo "$TEMP_DIR/$SIGNATURE_FILENAME" "$SIGNATURE_URL"
+curl -Lsfo "$TEMP_DIR/$SIG_FILE" "$SIG_FILE"
 
-echo "Importing Ch-aOS developer's GPG public key..."
-curl -sL "$GPG_PUBKEY_URL" | gpg --import -
+if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ] || [ ! -f "$TEMP_DIR/$SIGNATURE_FILENAME" ]; then
+  echo "Error: Failed to download the package or its signature. Exiting..."
+  cleanup
+  exit 1
+fi
+echo "Package and signature successfully downloaded."
+
+gpg --quiet --import <(curl -sL "$GPG_KEY_URL")
 
 echo "Verifying package integrity..."
-if ! gpg --verify "$TEMP_DIR/$SIGNATURE_FILENAME" "$TEMP_DIR/$ARTIFACT_FILENAME"; then
+if ! gpg --verify "$TEMP_DIR/$SIG_FILE" "$TEMP_DIR/$ARTIFACT_FILENAME" 2>/dev/null; then
   echo "GPG verification FAILED! The package is either corrupted or has been tampered with."
   echo "Aborting installation for security reasons."
   cleanup
   exit 1
 fi
 echo "GPG verification successful. The package is authentic."
-
-if [ ! -f "$TEMP_DIR/$ARTIFACT_FILENAME" ]; then
-  echo "Error: Failed to download the package. Exiting..."
-  cleanup
-  exit 1
-fi
-
-echo "Package successfully downloaded to $TEMP_DIR/$ARTIFACT_FILENAME"
 
 echo "Untarring the package..."
 tar -xzvf "$TEMP_DIR/$ARTIFACT_FILENAME" -C "$TEMP_DIR"
