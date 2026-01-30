@@ -6,6 +6,7 @@ import re
 import os
 import socket
 import queue
+import subprocess
 import threading
 from pathlib import Path
 from pyinfra.api.operation import OperationMeta
@@ -724,11 +725,7 @@ class ChaosTelemetry(BaseStateCallback):
 
                 f.write("}\n")
 
-            with open(filepath, 'r') as f:
-                file_content = f.read()
-
-            from omegaconf import OmegaConf
-            print(f"CHAOS_LOGBOOK::{json.dumps(OmegaConf.to_container(OmegaConf.create(file_content)))}", flush=True)
+            subprocess.run(['cat', filepath], check=False)
 
             logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
             amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
