@@ -131,6 +131,10 @@ class Chrima(Limani):
         )
         """)
 
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_operations_run_host ON operations (run_id, host_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_run_host ON resource_snapshots (run_id, host_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_run_timestamp ON command_n_facts_in_order (run_id, timestamp);")
+
         conn.commit()
 
     def get_or_create_host(self, run_id: str, host_name: str) -> int:
@@ -245,18 +249,23 @@ class Chrima(Limani):
 
     def get_run_data(self, run_id: str):
         """Fetches all data for a specific run."""
+        from collections import defaultdict
         conn = self.connect()
 
         run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
         if not run:
             return None
 
+        ops_by_host = defaultdict(list)
+        ops_cursor = conn.execute("SELECT * FROM operations WHERE run_id = ? ORDER BY timestamp ASC", (run_id,))
+        for op in ops_cursor:
+            ops_by_host[op['host_id']].append(dict(op))
+
         hosts_cursor = conn.execute("SELECT * FROM hosts WHERE run_id = ?", (run_id,))
         hosts = []
         for host_row in hosts_cursor:
             host_data = dict(host_row)
-            ops_cursor = conn.execute("SELECT * FROM operations WHERE run_id = ? AND host_id = ? ORDER BY timestamp ASC", (run_id, host_row['id']))
-            host_data['operations'] = [dict(op) for op in ops_cursor]
+            host_data['operations'] = ops_by_host.get(host_row['id'], [])
             hosts.append(host_data)
 
         snapshots_cursor = conn.execute("SELECT s.*, h.name as host_name FROM resource_snapshots s JOIN hosts h ON s.host_id = h.id WHERE s.run_id = ? ORDER BY s.timestamp ASC", (run_id,))

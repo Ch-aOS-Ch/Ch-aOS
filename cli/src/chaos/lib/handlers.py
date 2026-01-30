@@ -466,7 +466,8 @@ def handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER: DictConfig, ROLE_ALI
 
     finally:
         if args.logbook:
-            ChaosTelemetry.export_report()
+            if args.export_logs:
+                ChaosTelemetry.export_report()
             ChaosTelemetry.end_run(status=run_status)
 
         console.print("\nDisconnecting...")
