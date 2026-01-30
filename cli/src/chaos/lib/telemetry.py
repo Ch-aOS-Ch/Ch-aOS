@@ -725,7 +725,19 @@ class ChaosTelemetry(BaseStateCallback):
 
                 f.write("}\n")
 
-            subprocess.run(['cat', filepath], check=False)
+            try:
+                print("CHAOS_LOGBOOK::", end="", flush=True)
+
+                subprocess.run(['jq', '-c', '.', filepath], check=True)
+
+            except FileNotFoundError:
+                import sys
+                print("{}", flush=True)
+                print("Warning: 'jq' not found. Please install 'jq' to format the logbook output.", file=sys.stderr)
+            except Exception as e:
+                import sys
+                print("{}", flush=True)
+                print(f"Error executing jq: {e}", file=sys.stderr)
 
             logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
             amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
