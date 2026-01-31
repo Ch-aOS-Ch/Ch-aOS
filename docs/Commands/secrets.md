@@ -1,8 +1,8 @@
 # Command: `chaos secrets`
 
-In real life, we don't use "words" to enter our homes, nor do we use them to enter establishments or offices. Instead, we use keys, keycards, or biometric data that are unique to us and difficult to replicate. For these reasons, Ch-aOS believes that "passwords" are stupid, and leans for a key based approach to secret management.
+In real life, we don't use "words" to enter our homes, nor do we use them to enter establishments or offices. Instead, we use keys, keycards, or biometric data that are unique to us and difficult to replicate. For these reasons, Ch-aOS believes that "passwords" are an outdated and insecure method of protecting sensitive information.
 
-Ch-aOS does not encrypt secrets with a singular password. Instead, it uses modern, asymmetric encryption methods (like GPG and age) to ensure that only authorized individuals or systems can access sensitive information. This approach eliminates the risks associated with password sharing and weak password practices.
+Because of this philosophy, Ch-aOS does not have a built-in password manager. Instead, it provides a robust interface for managing encrypted secrets using common tools, such as gpg and age, through Mozilla's `sops` utility.
 
 The `chaos secrets` command suite acts as an orchestrator for Mozilla's `sops` (Secrets OPerationS). It simplifies the entire workflow of managing encrypted secrets, allowing you to safely store sensitive data (like passwords, tokens, and API keys) in YAML files that can be committed to a Git repository.
 
