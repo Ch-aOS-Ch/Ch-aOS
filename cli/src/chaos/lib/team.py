@@ -3,7 +3,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 from pathlib import Path
 import subprocess
-import shutils
+import shutil
 
 from chaos.lib.utils import checkDep, render_list_as_table, validate_path
 """Lmao yeah, a ton of stuff is happening in teamUtils.py"""
