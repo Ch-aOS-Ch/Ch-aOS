@@ -35,12 +35,13 @@ chaos secrets print
 
 ## `secrets cat`
 
-Decrypts a secrets file and prints only the specific value(s) of the key(s) you ask for. This is more secure and convenient for scripting than `print`.
+Decrypts a secrets file and prints only the specific value(s) of the key(s) you ask for. This is more secure and convenient for scripting than `print`. Use dot notation to specify nested keys.
+
+Use the `-v` or `--value` flag to _only_ print the value, without the key name or any formatting.
 
 **Usage:**
 ```bash
-# Get the value of 'password' inside the 'dex' user object
-chaos secrets cat user_secrets.dex.password
+chaos secrets cat user_secrets.dex.password -v
 ```
 
 ## Key Management
