@@ -50,13 +50,13 @@ nav:
   - 'Core Concepts': 'core-concepts.md'
   - 'The Chopping Board': 'chopping-board.md'
   - 'Commands':
-    - 'apply': 'Commands/apply.md'
+    - 'Apply': 'Commands/apply.md'
     - 'Management': 'Commands/management.md'
     - 'Styx': 'Commands/styx.md'
-    - 'explain': 'Commands/explain.md'
-    - 'team': 'Commands/team.md'
-    - 'secrets': 'Commands/secrets.md'
-    - 'ramble': 'Commands/ramble.md'
+    - 'Explain': 'Commands/explain.md'
+    - 'Team': 'Commands/team.md'
+    - 'Secrets': 'Commands/secrets.md'
+    - 'Ramble': 'Commands/ramble.md'
   - 'Advanced':
     - 'Fleet Management': 'Advanced/fleet.md'
     - 'Boats for your Fleet': 'Advanced/boats.md'
