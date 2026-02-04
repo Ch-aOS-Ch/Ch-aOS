@@ -7,7 +7,7 @@ import os
 def validate_path(path: str):
     """Validates given file system path."""
     if ".." in path or "//" in path or (path.startswith("/") and not path.startswith(os.path.expanduser("~"))):
-        raise ValueError("Invalid file path.")
+        raise ValueError(f"Invalid file path {path}.")
 
 def checkDep(bin):
     """This just checks if a SHELL COMMAND exists in the system PATH."""

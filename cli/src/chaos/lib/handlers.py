@@ -263,7 +263,6 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     ctx_state.set(state)
     sudo_password = None
-    sudo_password = None
     if args.sudo_password_file:
         validate_path(args.sudo_password_file)
 
