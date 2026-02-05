@@ -1,45 +1,53 @@
-import pytest
 import os
 from unittest.mock import Mock, patch
-from chaos.lib.ramble import handleCreateRamble, handleReadRamble, handleDelRamble, _process_ramble_target
+
+import pytest
+
+from chaos.lib.ramble import (
+    handleCreateRamble,
+    handleDelRamble,
+    handleReadRamble,
+)
+
 
 # Precisamos simular o diretório home para um diretório temporário
 @pytest.fixture
 def mock_ramble_home(tmp_path, monkeypatch):
     ramble_dir = tmp_path / ".local/share/chaos/ramblings"
     ramble_dir.mkdir(parents=True)
-    
+
     # Simula o `expanduser` para que `~` aponte para o nosso diretório temporário
     def mock_expanduser(path):
         if path.startswith("~"):
-             # Substitui apenas o til no início do caminho
-             return str(tmp_path) + path[1:]
+            # Substitui apenas o til no início do caminho
+            return str(tmp_path) + path[1:]
         return str(tmp_path)
-        
-    monkeypatch.setattr(os.path, 'expanduser', mock_expanduser)
-    monkeypatch.setattr('chaos.lib.ramble._get_ramble_dir', lambda team: ramble_dir)
+
+    monkeypatch.setattr(os.path, "expanduser", mock_expanduser)
+    monkeypatch.setattr("chaos.lib.ramble._get_ramble_dir", lambda team: ramble_dir)
     return ramble_dir
+
 
 def test_create_ramble_journal_and_page(mock_ramble_home):
     args = Mock()
-    args.target = "diary" # cria um diário
+    args.target = "diary"  # cria um diário
     args.encrypt = False
     args.keys = []
     args.sops_file_override = None
     args.team = None
 
-
     # A função chama o editor, então simulamos o subprocesso
-    with patch('chaos.lib.ramble.subprocess.run') as mock_run:
+    with patch("chaos.lib.ramble.subprocess.run") as mock_run:
         handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "diary"
     page_path = journal_path / "diary.yml"
     assert journal_path.is_dir()
     assert page_path.is_file()
-    
+
     content = page_path.read_text()
     assert "title: diary" in content
+
 
 def test_create_ramble_page_in_journal(mock_ramble_home):
     args = Mock()
@@ -49,16 +57,17 @@ def test_create_ramble_page_in_journal(mock_ramble_home):
     args.sops_file_override = None
     args.team = None
 
-    with patch('chaos.lib.ramble.subprocess.run') as mock_run:
+    with patch("chaos.lib.ramble.subprocess.run") as mock_run:
         handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "work"
     page_path = journal_path / "meeting_notes.yml"
     assert journal_path.is_dir()
     assert page_path.is_file()
-    
+
     content = page_path.read_text()
     assert "title: meeting_notes" in content
+
 
 def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
     # --- Criação ---
@@ -66,7 +75,7 @@ def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
     page_path = journal_path / "shopping.yml"
     journal_path.mkdir()
     page_path.write_text("title: Shopping List\nwhat: a list of things to buy")
-    
+
     # --- Leitura ---
     read_args = Mock()
     read_args.targets = ["todo.shopping"]
@@ -79,23 +88,23 @@ def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
     read_args.provider = None
 
     # Simula a descoberta de config global
-    with patch('chaos.lib.ramble.os.path.exists') as mock_exists:
+    with patch("chaos.lib.ramble.os.path.exists") as mock_exists:
         mock_exists.return_value = False
         _process_ramble_target_path = "chaos.lib.ramble._print_ramble"
         with patch(_process_ramble_target_path) as mock_print_ramble:
             handleReadRamble(read_args)
-            
+
     # Verifica se a função de impressão foi chamada corretamente
     mock_print_ramble.assert_called_once()
-    
+
     # --- Deleção ---
     del_args = Mock()
     del_args.ramble = "todo.shopping"
     del_args.team = None
 
     # Simula a confirmação do usuário
-    monkeypatch.setattr('rich.prompt.Confirm.ask', lambda *args, **kwargs: True)
-    
+    monkeypatch.setattr("rich.prompt.Confirm.ask", lambda *args, **kwargs: True)
+
     handleDelRamble(del_args)
-    
+
     assert not page_path.exists()
