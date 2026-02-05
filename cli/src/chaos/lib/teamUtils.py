@@ -52,7 +52,7 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
     If neither of those, it creates the symlink and notifies the user.
     """
     try:
-        src = base_path
+        src = base_path / f"{company}/{team}"
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
 
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -142,7 +142,7 @@ def _get_chaos_file(path) -> DictConfig:
     chaosContent = cast(DictConfig, chaosContent)
     if (
         not chaosContent.get("company")
-        or not chaosContent.get("team")
+        or not chaosContent.get("teams")
         or not chaosContent.get("engine")
     ):
         raise ValueError(

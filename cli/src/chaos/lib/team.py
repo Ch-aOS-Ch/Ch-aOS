@@ -52,6 +52,7 @@ def initTeam(payload: TeamInitPayload):
     path = payload.path
     if not path:
         path = os.getcwd()
+
     ikwid = payload.i_know_what_im_doing
 
     confirm = (
@@ -70,18 +71,18 @@ def initTeam(payload: TeamInitPayload):
 
     teamDir = _validate_teamDir(path, company, team)
 
-    gitDir = teamDir / ".git"
+    gitDir = Path(path) / ".git"
     if not gitDir.exists():
         confirm = (
             True
             if ikwid
             else Confirm.ask(
-                f"The directory {teamDir} is not a git repository. Initialize a new git repository here?",
+                f"The directory {path} is not a git repository. Initialize a new git repository here?",
                 default=False,
             )
         )
         if confirm:
-            subprocess.run(["git", "init", str(teamDir)], check=True)
+            subprocess.run(["git", "init", str(path)], check=True)
 
     teamDir.mkdir(parents=True, exist_ok=True)
 
@@ -113,11 +114,11 @@ def activateTeam(payload: TeamActivatePayload):
 
     path = payload.path
     chaosContent = _get_chaos_file(path)
-    company = chaosContent.get("company")
-    team = chaosContent.get("team")
-    engines = chaosContent.get("engine")
+    company = chaosContent.get("company", "")
+    teams = chaosContent.get("teams", [])
+    engines = chaosContent.get("engine", [])
 
-    if not company or not team:
+    if not company or not teams:
         raise ValueError(".chaos.yml is missing 'company' or 'team' information.")
 
     if not engines:
@@ -148,10 +149,13 @@ def activateTeam(payload: TeamActivatePayload):
     if not path:
         path = os.getcwd()
 
-    _ = _validate_teamDir(path, company, team)
+    for team in teams:
+        _ = _validate_teamDir(path, company, team)
 
-    base_path = Path(path).resolve() if payload.path else Path(os.getcwd()).resolve()
-    _symlink_teamDir(company, base_path, team)
+        base_path = (
+            Path(path).resolve() if payload.path else Path(os.getcwd()).resolve()
+        )
+        _symlink_teamDir(company, base_path, team)
 
 
 def cloneGitTeam(payload: TeamClonePayload):
@@ -184,16 +188,17 @@ def cloneGitTeam(payload: TeamClonePayload):
 
     chaosContent = _get_chaos_file(clone_dir)
     company = chaosContent.get("company")
-    team = chaosContent.get("team")
-    if not company or not team:
+    teams = chaosContent.get("teams")
+    if not company or not teams:
         shutil.rmtree(clone_dir)
         raise ValueError(
             ".chaos.yml is missing 'company' or 'team' information. Removed cloned directory."
         )
 
-    base_path = Path(clone_dir).resolve()
-    _ = _validate_teamDir(clone_dir, company, team)
-    _symlink_teamDir(company, base_path, team)
+    for team in teams:
+        base_path = Path(clone_dir).resolve()
+        _ = _validate_teamDir(clone_dir, company, team)
+        _symlink_teamDir(company, base_path, team)
 
 
 def listTeams(payload: TeamListPayload):
