@@ -14,7 +14,7 @@ function check_command() {
 }
 
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-VERSION="0.6.7"
+VERSION="0.6.8"
 DIST_DIR="$CLI_DIR/dist"
 ARTIFACTS_DIR="$DIST_DIR/artifacts"
 GPG_KEY=12FEDE6E939CA1DB84C222D55B8508C9C82A572E

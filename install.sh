@@ -3,7 +3,7 @@ set -e
 
 REPO_OWNER="Ch-aOS-Ch"
 REPO_NAME="Ch-aOS"
-VERSION="0.6.7"
+VERSION="0.6.8"
 ARTIFACT_FILENAME="chaos-v${VERSION}-shiv-dist.tar.gz"
 SIG_FILE="${ARTIFACT_FILENAME}.asc"
 
