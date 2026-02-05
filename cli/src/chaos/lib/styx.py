@@ -1,11 +1,14 @@
 import os
 from pathlib import Path
 from typing import cast
+
 import requests
 from omegaconf import DictConfig, OmegaConf
+
 from chaos.lib.utils import validate_path
 
 TIMEOUT = 10
+
 
 def get_styx_registry():
     """Fetches the Styx registry data from the specified URL."""
@@ -17,6 +20,7 @@ def get_styx_registry():
     except requests.RequestException as e:
         print(f"[bold red]Error fetching Styx registry:[/] {e}")
         return None
+
 
 def parse_styx_registry(registry_data, registry_names: list[str]) -> list[dict]:
     """Parses the Styx registry data and returns a list of entries."""
@@ -30,7 +34,7 @@ def parse_styx_registry(registry_data, registry_names: list[str]) -> list[dict]:
         print(f"Error parsing YAML: {e}")
         return []
 
-    if 'styx' not in registry_data:
+    if "styx" not in registry_data:
         print("Invalid registry format: 'styx' key not found.")
         return []
 
@@ -43,10 +47,11 @@ def parse_styx_registry(registry_data, registry_names: list[str]) -> list[dict]:
             continue
 
         name_data = styx_entries.get(name)
-        name_data['registry_name'] = name
+        name_data["registry_name"] = name
         entries.append(name_data)
 
     return entries
+
 
 def install_styx_entries(entries: list[str], force: bool = False):
     """
@@ -62,9 +67,9 @@ def install_styx_entries(entries: list[str], force: bool = False):
     parsed_entries = parse_styx_registry(raw_registry, entries)
 
     for entry in parsed_entries:
-        url = entry.get('repo')
-        tag_version = entry.get('version')
-        pkg_name = entry.get('name')
+        url = entry.get("repo")
+        tag_version = entry.get("version")
+        pkg_name = entry.get("name")
 
         if not pkg_name:
             print("Skipping entry with missing name.")
@@ -78,9 +83,9 @@ def install_styx_entries(entries: list[str], force: bool = False):
             print(f"Skipping '{pkg_name}': Missing repo URL or version.")
             continue
 
-        clean_version = tag_version.lstrip('v')
+        clean_version = tag_version.lstrip("v")
 
-        normalized_name = pkg_name.replace('-', '_')
+        normalized_name = pkg_name.replace("-", "_")
         wheel_remote_name = f"{normalized_name}-{clean_version}-py3-none-any.whl"
 
         download_url = f"{url}/releases/download/{tag_version}/{wheel_remote_name}"
@@ -110,6 +115,7 @@ def install_styx_entries(entries: list[str], force: bool = False):
 
             try:
                 from chaos.lib.plugDiscovery import get_plugins
+
                 get_plugins(update_cache=True)
             except ImportError:
                 print("Warning: Could not reload plugins cache (module not found).")
@@ -118,22 +124,28 @@ def install_styx_entries(entries: list[str], force: bool = False):
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                print(f"Error: Release not found at {download_url}. Check if the wheel name matches format: {wheel_remote_name}")
+                print(
+                    f"Error: Release not found at {download_url}. Check if the wheel name matches format: {wheel_remote_name}"
+                )
             else:
                 print(f"HTTP Error installing {pkg_name}: {e}")
         except Exception as e:
             print(f"Error installing {pkg_name}: {e}")
 
-def list_styx_entries(entries: list[str] | None, no_pretty: bool, json_flag: bool) -> str:
+
+def list_styx_entries(
+    entries: list[str] | None, no_pretty: bool, json_flag: bool
+) -> str:
     """Lists the available Styx registry entries."""
     import json
+
     registry_text = get_styx_registry()
     if registry_text is None:
         return "Could not fetch Styx registry data."
 
     registry_data = OmegaConf.create(registry_text)
 
-    if 'styx' not in registry_data:
+    if "styx" not in registry_data:
         return "Invalid registry format."
 
     styx_entries = registry_data.styx
@@ -150,7 +162,10 @@ def list_styx_entries(entries: list[str] | None, no_pretty: bool, json_flag: boo
             return "{}" if json_flag else ""
 
         if json_flag:
-            return json.dumps(OmegaConf.to_container(OmegaConf.create(output_data), resolve=True), indent=2)
+            return json.dumps(
+                OmegaConf.to_container(OmegaConf.create(output_data), resolve=True),
+                indent=2,
+            )
         else:
             return OmegaConf.to_yaml(OmegaConf.create(output_data))
     else:
@@ -160,9 +175,9 @@ def list_styx_entries(entries: list[str] | None, no_pretty: bool, json_flag: boo
                 continue
 
             data = styx_entries[name]
-            desc = data.get('about', 'No description')
-            ver = data.get('version', 'unknown')
-            repo = data.get('repo', '')
+            desc = data.get("about", "No description")
+            ver = data.get("version", "unknown")
+            repo = data.get("repo", "")
 
             if not repo:
                 print(f"Warning: No repository URL for '{name}'.")
@@ -172,13 +187,16 @@ def list_styx_entries(entries: list[str] | None, no_pretty: bool, json_flag: boo
 
         return "\n\n".join(output)
 
+
 def uninstall_styx_entries(entries: list[str]):
     """Uninstalls the given Styx registry entries."""
     for name in entries:
         wheel_filename = f"{name}.whl"
         validate_path(wheel_filename)
 
-        wheel_path = Path(os.path.expanduser(f"~/.local/share/chaos/plugins/{wheel_filename}"))
+        wheel_path = Path(
+            os.path.expanduser(f"~/.local/share/chaos/plugins/{wheel_filename}")
+        )
 
         if not wheel_path.exists():
             print(f"Plugin '{name}' not found locally.")
@@ -192,6 +210,7 @@ def uninstall_styx_entries(entries: list[str]):
 
     try:
         from chaos.lib.plugDiscovery import get_plugins
+
         get_plugins(update_cache=True)
     except ImportError:
         pass

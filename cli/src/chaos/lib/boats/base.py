@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+
 from omegaconf import DictConfig, OmegaConf
+
 
 class Boat(ABC):
     """
@@ -29,6 +31,7 @@ class Boat(ABC):
     The 'provider' name is used to find the corresponding Boat class, and the
     'config' block is passed to its constructor.
     """
+
     name: str = "override_me"  # Subclasses MUST override this class attribute
     config: DictConfig
 
@@ -82,12 +85,16 @@ class Boat(ABC):
             hosts_to_add = [hosts_to_add]
 
         if not isinstance(hosts_to_add, list):
-            raise ValueError(f"Boat provider '{self.__class__.name}' returned invalid hosts format.")
+            raise ValueError(
+                f"Boat provider '{self.__class__.name}' returned invalid hosts format."
+            )
 
         current_hosts = old_state.get("fleet", {}).get("hosts", [])
         merged_hosts = current_hosts + hosts_to_add
 
-        new_state = DictConfig(OmegaConf.create(OmegaConf.to_container(old_state, resolve=True)))
+        new_state = DictConfig(
+            OmegaConf.create(OmegaConf.to_container(old_state, resolve=True))
+        )
         new_state.fleet.hosts = merged_hosts
 
         return new_state

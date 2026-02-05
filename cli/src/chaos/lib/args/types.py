@@ -1,10 +1,12 @@
-from typing import Literal, Protocol, List, Optional, Tuple
+from typing import List, Literal, Optional, Protocol, Tuple
+
 
 class ProviderArgs(Protocol):
     provider: Optional[str]
     from_bw: Optional[Tuple[str, str]]
     from_bws: Optional[Tuple[str, str]]
     from_op: Optional[Tuple[str, str]]
+
 
 class GlobalArgs(Protocol):
     target: Optional[str]
@@ -28,6 +30,7 @@ class GlobalArgs(Protocol):
     set_command: Optional[str]
     init_command: Optional[str]
 
+
 class ApplyArgs(Protocol):
     fleet: bool
     dry: bool
@@ -35,10 +38,11 @@ class ApplyArgs(Protocol):
     v: int
     secrets: bool
 
+
 class SecArgs(Protocol):
     pgp_server: Optional[str]
-    key_type: Optional[Literal['age', 'gpg', 'vault']]
-    type: Optional[Literal['age', 'pgp', 'vault']]
+    key_type: Optional[Literal["age", "gpg", "vault"]]
+    type: Optional[Literal["age", "pgp", "vault"]]
     index: Optional[int]
     item_name: Optional[str]
     item_id: Optional[str]
@@ -52,6 +56,7 @@ class SecArgs(Protocol):
     op_location: Optional[str]
     op_tags: Optional[List[str]]
 
+
 class RambleArgs(Protocol):
     encrypt: bool
     find_term: Optional[str]
@@ -59,15 +64,18 @@ class RambleArgs(Protocol):
     old: Optional[str]
     new: Optional[str]
     topics: Optional[List[str]]
-    details: Optional[Literal['basic', 'intermediate', 'advanced']]
+    details: Optional[Literal["basic", "intermediate", "advanced"]]
+
 
 class CheckArgs(Protocol):
-    checks: Optional[Literal['explanations', 'roles', 'aliases']]
+    checks: Optional[Literal["explanations", "roles", "aliases"]]
+
 
 class SetArgs(Protocol):
     chobolo_file: Optional[str]
     secrets_file: Optional[str]
     sops_file: Optional[str]
+
 
 class TeamArgs(Protocol):
     companies: Optional[List[str]]
@@ -75,5 +83,16 @@ class TeamArgs(Protocol):
     path: Optional[str]
     teams: Optional[List[str]]
 
-class ChaosArguments(GlobalArgs, ProviderArgs, ApplyArgs, SecArgs, RambleArgs, CheckArgs, SetArgs, TeamArgs, Protocol):
+
+class ChaosArguments(
+    GlobalArgs,
+    ProviderArgs,
+    ApplyArgs,
+    SecArgs,
+    RambleArgs,
+    CheckArgs,
+    SetArgs,
+    TeamArgs,
+    Protocol,
+):
     pass

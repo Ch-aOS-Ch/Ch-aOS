@@ -1,23 +1,25 @@
-import os
-import json
-import sys
-from importlib.metadata import entry_points
-from importlib import import_module
-from pathlib import Path
 import functools
+import json
+import os
+import sys
+from importlib import import_module
+from importlib.metadata import entry_points
+from pathlib import Path
 
 """
 Module for discovering and loading Ch-aOS plugins.
 """
 
 "This helps with CHAOS_DEV_PATH for plugin development"
-pluginDevPath = os.getenv('CHAOS_DEV_PATH', None)
+pluginDevPath = os.getenv("CHAOS_DEV_PATH", None)
 if pluginDevPath:
     absPath = os.path.abspath(pluginDevPath)
     if os.path.exists(absPath):
         sys.path.insert(0, pluginDevPath)
     else:
-        print(f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr)
+        print(
+            f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr
+        )
 
 
 @functools.lru_cache(maxsize=None)
@@ -35,7 +37,7 @@ def get_plugins(update_cache=False):
     """
     plugin_dirs = [
         Path.home() / ".local/share/chaos/plugins",
-        Path("/usr/share/chaos/plugins")
+        Path("/usr/share/chaos/plugins"),
     ]
 
     for plugin_dir in plugin_dirs:
@@ -51,22 +53,47 @@ def get_plugins(update_cache=False):
                     sys.path.insert(0, whl_path)
 
             except Exception as e:
-                print(f"Warning: Could not load plugin wheel '{whl}': {e}", file=sys.stderr)
+                print(
+                    f"Warning: Could not load plugin wheel '{whl}': {e}",
+                    file=sys.stderr,
+                )
 
     CACHE_DIR = Path(os.path.expanduser("~/.cache/chaos"))
     CACHE_FILE = CACHE_DIR / "plugins.json"
     cache_exists = CACHE_FILE.exists()
 
     if not update_cache and cache_exists:
-        with open(CACHE_FILE, 'r') as f:
+        with open(CACHE_FILE, "r") as f:
             try:
                 cache_data = json.load(f)
-                if 'roles' in cache_data and 'aliases' in cache_data and 'explanations' in cache_data and 'keys' in cache_data and 'providers' in cache_data and 'boats' in cache_data and "limanis" in cache_data:
-                    return cache_data['roles'], cache_data['aliases'], cache_data['explanations'], cache_data['keys'], cache_data['providers'], cache_data['boats'], cache_data["limanis"]
+                if (
+                    "roles" in cache_data
+                    and "aliases" in cache_data
+                    and "explanations" in cache_data
+                    and "keys" in cache_data
+                    and "providers" in cache_data
+                    and "boats" in cache_data
+                    and "limanis" in cache_data
+                ):
+                    return (
+                        cache_data["roles"],
+                        cache_data["aliases"],
+                        cache_data["explanations"],
+                        cache_data["keys"],
+                        cache_data["providers"],
+                        cache_data["boats"],
+                        cache_data["limanis"],
+                    )
                 else:
-                    print("Warning: Invalid or outdated cache file format. Re-discovering plugins.", file=sys.stderr)
+                    print(
+                        "Warning: Invalid or outdated cache file format. Re-discovering plugins.",
+                        file=sys.stderr,
+                    )
             except json.JSONDecodeError:
-                print("Warning: Could not read cache file. Re-discovering plugins.", file=sys.stderr)
+                print(
+                    "Warning: Could not read cache file. Re-discovering plugins.",
+                    file=sys.stderr,
+                )
 
     discovered_roles = {}
     discovered_aliases = {}
@@ -105,14 +132,37 @@ def get_plugins(update_cache=False):
 
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CACHE_FILE, 'w') as f:
-            json.dump({'roles': discovered_roles, 'aliases': discovered_aliases, 'explanations': discovered_explanations, 'keys': discovered_keys, 'providers': discovered_providers, 'boats': discovered_boats, 'limanis': discovered_limanis}, f, indent=4)
+        with open(CACHE_FILE, "w") as f:
+            json.dump(
+                {
+                    "roles": discovered_roles,
+                    "aliases": discovered_aliases,
+                    "explanations": discovered_explanations,
+                    "keys": discovered_keys,
+                    "providers": discovered_providers,
+                    "boats": discovered_boats,
+                    "limanis": discovered_limanis,
+                },
+                f,
+                indent=4,
+            )
         if update_cache or not cache_exists:
             print(f"Plugin cache saved to {CACHE_FILE}", file=sys.stderr)
     except OSError as e:
-        print(f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr)
+        print(
+            f"Error: Could not write to cache file {CACHE_FILE}: {e}", file=sys.stderr
+        )
 
-    return discovered_roles, discovered_aliases, discovered_explanations, discovered_keys, discovered_providers, discovered_boats, discovered_limanis
+    return (
+        discovered_roles,
+        discovered_aliases,
+        discovered_explanations,
+        discovered_keys,
+        discovered_providers,
+        discovered_boats,
+        discovered_limanis,
+    )
+
 
 def load_roles(roles_spec):
     """
@@ -121,17 +171,21 @@ def load_roles(roles_spec):
     loaded_roles = {}
     for name, spec in roles_spec.items():
         try:
-            module_name, func_name = spec.split(':', 1)
+            module_name, func_name = spec.split(":", 1)
             module = import_module(module_name)
             loaded_roles[name] = getattr(module, func_name)
         except (ImportError, AttributeError, ValueError) as e:
-            print(f"Warning: Could not load role '{name}' from spec '{spec}': {e}", file=sys.stderr)
+            print(
+                f"Warning: Could not load role '{name}' from spec '{spec}': {e}",
+                file=sys.stderr,
+            )
     return loaded_roles
+
 
 def loadList(spec):
     """Load a key based on its specification."""
     try:
-        moduleName, obj = spec.split(':', 1)
+        moduleName, obj = spec.split(":", 1)
         module = import_module(moduleName)
         return getattr(module, obj)
     except (ImportError, AttributeError, ValueError) as e:

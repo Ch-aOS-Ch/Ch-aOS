@@ -1,7 +1,14 @@
 from typing import cast
+
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
-from chaos.lib.secret_backends.utils import flatten, _generic_handle_add, _generic_handle_rem, _is_valid_vault_key
+
+from chaos.lib.secret_backends.utils import (
+    _generic_handle_add,
+    _generic_handle_rem,
+    _is_valid_vault_key,
+    flatten,
+)
 
 console = Console()
 
@@ -9,28 +16,32 @@ console = Console()
 Vault specific handlers for add/rem/list
 """
 
+
 def listVault(sops_file_override):
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
-        creation_rules = sops_config.get('creation_rules')
+        creation_rules = sops_config.get("creation_rules")
         if not creation_rules:
-            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            console.print(
+                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            )
             return
 
         all_vault_keys_in_config = set()
         for rule in creation_rules:
-            for key_group in rule.get('key_groups', []):
-                if 'vault' in key_group and key_group.vault is not None:
+            for key_group in rule.get("key_groups", []):
+                if "vault" in key_group and key_group.vault is not None:
                     all_vault_keys_in_config.update(flatten(key_group.vault))
 
         if not all_vault_keys_in_config:
-            console.print(f"[cyan]INFO:[/] No keys to be shown.")
+            console.print("[cyan]INFO:[/] No keys to be shown.")
 
         return all_vault_keys_in_config
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
+
 
 def handleVaultAdd(args, sops_file_override, keys):
     valids = set()
@@ -44,21 +55,24 @@ def handleVaultAdd(args, sops_file_override, keys):
             console.print(f"[bold red]ERROR:[/] {message} Skipping key '{key}'.")
             continue
 
-    _generic_handle_add('vault', args, sops_file_override, valids)
+    _generic_handle_add("vault", args, sops_file_override, valids)
+
 
 def handleVaultRem(args, sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
-        creation_rules = config_data.get('creation_rules', [])
+        creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            console.print("[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do.")
+            console.print(
+                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            )
             return
 
         all_vault_keys_in_config = set()
         for rule in creation_rules:
-            for key_group in rule.get('key_groups', []):
-                if 'vault' in key_group and key_group.vault is not None:
+            for key_group in rule.get("key_groups", []):
+                if "vault" in key_group and key_group.vault is not None:
                     all_vault_keys_in_config.update(flatten(key_group.vault))
 
         keys_to_remove = set()
@@ -68,9 +82,11 @@ def handleVaultRem(args, sops_file_override, keys):
             if clean_key in all_vault_keys_in_config:
                 keys_to_remove.add(clean_key)
             else:
-                console.print(f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping.")
+                console.print(
+                    f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping."
+                )
 
-        _generic_handle_rem('vault', args, sops_file_override, keys_to_remove)
+        _generic_handle_rem("vault", args, sops_file_override, keys_to_remove)
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e

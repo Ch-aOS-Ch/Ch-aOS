@@ -1,19 +1,19 @@
 from omegaconf import OmegaConf
+
 from chaos.lib.boats.paperBoat import PaperBoat
 
-initial_state = OmegaConf.create({
-    "fleet": {
-        "parallelism": 2,
-        "hosts": [
-            {"localhost": {"ssh_user": "dex", "ssh_key": "~/.ssh/id_rsa"}},
-        ]
+initial_state = OmegaConf.create(
+    {
+        "fleet": {
+            "parallelism": 2,
+            "hosts": [
+                {"localhost": {"ssh_user": "dex", "ssh_key": "~/.ssh/id_rsa"}},
+            ],
+        }
     }
-})
+)
 
-boat_config = OmegaConf.create({
-    "count": 3,
-    "base_ip": "10.0.0"
-})
+boat_config = OmegaConf.create({"count": 3, "base_ip": "10.0.0"})
 
 try:
     my_boat = PaperBoat(config=boat_config)

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Limani(ABC):
     """
     Abstract base class for Limani implementations.
@@ -40,7 +41,9 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def end_run_update(self, run_id: str, end_time: float, status: str, summary: dict) -> None:
+    def end_run_update(
+        self, run_id: str, end_time: float, status: str, summary: dict
+    ) -> None:
         """
         This method should update a run at the end with final status, time, and summary.
         :param run_id: The ID of the run to update.
@@ -61,7 +64,9 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_fact_log(self, run_id: str, timestamp: float, log_level: str, context: str, command: str) -> None:
+    def insert_fact_log(
+        self, run_id: str, timestamp: float, log_level: str, context: str, command: str
+    ) -> None:
         """
         This method should insert a fact log into the data source.
         :param run_id: The ID of the run the fact log belongs to.
@@ -74,7 +79,22 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_operation(self, run_id: str, host_id: int, op_hash: str, name: str, changed: bool, success: bool, duration: float, timestamp: float, logs: dict, diff: str, arguments: dict, retry_stats: dict, command_n_facts: list) -> None:
+    def insert_operation(
+        self,
+        run_id: str,
+        host_id: int,
+        op_hash: str,
+        name: str,
+        changed: bool,
+        success: bool,
+        duration: float,
+        timestamp: float,
+        logs: dict,
+        diff: str,
+        arguments: dict,
+        retry_stats: dict,
+        command_n_facts: list,
+    ) -> None:
         """
         This method should insert an operation into the data source.
 
@@ -96,7 +116,9 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_snapshot(self, run_id: str, host_id: int, stage: str, timestamp: float, metrics: dict) -> None:
+    def insert_snapshot(
+        self, run_id: str, host_id: int, stage: str, timestamp: float, metrics: dict
+    ) -> None:
         """
         This method should insert a resource snapshot into the data source.
         :param run_id: The ID of the run the snapshot belongs to.
@@ -109,7 +131,9 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def create_run(self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict) -> str:
+    def create_run(
+        self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict
+    ) -> str:
         """
         Creates a new run entry in the database.
 
@@ -154,7 +178,9 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_facts_for_timespan(self, run_id: str, start_time: float, end_time: float) -> list[dict]:
+    def get_facts_for_timespan(
+        self, run_id: str, start_time: float, end_time: float
+    ) -> list[dict]:
         """
         Get all facts for a given run within a specific time span.
         :param run_id: The ID of the run to get facts for.

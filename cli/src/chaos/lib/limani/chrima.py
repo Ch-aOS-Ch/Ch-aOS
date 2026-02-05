@@ -1,11 +1,13 @@
-from .limani import Limani
+import json
+import os
 import sqlite3
 import threading
 from pathlib import Path
-import os
-import json
+
+from .limani import Limani
 
 _thread_local = threading.local()
+
 
 class Chrima(Limani):
     """Limani implementation for a SQLite database."""
@@ -17,7 +19,7 @@ class Chrima(Limani):
         Enables WAL mode for better concurrency.
         Enables synchronous=NORMAL for performance.
         """
-        if not hasattr(_thread_local, 'connection'):
+        if not hasattr(_thread_local, "connection"):
             db_path = self.get_db_path()
             conn = sqlite3.connect(db_path, timeout=10)
 
@@ -46,7 +48,7 @@ class Chrima(Limani):
 
         Simple implementation, since we only have one connection per thread.
         """
-        if hasattr(_thread_local, 'connection'):
+        if hasattr(_thread_local, "connection"):
             _thread_local.connection.close()
             del _thread_local.connection
 
@@ -131,9 +133,15 @@ class Chrima(Limani):
         )
         """)
 
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_operations_run_host ON operations (run_id, host_id);")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_run_host ON resource_snapshots (run_id, host_id);")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_facts_run_timestamp ON command_n_facts_in_order (run_id, timestamp);")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_operations_run_host ON operations (run_id, host_id);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_snapshots_run_host ON resource_snapshots (run_id, host_id);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_facts_run_timestamp ON command_n_facts_in_order (run_id, timestamp);"
+        )
 
         conn.commit()
 
@@ -144,19 +152,38 @@ class Chrima(Limani):
         """
         conn = self.connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM hosts WHERE run_id = ? AND name = ?", (run_id, host_name))
+        cursor.execute(
+            "SELECT id FROM hosts WHERE run_id = ? AND name = ?", (run_id, host_name)
+        )
         row = cursor.fetchone()
         if row:
-            return row['id']
+            return row["id"]
         else:
-            cursor.execute("INSERT INTO hosts (run_id, name) VALUES (?, ?)", (run_id, host_name))
+            cursor.execute(
+                "INSERT INTO hosts (run_id, name) VALUES (?, ?)", (run_id, host_name)
+            )
             conn.commit()
             if not cursor.lastrowid:
                 raise Exception("Failed to retrieve last inserted host ID.")
 
             return cursor.lastrowid
 
-    def insert_operation(self, run_id: str, host_id: int, op_hash: str, name: str, changed: bool, success: bool, duration: float, timestamp: float, logs: dict, diff: str, arguments: dict, retry_stats: dict, command_n_facts: list):
+    def insert_operation(
+        self,
+        run_id: str,
+        host_id: int,
+        op_hash: str,
+        name: str,
+        changed: bool,
+        success: bool,
+        duration: float,
+        timestamp: float,
+        logs: dict,
+        diff: str,
+        arguments: dict,
+        retry_stats: dict,
+        command_n_facts: list,
+    ):
         """Inserts a new operation into the database."""
         conn = self.connect()
         conn.execute(
@@ -164,35 +191,55 @@ class Chrima(Limani):
             INSERT INTO operations (run_id, host_id, op_hash, name, changed, success, duration, timestamp, logs_json, diff, arguments_json, retry_stats_json, command_n_facts_in_order_json)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (run_id, host_id, op_hash, name, int(changed), int(success), duration, timestamp, json.dumps(logs), diff, json.dumps(arguments), json.dumps(retry_stats), json.dumps(command_n_facts))
+            (
+                run_id,
+                host_id,
+                op_hash,
+                name,
+                int(changed),
+                int(success),
+                duration,
+                timestamp,
+                json.dumps(logs),
+                diff,
+                json.dumps(arguments),
+                json.dumps(retry_stats),
+                json.dumps(command_n_facts),
+            ),
         )
         conn.commit()
 
-    def create_run(self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict) -> str:
+    def create_run(
+        self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict
+    ) -> str:
         """Creates a new run entry in the database."""
         conn = self.connect()
         conn.execute(
             "INSERT INTO runs (id, run_id_human, start_time, status, hailer_json) VALUES (?, ?, ?, ?, ?)",
-            (run_id, run_id_human, start_time, 'in_progress', json.dumps(hailer_info))
+            (run_id, run_id_human, start_time, "in_progress", json.dumps(hailer_info)),
         )
         conn.commit()
         return run_id
 
-    def insert_snapshot(self, run_id: str, host_id: int, stage: str, timestamp: float, metrics: dict):
+    def insert_snapshot(
+        self, run_id: str, host_id: int, stage: str, timestamp: float, metrics: dict
+    ):
         """Inserts a resource snapshot into the database."""
         conn = self.connect()
         conn.execute(
             "INSERT INTO resource_snapshots (run_id, host_id, stage, timestamp, metrics_json) VALUES (?, ?, ?, ?, ?)",
-            (run_id, host_id, stage, timestamp, json.dumps(metrics))
+            (run_id, host_id, stage, timestamp, json.dumps(metrics)),
         )
         conn.commit()
 
-    def insert_fact_log(self, run_id: str, timestamp: float, log_level: str, context: str, command: str):
+    def insert_fact_log(
+        self, run_id: str, timestamp: float, log_level: str, context: str, command: str
+    ):
         """Inserts a fact log entry."""
         conn = self.connect()
         conn.execute(
             "INSERT INTO command_n_facts_in_order (run_id, timestamp, log_level, context, command) VALUES (?, ?, ?, ?, ?)",
-            (run_id, timestamp, log_level, context, command)
+            (run_id, timestamp, log_level, context, command),
         )
         conn.commit()
 
@@ -207,17 +254,19 @@ class Chrima(Limani):
         conn = self.connect()
         conn.execute(
             "UPDATE runs SET end_time = ?, status = ?, summary_json = ? WHERE id = ?",
-            (end_time, status, json.dumps(summary), run_id)
+            (end_time, status, json.dumps(summary), run_id),
         )
         conn.commit()
 
-    def get_facts_for_timespan(self, run_id: str, start_time: float, end_time: float) -> list[dict]:
+    def get_facts_for_timespan(
+        self, run_id: str, start_time: float, end_time: float
+    ) -> list[dict]:
         """Fetches fact logs within a given timespan for a run."""
         conn = self.connect()
         cursor = conn.cursor()
         cursor.execute(
             "SELECT * FROM command_n_facts_in_order WHERE run_id = ? AND timestamp >= ? AND timestamp < ?",
-            (run_id, start_time, end_time)
+            (run_id, start_time, end_time),
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -229,27 +278,38 @@ class Chrima(Limani):
         cursor.execute("SELECT count(*) FROM operations WHERE run_id = ?", (run_id,))
         total_ops = cursor.fetchone()[0]
 
-        cursor.execute("SELECT count(*) FROM operations WHERE run_id = ? AND changed = 1", (run_id,))
+        cursor.execute(
+            "SELECT count(*) FROM operations WHERE run_id = ? AND changed = 1",
+            (run_id,),
+        )
         changed_ops = cursor.fetchone()[0]
 
-        cursor.execute("SELECT count(*) FROM operations WHERE run_id = ? AND success = 0", (run_id,))
+        cursor.execute(
+            "SELECT count(*) FROM operations WHERE run_id = ? AND success = 0",
+            (run_id,),
+        )
         failed_ops = cursor.fetchone()[0]
 
-        cursor.execute("SELECT sum(duration) FROM operations WHERE run_id = ?", (run_id,))
+        cursor.execute(
+            "SELECT sum(duration) FROM operations WHERE run_id = ?", (run_id,)
+        )
         total_duration_result = cursor.fetchone()[0]
-        total_duration = round(total_duration_result, 4) if total_duration_result else 0.0
+        total_duration = (
+            round(total_duration_result, 4) if total_duration_result else 0.0
+        )
 
         return {
-            'total_operations': total_ops,
-            'changed_operations': changed_ops,
-            'successful_operations': total_ops - failed_ops,
-            'failed_operations': failed_ops,
-            'total_duration': total_duration,
+            "total_operations": total_ops,
+            "changed_operations": changed_ops,
+            "successful_operations": total_ops - failed_ops,
+            "failed_operations": failed_ops,
+            "total_duration": total_duration,
         }
 
     def get_run_data(self, run_id: str):
         """Fetches all data for a specific run."""
         from collections import defaultdict
+
         conn = self.connect()
 
         run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -257,26 +317,35 @@ class Chrima(Limani):
             return None
 
         ops_by_host = defaultdict(list)
-        ops_cursor = conn.execute("SELECT * FROM operations WHERE run_id = ? ORDER BY timestamp ASC", (run_id,))
+        ops_cursor = conn.execute(
+            "SELECT * FROM operations WHERE run_id = ? ORDER BY timestamp ASC",
+            (run_id,),
+        )
         for op in ops_cursor:
-            ops_by_host[op['host_id']].append(dict(op))
+            ops_by_host[op["host_id"]].append(dict(op))
 
         hosts_cursor = conn.execute("SELECT * FROM hosts WHERE run_id = ?", (run_id,))
         hosts = []
         for host_row in hosts_cursor:
             host_data = dict(host_row)
-            host_data['operations'] = ops_by_host.get(host_row['id'], [])
+            host_data["operations"] = ops_by_host.get(host_row["id"], [])
             hosts.append(host_data)
 
-        snapshots_cursor = conn.execute("SELECT s.*, h.name as host_name FROM resource_snapshots s JOIN hosts h ON s.host_id = h.id WHERE s.run_id = ? ORDER BY s.timestamp ASC", (run_id,))
+        snapshots_cursor = conn.execute(
+            "SELECT s.*, h.name as host_name FROM resource_snapshots s JOIN hosts h ON s.host_id = h.id WHERE s.run_id = ? ORDER BY s.timestamp ASC",
+            (run_id,),
+        )
         snapshots = [dict(snap) for snap in snapshots_cursor]
 
-        fact_logs_cursor = conn.execute("SELECT * FROM command_n_facts_in_order WHERE run_id = ? ORDER BY timestamp ASC", (run_id,))
+        fact_logs_cursor = conn.execute(
+            "SELECT * FROM command_n_facts_in_order WHERE run_id = ? ORDER BY timestamp ASC",
+            (run_id,),
+        )
         fact_logs = [dict(fact) for fact in fact_logs_cursor]
 
         return {
             "run": dict(run),
             "hosts": hosts,
             "snapshots": snapshots,
-            "fact_logs": fact_logs
+            "fact_logs": fact_logs,
         }

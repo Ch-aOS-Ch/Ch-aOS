@@ -1,12 +1,14 @@
 import os
-import tempfile
 import subprocess
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+
 
 @contextmanager
 def ephemeralAgeKey(key_content: str):
     from ..utils import conc_age_keys, setup_pipe
+
     """
     Create a temporary file containing the provided Age key content.
     Args:
@@ -32,9 +34,11 @@ def ephemeralAgeKey(key_content: str):
     finally:
         os.close(r_age)
 
+
 @contextmanager
 def ephemeralGpgKey(key_bytes: bytes):
     from ..utils import setup_gpg_keys
+
     """
     Creates a temporary GNUPGHOME in memory (/dev/shm)
     Imports the gotten key to this GNUPGHOME and returns the env path
@@ -43,26 +47,32 @@ def ephemeralGpgKey(key_bytes: bytes):
         yield {}
         return
 
-    with tempfile.TemporaryDirectory(dir='/dev/shm', prefix='chaos-gpg-') as temp_dir_name:
+    with tempfile.TemporaryDirectory(
+        dir="/dev/shm", prefix="chaos-gpg-"
+    ) as temp_dir_name:
         temp_path = Path(temp_dir_name)
         setup_gpg_keys(temp_path)
 
         try:
             subprocess.run(
-                ['gpg', '--batch', '--import'],
+                ["gpg", "--batch", "--import"],
                 input=key_bytes,
-                env={'GNUPGHOME': str(temp_path)},
+                env={"GNUPGHOME": str(temp_path)},
                 check=True,
-                capture_output=True
+                capture_output=True,
             )
-            yield {'GNUPGHOME': str(temp_path)}
+            yield {"GNUPGHOME": str(temp_path)}
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Erro ao importar chave GPG efêmera: {e.stderr.decode()}")
+            raise RuntimeError(
+                f"Erro ao importar chave GPG efêmera: {e.stderr.decode()}"
+            )
+
 
 @contextmanager
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
     from ..utils import setup_pipe
+
     """
     Creates pipes for setting up the address and token for vault.
     """
@@ -71,9 +81,11 @@ def ephemeralVaultKeys(vault_token: str, vault_addr: str):
         return
     r_addr = setup_pipe(vault_addr)
     r_token = setup_pipe(vault_token)
-    prefix = (f'read VAULT_ADDR </dev/fd/{r_addr};'
-            f'read VAULT_TOKEN </dev/fd/{r_token};'
-            'export VAULT_ADDR VAULT_TOKEN;')
+    prefix = (
+        f"read VAULT_ADDR </dev/fd/{r_addr};"
+        f"read VAULT_TOKEN </dev/fd/{r_token};"
+        "export VAULT_ADDR VAULT_TOKEN;"
+    )
     fds_to_pass = [r_addr, r_token]
     try:
         yield prefix, fds_to_pass

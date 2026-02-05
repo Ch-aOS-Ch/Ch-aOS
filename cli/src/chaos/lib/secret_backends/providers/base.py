@@ -1,19 +1,21 @@
-from abc import ABC, abstractmethod
 import argparse
-from collections.abc import Iterator
-from contextlib import contextmanager
 import os
 import shlex
 import subprocess
-from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
+from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Tuple
+
 from ..utils import (
     _import_age_keys,
     _import_gpg_keys,
     _import_vault_keys,
-    extract_age_keys,
     decompress,
+    extract_age_keys,
 )
-from typing import Tuple
+from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
+
 
 class Provider(ABC):
     """
@@ -36,7 +38,9 @@ class Provider(ABC):
 
     @staticmethod
     @abstractmethod
-    def register_export_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+    def register_export_subcommands(
+        subparser: argparse._SubParsersAction,
+    ) -> argparse.ArgumentParser:
         """
         Register provider-specific subcommands.
         """
@@ -44,7 +48,9 @@ class Provider(ABC):
 
     @staticmethod
     @abstractmethod
-    def register_import_subcommands(subparser: argparse._SubParsersAction) -> argparse.ArgumentParser:
+    def register_import_subcommands(
+        subparser: argparse._SubParsersAction,
+    ) -> argparse.ArgumentParser:
         """
         Register provider-specific subcommands.
         """
@@ -65,7 +71,9 @@ class Provider(ABC):
         Returns a clean name for the provider.
         e.g. BitwardenPasswordProvider -> BitwardenPassword
         """
-        return self.__class__.__name__.replace("PasswordProvider", "").replace("SecretProvider", "")
+        return self.__class__.__name__.replace("PasswordProvider", "").replace(
+            "SecretProvider", ""
+        )
 
     @abstractmethod
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
@@ -84,26 +92,22 @@ class Provider(ABC):
 
         item_id, key_type = key_args
 
-        context = {
-            "env": os.environ.copy(),
-            "prefix": "",
-            "pass_fds": []
-        }
+        context = {"env": os.environ.copy(), "prefix": "", "pass_fds": []}
 
         match key_type:
-            case 'age':
+            case "age":
                 _, _, key_content = self.getAgeKeys(item_id)
                 with ephemeralAgeKey(key_content) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
                     yield context
-            case 'gpg':
+            case "gpg":
                 _, secKey, _ = self.getGpgKeys(item_id)
                 actualKey = decompress(secKey)
                 with ephemeralGpgKey(actualKey) as gpg_env:
                     context["env"].update(gpg_env)
                     yield context
-            case 'vault':
+            case "vault":
                 vault_addr, vault_token, _ = self.getVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
                     context["prefix"] = prefix
@@ -142,7 +146,8 @@ class Provider(ABC):
             tuple[str, str, str]: Public key, Secret key, Key content.
         """
         key_content = self.readKeys(item_id)
-        if not key_content: raise ValueError(f"Retrieved key from {self.name} is empty.")
+        if not key_content:
+            raise ValueError(f"Retrieved key from {self.name} is empty.")
 
         sanitized_key_content = ""
         for line in key_content.splitlines():
@@ -153,9 +158,13 @@ class Provider(ABC):
         pubKey, secKey = extract_age_keys(key_content)
 
         if not pubKey:
-            raise ValueError(f"Could not find a public key in the secret from {self.name}. Expected a line starting with '# public key:'.")
+            raise ValueError(
+                f"Could not find a public key in the secret from {self.name}. Expected a line starting with '# public key:'."
+            )
         if not secKey:
-            raise ValueError(f"Could not find a secret key in the secret from {self.name}. Expected a line starting with 'AGE-SECRET-KEY-'.")
+            raise ValueError(
+                f"Could not find a secret key in the secret from {self.name}. Expected a line starting with 'AGE-SECRET-KEY-'."
+            )
 
         return pubKey, secKey, sanitized_key_content
 
@@ -178,9 +187,13 @@ class Provider(ABC):
                 break
 
         if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
-            raise ValueError(f"The secret read from {self.name} does not appear to be a GPG private key block.")
+            raise ValueError(
+                f"The secret read from {self.name} does not appear to be a GPG private key block."
+            )
 
-        noHeadersSecKey = key_content.split('-----BEGIN PGP PRIVATE KEY BLOCK-----', 1)[1].rsplit('-----END PGP PRIVATE KEY BLOCK-----', 1)[0]
+        noHeadersSecKey = key_content.split("-----BEGIN PGP PRIVATE KEY BLOCK-----", 1)[
+            1
+        ].rsplit("-----END PGP PRIVATE KEY BLOCK-----", 1)[0]
         secKey = noHeadersSecKey.strip()
 
         return fingerprints, secKey, key_content
@@ -194,7 +207,8 @@ class Provider(ABC):
             tuple[str, str]: Vault address, Vault token.
         """
         key_content = self.readKeys(item_id)
-        if not key_content: raise ValueError(f"Retrieved key from {self.name} is empty.")
+        if not key_content:
+            raise ValueError(f"Retrieved key from {self.name} is empty.")
 
         vault_addr, vault_token = None, None
         for line in key_content.splitlines():
@@ -204,7 +218,9 @@ class Provider(ABC):
                 vault_token = line.split(":", 1)[1].strip()
 
         if not vault_addr or not vault_token:
-            raise ValueError(f"Could not extract both Vault address and token from {self.name} item.")
+            raise ValueError(
+                f"Could not extract both Vault address and token from {self.name} item."
+            )
 
         return vault_addr, vault_token, key_content
 
@@ -213,6 +229,7 @@ class Provider(ABC):
         Imports remote keys from the provider to local.
         """
         from rich.console import Console
+
         console = Console()
 
         self.check_status()
@@ -226,38 +243,52 @@ class Provider(ABC):
         if not item_id:
             raise ValueError("Item ID must be specified for import.")
         match keyType:
-            case 'age':
+            case "age":
                 pubKey, secKey, key_content = self.getAgeKeys(item_id)
                 if "# NO-IMPORT" in key_content:
-                    raise ValueError(f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+                    raise ValueError(
+                        f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                    )
 
-                console.print(f"[green]Successfully imported age key from {self.name}.[/green]")
+                console.print(
+                    f"[green]Successfully imported age key from {self.name}.[/green]"
+                )
                 console.print(f"Public Key: [bold]{pubKey}[/bold]")
                 console.print(f"Secret Key: [bold]{secKey}[/bold]")
 
                 _import_age_keys(key_content)
 
-            case 'gpg':
+            case "gpg":
                 fingerprints, secKey, key_content = self.getGpgKeys(item_id)
                 if "# NO-IMPORT" in key_content:
-                    raise ValueError(f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+                    raise ValueError(
+                        f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                    )
 
-                console.print(f"[green]Successfully imported GPG key from {self.name}.[/green]")
+                console.print(
+                    f"[green]Successfully imported GPG key from {self.name}.[/green]"
+                )
                 if fingerprints:
                     console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
 
                 _import_gpg_keys(secKey)
 
-            case 'vault':
+            case "vault":
                 vault_addr, vault_token, key_content = self.getVaultKeys(item_id)
                 if "# NO-IMPORT" in key_content:
-                    raise ValueError(f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported.")
+                    raise ValueError(
+                        f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                    )
 
-                console.print(f"[green]Successfully imported Vault key from {self.name}.[/green]")
+                console.print(
+                    f"[green]Successfully imported Vault key from {self.name}.[/green]"
+                )
                 console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
                 console.print(f"Vault Token: [bold]{vault_token}[/bold]")
 
-                key_content = f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+                key_content = (
+                    f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
+                )
 
                 _import_vault_keys(key_content)
 
@@ -271,7 +302,7 @@ class Provider(ABC):
             secrets_file (str): Path to the secrets file.
             sops_file (str): Path to the SOPS file.
         """
-        sops_command = ['sops', '--config', sops_file, secrets_file]
+        sops_command = ["sops", "--config", sops_file, secrets_file]
         with self.setupEphemeralEnv() as ctx:
             prefix = ctx.get("prefix", "")
             pass_fds = ctx.get("pass_fds", [])
@@ -289,12 +320,14 @@ class Provider(ABC):
                     pass_fds=pass_fds,
                     shell=True,
                     stderr=subprocess.PIPE,
-                    text=True
+                    text=True,
                 )
             except subprocess.CalledProcessError as e:
                 if e.returncode == 200:
                     return
-                err = e.stderr.strip() if e.stderr else "No additional error information."
+                err = (
+                    e.stderr.strip() if e.stderr else "No additional error information."
+                )
                 raise RuntimeError(f"Error running SOPS edit command: {err}") from e
 
     def decrypt(self, secrets_file: str, sops_file: str) -> str:
@@ -306,7 +339,7 @@ class Provider(ABC):
         returns:
             str: Decrypted secrets content.
         """
-        sops_command = ['sops', '--config', sops_file, '-d', secrets_file]
+        sops_command = ["sops", "--config", sops_file, "-d", secrets_file]
         result = self._run_sops_command(sops_command).stdout
         return result
 
@@ -317,7 +350,7 @@ class Provider(ABC):
             secrets_file (str): Path to the secrets file.
             sops_file (str): Path to the SOPS file.
         """
-        sops_command = ['sops', '--config', sops_file, 'updatekeys', '-y', secrets_file]
+        sops_command = ["sops", "--config", sops_file, "updatekeys", "-y", secrets_file]
         self._run_sops_command(sops_command)
 
     def _run_sops_command(self, command: list[str]) -> subprocess.CompletedProcess:
@@ -351,4 +384,3 @@ class Provider(ABC):
         except subprocess.CalledProcessError as e:
             err = e.stderr.strip() if e.stderr else "No additional error information."
             raise RuntimeError(f"Error running SOPS command: {err}") from e
-

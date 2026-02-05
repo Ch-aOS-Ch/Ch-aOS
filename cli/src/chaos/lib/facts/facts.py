@@ -1,5 +1,6 @@
 from pyinfra.api.facts import FactBase
 
+
 class RamUsage(FactBase):
     """
     Returns the current RAM usage as a percentage.
@@ -27,7 +28,9 @@ class RamUsage(FactBase):
         available_kb = data.get("MemAvailable")
 
         if available_kb is None:
-            free_kb = data.get("MemFree", 0) + data.get("Buffers", 0) + data.get("Cached", 0)
+            free_kb = (
+                data.get("MemFree", 0) + data.get("Buffers", 0) + data.get("Cached", 0)
+            )
             buffers_kb = data.get("Buffers", 0)
             cached_kb = data.get("Cached", 0)
             available_kb = free_kb + buffers_kb + cached_kb
@@ -45,10 +48,12 @@ class RamUsage(FactBase):
             "percent": round(percent, 1),
         }
 
+
 class LoadAverage(FactBase):
     """
     Returns the system load averages for the past 1, 5, and 15 minutes.
     """
+
     def command(self) -> str:
         return "cat /proc/loadavg"
 

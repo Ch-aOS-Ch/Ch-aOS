@@ -1,23 +1,25 @@
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
 from omegaconf import OmegaConf
 from rich.console import Console
 from rich.prompt import Confirm
-from pathlib import Path
-import subprocess
-import shutil
+
 from chaos.lib.teamUtils import (
-    _validate_deps,
+    _create_chaos_file,
+    _create_sops_config,
+    _get_chaos_file,
     _get_choices,
+    _list_teams_in_dir,
+    _symlink_teamDir,
+    _validate_deps,
     _validate_paths,
     _validate_teamDir,
-    _create_sops_config,
-    _create_chaos_file,
-    _symlink_teamDir,
-    _get_chaos_file,
-    _list_teams_in_dir
 )
-import os
-
 from chaos.lib.utils import checkDep, render_list_as_table, validate_path
+
 """Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 
 console = Console()
@@ -25,6 +27,7 @@ console = Console()
 """
 Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
 """
+
 
 def initTeam(args):
     """
@@ -41,7 +44,16 @@ def initTeam(args):
     path = args.path
     ikwid = args.i_know_what_im_doing
 
-    confirm = True if ikwid else Confirm.ask(f"Initialize secrets structure for team [bold]{team}[/] at company [bold]{company}[/]" + (f", person [bold]{person}[/]" if person else "") + "?", default=True)
+    confirm = (
+        True
+        if ikwid
+        else Confirm.ask(
+            f"Initialize secrets structure for team [bold]{team}[/] at company [bold]{company}[/]"
+            + (f", person [bold]{person}[/]" if person else "")
+            + "?",
+            default=True,
+        )
+    )
     if not confirm:
         console.print("[yellow]Operation cancelled by user.[/]")
         return
@@ -50,7 +62,14 @@ def initTeam(args):
 
     gitDir = teamDir / ".git"
     if not gitDir.exists():
-        confirm = True if ikwid else Confirm.ask(f"The directory {teamDir} is not a git repository. Initialize a new git repository here?", default=False)
+        confirm = (
+            True
+            if ikwid
+            else Confirm.ask(
+                f"The directory {teamDir} is not a git repository. Initialize a new git repository here?",
+                default=False,
+            )
+        )
         if confirm:
             subprocess.run(["git", "init", str(teamDir)], check=True)
 
@@ -74,15 +93,16 @@ def initTeam(args):
     base_path = Path(path).resolve() if path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
+
 def activateTeam(args):
     """
     Activates a team by reading the .chaos.yml file and creating necessary symlinks.
     """
     path = args.path
     chaosContent = _get_chaos_file(path)
-    company = chaosContent.get('company')
-    team = chaosContent.get('team')
-    engines = chaosContent.get('engine')
+    company = chaosContent.get("company")
+    team = chaosContent.get("team")
+    engines = chaosContent.get("engine")
 
     if not company or not team:
         raise ValueError(".chaos.yml is missing 'company' or 'team' information.")
@@ -92,22 +112,29 @@ def activateTeam(args):
 
     for engine in engines:
         if engine not in ["age", "gpg"]:
-            console.print(f"[bold yellow]WARNING:[/] Unsupported engine '{engine}' in .chaos.yml. Supported engines are 'age' and 'gpg'.")
+            console.print(
+                f"[bold yellow]WARNING:[/] Unsupported engine '{engine}' in .chaos.yml. Supported engines are 'age' and 'gpg'."
+            )
             continue
         _validate_deps()
         if engine == "age":
-            if not checkDep('age-keygen'):
-                console.print("[bold red]CRITICAL:[/] age-keygen is not installed. It is required for age engine.")
+            if not checkDep("age-keygen"):
+                console.print(
+                    "[bold red]CRITICAL:[/] age-keygen is not installed. It is required for age engine."
+                )
                 continue
 
         if engine == "gpg":
-            if not checkDep('gpg'):
-                console.print("[bold red]CRITICAL:[/] gpg is not installed. It is required for gpg engine.")
+            if not checkDep("gpg"):
+                console.print(
+                    "[bold red]CRITICAL:[/] gpg is not installed. It is required for gpg engine."
+                )
                 continue
 
     _ = _validate_teamDir(args.path, company, team)
     base_path = Path(args.path).resolve() if args.path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
+
 
 def cloneGitTeam(args):
     """
@@ -119,37 +146,46 @@ def cloneGitTeam(args):
 
     repo = args.target
     path = args.path
-    clone_dir = path if path else repo.split('/')[-1].replace('.git', '')
+    clone_dir = path if path else repo.split("/")[-1].replace(".git", "")
     validate_path(clone_dir)
 
     try:
         if path:
             Repo.clone_from(repo, path)
         else:
-            Repo.clone_from(repo, repo.split('/')[-1].replace('.git', ''))
+            Repo.clone_from(repo, repo.split("/")[-1].replace(".git", ""))
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to clone repository '{repo}': {e}") from e
 
     chaos_file_path = Path(clone_dir) / ".chaos.yml"
     if not chaos_file_path.is_file():
         shutil.rmtree(clone_dir)
-        raise FileNotFoundError(".chaos.yml not found in the cloned repository. Removed cloned directory.")
+        raise FileNotFoundError(
+            ".chaos.yml not found in the cloned repository. Removed cloned directory."
+        )
 
     chaosContent = _get_chaos_file(clone_dir)
-    company = chaosContent.get('company')
-    team = chaosContent.get('team')
+    company = chaosContent.get("company")
+    team = chaosContent.get("team")
     if not company or not team:
         shutil.rmtree(clone_dir)
-        raise ValueError(".chaos.yml is missing 'company' or 'team' information. Removed cloned directory.")
+        raise ValueError(
+            ".chaos.yml is missing 'company' or 'team' information. Removed cloned directory."
+        )
 
     base_path = Path(clone_dir).resolve()
     _ = _validate_teamDir(clone_dir, company, team)
     _symlink_teamDir(company, base_path, team)
 
+
 def listTeams(args):
     """Lists all activated teams, optionally filtered by company."""
     company = args.company
-    baseDir = Path(f"~/.local/share/chaos/teams/{company}").expanduser() if company else Path("~/.local/share/chaos/teams").expanduser()
+    baseDir = (
+        Path(f"~/.local/share/chaos/teams/{company}").expanduser()
+        if company
+        else Path("~/.local/share/chaos/teams").expanduser()
+    )
     if not baseDir.exists():
         console.print("[bold yellow]No teams have been activated yet.[/]")
         return
@@ -161,12 +197,18 @@ def listTeams(args):
     if args.no_pretty:
         if args.json:
             import json as js
-            print(js.dumps(OmegaConf.to_container(OmegaConf.create(list(teams))), indent=2))
+
+            print(
+                js.dumps(
+                    OmegaConf.to_container(OmegaConf.create(list(teams))), indent=2
+                )
+            )
             return
         print(OmegaConf.to_yaml(OmegaConf.create(list(teams))))
         return
     title = "[italic][green]Found teams:[/][/]"
     render_list_as_table(list(teams), title)
+
 
 def deactivateTeam(args):
     """Deactivates specified teams or all teams for a company."""
@@ -176,13 +218,17 @@ def deactivateTeam(args):
 
     company_dir = Path.home() / ".local" / "share" / "chaos" / "teams" / company
     if not company_dir.is_dir():
-        console.print(f"[bold yellow]Warning:[/] Company '{company}' has no active teams.")
+        console.print(
+            f"[bold yellow]Warning:[/] Company '{company}' has no active teams."
+        )
         return
 
     teams_to_deactivate = args.teams
 
     if not teams_to_deactivate:
-        if not Confirm.ask(f"[bold]Deactivate all teams for company '{company}'?[/]", default=False):
+        if not Confirm.ask(
+            f"[bold]Deactivate all teams for company '{company}'?[/]", default=False
+        ):
             console.print("[yellow]Operation cancelled.[/]")
             return
 
@@ -193,13 +239,15 @@ def deactivateTeam(args):
                 company_dir.rmdir()
                 console.print(f"Removed empty directory for company '{company}'.")
             except OSError:
-                pass # Directory might not be empty, fail silently.
+                pass  # Directory might not be empty, fail silently.
             return
 
         for team_link in active_teams:
             team_link.unlink()
 
-        console.print(f"[bold green]Success![/] All teams for company '{company}' deactivated.")
+        console.print(
+            f"[bold green]Success![/] All teams for company '{company}' deactivated."
+        )
         try:
             company_dir.rmdir()
         except OSError:
@@ -207,8 +255,10 @@ def deactivateTeam(args):
         return
 
     for team_name in teams_to_deactivate:
-        if '/' in team_name or '..' in team_name:
-            console.print(f"[bold yellow]WARNING:[/] Skipping invalid team name '{team_name}'.")
+        if "/" in team_name or ".." in team_name:
+            console.print(
+                f"[bold yellow]WARNING:[/] Skipping invalid team name '{team_name}'."
+            )
             continue
 
         team_link = company_dir / team_name
@@ -216,7 +266,9 @@ def deactivateTeam(args):
             team_link.unlink()
             console.print(f"Team '{team_name}' deactivated.")
         else:
-            console.print(f"[bold yellow]Warning:[/] Team '{team_name}' is not an active symlink. Skipping.")
+            console.print(
+                f"[bold yellow]Warning:[/] Team '{team_name}' is not an active symlink. Skipping."
+            )
 
     try:
         if not any(company_dir.iterdir()):
@@ -224,9 +276,16 @@ def deactivateTeam(args):
     except OSError:
         pass
 
+
 def pruneTeams(args):
     """Prunes stale team symlinks that point to non-existent directories."""
-    confirm = True if args.i_know_what_im_doing else Confirm.ask("Prune stale team symlinks? This may take some time.", default=False)
+    confirm = (
+        True
+        if args.i_know_what_im_doing
+        else Confirm.ask(
+            "Prune stale team symlinks? This may take some time.", default=False
+        )
+    )
     if not confirm:
         console.print("[yellow]Operation cancelled by user.[/]")
         return
