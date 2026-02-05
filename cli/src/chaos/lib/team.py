@@ -7,6 +7,14 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from rich.prompt import Confirm
 
+from chaos.lib.args.dataclasses import (
+    TeamActivatePayload,
+    TeamClonePayload,
+    TeamDeactivatePayload,
+    TeamInitPayload,
+    TeamListPayload,
+    TeamPrunePayload,
+)
 from chaos.lib.teamUtils import (
     _create_chaos_file,
     _create_sops_config,
@@ -29,7 +37,7 @@ Module for managing team structures, including initialization, activation, deact
 """
 
 
-def initTeam(args):
+def initTeam(payload: TeamInitPayload):
     """
     Initializes a new team structure with the specified parameters.
 
@@ -39,10 +47,12 @@ def initTeam(args):
     hasAge, hasPgp = _validate_deps()
     choices = _get_choices(hasAge, hasPgp)
 
-    company, team, person = _validate_paths(args)
+    company, team, person = _validate_paths(payload.target)
 
-    path = args.path
-    ikwid = args.i_know_what_im_doing
+    path = payload.path
+    if not path:
+        path = os.getcwd()
+    ikwid = payload.i_know_what_im_doing
 
     confirm = (
         True
@@ -80,8 +90,10 @@ def initTeam(args):
 
     secretsTeamDir = teamDir / "secrets"
     devSecs = secretsTeamDir / "dev"
+
     devSecs.mkdir(parents=True, exist_ok=True)
     prodSecs = secretsTeamDir / "prod"
+
     prodSecs.mkdir(parents=True, exist_ok=True)
 
     engine = _create_sops_config(teamDir, hasAge, choices, person, ikwid)
@@ -94,11 +106,12 @@ def initTeam(args):
     _symlink_teamDir(company, base_path, team)
 
 
-def activateTeam(args):
+def activateTeam(payload: TeamActivatePayload):
     """
     Activates a team by reading the .chaos.yml file and creating necessary symlinks.
     """
-    path = args.path
+
+    path = payload.path
     chaosContent = _get_chaos_file(path)
     company = chaosContent.get("company")
     team = chaosContent.get("team")
@@ -131,12 +144,17 @@ def activateTeam(args):
                 )
                 continue
 
-    _ = _validate_teamDir(args.path, company, team)
-    base_path = Path(args.path).resolve() if args.path else Path(os.getcwd()).resolve()
+    path = payload.path
+    if not path:
+        path = os.getcwd()
+
+    _ = _validate_teamDir(path, company, team)
+
+    base_path = Path(path).resolve() if payload.path else Path(os.getcwd()).resolve()
     _symlink_teamDir(company, base_path, team)
 
 
-def cloneGitTeam(args):
+def cloneGitTeam(payload: TeamClonePayload):
     """
     Clones a git repository and activates the team if valid.
 
@@ -144,8 +162,8 @@ def cloneGitTeam(args):
     """
     from git import Repo
 
-    repo = args.target
-    path = args.path
+    repo = payload.target
+    path = payload.path
     clone_dir = path if path else repo.split("/")[-1].replace(".git", "")
     validate_path(clone_dir)
 
@@ -178,9 +196,9 @@ def cloneGitTeam(args):
     _symlink_teamDir(company, base_path, team)
 
 
-def listTeams(args):
+def listTeams(payload: TeamListPayload):
     """Lists all activated teams, optionally filtered by company."""
-    company = args.company
+    company = payload.company
     baseDir = (
         Path(f"~/.local/share/chaos/teams/{company}").expanduser()
         if company
@@ -194,8 +212,8 @@ def listTeams(args):
         console.print("[bold yellow]No teams have been activated yet.[/]")
         return
 
-    if args.no_pretty:
-        if args.json:
+    if payload.no_pretty:
+        if payload.json:
             import json as js
 
             print(
@@ -210,9 +228,9 @@ def listTeams(args):
     render_list_as_table(list(teams), title)
 
 
-def deactivateTeam(args):
+def deactivateTeam(payload: TeamDeactivatePayload):
     """Deactivates specified teams or all teams for a company."""
-    company = args.company
+    company = payload.company
     if not company:
         raise ValueError("Company name is required to deactivate.")
 
@@ -223,7 +241,7 @@ def deactivateTeam(args):
         )
         return
 
-    teams_to_deactivate = args.teams
+    teams_to_deactivate = payload.teams
 
     if not teams_to_deactivate:
         if not Confirm.ask(
@@ -277,11 +295,11 @@ def deactivateTeam(args):
         pass
 
 
-def pruneTeams(args):
+def pruneTeams(payload: TeamPrunePayload):
     """Prunes stale team symlinks that point to non-existent directories."""
     confirm = (
         True
-        if args.i_know_what_im_doing
+        if payload.i_know_what_im_doing
         else Confirm.ask(
             "Prune stale team symlinks? This may take some time.", default=False
         )
@@ -290,7 +308,7 @@ def pruneTeams(args):
         console.print("[yellow]Operation cancelled by user.[/]")
         return
 
-    companies = args.companies
+    companies = payload.companies
     baseDir = Path.home() / ".local" / "share" / "chaos" / "teams"
     if not baseDir.is_dir():
         console.print("[bold yellow]No teams have been activated yet.[/]")

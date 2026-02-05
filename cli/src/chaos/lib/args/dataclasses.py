@@ -1,0 +1,45 @@
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
+
+@dataclass(frozen=True)
+class TeamPrunePayload:
+    companies: List[str]
+    i_know_what_im_doing: bool
+
+
+@dataclass(frozen=True)
+class TeamListPayload:
+    company: Optional[str]
+    no_pretty: bool
+    json: bool
+
+
+@dataclass(frozen=True)
+class TeamClonePayload:
+    target: str
+    path: Optional[str]
+
+
+@dataclass(frozen=True)
+class TeamInitPayload:
+    target: str
+    path: Optional[str]
+    i_know_what_im_doing: bool
+
+
+@dataclass(frozen=True)
+class TeamActivatePayload:
+    path: Optional[str]
+
+
+@dataclass(frozen=True)
+class TeamDeactivatePayload:
+    company: str
+    teams: List[str]
+
+
+@dataclass(frozen=True)
+class ProviderInvocation:
+    backend_name: str
+    arguments: Tuple[str, str]

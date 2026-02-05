@@ -54,7 +54,7 @@ def list_explain_subtopics(explainObj, role, console):
     sys.exit(0)
 
 
-def handleExplain(args, EXPLAIN_DISPATCHER):
+def handleExplain(payload, EXPLAIN_DISPATCHER):
     """
     Another Chunker:
 
@@ -104,13 +104,13 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
         ],
     }
 
-    topics = args.topics
-    complexity = args.complexity
+    topics = payload.topics
+    complexity = payload.complexity
     if not isinstance(topics, list):
         topics = [topics]
 
     for topic in topics:
-        keysToShow = DETAIL_LEVELS.get(args.details, DETAIL_LEVELS["basic"])
+        keysToShow = DETAIL_LEVELS.get(payload.details, DETAIL_LEVELS["basic"])
         parts = topic.split(".")
         role = parts[0]
         sub_topic = parts[1] if len(parts) > 1 else None
@@ -121,7 +121,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 
             if sub_topic == "list":
-                if args.no_pretty:
+                if payload.no_pretty:
                     import json
 
                     if not hasattr(ExplainObj, "_order"):
@@ -140,8 +140,8 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             if hasattr(ExplainObj, methodName):
                 method = getattr(ExplainObj, methodName)
                 explanation = method(complexity)
-                if args.no_pretty:
-                    if args.json:
+                if payload.no_pretty:
+                    if payload.json:
                         import json
 
                         print(
@@ -281,7 +281,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     Align.center(
                         Panel(
                             Group(*explanation_renderables),
-                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{args.details}-{args.complexity}[/])",
+                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{payload.details}-{payload.complexity}[/])",
                             border_style="green",
                             expand=False,
                             width=80 if len(explanation_renderables) > 1 else None,

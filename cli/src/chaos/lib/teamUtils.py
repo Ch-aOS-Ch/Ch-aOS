@@ -81,9 +81,8 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
         raise RuntimeError(f"Failed to activate team: {e}") from e
 
 
-def _validate_paths(args):
+def _validate_paths(batch: str):
     """Protection against path traversal and invalid names."""
-    batch = args.target
 
     parts = batch.split(".")
     company = parts[0]

@@ -114,29 +114,56 @@ def handleTeam(args, Console):
     try:
         match args.team_commands:
             case "list":
+                from chaos.lib.args.dataclasses import TeamListPayload
                 from chaos.lib.team import listTeams
 
-                listTeams(args)
+                payload = TeamListPayload(
+                    company=args.company, no_pretty=args.no_pretty, json=args.json
+                )
+
+                listTeams(payload)
             case "activate":
+                from chaos.lib.args.dataclasses import TeamActivatePayload
                 from chaos.lib.team import activateTeam
 
-                activateTeam(args)
+                payload = TeamActivatePayload(path=args.path)
+
+                activateTeam(payload)
             case "init":
+                from chaos.lib.args.dataclasses import TeamInitPayload
                 from chaos.lib.team import initTeam
 
-                initTeam(args)
+                payload = TeamInitPayload(
+                    target=args.target,
+                    path=args.path,
+                    i_know_what_im_doing=args.i_know_what_im_doing,
+                )
+
+                initTeam(payload)
             case "clone":
+                from chaos.lib.args.dataclasses import TeamClonePayload
                 from chaos.lib.team import cloneGitTeam
 
-                cloneGitTeam(args)
+                payload = TeamClonePayload(target=args.target, path=args.path)
+
+                cloneGitTeam(payload)
             case "deactivate":
+                from chaos.lib.args.dataclasses import TeamDeactivatePayload
                 from chaos.lib.team import deactivateTeam
 
-                deactivateTeam(args)
+                payload = TeamDeactivatePayload(company=args.company, teams=args.teams)
+
+                deactivateTeam(payload)
             case "prune":
+                from chaos.lib.args.dataclasses import TeamPrunePayload
                 from chaos.lib.team import pruneTeams
 
-                pruneTeams(args)
+                payload = TeamPrunePayload(
+                    companies=args.companies,
+                    i_know_what_im_doing=args.i_know_what_im_doing,
+                )
+
+                pruneTeams(payload)
             case _:
                 Console.print("Unsupported team subcommand.")
     except (
