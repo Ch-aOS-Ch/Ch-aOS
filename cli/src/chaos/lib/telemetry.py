@@ -150,7 +150,7 @@ class ChaosTelemetry(BaseStateCallback):
             if term in text.lower():
                 lines = text.split('\n')
                 sanitized_lines = [
-                    f"[SENSITIVE DATA FILTERED]" if term in line.lower() else line
+                    "[SENSITIVE DATA FILTERED]" if term in line.lower() else line
                     for line in lines
                 ]
                 text = '\n'.join(sanitized_lines)
@@ -404,7 +404,8 @@ class ChaosTelemetry(BaseStateCallback):
         """Handles the successful completion of an operation by writing to the DB."""
         end_time = time.time()
 
-        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
+            return
 
         if not ChaosTelemetry._limani_plugin:
             raise RuntimeError("Limani plugin is not loaded.")
@@ -487,7 +488,8 @@ class ChaosTelemetry(BaseStateCallback):
         if not ChaosTelemetry._limani_plugin:
             raise RuntimeError("Limani plugin is not loaded.")
 
-        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue: return
+        if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
+            return
 
         key = f"{host.name}:{op_hash}"
         start_time = ChaosTelemetry._timers.pop(key, None)
@@ -561,7 +563,8 @@ class ChaosTelemetry(BaseStateCallback):
     @staticmethod
     def percentile(data: list, percentile_val: float):
         """Calculates the given percentile from a list of numbers."""
-        if not data: return 0.0
+        if not data:
+            return 0.0
         size = len(data)
         sorted_data = sorted(data)
         k = (size - 1) * (percentile_val / 100)
@@ -625,7 +628,7 @@ class ChaosTelemetry(BaseStateCallback):
             with open(filepath, 'w') as f:
                 f.write('{\n')
                 # Write top-level info
-                f.write(f'    "api_version": "v1",\n')
+                f.write('    "api_version": "v1",\n')
                 f.write(f'    "run_id": {json.dumps(run_info["run_id_human"])},\n')
                 f.write(f'    "uggly_run_id": {json.dumps(run_info["id"])},\n')
                 f.write(f'    "hailer": {json.dumps(json.loads(run_info["hailer_json"]) if run_info["hailer_json"] else {})},\n')

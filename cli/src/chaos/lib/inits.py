@@ -149,7 +149,7 @@ def setupAge():
     console.print(f"[cyan]Info:[/] checking for age keys in [dim]{ageDir}[/]")
     pubkey = None
     if ageFile.exists():
-        console.print(f"[cyan]Info:[/] Existing key found.")
+        console.print("[cyan]Info:[/] Existing key found.")
         if not Confirm.ask("Do you wish to use this existing key?", default=True):
             console.print("[cyan]Info:[/] Moving this key to a backup and creating a new age file.")
             timestamp = int(time.time())
@@ -162,7 +162,7 @@ def setupAge():
                     subprocess.run(['age-keygen'], stdout=f, check=True)
                 proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
                 pubkey = proc.stdout.strip()
-                console.print(f"[bold green]Success![/] generated new age key!")
+                console.print("[bold green]Success![/] generated new age key!")
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
@@ -181,7 +181,7 @@ def setupAge():
                 subprocess.run(['age-keygen'], stdout=f, check=True)
             proc = subprocess.run(['age-keygen', '-y', str(ageFile)], capture_output=True, text=True, check=True)
             pubkey = proc.stdout.strip()
-            console.print(f"[bold green]Success![/] generated new age key!")
+            console.print("[bold green]Success![/] generated new age key!")
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to generate new age key: {e}") from e
 
@@ -298,7 +298,7 @@ def setupSsh():
                 ssh_key = f.read()
 
             if not ssh_key:
-                raise ValueError(f"Selected key does not contain a ssh key.")
+                raise ValueError("Selected key does not contain a ssh key.")
 
             return "age", ssh_key
 
@@ -416,7 +416,7 @@ def initSecrets():
         conf = oc.load(global_conf_path) if global_conf_path.exists() else oc.create()
         conf.sops_file = str(sops_file)
         oc.save(conf, global_conf_path)
-        console.print(f"[cyan]Info:[/] Updated global chaos config 'sops_file' path.")
+        console.print("[cyan]Info:[/] Updated global chaos config 'sops_file' path.")
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Could not encrypt file {sec_file}: {e}") from e

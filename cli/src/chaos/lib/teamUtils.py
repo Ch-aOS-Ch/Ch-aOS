@@ -72,7 +72,7 @@ def _validate_paths(args):
     team = parts[1]
     person = parts[2] if len(parts) == 3 else None
 
-    if not '.' in batch:
+    if '.' not in batch:
         raise ValueError("Must set a company for your team. (company.team.person)")
     if not team or not company:
         raise ValueError("Must pass both team and company.")
@@ -220,7 +220,7 @@ def _create_sops_config(teamDir, hasAge: bool, choices: list[str], person: str|N
             "key_groups" : ramblings_key_groups
         })
 
-    if not engine in ["age", "gpg", "both"]:
+    if engine not in ["age", "gpg", "both"]:
         raise ValueError(f"Unsupported engine: {engine}")
 
     sopsContent = {"creation_rules": rules}

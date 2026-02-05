@@ -43,8 +43,6 @@ class ExplainCompleter:
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 
-import functools
-
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
     from chaos.lib.utils import get_providerEps

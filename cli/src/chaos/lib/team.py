@@ -4,9 +4,6 @@ from rich.prompt import Confirm
 from pathlib import Path
 import subprocess
 import shutil
-
-from chaos.lib.utils import checkDep, render_list_as_table, validate_path
-"""Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 from chaos.lib.teamUtils import (
     _validate_deps,
     _get_choices,
@@ -19,6 +16,9 @@ from chaos.lib.teamUtils import (
     _list_teams_in_dir
 )
 import os
+
+from chaos.lib.utils import checkDep, render_list_as_table, validate_path
+"""Lmao yeah, a ton of stuff is happening in teamUtils.py"""
 
 console = Console()
 
@@ -149,7 +149,7 @@ def cloneGitTeam(args):
 def listTeams(args):
     """Lists all activated teams, optionally filtered by company."""
     company = args.company
-    baseDir = Path(f"~/.local/share/chaos/teams/{company}").expanduser() if company else Path(f"~/.local/share/chaos/teams").expanduser()
+    baseDir = Path(f"~/.local/share/chaos/teams/{company}").expanduser() if company else Path("~/.local/share/chaos/teams").expanduser()
     if not baseDir.exists():
         console.print("[bold yellow]No teams have been activated yet.[/]")
         return

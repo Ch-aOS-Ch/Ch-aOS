@@ -23,7 +23,7 @@ def _get_ramble_dir(team) -> Path:
     Validates and returns the ramble directory with the support for teams.
     """
     if team:
-        if not '.' in team:
+        if '.' not in team:
             raise ValueError("Must set a company for your team. (company.team.person)")
 
         parts = team.split('.')
@@ -152,15 +152,15 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
         renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
         renderables.append(Text("\n"))
     if 'what' in ramble_data and ramble_data.what:
-        renderables.append(Markdown(f"**What is it?**"))
+        renderables.append(Markdown("**What is it?**"))
         renderables.append(Padding.indent(Markdown(ramble_data.what), 4))
         renderables.append(Text("\n"))
     if 'why' in ramble_data and ramble_data.why:
-        renderables.append(Markdown(f"**Why use it?**"))
+        renderables.append(Markdown("**Why use it?**"))
         renderables.append(Padding.indent(Markdown(ramble_data.why), 4))
         renderables.append(Text("\n"))
     if 'how' in ramble_data and ramble_data.how:
-        renderables.append(Markdown(f"**How it works:**"))
+        renderables.append(Markdown("**How it works:**"))
         renderables.append(Padding.indent(Markdown(ramble_data.how), 4))
         renderables.append(Text("\n"))
 
@@ -241,7 +241,7 @@ def _process_ramble_target(target, sops_file_override, team, args, global_config
                 return
 
             table = Table(show_lines=True)
-            table.add_column(f'Index', style='cyan')
+            table.add_column('Index', style='cyan')
             table.add_column(f'Pages in {journal}', style='green')
             for i, e in enumerate(entries, start=1):
                 table.add_row(str(i), Path(e).stem)
@@ -497,7 +497,7 @@ def handleEditRamble(args):
         return
 
     table = Table(show_lines=True)
-    table.add_column(f'Index', style='cyan')
+    table.add_column('Index', style='cyan')
     table.add_column(f'Pages in {ramble}', style='green')
     for i, e in enumerate(entries, start=1):
         table.add_row(str(i), Path(e).stem)
@@ -726,12 +726,13 @@ def handleMoveRamble(args):
     dest_file_path = None if new_is_dir else dest_dir_path / f"{new.split('.', 1)[1]}.yml"
 
     is_safe_path(dest_dir_path, team)
-    if dest_file_path: is_safe_path(dest_file_path, team)
+    if dest_file_path:
+        is_safe_path(dest_file_path, team)
 
     if not source_path.exists():
         raise FileNotFoundError(f"No such journal or page: {source_path}")
 
-    if dest_file_path == None or dest_dir_path == None:
+    if dest_file_path is None or dest_dir_path is None:
         raise ValueError("Destination path could not be determined.")
 
     if old_is_dir and new_is_dir:
@@ -855,7 +856,7 @@ def handleUpdateEncryptRamble(args):
             raise RuntimeError(f'Ramble key update with sops failed for {ramble_file}.\n{e.stderr}') from e
         except FileNotFoundError:
             raise FileNotFoundError("`sops` command not found. Please ensure sops is installed and in your PATH.")
-        except Exception as e:
+        except Exception:
             from rich.console import Console
             console = Console()
             console.print(f'[bold yellow]Warning:[/] Could not read or parse ramble file: {ramble_file}. Skipping.')

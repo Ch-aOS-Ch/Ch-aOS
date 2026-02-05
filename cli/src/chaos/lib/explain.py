@@ -107,28 +107,28 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(Text("\n"))
 
                 if 'what' in keysToShow and explanation.get('what'):
-                    explanation_renderables.append(Markdown(f"**What does it do?**"))
+                    explanation_renderables.append(Markdown("**What does it do?**"))
                     explanation_renderables.append(Padding.indent(Markdown(explanation['what'],), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'technical' in keysToShow and explanation.get('technical'):
-                    explanation_renderables.append(Markdown(f"**Technical details:**"))
+                    explanation_renderables.append(Markdown("**Technical details:**"))
                     explanation_renderables.append(Padding.indent(Markdown(explanation['technical']), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'why' in keysToShow and explanation.get('why'):
-                    explanation_renderables.append(Markdown(f"**Why use it:**"))
+                    explanation_renderables.append(Markdown("**Why use it:**"))
                     explanation_renderables.append(Padding.indent(Markdown(explanation['why']), 5))
                     explanation_renderables.append(Text("\n"))
 
 
                 if 'how' in keysToShow and explanation.get('how'):
-                    explanation_renderables.append(Markdown(f"**How it works:**"))
+                    explanation_renderables.append(Markdown("**How it works:**"))
                     explanation_renderables.append(Padding.indent(Markdown(explanation['how']), 5))
                     explanation_renderables.append(Text("\n"))
 
                 if 'validation' in keysToShow and explanation.get('validation'):
-                    explanation_renderables.append(Markdown(f"**Validation:**"))
+                    explanation_renderables.append(Markdown("**Validation:**"))
                     explanation_renderables.append(Padding.indent(Syntax(explanation['validation'], "bash", line_numbers=True), 5))
                     explanation_renderables.append(Text("\n"))
 
@@ -197,7 +197,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     if available_methods:
                         console.print(f"Available sub-topics for '{role}': [yellow]{available_methods}[/yellow]")
                     else:
-                        console.print(f"[bold red]ERROR:[/] Poorly configured explanation module. \n(if you're a dev, make sure your module has a class with functions that simply return a dict with your needed explanations.)")
+                        console.print("[bold red]ERROR:[/] Poorly configured explanation module. \n(if you're a dev, make sure your module has a class with functions that simply return a dict with your needed explanations.)")
         else:
             console.print(f"[bold red]ERROR:[/] No explanation found for topic '{topic}'.")
 

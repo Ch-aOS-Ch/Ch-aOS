@@ -35,7 +35,7 @@ def render_list_as_table(items: list[str], panel_title: str):
     from rich.align import Align
     console = Console()
     if not items:
-        console.print(f"[bold yellow]No items found.[/]")
+        console.print("[bold yellow]No items found.[/]")
         return
 
     sorted_items = sorted(list(set(items)))
