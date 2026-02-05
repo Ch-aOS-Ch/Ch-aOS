@@ -1,5 +1,7 @@
 from typing import cast
 
+from omegaconf import OmegaConf
+
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
@@ -100,9 +102,26 @@ def listFp(args):
             raise ValueError("No available type passed.")
 
     if results:
+        if args.no_pretty:
+            if args.value:
+                print('\n'.join(results))
+                return
+
+            if args.json:
+                import json
+                print(json.dumps(list(results), indent=2))
+                return
+
+            print(OmegaConf.to_yaml(list(results)))
+            return
+
         from chaos.lib.utils import render_list_as_table
         title = f"[italic][green]Found {args.type} Keys:[/][/]"
         render_list_as_table(list(results), title)
+    else:
+        from rich.console import Console
+        console = Console()
+        console.print(f"[cyan]INFO:[/] No {args.type} keys to be shown.")
 
 def handleSetShamir(args):
     """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""

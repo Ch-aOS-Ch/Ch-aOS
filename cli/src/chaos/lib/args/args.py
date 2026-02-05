@@ -159,6 +159,9 @@ def addSecParsers(parser):
     secList.add_argument('type', choices=['age', 'pgp', 'vault'], help="The type of key you want to list.")
     secList.add_argument('-ss', '--sops-file', dest='sops_file_override', help="Path to the .sops.yaml config file (overrides all calls).").completer = FilesCompleter() # type: ignore
     secList.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
+    secList.add_argument('-n', '--no-pretty', action='store_true', help="Disable pretty printing of the key output.")
+    secList.add_argument('-j', '--json', action='store_true', help="--no-pretty output in JSON format.", default=False)
+    secList.add_argument('-v', '--value', action='store_true', help="Only print the key values, useful for piping.")
 
     secEdit = secSubParser.add_parser('edit', help="Edit your secrets file.")
     secEdit.add_argument('-t', '--team', type=str, help="Team to be used, in the format company.team.group")
