@@ -54,7 +54,6 @@ class ChaosParser(argparse.ArgumentParser):
     def error(self, message):
         import sys
 
-        sys.stderr.write(f"error: {message}\n")
         self.print_help(sys.stderr)
         sys.exit(2)
 
