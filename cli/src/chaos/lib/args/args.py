@@ -50,6 +50,14 @@ class ExplainCompleter:
         return [comp for comp in all_comps if comp.startswith(prefix)]
 
 
+class ChaosParser(argparse.ArgumentParser):
+    def error(self, message):
+        import sys
+
+        self.print_help(sys.stderr)
+        sys.exit(2)
+
+
 @functools.lru_cache(maxsize=None)
 def get_loaded_providers():
     from chaos.lib.utils import get_providerEps
@@ -158,9 +166,7 @@ KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO B
 
 
 def argParsing():
-    parser = argparse.ArgumentParser(
-        description="chaos system manager.",
-    )
+    parser = ChaosParser(description="Ch-aOS system management CLI.", prog="chaos")
 
     parser.add_argument(
         "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
@@ -200,13 +206,17 @@ def argParsing():
 
 
 def addSecParsers(parser):
-    secParser = parser.add_parser("secrets", help="Manage your secrets.")
+    secParser = parser.add_parser(
+        "secrets",
+        help="Manage your secrets.",
+    )
     secSubParser = secParser.add_subparsers(
         dest="secrets_commands", help="Secret subcommands", required=True
     )
 
     secExport = secSubParser.add_parser(
-        "export", help="Export keys to a Password Manager."
+        "export",
+        help="Export Keys to a Password or Secret Manager.",
     )
     secSubExport = secExport.add_subparsers(
         dest="export_commands", help="Secret export subcommands", required=True
