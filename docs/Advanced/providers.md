@@ -22,7 +22,7 @@ The primary benefit of using a provider is enabling an **ephemeral key workflow*
 
 This significantly enhances security by reducing the attack surface. An attacker would need to compromise your machine *while* a `chaos` command is running and also compromise your (likely locked) password manager.
 
-This workflow effectively transforms basic asimetric local-first keys into IAM keys. Just think about it, you abstract your private key's content into an versionable provider ID (e.g., bitwarden's IDs), this means you can 1 version control your private keys and 2 _put an RBAC on top of them_, which does the transformation's heavy ligting.
+This workflow effectively transforms basic asimetric local-first keys into IAM keys. Just think about it, you abstract your private key's content into an versionable provider ID (e.g., bitwarden's IDs), this means you can 1 version control your private keys and 2 _put an RBAC on top of them_, and 3 audit the key's access through the same provider's auditability system which does the transformation's heavy ligting.
 
 ## Usage
 
