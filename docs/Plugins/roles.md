@@ -6,7 +6,7 @@ In Ch-aOS, roles are basically just a bunch of pyinfra scripts that get executed
 
 Ch-aOS utilizes Pyinfra's [API mode](https://docs.pyinfra.com/en/3.x/api/reference.html) to manage infrastructure. This means that roles have full access to all of Python's libraries and features, not relying solely on pyinfra's built-in functionality. This allows for more complex logic and operations within roles.
 
-Be sure to use only `host.get_fact` or `add_op` to run commands directly on the host. This approach lets Ch-aOS use Pyinfra's internal Topological Sorter to determine the correct order of operations, ensuring that dependencies are handled properly. It also allows Ch-aOS to properly track changes, reports, commands and everything on the [Logbook](../advanced/logbook.md).
+Be sure to use only `host.get_fact` or `add_op` to run commands directly on the host. This approach lets Ch-aOS use Pyinfra's internal Topological Sorter to determine the correct order of operations, ensuring that dependencies are handled properly. It also allows Ch-aOS to properly track changes, reports, commands and everything on the [Logbook](../Advanced/logbook.md).
 
 ## How to declare a role
 

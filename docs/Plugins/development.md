@@ -144,7 +144,7 @@ Registers a new secret provider. This is a more advanced topic that requires imp
 
 ### `chaos.boats`
 
-Registers a new boat for use with `chaos apply --fleet`. This is an advanced topic for managing fleets of hosts. See **[Boat Plugins](../advanced/boats.md)** for more details.
+Registers a new boat for use with `chaos apply --fleet`. This is an advanced topic for managing fleets of hosts. See **[Boat Plugins](../Advanced/boats.md)** for more details.
 
 ### chaos.limanis
 

@@ -76,7 +76,7 @@ chaos apply -d -vvv packages
 
 Applies the roles to a fleet of remote hosts defined in the Ch-obolo file instead of the local machine.
 
-See the [Fleet Management](../advanced/fleet.md) documentation for more details.
+See the [Fleet Management](../Advanced/fleet.md) documentation for more details.
 
 ### Verbosity (`-v`, `-vv`, `-vvv` or `--verbose`)
 
