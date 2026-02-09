@@ -150,12 +150,12 @@ def activateTeam(payload: TeamActivatePayload):
         path = os.getcwd()
 
     for team in teams:
-        _ = _validate_teamDir(path, company, team)
+        _ = _validate_teamDir(path, company, team.get("name", ""))
 
         base_path = (
             Path(path).resolve() if payload.path else Path(os.getcwd()).resolve()
         )
-        _symlink_teamDir(company, base_path, team)
+        _symlink_teamDir(company, base_path, team.get("name", ""))
 
 
 def cloneGitTeam(payload: TeamClonePayload):
@@ -197,8 +197,8 @@ def cloneGitTeam(payload: TeamClonePayload):
 
     for team in teams:
         base_path = Path(clone_dir).resolve()
-        _ = _validate_teamDir(clone_dir, company, team)
-        _symlink_teamDir(company, base_path, team)
+        _ = _validate_teamDir(clone_dir, company, team.get("name", ""))
+        _symlink_teamDir(company, base_path, team.get("name", ""))
 
 
 def listTeams(payload: TeamListPayload):
