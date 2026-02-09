@@ -5,6 +5,8 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from rich.text import Text
 
+from .args.dataclasses import ExplainPayload
+
 console = Console()
 
 
@@ -54,7 +56,7 @@ def list_explain_subtopics(explainObj, role, console):
     sys.exit(0)
 
 
-def handleExplain(payload, EXPLAIN_DISPATCHER):
+def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
     """
     Another Chunker:
 

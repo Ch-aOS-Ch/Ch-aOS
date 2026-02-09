@@ -8,6 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
+from .args.dataclasses import SetPayload
 from .boats.base import Boat
 from .telemetry import ChaosTelemetry
 from .utils import validate_path
@@ -564,7 +565,7 @@ def handleOrchestration(
         console.print("[bold green]Finalized.[/bold green]")
 
 
-def setMode(args):
+def setMode(payload: SetPayload):
     """
     Just handles configuring the tool.
     """
@@ -580,28 +581,30 @@ def setMode(args):
     else:
         global_config = OmegaConf.create()
 
-    if hasattr(args, "chobolo_file") and args.chobolo_file:
-        inputPath = Path(args.chobolo_file)
+    if hasattr(payload, "chobolo_file") and payload.chobolo_file:
+        inputPath = Path(payload.chobolo_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.chobolo_file = str(absolutePath)
-            print(f"- Default Ch-obolo set to: {args.chobolo_file}")
+            print(f"- Default Ch-obolo set to: {payload.chobolo_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
-    if hasattr(args, "secrets_file") and args.secrets_file:
-        inputPath = Path(args.secrets_file)
+
+    if hasattr(payload, "secrets_file") and payload.secrets_file:
+        inputPath = Path(payload.secrets_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.secrets_file = str(absolutePath)
-            print(f"- Default secrets file set to: {args.secrets_file}")
+            print(f"- Default secrets file set to: {payload.secrets_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
-    if hasattr(args, "sops_file") and args.sops_file:
-        inputPath = Path(args.sops_file)
+
+    if hasattr(payload, "sops_file") and payload.sops_file:
+        inputPath = Path(payload.sops_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.sops_file = str(absolutePath)
-            print(f"- Default sops file set to: {args.sops_file}")
+            print(f"- Default sops file set to: {payload.sops_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
 

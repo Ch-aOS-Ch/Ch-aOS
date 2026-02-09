@@ -85,14 +85,17 @@ def handleStyx(args, Console):
             case "invoke":
                 from chaos.lib.styx import install_styx_entries
 
-                entries = args.entries
+                entries: list[str] = args.entries
                 install_styx_entries(entries)
 
             case "list":
                 from chaos.lib.styx import list_styx_entries
 
-                entries = args.entries
-                listing = list_styx_entries(entries, args.no_pretty, args.json)
+                entries: list[str] = args.entries
+                listing: list[str] | str = list_styx_entries(
+                    entries, args.no_pretty, args.json
+                )
+
                 if args.no_pretty:
                     print(listing)
                 else:
@@ -101,7 +104,7 @@ def handleStyx(args, Console):
             case "destroy":
                 from chaos.lib.styx import uninstall_styx_entries
 
-                entries = args.entries
+                entries: list[str] = args.entries
                 uninstall_styx_entries(entries)
             case _:
                 Console.print("Unsupported styx subcommand.")
@@ -181,10 +184,19 @@ def handleExplain(args):
     from chaos.lib.explain import handleExplain
 
     if args.topics:
+        from chaos.lib.args.dataclasses import ExplainPayload
         from chaos.lib.plugDiscovery import get_plugins
 
+        payload = ExplainPayload(
+            topics=args.topics,
+            complexity=args.complexity,
+            details=args.details,
+            no_pretty=args.no_pretty,
+            json=args.json,
+        )
+
         EXPLANATIONS = get_plugins(args.update_plugins)[2]
-        handleExplain(args, EXPLANATIONS)
+        handleExplain(payload, EXPLANATIONS)
     else:
         print("No explanation passed.")
 
@@ -355,8 +367,16 @@ def handleSet(args, Console):
         ]
     )
     if is_setter_mode:
+        from chaos.lib.args.dataclasses import SetPayload
+
+        payload = SetPayload(
+            chobolo_file=getattr(args, "chobolo_file", None),
+            secrets_file=getattr(args, "secrets_file", None),
+            sops_file=getattr(args, "sops_file", None),
+        )
+
         try:
-            setMode(args)
+            setMode(payload)
         except FileNotFoundError as e:
             Console.print(f"[bold red]ERROR:[/] {e}")
             sys.exit(1)
@@ -412,10 +432,23 @@ def handleInit(args, Console):
 
         match args.init_command:
             case "chobolo":
+                from omegaconf import OmegaConf as oc
+
                 from chaos.lib.plugDiscovery import get_plugins
 
                 keys = get_plugins(args.update_plugins)[3]
-                initChobolo(keys, args)
+                conf = initChobolo(keys)
+
+                if not args.template:
+                    path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
+                    oc.save(conf, path)
+
+                else:
+                    if args.human:
+                        print(oc.to_yaml(conf, resolve=True))
+                    else:
+                        print(conf)
+
             case "secrets":
                 initSecrets()
             case _:

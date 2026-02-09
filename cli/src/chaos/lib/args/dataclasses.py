@@ -40,6 +40,22 @@ class TeamDeactivatePayload:
 
 
 @dataclass(frozen=True)
+class ExplainPayload:
+    topics: List[str]
+    no_pretty: bool
+    json: bool
+    details: str = "basic"
+    complexity: str = "basic"
+
+
+@dataclass(frozen=True)
+class SetPayload:
+    chobolo_file: Optional[str]
+    sops_file: Optional[str]
+    secrets_file: Optional[str]
+
+
+@dataclass(frozen=True)
 class ProviderInvocation:
     backend_name: str
     arguments: Tuple[str, str]

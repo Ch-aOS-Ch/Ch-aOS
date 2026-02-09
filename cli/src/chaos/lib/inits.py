@@ -21,7 +21,7 @@ Scripts for initializing various parts of Ch-aOS, including Chobolo configuratio
 """
 
 
-def initChobolo(keys, args):
+def initChobolo(keys):
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
     finalConf = oc.create()
     addedKeys = set()
@@ -46,15 +46,7 @@ def initChobolo(keys, args):
             console.print(
                 f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
             )
-
-    if not args.template:
-        path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
-        oc.save(finalConf, path)
-    else:
-        if args.human:
-            print(oc.to_yaml(finalConf, resolve=True))
-        else:
-            print(finalConf)
+    return finalConf
 
 
 # -------------- SECRET INITING -------------
