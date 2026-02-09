@@ -201,6 +201,7 @@ def handleExplain(args):
         print("No explanation passed.")
 
 
+# TODO: add payload
 def handleApply(args, Console):
     from typing import cast
 
@@ -240,6 +241,7 @@ def handleApply(args, Console):
         sys.exit(1)
 
 
+# TODO: add payload
 def handleSecrets(args, Console):
     try:
         from chaos.lib.secret_backends.utils import get_sops_files
@@ -258,9 +260,11 @@ def handleSecrets(args, Console):
         team = getattr(args, "team", None)
         sops_file_override = getattr(args, "sops_file", None)
         secrets_file_override = getattr(args, "secrets_file", None)
+
         _, _, global_config = get_sops_files(
             sops_file_override, secrets_file_override, team
         )
+
         match args.secrets_commands:
             case "export":
                 handleExportSec(args, global_config)
@@ -383,6 +387,7 @@ def handleSet(args, Console):
         sys.exit(0)
 
 
+# TODO: add payload
 def handleRamble(args, Console):
     try:
         from chaos.lib.ramble import (

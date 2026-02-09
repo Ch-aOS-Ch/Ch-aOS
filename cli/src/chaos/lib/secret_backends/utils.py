@@ -1,9 +1,12 @@
 import os
 import shutil
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ..utils import validate_path
+
+if TYPE_CHECKING:
+    from .providers.base import Provider
 
 """
 Now now, I KNOW this is way too big of a file, but bear with me here
@@ -36,12 +39,8 @@ def _getProvider(args, global_config):
     return None
 
 
-def _getProviderByName(
-    provider_subcommand_name: str, args, global_config
-) -> "Provider":  # type: ignore
+def _getProviderByName(provider_subcommand_name: str, args, global_config) -> Provider:
     from chaos.lib.utils import get_providerEps
-
-    from .providers.base import Provider
 
     provider = None
     provider_eps = get_providerEps()

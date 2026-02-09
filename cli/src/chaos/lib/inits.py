@@ -46,6 +46,7 @@ def initChobolo(keys):
             console.print(
                 f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
             )
+
     return finalConf
 
 

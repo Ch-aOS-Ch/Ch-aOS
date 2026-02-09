@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -53,9 +53,3 @@ class SetPayload:
     chobolo_file: Optional[str]
     sops_file: Optional[str]
     secrets_file: Optional[str]
-
-
-@dataclass(frozen=True)
-class ProviderInvocation:
-    backend_name: str
-    arguments: Tuple[str, str]

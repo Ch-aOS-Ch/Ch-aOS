@@ -101,12 +101,14 @@ class Provider(ABC):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
                     yield context
+
             case "gpg":
                 _, secKey, _ = self.getGpgKeys(item_id)
                 actualKey = decompress(secKey)
                 with ephemeralGpgKey(actualKey) as gpg_env:
                     context["env"].update(gpg_env)
                     yield context
+
             case "vault":
                 vault_addr, vault_token, _ = self.getVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
