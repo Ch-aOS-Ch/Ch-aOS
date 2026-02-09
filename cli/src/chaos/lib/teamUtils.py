@@ -120,8 +120,7 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
     if not chaos_file.exists():
         chaosContent = {
             "company": company,
-            "teams": [team],
-            "people": [person] if person else [],
+            "teams": [{"name": team, "people": [person] if person else []}],
             "engine": [engine] if engine != "both" else ["age", "gpg"],
         }
 
@@ -129,11 +128,17 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
 
     else:
         chaosContent = yaml.load(open(chaos_file, "r"), Loader=yaml.FullLoader)
-        if team not in chaosContent.get("teams", []):
-            chaosContent["teams"].append(team)
-
-        if person and person not in chaosContent.get("people", []):
-            chaosContent["people"].append(person)
+        for t in chaosContent.get("teams", []):
+            if t.get("name") == team:
+                people = t.get("people", [])
+                if person and person not in people:
+                    people.append(person)
+                    t["people"] = people
+                break
+            else:
+                chaosContent["teams"].append(
+                    {"name": team, "people": [person] if person else []}
+                )
 
         engines = chaosContent.get("engine", [])
         if engine == "both":
