@@ -124,6 +124,29 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
             "people": [person] if person else [],
             "engine": [engine] if engine != "both" else ["age", "gpg"],
         }
+
+        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+
+    else:
+        chaosContent = yaml.load(open(chaos_file, "r"), Loader=yaml.FullLoader)
+        if team not in chaosContent.get("teams", []):
+            chaosContent["teams"].append(team)
+
+        if person and person not in chaosContent.get("people", []):
+            chaosContent["people"].append(person)
+
+        engines = chaosContent.get("engine", [])
+        if engine == "both":
+            if "age" not in engines:
+                engines.append("age")
+
+            if "gpg" not in engines:
+                engines.append("gpg")
+
+        elif engine not in engines:
+            engines.append(engine)
+            chaosContent["engine"] = engines
+
         yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
 
 
