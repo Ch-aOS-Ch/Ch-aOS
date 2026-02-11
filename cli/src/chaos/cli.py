@@ -550,33 +550,38 @@ def handleSet(args, Console):
 # TODO: add payload
 def handleRamble(args, Console):
     try:
-        from chaos.lib.ramble import (
-            handleCreateRamble,
-            handleDelRamble,
-            handleEditRamble,
-            handleEncryptRamble,
-            handleFindRamble,
-            handleMoveRamble,
-            handleReadRamble,
-            handleUpdateEncryptRamble,
-        )
-
         match args.ramble_commands:
             case "create":
+                from .lib.ramble import handleCreateRamble
+
                 handleCreateRamble(args)
             case "edit":
+                from .lib.ramble import handleEditRamble
+
                 handleEditRamble(args)
             case "encrypt":
+                from .lib.ramble import handleEncryptRamble
+
                 handleEncryptRamble(args)
             case "read":
+                from .lib.ramble import handleReadRamble
+
                 handleReadRamble(args)
             case "find":
+                from .lib.ramble import handleFindRamble
+
                 handleFindRamble(args)
             case "move":
+                from .lib.ramble import handleMoveRamble
+
                 handleMoveRamble(args)
             case "delete":
+                from .lib.ramble import handleDelRamble
+
                 handleDelRamble(args)
             case "update":
+                from .lib.ramble import handleUpdateEncryptRamble
+
                 handleUpdateEncryptRamble(args)
             case _:
                 Console.print("Unsupported ramble subcommand.")
