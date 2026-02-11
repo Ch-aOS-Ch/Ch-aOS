@@ -3,9 +3,15 @@ import base64
 import json
 import os
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, cast
+from typing import List, Optional, Tuple, cast
 
+from chaos.lib.args.dataclasses import (
+    ProviderExportArgs,
+    ProviderImportArgs,
+    SecretsExportPayload,
+)
 from chaos.lib.utils import checkDep
 
 from ..utils import (
@@ -20,7 +26,26 @@ from ..utils import (
 from .base import Provider
 
 
+@dataclass(frozen=True)
+class BitwardenExportArgs(ProviderExportArgs):
+    organization_id: Optional[str] = None
+    collection_id: Optional[str] = None
+    bw_tags: List[str] = field(default_factory=list)
+
+
 class BitwardenPasswordProvider(Provider):
+    @classmethod
+    def build_export_args(cls, **kwargs) -> BitwardenExportArgs:
+        return BitwardenExportArgs(**kwargs)
+
+    @classmethod
+    def build_import_args(cls, **kwargs) -> ProviderImportArgs:
+        return ProviderImportArgs()
+
+    @staticmethod
+    def get_export_arg_names() -> List[str]:
+        return ["organization_id", "collection_id", "bw_tags"]
+
     @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_bw", "bw"
@@ -67,7 +92,7 @@ class BitwardenPasswordProvider(Provider):
         secBwImport = subparser.add_parser("bw", help="Bitwarden CLI import options")
         return secBwImport
 
-    def export_secrets(self) -> None:
+    def export_secrets(self, payload: SecretsExportPayload) -> None:
         """
         Exports keys to Bitwarden as new notes.
         """
@@ -77,13 +102,15 @@ class BitwardenPasswordProvider(Provider):
 
         self.check_status()
 
-        keyType = self.args.key_type
-        keyPath = self.args.keys
-        item_name = self.args.item_name
-        fingerprints = self.args.fingerprints
-        tags = self.args.bw_tags
-        save_to_config = self.args.save_to_config
-        no_import = self.args.no_import
+        provider_args = cast(BitwardenExportArgs, payload.provider_specific_args)
+
+        keyType = payload.key_type
+        keyPath = payload.keys
+        item_name = payload.item_name
+        fingerprints = payload.fingerprints
+        tags = provider_args.bw_tags
+        save_to_config = payload.save_to_config
+        no_import = payload.no_import
 
         collection_id = (
             self.config.get("secret_providers", {})
@@ -96,10 +123,10 @@ class BitwardenPasswordProvider(Provider):
             .get("organization_id", "")
         )
 
-        if self.args.collection_id:
-            collection_id = self.args.collection_id
-        if self.args.organization_id:
-            organization_id = self.args.organization_id
+        if provider_args.collection_id:
+            collection_id = provider_args.collection_id
+        if provider_args.organization_id:
+            organization_id = provider_args.organization_id
 
         key_content = ""
         if keyType == "age":
@@ -138,7 +165,7 @@ class BitwardenPasswordProvider(Provider):
             key_content = extract_gpg_keys(fingerprints)
 
         elif keyType == "vault":
-            vaultAddr = self.args.vault_addr
+            vaultAddr = payload.vault_addr
             if not keyPath:
                 raise ValueError("No Vault key path passed via --keys.")
             if not vaultAddr:
@@ -268,10 +295,30 @@ class BitwardenPasswordProvider(Provider):
             ) from e
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
-        return self.args.from_bw
+        from chaos.lib.args.dataclasses import SecretsContext
+        if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
+            return self.payload.provider_config.ephemeral_provider_args.get("from_bw")
+        return None
+
+
+@dataclass(frozen=True)
+class BitwardenSecretsExportArgs(ProviderExportArgs):
+    project_id: Optional[str] = None
 
 
 class BitwardenSecretsProvider(Provider):
+    @classmethod
+    def build_export_args(cls, **kwargs) -> BitwardenSecretsExportArgs:
+        return BitwardenSecretsExportArgs(**kwargs)
+
+    @classmethod
+    def build_import_args(cls, **kwargs) -> ProviderImportArgs:
+        return ProviderImportArgs()
+
+    @staticmethod
+    def get_export_arg_names() -> List[str]:
+        return ["project_id"]
+
     @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_bws", "bws"
@@ -311,15 +358,16 @@ class BitwardenSecretsProvider(Provider):
         )
         return secBwsImport
 
-    def export_secrets(self) -> None:
-        args = self.args
+    def export_secrets(self, payload: SecretsExportPayload) -> None:
         self.check_status()
 
-        keyType = args.key_type
-        key = args.item_name
-        fingerprints = args.fingerprints
-        save_to_config = args.save_to_config
-        no_import = args.no_import
+        provider_args = cast(BitwardenSecretsExportArgs, payload.provider_specific_args)
+
+        keyType = payload.key_type
+        key = payload.item_name
+        fingerprints = payload.fingerprints
+        save_to_config = payload.save_to_config
+        no_import = payload.no_import
 
         _, _, config = get_sops_files(None, None, None)
 
@@ -327,8 +375,8 @@ class BitwardenSecretsProvider(Provider):
             config.get("secret_providers", {}).get("bws", {}).get("project_id", "")
         )
 
-        if args.project_id:
-            project_id = args.project_id
+        if provider_args.project_id:
+            project_id = provider_args.project_id
 
         if not keyType:
             raise ValueError("Key type must be specified for export.")
@@ -339,9 +387,9 @@ class BitwardenSecretsProvider(Provider):
 
         match keyType:
             case "age":
-                if not args.keys:
+                if not payload.keys:
                     raise ValueError("No age key path passed via --keys.")
-                keyPath = Path(args.keys)
+                keyPath = Path(payload.keys)
 
                 self._exportBwsAgeKey(
                     keyPath, key, project_id, save_to_config, no_import
@@ -362,18 +410,18 @@ class BitwardenSecretsProvider(Provider):
                 )
 
             case "vault":
-                vaultAddr = args.vault_addr
-                keyPath = Path(args.keys)
-                if not keyPath:
+                vaultAddr = payload.vault_addr
+                if not payload.keys:
                     raise ValueError("No Vault key path passed via --keys.")
+
+                keyPath = Path(payload.keys)
+
                 if not vaultAddr:
                     raise ValueError("No Vault address passed via --vault-addr.")
 
                 self._exportBwsVaultKey(
                     keyPath, vaultAddr, key, project_id, save_to_config, no_import
                 )
-            case _:
-                raise ValueError(f"Unsupported key type: {keyType}")
 
     def check_status(self):
         if not checkDep("bws"):
@@ -406,7 +454,10 @@ class BitwardenSecretsProvider(Provider):
             ) from e
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
-        return self.args.from_bws
+        from chaos.lib.args.dataclasses import SecretsContext
+        if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
+            return self.payload.provider_config.ephemeral_provider_args.get("from_bws")
+        return None
 
     def _get_age_key_content(self, key_path: Path) -> str:
         with key_path.open("r") as f:
@@ -566,6 +617,14 @@ class BitwardenSecretsProvider(Provider):
 
 
 class BitwardenRbwProvider(Provider):
+    @classmethod
+    def build_export_args(cls, **kwargs) -> ProviderExportArgs:
+        return ProviderExportArgs()
+
+    @classmethod
+    def build_import_args(cls, **kwargs) -> ProviderImportArgs:
+        return ProviderImportArgs()
+
     @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_rbw", "rbw"
@@ -599,15 +658,14 @@ class BitwardenRbwProvider(Provider):
         )
         return secRbwExport
 
-    def export_secrets(self) -> None:
-        args = self.args
-        keyType = args.key_type
-        keyPath = args.keys
-        fingerprints = args.fingerprints
-        item_name = args.item_name
-        vaultAddr = args.vault_addr
-        save_to_config = args.save_to_config
-        no_import = args.no_import
+    def export_secrets(self, payload: SecretsExportPayload) -> None:
+        keyType = payload.key_type
+        keyPath = payload.keys
+        fingerprints = payload.fingerprints
+        item_name = payload.item_name
+        vaultAddr = payload.vault_addr
+        save_to_config = payload.save_to_config
+        no_import = payload.no_import
 
         isUnlocked, msg = self.check_status()
         if not isUnlocked:
@@ -663,8 +721,6 @@ class BitwardenRbwProvider(Provider):
                     raise FileNotFoundError(f"Path {keyPath} is not a file.")
 
                 key_content = setup_vault_keys(vaultAddr, keyPath)
-            case _:
-                raise ValueError(f"Unsupported key type: {keyType}")
 
         if not key_content:
             raise ValueError("No key content to export.")
@@ -751,8 +807,11 @@ class BitwardenRbwProvider(Provider):
                 f"Error reading secret from Bitwarden item '{item_id}': {e.stderr.strip()}"
             ) from e
 
-    def get_ephemeral_key_args(self) -> tuple[str, str]:
-        return self.args.from_rbw
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        from chaos.lib.args.dataclasses import SecretsContext
+        if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
+            return self.payload.provider_config.ephemeral_provider_args.get("from_rbw")
+        return None
 
     def _get_item_id(self, name: str) -> str:
         try:

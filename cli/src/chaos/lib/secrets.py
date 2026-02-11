@@ -2,12 +2,23 @@ from typing import cast
 
 from omegaconf import OmegaConf
 
+from chaos.lib.args.dataclasses import (
+    SecretsCatPayload,
+    SecretsEditPayload,
+    SecretsExportPayload,
+    SecretsImportPayload,
+    SecretsListPayload,
+    SecretsRotatePayload,
+    SecretsSetShamirPayload,
+    SecretsPrintPayload,
+)
+
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
 
 
-def handleRotateAdd(args):
+def handleRotateAdd(payload: SecretsRotatePayload):
     """
     Adds a new key to the sops config file and (if -u), updates all secrets.
 
@@ -15,99 +26,87 @@ def handleRotateAdd(args):
     """
     from chaos.lib.secret_backends.utils import get_sops_files
 
-    sops_file_override = getattr(args, "sops_file_override", None)
-    secrets_file_override = getattr(args, "secrets_file_override", None)
-    team = getattr(args, "team", None)
-
+    context = payload.context
     _, sops_file_override, _ = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
-    keys = args.keys
+    keys = payload.keys
 
     if not sops_file_override:
         raise FileNotFoundError("No sops config file found.")
 
-    match args.type:
+    match payload.type:
         case "pgp":
             from chaos.lib.secret_backends.pgp import handlePgpAdd
 
-            handlePgpAdd(args, sops_file_override, keys)
+            handlePgpAdd(payload, sops_file_override, keys)
         case "age":
             from chaos.lib.secret_backends.age import handleAgeAdd
 
-            handleAgeAdd(args, sops_file_override, keys)
+            handleAgeAdd(payload, sops_file_override, keys)
         case "vault":
             from chaos.lib.secret_backends.vault import handleVaultAdd
 
-            handleVaultAdd(args, sops_file_override, keys)
+            handleVaultAdd(payload, sops_file_override, keys)
         case _:
             raise ValueError("No available type passed.")
-    ikwid = args.i_know_what_im_doing
 
-    confirm = True if ikwid else False
-    if confirm:
+    if context.i_know_what_im_doing:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-        handleUpdateAllSecrets(args)
+        handleUpdateAllSecrets(context)
 
 
-def handleRotateRemove(args):
+def handleRotateRemove(payload: SecretsRotatePayload):
     """Removes a key from the sops config file and (if -u), updates all secrets."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
-    sops_file_override = getattr(args, "sops_file_override", None)
-    secrets_file_override = getattr(args, "secrets_file_override", None)
-    team = getattr(args, "team", None)
-
+    context = payload.context
     _, sops_file_override, _ = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
-    keys = args.keys
+    keys = payload.keys
 
     if not sops_file_override:
         raise FileNotFoundError("No sops config file found.")
 
-    ikwid = args.i_know_what_im_doing
-    match args.type:
+    match payload.type:
         case "pgp":
             from chaos.lib.secret_backends.pgp import handlePgpRem
 
-            handlePgpRem(args, sops_file_override, keys)
+            handlePgpRem(payload, sops_file_override, keys)
         case "age":
             from chaos.lib.secret_backends.age import handleAgeRem
 
-            handleAgeRem(args, sops_file_override, keys)
+            handleAgeRem(payload, sops_file_override, keys)
         case "vault":
             from chaos.lib.secret_backends.vault import handleVaultRem
 
-            handleVaultRem(args, sops_file_override, keys)
+            handleVaultRem(payload, sops_file_override, keys)
         case _:
             raise ValueError("No available type passed.")
-    confirm = True if ikwid else False
-    if confirm:
+
+    if context.i_know_what_im_doing:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-        handleUpdateAllSecrets(args)
+        handleUpdateAllSecrets(context)
 
 
-def listFp(args):
+def listFp(payload: SecretsListPayload):
     """Lists all keys of a certain type from the sops config file."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
-    sops_file_override = getattr(args, "sops_file_override", None)
-    secrets_file_override = getattr(args, "secrets_file_override", None)
-    team = getattr(args, "team", None)
-
+    context = payload.context
     _, sops_file_override, _ = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
     if not sops_file_override:
         raise FileNotFoundError("No sops config file found.")
 
-    match args.type:
+    match payload.type:
         case "pgp":
             from chaos.lib.secret_backends.pgp import listPgp
 
@@ -124,12 +123,12 @@ def listFp(args):
             raise ValueError("No available type passed.")
 
     if results:
-        if args.no_pretty:
-            if args.value:
+        if payload.no_pretty:
+            if payload.value:
                 print("\n".join(results))
                 return
 
-            if args.json:
+            if payload.json:
                 import json
 
                 print(json.dumps(list(results), indent=2))
@@ -140,16 +139,16 @@ def listFp(args):
 
         from chaos.lib.utils import render_list_as_table
 
-        title = f"[italic][green]Found {args.type} Keys:[/][/]"
+        title = f"[italic][green]Found {payload.type} Keys:[/][/]"
         render_list_as_table(list(results), title)
     else:
         from rich.console import Console
 
         console = Console()
-        console.print(f"[cyan]INFO:[/] No {args.type} keys to be shown.")
+        console.print(f"[cyan]INFO:[/] No {payload.type} keys to be shown.")
 
 
-def handleSetShamir(args):
+def handleSetShamir(payload: SecretsSetShamirPayload):
     """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
     import os
 
@@ -158,12 +157,9 @@ def handleSetShamir(args):
     from chaos.lib.secret_backends.utils import get_sops_files
 
     console = Console()
-    sops_file_override = getattr(args, "sops_file_override", None)
-    secrets_file_override = getattr(args, "secrets_file_override", None)
-    team = getattr(args, "team", None)
-
+    context = payload.context
     _, sops_file_override, _ = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
     if not sops_file_override:
@@ -174,9 +170,9 @@ def handleSetShamir(args):
             f"Sops config file does not exist at path: {sops_file_override}"
         )
 
-    threshold: int = args.share
-    rule_index: int = args.index
-    ikwid = getattr(args, "i_know_what_im_doing", False)
+    threshold: int = payload.share
+    rule_index: int = payload.index
+    ikwid = context.i_know_what_im_doing
 
     try:
         from omegaconf import DictConfig, OmegaConf
@@ -215,7 +211,7 @@ def handleSetShamir(args):
                             handleUpdateAllSecrets,
                         )
 
-                        handleUpdateAllSecrets(args)
+                        handleUpdateAllSecrets(context)
                 else:
                     console.print("Aborting.")
             else:
@@ -245,13 +241,13 @@ def handleSetShamir(args):
         if confirm:
             from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-            handleUpdateAllSecrets(args)
+            handleUpdateAllSecrets(context)
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 
-def handleSecEdit(args):
+def handleSecEdit(payload: SecretsEditPayload):
     """Opens the secrets file in SOPS for editing."""
     import os
     import subprocess
@@ -259,14 +255,12 @@ def handleSecEdit(args):
     from chaos.lib.checkers import is_vault_in_use
     from chaos.lib.secret_backends.utils import _resolveProvider, get_sops_files
 
-    team = args.team
-    sops_file_override = args.sops_file_override
-    secrets_file_override = args.secrets_file_override
+    context = payload.context
     secretsFile, sopsFile, global_config = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
-    provider = _resolveProvider(args, global_config)
+    provider = _resolveProvider(context, global_config)
 
     if is_vault_in_use(sopsFile):
         from chaos.lib.checkers import check_vault_auth
@@ -282,8 +276,7 @@ def handleSecEdit(args):
         )
 
     try:
-        isSops = args.sops
-        if isSops:
+        if payload.edit_sops_file:
             editor = os.getenv("EDITOR", "nano")
             subprocess.run([editor, sopsFile], check=True)
         elif provider:
@@ -308,7 +301,7 @@ def handleSecEdit(args):
         ) from e
 
 
-def handleSecPrint(args):
+def handleSecPrint(payload: SecretsPrintPayload):
     """Prints the decrypted secrets file to stdout."""
     import json
     import subprocess
@@ -316,17 +309,14 @@ def handleSecPrint(args):
     from chaos.lib.checkers import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
 
-    team = args.team
-    isSops = args.sops
-    sops_file_override = args.sops_file_override
-    secrets_file_override = args.secrets_file_override
+    context = payload.context
     secretsFile, sopsFile, global_config = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
-    args = _handle_provider_arg(args, global_config)
+    context = _handle_provider_arg(context, global_config)
 
-    if not isSops:
+    if not payload.print_sops_file:
         if not secretsFile:
             raise FileNotFoundError(
                 "SOPS check requires a secrets file path.\n"
@@ -346,7 +336,7 @@ def handleSecPrint(args):
             raise PermissionError(message)
 
     try:
-        if isSops:
+        if payload.print_sops_file:
             decrypted_output = subprocess.run(
                 ["cat", sopsFile], check=True, capture_output=True, text=True
             ).stdout
@@ -354,9 +344,9 @@ def handleSecPrint(args):
             from .secret_backends.utils import decrypt_secrets
 
             decrypted_output = decrypt_secrets(
-                secretsFile, sopsFile, global_config, args
+                secretsFile, sopsFile, global_config, context
             )
-        if args.json:
+        if payload.as_json:
             from omegaconf import OmegaConf
 
             decrypted_output = json.dumps(
@@ -375,7 +365,7 @@ def handleSecPrint(args):
         ) from e
 
 
-def handleSecCat(args):
+def handleSecCat(payload: SecretsCatPayload):
     """Prints specific keys from the decrypted secrets file to stdout."""
     import json
     import subprocess
@@ -384,15 +374,12 @@ def handleSecCat(args):
     from chaos.lib.checkers import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
 
-    team = args.team
-    sops_file_override = args.sops_file_override
-    keys = args.keys
-    secrets_file_override = args.secrets_file_override
+    context = payload.context
     secretsFile, sopsFile, global_config = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
-    args = _handle_provider_arg(args, global_config)
+    context = _handle_provider_arg(context, global_config)
 
     if not secretsFile or not sopsFile:
         raise FileNotFoundError(
@@ -408,9 +395,8 @@ def handleSecCat(args):
             raise PermissionError(message)
 
     try:
-        isSops = args.sops
         sopsDecryptResult = None
-        if isSops:
+        if payload.cat_sops_file:
             sopsDecryptResult = subprocess.run(
                 ["cat", sopsFile], check=True, text=True, capture_output=True
             ).stdout
@@ -418,7 +404,7 @@ def handleSecCat(args):
             from .secret_backends.utils import decrypt_secrets
 
             sopsDecryptResult = decrypt_secrets(
-                secretsFile, sopsFile, global_config, args
+                secretsFile, sopsFile, global_config, context
             )
 
         if sopsDecryptResult is None:
@@ -429,8 +415,7 @@ def handleSecCat(args):
         from omegaconf import DictConfig, ListConfig, OmegaConf
 
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
-        isJson = args.json
-        for key in keys:
+        for key in payload.keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)
             if value is None:
                 from rich.console import Console
@@ -441,11 +426,11 @@ def handleSecCat(args):
                 )
                 continue
 
-            if args.value:
+            if payload.value_only:
                 print(value)
                 continue
 
-            if not isJson:
+            if not payload.as_json:
                 if isinstance(value, (DictConfig, ListConfig)):
                     container = OmegaConf.create({key: value})
                     print(f"{OmegaConf.to_yaml(container)}")
@@ -467,17 +452,15 @@ def handleSecCat(args):
         ) from e
 
 
-def handleExportSec(args, global_config):
+def handleExportSec(payload: SecretsExportPayload, global_config):
     from chaos.lib.secret_backends.utils import _getProviderByName
 
-    provider_subcommand_name = args.export_commands
-    provider = _getProviderByName(provider_subcommand_name, args, global_config)
-    provider.export_secrets()
+    provider = _getProviderByName(payload, global_config)
+    provider.export_secrets(payload)
 
 
-def handleImportSec(args, global_config):
+def handleImportSec(payload: SecretsImportPayload, global_config):
     from chaos.lib.secret_backends.utils import _getProviderByName
 
-    provider_subcommand_name = args.import_commands
-    provider = _getProviderByName(provider_subcommand_name, args, global_config)
-    provider.import_secrets()
+    provider = _getProviderByName(payload, global_config)
+    provider.import_secrets(payload)

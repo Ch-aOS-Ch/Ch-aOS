@@ -43,7 +43,7 @@ def listAge(sops_file_override):
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 
-def handleAgeAdd(args, sops_file_override, keys):
+def handleAgeAdd(payload, sops_file_override, keys):
     valids = set()
     for key in keys:
         clean_key = key.strip()
@@ -59,10 +59,10 @@ def handleAgeAdd(args, sops_file_override, keys):
             continue
         valids.add(clean_key)
 
-    _generic_handle_add("age", args, sops_file_override, valids)
+    _generic_handle_add("age", payload, sops_file_override, valids)
 
 
-def handleAgeRem(args, sops_file_override, keys):
+def handleAgeRem(payload, sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
@@ -90,7 +90,7 @@ def handleAgeRem(args, sops_file_override, keys):
                     f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping."
                 )
 
-        _generic_handle_rem("age", args, sops_file_override, keys_to_remove)
+        _generic_handle_rem("age", payload, sops_file_override, keys_to_remove)
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e

@@ -2,13 +2,26 @@ import argparse
 import json
 import re
 import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple
+from typing import List, Optional, Tuple, cast
 
+from chaos.lib.args.dataclasses import (
+    ProviderExportArgs,
+    ProviderImportArgs,
+    SecretsExportPayload,
+)
 from chaos.lib.utils import checkDep
 
 from ..utils import extract_gpg_keys, get_sops_files, setup_vault_keys
 from .base import Provider
+
+
+@dataclass(frozen=True)
+class OnePasswordExportArgs(ProviderExportArgs):
+    op_export_item_id: Optional[str] = None
+    op_location: str = "notesPlain"
+    op_tags: List[str] = field(default_factory=list)
 
 
 class OnePasswordProvider(Provider):
@@ -16,6 +29,18 @@ class OnePasswordProvider(Provider):
     1Password secret backend provider.
     Implements methods to manage secrets using 1Password CLI.
     """
+
+    @classmethod
+    def build_export_args(cls, **kwargs) -> OnePasswordExportArgs:
+        return OnePasswordExportArgs(**kwargs)
+
+    @classmethod
+    def build_import_args(cls, **kwargs) -> ProviderImportArgs:
+        return ProviderImportArgs()
+
+    @staticmethod
+    def get_export_arg_names() -> List[str]:
+        return ["op_export_item_id", "op_location", "op_tags"]
 
     @staticmethod
     def get_cli_name() -> Tuple[str, str]:
@@ -39,6 +64,7 @@ class OnePasswordProvider(Provider):
         secOpExport.add_argument(
             "-i",
             "--item-id",
+            dest="op_export_item_id",
             help="1Password item URL where to export the key (format: op://vault/item).",
         )
         secOpExport.add_argument(
@@ -66,28 +92,34 @@ class OnePasswordProvider(Provider):
         secOpImport = subparser.add_parser("op", help="1Password CLI import options")
         return secOpImport
 
-    def export_secrets(self) -> None:
+    def export_secrets(self, payload: SecretsExportPayload) -> None:
         from rich.console import Console
 
         console = Console()
-        args = self.args
 
-        keyType = args.key_type
-        keyPath = args.keys
-        fingerprints = args.fingerprints
-        tags = args.op_tags
-        save_to_config = args.save_to_config
-        no_import = args.no_import
+        provider_args = cast(OnePasswordExportArgs, payload.provider_specific_args)
+
+        keyType = payload.key_type
+        keyPath = payload.keys
+        fingerprints = payload.fingerprints
+        tags = provider_args.op_tags
+        save_to_config = payload.save_to_config
+        no_import = payload.no_import
 
         _, _, config = get_sops_files(None, None, None)
         path = (
             config.get("secret_providers", {}).get("op", {}).get(f"{keyType}_url", "")
         )
 
-        if args.item_id:
-            path = args.item_id
+        if provider_args.op_export_item_id:
+            path = provider_args.op_export_item_id
 
-        loc = args.op_location
+        loc = provider_args.op_location or "notesPlain"
+
+        if not path:
+            raise ValueError(
+                "No 1Password item URL provided. Please specify it with --item-id or in the config file."
+            )
 
         vault, title, _ = self._reg_match_op_keypath(path)
         if self._op_get_item(vault, title) is not None:
@@ -153,7 +185,7 @@ class OnePasswordProvider(Provider):
             )
 
         elif keyType == "vault":
-            vaultAddr = args.vault_addr
+            vaultAddr = payload.vault_addr
             if not keyPath:
                 raise ValueError("No Vault key path passed via --keys.")
             if not vaultAddr:
@@ -206,7 +238,10 @@ class OnePasswordProvider(Provider):
             ) from e
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
-        return self.args.from_op
+        from chaos.lib.args.dataclasses import SecretsContext
+        if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
+            return self.payload.provider_config.ephemeral_provider_args.get("from_op")
+        return None
 
     def check_status(self):
         try:

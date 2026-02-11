@@ -1,8 +1,14 @@
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Union, cast
 
+from ..args.dataclasses import (
+    ProviderConfigPayload,
+    SecretsContext,
+    SecretsExportPayload,
+    SecretsImportPayload,
+)
 from ..utils import validate_path
 from .providers.base import Provider
 
@@ -14,14 +20,14 @@ Now now, I KNOW this is way too big of a file, but bear with me here
 """
 
 
-def _resolveProvider(args, global_config):
-    if hasattr(args, "provider") and args.provider is not None:
-        args = _handle_provider_arg(args, global_config)
+def _resolveProvider(context: SecretsContext, global_config):
+    if context.provider_config and context.provider_config.provider is not None:
+        context = _handle_provider_arg(context, global_config)
 
-    return _getProvider(args, global_config)
+    return _getProvider(context, global_config)
 
 
-def _getProvider(args, global_config):
+def _getProvider(context: SecretsContext, global_config):
     """Returns the appropriate secret provider based on the command-line arguments."""
     from chaos.lib.utils import get_providerEps
 
@@ -30,17 +36,25 @@ def _getProvider(args, global_config):
     if not provider_eps:
         return None
 
+    ephemeral_flags = (
+        context.provider_config.ephemeral_provider_args
+        if context.provider_config
+        else {}
+    )
+
     for ep in provider_eps:
         ProviderClass = ep.load()
         providerFlag, _ = ProviderClass.get_cli_name()
 
-        if hasattr(args, providerFlag) and getattr(args, providerFlag):
-            return ProviderClass(args, global_config)
+        if providerFlag in ephemeral_flags and ephemeral_flags[providerFlag]:
+            return ProviderClass(context, global_config)
 
     return None
 
 
-def _getProviderByName(provider_subcommand_name: str, args, global_config) -> Provider:
+def _getProviderByName(
+    payload: Union[SecretsExportPayload, SecretsImportPayload], global_config
+) -> Provider:
     from chaos.lib.utils import get_providerEps
 
     provider = None
@@ -51,8 +65,8 @@ def _getProviderByName(provider_subcommand_name: str, args, global_config) -> Pr
     for ep in provider_eps:
         ProviderClass = ep.load()
         _, providerCliName = ProviderClass.get_cli_name()
-        if providerCliName == provider_subcommand_name:
-            provider = ProviderClass(args, global_config)
+        if providerCliName == payload.provider_name:
+            provider = ProviderClass(payload, global_config)
 
             if not isinstance(provider, Provider) or not hasattr(
                 provider, "export_secrets"
@@ -63,7 +77,7 @@ def _getProviderByName(provider_subcommand_name: str, args, global_config) -> Pr
             break
 
     if not provider or provider is None:
-        raise ValueError(f"No secret provider found for '{provider_subcommand_name}'.")
+        raise ValueError(f"No secret provider found for '{payload.provider_name}'.")
     return provider
 
 
@@ -513,11 +527,12 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
     OmegaConf.save(config, config_path)
 
 
-def handleUpdateAllSecrets(args):
+def handleUpdateAllSecrets(context: SecretsContext):
     """
     The rest of the functions should be auto explicative.
     """
     import subprocess
+    from argparse import Namespace
 
     from omegaconf import OmegaConf
     from rich.console import Console
@@ -527,12 +542,8 @@ def handleUpdateAllSecrets(args):
     console = Console()
     console.print("\n[bold cyan]Starting key update for all secret files...[/]")
 
-    sops_file_override = getattr(args, "sops_file_override", None)
-    secrets_file_override = getattr(args, "secrets_file_override", None)
-    team = getattr(args, "team", None)
-
     main_secrets_file, sops_file_path, global_config = get_sops_files(
-        sops_file_override, secrets_file_override, team
+        context.sops_file_override, context.secrets_file_override, context.team
     )
 
     if is_vault_in_use(sops_file_path):
@@ -552,7 +563,7 @@ def handleUpdateAllSecrets(args):
                     f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]"
                 )
 
-                provider = _resolveProvider(args, global_config)
+                provider = _resolveProvider(context, global_config)
 
                 if provider:
                     provider.updatekeys(main_secrets_file, sops_file_path)
@@ -587,14 +598,26 @@ def handleUpdateAllSecrets(args):
     console.print("\n[bold cyan]Updating ramble files...[/]")
     from chaos.lib.ramble import handleUpdateEncryptRamble
 
-    handleUpdateEncryptRamble(args)
+    mock_args = Namespace(
+        sops_file_override=context.sops_file_override,
+        team=context.team,
+        provider=context.provider_config.provider if context.provider_config else None,
+    )
+    if context.provider_config:
+        for (
+            key,
+            value,
+        ) in context.provider_config.ephemeral_provider_args.items():
+            setattr(mock_args, key, value)
+
+    handleUpdateEncryptRamble(mock_args)
 
 
-def _handle_provider_arg(args, config):
+def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
     from chaos.lib.utils import get_providerEps
 
-    if not hasattr(args, "provider") or args.provider is None:
-        return args
+    if not context.provider_config or context.provider_config.provider is None:
+        return context
 
     if not config or "secret_providers" not in config:
         raise FileNotFoundError(
@@ -602,7 +625,7 @@ def _handle_provider_arg(args, config):
         )
 
     providers_config = config.secret_providers
-    provider_name = args.provider
+    provider_name = context.provider_config.provider
 
     if provider_name == "default":
         provider_name = providers_config.get("default")
@@ -634,6 +657,8 @@ def _handle_provider_arg(args, config):
         )
 
     provider_found = False
+    new_ephemeral_args = context.provider_config.ephemeral_provider_args.copy()
+
     for provider_ep in provider_eps:
         ProviderClass = provider_ep.load()
         providerFlag, providerName = ProviderClass.get_cli_name()
@@ -651,7 +676,7 @@ def _handle_provider_arg(args, config):
                     f"Could not find '{id_key}' or '{url_key}' in backend '{backend}' config for provider '{provider_name}'."
                 )
 
-            setattr(args, providerFlag, value_to_set)
+            new_ephemeral_args[providerFlag] = value_to_set
             provider_found = True
             break
 
@@ -660,11 +685,21 @@ def _handle_provider_arg(args, config):
             f"No installed provider plugin matched the backend '{backend}'."
         )
 
-    args.provider = None
-    return args
+    new_provider_config = ProviderConfigPayload(
+        provider=None, ephemeral_provider_args=new_ephemeral_args
+    )
+    return SecretsContext(
+        team=context.team,
+        sops_file_override=context.sops_file_override,
+        secrets_file_override=context.secrets_file_override,
+        provider_config=new_provider_config,
+        i_know_what_im_doing=context.i_know_what_im_doing,
+    )
 
 
-def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: set):
+def _generic_handle_add(
+    key_type: str, payload, sops_file_override: str, valids: set
+):
     from omegaconf import DictConfig, OmegaConf
     from rich.console import Console
 
@@ -674,7 +709,7 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
         return
 
     try:
-        create = args.create
+        create = payload.create
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
@@ -683,7 +718,7 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
                 f"No 'creation_rules' found in {sops_file_override}. Cannot add keys."
             )
 
-        rule_index = getattr(args, "index", None)
+        rule_index = payload.index
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
@@ -741,14 +776,14 @@ def _generic_handle_add(key_type: str, args, sops_file_override: str, valids: se
 
 
 def _generic_handle_rem(
-    key_type: str, args, sops_file_override: str, keys_to_remove: set
+    key_type: str, payload, sops_file_override: str, keys_to_remove: set
 ):
     from omegaconf import DictConfig, OmegaConf
     from rich.console import Console
 
     console = Console()
-    rule_index = getattr(args, "index", None)
-    ikwid = getattr(args, "i_know_what_im_doing", False)
+    rule_index = payload.index
+    ikwid = payload.context.i_know_what_im_doing
 
     if not keys_to_remove:
         console.print("No keys to remove. Exiting.")
@@ -807,7 +842,9 @@ def _generic_handle_rem(
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 
-def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
+def decrypt_secrets(
+    secrets_file: str, sops_file: str, config, context: SecretsContext
+) -> str:
     import subprocess
 
     from chaos.lib.checkers import check_vault_auth, is_vault_in_use
@@ -816,7 +853,7 @@ def decrypt_secrets(secrets_file: str, sops_file: str, config, args) -> str:
     if not checkDep("sops"):
         raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
 
-    provider = _resolveProvider(args, config)
+    provider = _resolveProvider(context, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()

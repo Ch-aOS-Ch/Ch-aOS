@@ -45,8 +45,8 @@ def listPgp(sops_file_override):
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 
-def handlePgpAdd(args, sops_file_override, keys):
-    server = args.pgp_server
+def handlePgpAdd(payload, sops_file_override, keys):
+    server = payload.pgp_server
     valids = set()
     for key in keys:
         clean_key = key.replace(" ", "")
@@ -93,10 +93,10 @@ def handlePgpAdd(args, sops_file_override, keys):
                 )
                 continue
         valids.add(clean_key)
-    _generic_handle_add("pgp", args, sops_file_override, valids)
+    _generic_handle_add("pgp", payload, sops_file_override, valids)
 
 
-def handlePgpRem(args, sops_file_override, keys):
+def handlePgpRem(payload, sops_file_override, keys):
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
@@ -128,7 +128,7 @@ def handlePgpRem(args, sops_file_override, keys):
                 console.print(
                     f"[cyan]INFO:[/] Fingerprint: {key_to_check} not found in sops config. Skipping."
                 )
-        _generic_handle_rem("pgp", args, sops_file_override, keys_to_remove)
+        _generic_handle_rem("pgp", payload, sops_file_override, keys_to_remove)
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e

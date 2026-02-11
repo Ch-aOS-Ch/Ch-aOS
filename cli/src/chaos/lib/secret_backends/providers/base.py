@@ -5,7 +5,15 @@ import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Tuple
+from typing import List, Tuple, Union
+
+from chaos.lib.args.dataclasses import (
+    ProviderExportArgs,
+    ProviderImportArgs,
+    SecretsContext,
+    SecretsExportPayload,
+    SecretsImportPayload,
+)
 
 from ..utils import (
     _import_age_keys,
@@ -24,9 +32,35 @@ class Provider(ABC):
     Base operations for managing secrets.
     """
 
-    def __init__(self, args, global_config: dict):
-        self.args = args
+    def __init__(
+        self,
+        payload: Union[SecretsContext, SecretsExportPayload, SecretsImportPayload],
+        global_config: dict,
+    ):
+        self.payload = payload
         self.config = global_config
+
+    @classmethod
+    @abstractmethod
+    def build_export_args(cls, **kwargs) -> "ProviderExportArgs":
+        """Builds the provider-specific export arguments dataclass from a dictionary."""
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def build_import_args(cls, **kwargs) -> "ProviderImportArgs":
+        """Builds the provider-specific import arguments dataclass from a dictionary."""
+        raise NotImplementedError
+
+    @staticmethod
+    def get_export_arg_names() -> List[str]:
+        """Gets the list of provider-specific export argument names."""
+        return []
+
+    @staticmethod
+    def get_import_arg_names() -> List[str]:
+        """Gets the list of provider-specific import argument names."""
+        return []
 
     @staticmethod
     @abstractmethod
@@ -57,7 +91,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def get_cli_name() -> Tuple[str | None, str | None]:
+    def get_cli_name() -> Tuple[str, str]:
         """
         Returns the name of the attribute in the args object that corresponds
         to this provider's ephemeral key flag (e.g., 'from_bw') and name for config (e.g. bw).
@@ -133,7 +167,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def export_secrets(self) -> None:
+    def export_secrets(self, payload: SecretsExportPayload) -> None:
         """
         Exports local keys to the provider.
         """
@@ -226,7 +260,7 @@ class Provider(ABC):
 
         return vault_addr, vault_token, key_content
 
-    def import_secrets(self) -> None:
+    def import_secrets(self, payload: SecretsImportPayload) -> None:
         """
         Imports remote keys from the provider to local.
         """
@@ -236,10 +270,8 @@ class Provider(ABC):
 
         self.check_status()
 
-        args = self.args
-
-        keyType = args.key_type
-        item_id = args.item_id
+        keyType = payload.key_type
+        item_id = payload.item_id
         if not keyType:
             raise ValueError("Key type must be specified for import.")
         if not item_id:
@@ -293,9 +325,6 @@ class Provider(ABC):
                 )
 
                 _import_vault_keys(key_content)
-
-            case _:
-                raise ValueError(f"Unsupported key type: {keyType}")
 
     def edit(self, secrets_file: str, sops_file: str) -> None:
         """

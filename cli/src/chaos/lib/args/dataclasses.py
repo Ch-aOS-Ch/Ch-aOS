@@ -71,6 +71,16 @@ class SecretsContext:
 
 
 @dataclass(frozen=True)
+class ProviderExportArgs:
+    pass
+
+
+@dataclass(frozen=True)
+class ProviderImportArgs:
+    pass
+
+
+@dataclass(frozen=True)
 class SecretsExportPayload:
     provider_name: str
     key_type: Literal["age", "gpg", "vault"]
@@ -80,7 +90,9 @@ class SecretsExportPayload:
     keys: Optional[str] = None
     vault_addr: Optional[str] = None
     fingerprints: Optional[List[str]] = None
-    provider_specific_args: Dict[str, Any] = field(default_factory=dict)
+    provider_specific_args: ProviderExportArgs = field(
+        default_factory=ProviderExportArgs
+    )
 
 
 @dataclass(frozen=True)
@@ -88,7 +100,9 @@ class SecretsImportPayload:
     provider_name: str
     key_type: Literal["age", "gpg", "vault"]
     item_id: Optional[str] = None
-    provider_specific_args: Dict[str, Any] = field(default_factory=dict)
+    provider_specific_args: ProviderImportArgs = field(
+        default_factory=ProviderImportArgs
+    )
 
 
 @dataclass(frozen=True)
@@ -103,6 +117,7 @@ class SecretsRotatePayload:
 
 @dataclass(frozen=True)
 class SecretsListPayload:
+    type: Literal["age", "pgp", "vault"]
     context: SecretsContext
     no_pretty: bool = False
     json: bool = False
