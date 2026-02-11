@@ -203,7 +203,10 @@ def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(
                         Padding.indent(
                             Syntax(
-                                explanation["validation"], "bash", line_numbers=True
+                                explanation["validation"],
+                                "bash",
+                                line_numbers=True,
+                                word_wrap=True,
                             ),
                             5,
                         )
@@ -217,7 +220,13 @@ def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
                         if "yaml" in ex:
                             explanation_renderables.append(
                                 Padding.indent(
-                                    Syntax(ex["yaml"], "yaml", line_numbers=True), 5
+                                    Syntax(
+                                        ex["yaml"],
+                                        "yaml",
+                                        line_numbers=True,
+                                        word_wrap=True,
+                                    ),
+                                    5,
                                 )
                             )
                     explanation_renderables.append(Text("\n"))

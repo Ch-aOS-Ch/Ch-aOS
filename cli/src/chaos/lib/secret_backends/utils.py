@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from ..utils import validate_path
+from .providers.base import Provider
 
 if TYPE_CHECKING:
     from .providers.base import Provider
@@ -61,7 +62,7 @@ def _getProviderByName(provider_subcommand_name: str, args, global_config) -> Pr
                 )
             break
 
-    if not provider or provider == None:
+    if not provider or provider is None:
         raise ValueError(f"No secret provider found for '{provider_subcommand_name}'.")
     return provider
 
@@ -125,7 +126,7 @@ def setup_gpg_keys(gnupghome) -> None:
     if src_trust.exists():
         try:
             shutil.copy2(src_trust, temp_gnupg_path / "trustdb.gpg")
-        except:
+        except Exception:
             pass
 
 

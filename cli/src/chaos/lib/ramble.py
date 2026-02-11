@@ -210,7 +210,14 @@ def _print_ramble(ramble_path, sops_config, target_name, team, args, global_conf
                 if lang in knownLangs and code:
                     renderables.append(
                         Padding.indent(
-                            Syntax(code, lang, line_numbers=True, theme="ansi_dark"), 5
+                            Syntax(
+                                code,
+                                lang,
+                                line_numbers=True,
+                                theme="monokai",
+                                word_wrap=True,
+                            ),
+                            5,
                         )
                     )
         else:
