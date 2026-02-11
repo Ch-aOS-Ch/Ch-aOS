@@ -7,8 +7,9 @@ from chaos.lib.secret_backends.utils import (
     _generic_handle_add,
     _generic_handle_rem,
     flatten,
-    is_valid_age_key,
 )
+
+from .crypto import is_valid_age_key
 
 console = Console()
 

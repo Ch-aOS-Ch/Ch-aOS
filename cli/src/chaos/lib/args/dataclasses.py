@@ -151,3 +151,61 @@ class SecretsSetShamirPayload:
     index: int
     share: int
     context: SecretsContext
+
+
+@dataclass(frozen=True)
+class RambleCreatePayload:
+    target: str
+    context: SecretsContext
+    encrypt: bool
+    keys: Optional[List[str]] = None
+
+
+@dataclass(frozen=True)
+class RambleEditPayload:
+    target: str
+    context: SecretsContext
+    edit_sops_file: bool = False
+
+
+@dataclass(frozen=True)
+class RambleEncryptPayload:
+    target: str
+    context: SecretsContext
+    keys: Optional[List[str]] = None
+
+
+@dataclass(frozen=True)
+class RambleReadPayload:
+    targets: List[str]
+    context: SecretsContext
+    no_pretty: bool = False
+    json: bool = False
+    values: Optional[List[str]] = None
+
+
+@dataclass(frozen=True)
+class RambleFindPayload:
+    context: SecretsContext
+    find_term: Optional[str] = None
+    tag: Optional[str] = None
+    no_pretty: bool = False
+    json: bool = False
+
+
+@dataclass(frozen=True)
+class RambleMovePayload:
+    old: str
+    new: str
+    context: SecretsContext
+
+
+@dataclass(frozen=True)
+class RambleDeletePayload:
+    ramble: str
+    context: SecretsContext
+
+
+@dataclass(frozen=True)
+class RambleUpdateEncryptPayload:
+    context: SecretsContext

@@ -224,18 +224,22 @@ def handleApply(args, Console):
         dry = args.dry
         if args.verbose or args.v > 0:
             handleVerbose(args)
+
         if args.tags:
             ROLES_DISPATCHER = cast(DictConfig, ROLES_DISPATCHER)
             ROLE_ALIASES = cast(DictConfig, ROLE_ALIASES)
+
             handleOrchestration(args, dry, ikwid, ROLES_DISPATCHER, ROLE_ALIASES)
         else:
             print("No tags passed.")
     except FileNotFoundError as e:
         Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
+
     except pyinfra_exceptions.PyinfraError as e:
         print(f"Unexpected pyinfra error: {e}", file=sys.stderr)
         sys.exit(1)
+
     except (RuntimeError, ValueError) as e:
         Console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
@@ -327,6 +331,7 @@ def handleSecrets(args, Console):
                     fingerprints=getattr(args, "fingerprints", None),
                     provider_specific_args=provider_specific_args,
                 )
+
                 handleExportSec(payload, global_config)
 
             case "import":
@@ -547,42 +552,132 @@ def handleSet(args, Console):
         sys.exit(0)
 
 
-# TODO: add payload
 def handleRamble(args, Console):
     try:
+        from .lib.args.dataclasses import (
+            ProviderConfigPayload,
+            RambleCreatePayload,
+            RambleDeletePayload,
+            RambleEditPayload,
+            RambleEncryptPayload,
+            RambleFindPayload,
+            RambleMovePayload,
+            RambleReadPayload,
+            RambleUpdateEncryptPayload,
+            SecretsContext,
+        )
+        from .lib.utils import get_providerEps
+
+        team = getattr(args, "team", None)
+        sops_file_override = getattr(args, "sops_file_override", None)
+
+        provider_eps = get_providerEps()
+        provider_classes = [ep.load() for ep in provider_eps] if provider_eps else []
+
+        ephemeral_provider_args = {}
+        for provider_class in provider_classes:
+            flag_name, _ = provider_class.get_cli_name()
+            if flag_name and hasattr(args, flag_name):
+                value = getattr(args, flag_name, None)
+                if value:
+                    ephemeral_provider_args[flag_name] = value
+
+        provider_config = ProviderConfigPayload(
+            provider=getattr(args, "provider", None),
+            ephemeral_provider_args=ephemeral_provider_args,
+        )
+
+        ramble_context = SecretsContext(
+            team=team,
+            sops_file_override=sops_file_override,
+            secrets_file_override=None,
+            provider_config=provider_config,
+            i_know_what_im_doing=False,
+        )
+
         match args.ramble_commands:
             case "create":
                 from .lib.ramble import handleCreateRamble
 
-                handleCreateRamble(args)
+                payload = RambleCreatePayload(
+                    target=args.target,
+                    encrypt=getattr(args, "encrypt", False),
+                    keys=getattr(args, "keys", None),
+                    context=ramble_context,
+                )
+
+                handleCreateRamble(payload)
             case "edit":
                 from .lib.ramble import handleEditRamble
 
-                handleEditRamble(args)
+                payload = RambleEditPayload(
+                    target=args.target,
+                    edit_sops_file=getattr(args, "sops", False),
+                    context=ramble_context,
+                )
+
+                handleEditRamble(payload)
             case "encrypt":
                 from .lib.ramble import handleEncryptRamble
 
-                handleEncryptRamble(args)
+                payload = RambleEncryptPayload(
+                    target=args.target,
+                    keys=getattr(args, "keys", None),
+                    context=ramble_context,
+                )
+
+                handleEncryptRamble(payload)
             case "read":
                 from .lib.ramble import handleReadRamble
 
-                handleReadRamble(args)
+                payload = RambleReadPayload(
+                    targets=args.targets,
+                    no_pretty=getattr(args, "no_pretty", False),
+                    json=getattr(args, "json", False),
+                    values=getattr(args, "values", None),
+                    context=ramble_context,
+                )
+
+                handleReadRamble(payload)
             case "find":
                 from .lib.ramble import handleFindRamble
 
-                handleFindRamble(args)
+                payload = RambleFindPayload(
+                    find_term=getattr(args, "find_term", None),
+                    tag=getattr(args, "tag", None),
+                    no_pretty=getattr(args, "no_pretty", False),
+                    json=getattr(args, "json", False),
+                    context=ramble_context,
+                )
+
+                handleFindRamble(payload)
             case "move":
                 from .lib.ramble import handleMoveRamble
 
-                handleMoveRamble(args)
+                payload = RambleMovePayload(
+                    old=args.old,
+                    new=args.new,
+                    context=ramble_context,
+                )
+
+                handleMoveRamble(payload)
             case "delete":
                 from .lib.ramble import handleDelRamble
 
-                handleDelRamble(args)
+                payload = RambleDeletePayload(
+                    ramble=args.ramble,
+                    context=ramble_context,
+                )
+
+                handleDelRamble(payload)
             case "update":
                 from .lib.ramble import handleUpdateEncryptRamble
 
-                handleUpdateEncryptRamble(args)
+                payload = RambleUpdateEncryptPayload(
+                    context=ramble_context,
+                )
+
+                handleUpdateEncryptRamble(payload)
             case _:
                 Console.print("Unsupported ramble subcommand.")
     except (

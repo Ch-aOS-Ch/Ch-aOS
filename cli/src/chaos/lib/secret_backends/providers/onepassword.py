@@ -13,7 +13,8 @@ from chaos.lib.args.dataclasses import (
 )
 from chaos.lib.utils import checkDep
 
-from ..utils import extract_gpg_keys, get_sops_files, setup_vault_keys
+from ..crypto import extract_gpg_keys
+from ..utils import get_sops_files, setup_vault_keys
 from .base import Provider
 
 
@@ -239,6 +240,7 @@ class OnePasswordProvider(Provider):
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
         from chaos.lib.args.dataclasses import SecretsContext
+
         if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
             return self.payload.provider_config.ephemeral_provider_args.get("from_op")
         return None

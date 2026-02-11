@@ -8,9 +8,9 @@ from chaos.lib.secret_backends.utils import (
     _generic_handle_add,
     _generic_handle_rem,
     flatten,
-    is_valid_fp,
-    pgp_exists,
 )
+
+from .crypto import is_valid_fp, pgp_exists
 
 console = Console()
 

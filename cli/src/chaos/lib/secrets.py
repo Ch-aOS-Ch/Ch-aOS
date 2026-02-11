@@ -8,9 +8,9 @@ from chaos.lib.args.dataclasses import (
     SecretsExportPayload,
     SecretsImportPayload,
     SecretsListPayload,
+    SecretsPrintPayload,
     SecretsRotatePayload,
     SecretsSetShamirPayload,
-    SecretsPrintPayload,
 )
 
 """
@@ -49,8 +49,6 @@ def handleRotateAdd(payload: SecretsRotatePayload):
             from chaos.lib.secret_backends.vault import handleVaultAdd
 
             handleVaultAdd(payload, sops_file_override, keys)
-        case _:
-            raise ValueError("No available type passed.")
 
     if context.i_know_what_im_doing:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
@@ -85,8 +83,6 @@ def handleRotateRemove(payload: SecretsRotatePayload):
             from chaos.lib.secret_backends.vault import handleVaultRem
 
             handleVaultRem(payload, sops_file_override, keys)
-        case _:
-            raise ValueError("No available type passed.")
 
     if context.i_know_what_im_doing:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
@@ -119,8 +115,6 @@ def listFp(payload: SecretsListPayload):
             from chaos.lib.secret_backends.vault import listVault
 
             results = listVault(sops_file_override)
-        case _:
-            raise ValueError("No available type passed.")
 
     if results:
         if payload.no_pretty:

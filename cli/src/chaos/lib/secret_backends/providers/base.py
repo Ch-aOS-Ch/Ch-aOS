@@ -15,7 +15,7 @@ from chaos.lib.args.dataclasses import (
     SecretsImportPayload,
 )
 
-from ..utils import (
+from ..crypto import (
     _import_age_keys,
     _import_gpg_keys,
     _import_vault_keys,

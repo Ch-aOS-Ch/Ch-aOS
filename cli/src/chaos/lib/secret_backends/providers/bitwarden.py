@@ -14,13 +14,15 @@ from chaos.lib.args.dataclasses import (
 )
 from chaos.lib.utils import checkDep
 
-from ..utils import (
-    _save_to_config,
+from ..crypto import (
     extract_age_keys,
     extract_gpg_keys,
-    get_sops_files,
     is_valid_age_key,
     is_valid_age_secret_key,
+)
+from ..utils import (
+    _save_to_config,
+    get_sops_files,
     setup_vault_keys,
 )
 from .base import Provider
@@ -296,6 +298,7 @@ class BitwardenPasswordProvider(Provider):
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
         from chaos.lib.args.dataclasses import SecretsContext
+
         if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
             return self.payload.provider_config.ephemeral_provider_args.get("from_bw")
         return None
@@ -455,6 +458,7 @@ class BitwardenSecretsProvider(Provider):
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
         from chaos.lib.args.dataclasses import SecretsContext
+
         if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
             return self.payload.provider_config.ephemeral_provider_args.get("from_bws")
         return None
@@ -809,6 +813,7 @@ class BitwardenRbwProvider(Provider):
 
     def get_ephemeral_key_args(self) -> tuple[str, str] | None:
         from chaos.lib.args.dataclasses import SecretsContext
+
         if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
             return self.payload.provider_config.ephemeral_provider_args.get("from_rbw")
         return None
@@ -847,3 +852,4 @@ class BitwardenRbwProvider(Provider):
         id = items[0].split("\t")[0]
 
         return id
+
