@@ -2,6 +2,15 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+"""
+Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
+0.1s startup time, which is a 25% increase, and that's just not acceptable for a CLI tool. So instead,
+We use __slots__ and a custom __init__ to achieve the same thing, but with a much lower startup time. Plus,
+this way we have more control over the initialization and can do things like validation or default values more easily.
+
+cool, right?
+"""
+
 
 class TeamPrunePayload:
     __slots__ = ("companies", "i_know_what_im_doing")

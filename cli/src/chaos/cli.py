@@ -6,13 +6,12 @@ from chaos.lib.args.args import argParsing
 from chaos.lib.args.types import ChaosArguments
 
 """
-Ok so, this is the main CLI entrypoint for this project. Yeah, ik it's a lot of match cases, but this is intentional.
-This allows us to have a very clear, explicit mapping of commands, subcommands, and their prerequisites.
+This is the main CLI entry point for this tool It handles parsing and the passage of arguments
+To the subcommand handlers in chaos.lib.args.commands. Each subcommand handler is responsible for its own logic and functionality.
 
-To add a new command, simply add a new case to the main match statement, import the modules INSIDE the case, add a try/except and call the functions.
-If a command has subcommands, add a NESTED match statement inside the case for that command, DO NOT create sepparate functions for each subcommand, let's keep them all together for clarity.
-
-Keep this file AS EXPLICIT as possible, avoid abstractions that hide the control flux, as removing commands is way more important than adding them.
+To add a new command, create a new handler in chaos.lib.args.commands and add a case for it in the main function.
+Do not forget to add a equivalent dataclass in chaos.lib.args.types for the data of the subcommand commands
+and to type the args in chaos.lib.args.types.
 """
 
 
