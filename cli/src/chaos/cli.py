@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import sys
 from typing import cast
 
@@ -20,11 +19,6 @@ Keep this file AS EXPLICIT as possible, avoid abstractions that hide the control
 def main():
     try:
         parser = argParsing()
-
-        if "_ARGCOMPLETE" in os.environ:
-            import argcomplete
-
-            argcomplete.autocomplete(parser)
 
         if len(sys.argv) == 1:
             parser.print_help(sys.stderr)
