@@ -2,7 +2,6 @@ import subprocess
 from typing import cast
 
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
 
 from chaos.lib.secret_backends.utils import (
     _generic_handle_add,
@@ -12,14 +11,15 @@ from chaos.lib.secret_backends.utils import (
 
 from .crypto import is_valid_fp, pgp_exists
 
-console = Console()
-
 """
 GPG specific handlers for add/rem/list
 """
 
 
 def listPgp(sops_file_override):
+    from rich.console import Console
+
+    console = Console()
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
@@ -46,6 +46,9 @@ def listPgp(sops_file_override):
 
 
 def handlePgpAdd(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     server = payload.pgp_server
     valids = set()
     for key in keys:
@@ -97,6 +100,9 @@ def handlePgpAdd(payload, sops_file_override, keys):
 
 
 def handlePgpRem(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)

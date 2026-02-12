@@ -4,9 +4,6 @@ import subprocess
 import zlib
 from pathlib import Path
 
-from rich.console import Console
-from rich.prompt import Confirm
-
 
 def compress(data: bytes) -> str:
     """
@@ -101,6 +98,7 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
     """
     Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
     """
+
     try:
         result = subprocess.run(
             ["gpg", "--export-secret-keys"] + fingerprints,
@@ -133,6 +131,9 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
 
 
 def _import_age_keys(key_content: str) -> None:
+    from rich.console import Console
+    from rich.prompt import Confirm
+
     console = Console()
     currentPathAgeFile = Path.cwd() / "keys.txt"
 
@@ -154,6 +155,8 @@ def _import_age_keys(key_content: str) -> None:
 
 
 def _import_gpg_keys(secKey: str) -> None:
+    from rich.console import Console
+
     console = Console()
     decompressedKey = decompress(secKey)
 

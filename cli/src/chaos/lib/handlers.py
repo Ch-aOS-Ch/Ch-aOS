@@ -5,15 +5,11 @@ from pathlib import Path
 from typing import cast
 
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
-from rich.prompt import Confirm, Prompt
 
 from .args.dataclasses import SetPayload
 from .boats.base import Boat
 from .telemetry import ChaosTelemetry
 from .utils import validate_path
-
-console = Console()
 
 """
 Orchestration/Explanation Handlers for Chaos CLI
@@ -150,6 +146,9 @@ def _load_boats() -> list[type[Boat]]:
 
 
 def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
+    from rich.console import Console
+
+    console = Console()
     loaded_boat_classes = _load_boats()
     if not loaded_boat_classes:
         return global_state
@@ -174,6 +173,11 @@ def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
 
 
 def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
+    from rich.console import Console
+    from rich.prompt import Confirm
+
+    console = Console()
+
     isFleet = False
     if hasattr(args, "fleet") and args.fleet:
         chobolo_config = cast(DictConfig, chobolo_config)
@@ -282,10 +286,15 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     # --- Lazy import pyinfra components ---
     import time
 
+    from rich.console import Console
+
+    console = Console()
+
     from pyinfra.api.config import Config  # type: ignore
     from pyinfra.api.connect import connect_all  # type: ignore
     from pyinfra.api.state import State, StateStage  # type: ignore
     from pyinfra.context import ctx_state  # type: ignore
+    from rich.prompt import Prompt
     # ------------------------------------
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
@@ -360,9 +369,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     return state, skip
 
 
-def _setup_user_aliases(
-    console: Console, userAliases: DictConfig, ROLE_ALIASES: DictConfig
-):
+def _setup_user_aliases(console, userAliases: DictConfig, ROLE_ALIASES: DictConfig):
     for a in userAliases.keys():
         if a in ROLE_ALIASES:
             console.print(
@@ -392,6 +399,8 @@ def handleSecRoles(
     global_config,
     args,
 ):
+    from rich.prompt import Confirm
+
     if normalized_tag in enabledSecPlugins:
         confirm = (
             True
@@ -449,6 +458,9 @@ def _run_tags(
     console_err,
     host,
 ):
+    from rich.console import Console
+
+    console = Console()
     for tag in args.tags:
         normalized_tag = _setup_normalized_tag(tag, ROLE_ALIASES)
         if normalized_tag in ROLES_DISPATCHER:
@@ -488,6 +500,7 @@ def handleOrchestration(
     from pyinfra.api.connect import disconnect_all  # type: ignore
     from pyinfra.api.exceptions import PyinfraError  # type: ignore
     from pyinfra.api.operations import run_ops  # type: ignore
+    from rich.console import Console
 
     console = Console()
     console_err = Console(stderr=True)

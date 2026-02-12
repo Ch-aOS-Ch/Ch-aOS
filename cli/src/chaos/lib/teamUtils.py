@@ -4,15 +4,10 @@ from typing import Optional, cast
 
 import yaml
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 
 from chaos.lib.utils import checkDep
 
 from .utils import validate_path
-
-console = Console()
 
 """Team Utilities for Chaos CLI."""
 
@@ -51,6 +46,9 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
 
     If neither of those, it creates the symlink and notifies the user.
     """
+    from rich.console import Console
+
+    console = Console()
     try:
         src = base_path / f"{company}/{team}"
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
@@ -198,6 +196,11 @@ def _create_sops_config(
 
     Yeah Yeah, it's kinda big, but it's flexible, secure and more importantly: It does one singular thing.
     """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
     sops_file = teamDir / "sops-config.yml"
     if sops_file.exists():
         if not Confirm.ask(

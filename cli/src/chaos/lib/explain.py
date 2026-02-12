@@ -2,15 +2,11 @@ import sys
 from importlib import import_module
 
 from omegaconf import OmegaConf
-from rich.console import Console
-from rich.text import Text
 
 from .args.dataclasses import ExplainPayload
 
-console = Console()
 
-
-def _setup_method_explain(EXPLAIN_DISPATCHER, role):
+def _setup_method_explain(EXPLAIN_DISPATCHER, role, console):
     try:
         module_name, class_name = EXPLAIN_DISPATCHER[role].split(":")
         module = import_module(module_name)
@@ -72,12 +68,15 @@ def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
     I really should add a "--complexity" flag to extend the capability of detailing even further.
     """
     from rich.align import Align
-    from rich.console import Group
+    from rich.console import Console, Group
     from rich.markdown import Markdown
     from rich.padding import Padding
     from rich.panel import Panel
     from rich.syntax import Syntax
+    from rich.text import Text
     from rich.tree import Tree
+
+    console = Console()
 
     DETAIL_LEVELS = {
         "basic": ["concept", "what", "why", "examples", "security"],
@@ -118,7 +117,7 @@ def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
         sub_topic = parts[1] if len(parts) > 1 else None
 
         if role in EXPLAIN_DISPATCHER:
-            ExplainObj = _setup_method_explain(EXPLAIN_DISPATCHER, role)
+            ExplainObj = _setup_method_explain(EXPLAIN_DISPATCHER, role, console)
 
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 

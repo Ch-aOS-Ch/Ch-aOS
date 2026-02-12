@@ -15,7 +15,6 @@ from chaos.lib.secret_backends.utils import (
     _handle_provider_arg,
     decrypt_secrets,
 )
-from chaos.lib.utils import render_list_as_table
 
 """
 Module for managing ramble journals and pages.
@@ -903,6 +902,8 @@ def handleFindRamble(payload):
         return
 
     title = "[italic][green]Found ramblings:[/][/]"
+    from chaos.lib.display_utils import render_list_as_table
+
     render_list_as_table(results, title)
 
 

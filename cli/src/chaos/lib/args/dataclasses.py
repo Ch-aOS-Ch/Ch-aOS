@@ -1,76 +1,78 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamPrunePayload:
-    companies: List[str]
+    companies: list[str]
     i_know_what_im_doing: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamListPayload:
-    company: Optional[str]
+    company: str | None
     no_pretty: bool
     json: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamClonePayload:
     target: str
-    path: Optional[str]
+    path: str | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamInitPayload:
     target: str
-    path: Optional[str]
+    path: str | None
     i_know_what_im_doing: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamActivatePayload:
-    path: Optional[str]
+    path: str | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamDeactivatePayload:
     company: str
-    teams: List[str]
+    teams: list[str]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ExplainPayload:
-    topics: List[str]
+    topics: list[str]
     no_pretty: bool
     json: bool
     details: str = "basic"
     complexity: str = "basic"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SetPayload:
-    chobolo_file: Optional[str]
-    sops_file: Optional[str]
-    secrets_file: Optional[str]
+    chobolo_file: str | None
+    sops_file: str | None
+    secrets_file: str | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ProviderConfigPayload:
-    provider: Optional[str] = None
-    ephemeral_provider_args: Dict[str, Any] = field(default_factory=dict)
+    provider: str | None = None
+    ephemeral_provider_args: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SecretsContext:
-    team: Optional[str] = None
-    sops_file_override: Optional[str] = None
-    secrets_file_override: Optional[str] = None
-    provider_config: Optional[ProviderConfigPayload] = None
+    team: str | None = None
+    sops_file_override: str | None = None
+    secrets_file_override: str | None = None
+    provider_config: ProviderConfigPayload | None = None
     i_know_what_im_doing: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ProviderExportArgs:
     pass
 
@@ -86,10 +88,10 @@ class SecretsExportPayload:
     key_type: Literal["age", "gpg", "vault"]
     no_import: bool
     save_to_config: bool
-    item_name: Optional[str] = None
-    keys: Optional[str] = None
-    vault_addr: Optional[str] = None
-    fingerprints: Optional[List[str]] = None
+    item_name: str | None = None
+    keys: str | None = None
+    vault_addr: str | None = None
+    fingerprints: list[str] | None = None
     provider_specific_args: ProviderExportArgs = field(
         default_factory=ProviderExportArgs
     )
@@ -99,7 +101,7 @@ class SecretsExportPayload:
 class SecretsImportPayload:
     provider_name: str
     key_type: Literal["age", "gpg", "vault"]
-    item_id: Optional[str] = None
+    item_id: str | None = None
     provider_specific_args: ProviderImportArgs = field(
         default_factory=ProviderImportArgs
     )
@@ -108,10 +110,10 @@ class SecretsImportPayload:
 @dataclass(frozen=True)
 class SecretsRotatePayload:
     type: Literal["age", "pgp", "vault"]
-    keys: List[str]
+    keys: list[str]
     context: SecretsContext
-    index: Optional[int] = None
-    pgp_server: Optional[str] = None
+    index: int | None = None
+    pgp_server: str | None = None
     create: bool = False
 
 
@@ -139,7 +141,7 @@ class SecretsPrintPayload:
 
 @dataclass(frozen=True)
 class SecretsCatPayload:
-    keys: List[str]
+    keys: list[str]
     context: SecretsContext
     cat_sops_file: bool = False
     as_json: bool = False
@@ -158,7 +160,7 @@ class RambleCreatePayload:
     target: str
     context: SecretsContext
     encrypt: bool
-    keys: Optional[List[str]] = None
+    keys: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -172,23 +174,23 @@ class RambleEditPayload:
 class RambleEncryptPayload:
     target: str
     context: SecretsContext
-    keys: Optional[List[str]] = None
+    keys: list[str] | None = None
 
 
 @dataclass(frozen=True)
 class RambleReadPayload:
-    targets: List[str]
+    targets: list[str]
     context: SecretsContext
     no_pretty: bool = False
     json: bool = False
-    values: Optional[List[str]] = None
+    values: list[str] | None = None
 
 
 @dataclass(frozen=True)
 class RambleFindPayload:
     context: SecretsContext
-    find_term: Optional[str] = None
-    tag: Optional[str] = None
+    find_term: str | None = None
+    tag: str | None = None
     no_pretty: bool = False
     json: bool = False
 

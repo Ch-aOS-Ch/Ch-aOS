@@ -6,15 +6,10 @@ from pathlib import Path
 
 import yaml
 from omegaconf import OmegaConf as oc
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
-
-console = Console()
 
 """
 Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
@@ -23,6 +18,9 @@ Scripts for initializing various parts of Ch-aOS, including Chobolo configuratio
 
 def initChobolo(keys):
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
+    from rich.console import Console
+
+    console = Console()
     finalConf = oc.create()
     addedKeys = set()
 
@@ -61,6 +59,11 @@ def checkForSsh():
 
 
 def setupSshToAge():
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     """
     Setup age keys using ssh-to-age conversion.
 
@@ -164,6 +167,11 @@ def setupSshToAge():
 
 
 def setupAge():
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     """
     Setup Age keys for Sops encryption.
 
@@ -260,6 +268,9 @@ def genBatchGpg(name, email):
 
     deps: gnupg
     """
+    from rich.console import Console
+
+    console = Console()
     batch = f"""
 Key-Type: EdDSA
 Key-Curve: ed25519
@@ -309,6 +320,12 @@ Expire-Date: 0
 
 
 def genGpgManual():
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Prompt
+
+    console = Console()
+
     """
     Lists all existing GPG secret keys and prompts user to select one by fingerprint.
     """
@@ -342,6 +359,12 @@ def genGpgManual():
 
 
 def setupGpg():
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     "Setup GPG keys for Sops encryption."
     if not checkDep("gpg"):
         raise EnvironmentError(
@@ -379,6 +402,10 @@ def setupGpg():
 
 def setupSsh():
     """Setup SSH key for Sops encryption."""
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
     amount = None
     public_keys = checkForSsh()
     if public_keys:
@@ -439,6 +466,12 @@ def setupSsh():
 
 def initSecrets():
     "Main Entry point for initializing secrets management with SOPS."
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     if not checkDep("sops"):
         raise EnvironmentError(
             "sops is not installed. It is required for this software."

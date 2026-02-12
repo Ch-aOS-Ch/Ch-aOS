@@ -4,8 +4,6 @@ import subprocess
 from pathlib import Path
 
 from omegaconf import OmegaConf
-from rich.console import Console
-from rich.prompt import Confirm
 
 from chaos.lib.args.dataclasses import (
     TeamActivatePayload,
@@ -28,16 +26,16 @@ from chaos.lib.teamUtils import (
 )
 from chaos.lib.utils import checkDep, render_list_as_table, validate_path
 
-"""Lmao yeah, a ton of stuff is happening in teamUtils.py"""
-
-console = Console()
-
 """
 Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
 """
 
 
 def initTeam(payload: TeamInitPayload):
+    from rich.console import Console
+    from rich.prompt import Confirm
+
+    console = Console()
     """
     Initializes a new team structure with the specified parameters.
 
@@ -111,6 +109,9 @@ def activateTeam(payload: TeamActivatePayload):
     """
     Activates a team by reading the .chaos.yml file and creating necessary symlinks.
     """
+    from rich.console import Console
+
+    console = Console()
 
     path = payload.path
     chaosContent = _get_chaos_file(path)
@@ -203,6 +204,9 @@ def cloneGitTeam(payload: TeamClonePayload):
 
 def listTeams(payload: TeamListPayload):
     """Lists all activated teams, optionally filtered by company."""
+    from rich.console import Console
+
+    console = Console()
     company = payload.company
     baseDir = (
         Path(f"~/.local/share/chaos/teams/{company}").expanduser()
@@ -234,6 +238,10 @@ def listTeams(payload: TeamListPayload):
 
 
 def deactivateTeam(payload: TeamDeactivatePayload):
+    from rich.console import Console
+    from rich.prompt import Confirm
+
+    console = Console()
     """Deactivates specified teams or all teams for a company."""
     company = payload.company
     if not company:
@@ -302,6 +310,10 @@ def deactivateTeam(payload: TeamDeactivatePayload):
 
 def pruneTeams(payload: TeamPrunePayload):
     """Prunes stale team symlinks that point to non-existent directories."""
+    from rich.console import Console
+    from rich.prompt import Confirm
+
+    console = Console()
     confirm = (
         True
         if payload.i_know_what_im_doing

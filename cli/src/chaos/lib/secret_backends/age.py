@@ -1,7 +1,6 @@
 from typing import cast
 
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
 
 from chaos.lib.secret_backends.utils import (
     _generic_handle_add,
@@ -11,14 +10,16 @@ from chaos.lib.secret_backends.utils import (
 
 from .crypto import is_valid_age_key
 
-console = Console()
-
 """
 AGE specific handlers for add/rem/list
 """
 
 
 def listAge(sops_file_override):
+    from rich.console import Console
+
+    console = Console()
+
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
@@ -45,6 +46,9 @@ def listAge(sops_file_override):
 
 
 def handleAgeAdd(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     valids = set()
     for key in keys:
         clean_key = key.strip()
@@ -64,6 +68,9 @@ def handleAgeAdd(payload, sops_file_override, keys):
 
 
 def handleAgeRem(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)

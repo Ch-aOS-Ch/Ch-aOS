@@ -131,7 +131,7 @@ def listFp(payload: SecretsListPayload):
             print(OmegaConf.to_yaml(list(results)))
             return
 
-        from chaos.lib.utils import render_list_as_table
+        from chaos.lib.display_utils import render_list_as_table
 
         title = f"[italic][green]Found {payload.type} Keys:[/][/]"
         render_list_as_table(list(results), title)

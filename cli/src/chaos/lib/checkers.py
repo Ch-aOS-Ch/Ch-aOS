@@ -1,8 +1,6 @@
 import os
 from typing import cast
 
-from chaos.lib.utils import render_list_as_table
-
 """
 Handles listing of roles/explanations/aliases with rich rendering.
 
@@ -47,8 +45,12 @@ def printCheck(namespace, dispatcher, json_output=False):
 
         title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
         if namespace == "secret":
+            from chaos.lib.display_utils import render_list_as_table
+
             render_list_as_table(dispatcher, title)
             return
+        from chaos.lib.display_utils import render_list_as_table
+
         render_list_as_table(list(dispatcher.keys()), title)
     else:
         import json
