@@ -35,7 +35,7 @@ This means that, since there are multiple Pyinfra plugins are being developped i
 
 Well, Pyinfra's documentation on creating custom connectors is a bit sparse, but the general idea is that you need to create a Python package that defines a new connector class inheriting from `pyinfra.api.connectors.BaseConnector`. You then need to register this connector in your package's `setup.py` or `pyproject.toml` file under the `entry_points` section.
 
-A bit more can be found in [Our own documentation](../plugins/connectors.md) and also in [Pyinfra's documentation](https://docs.pyinfra.com/en/3.x/api/connectors.html).
+A bit more can be found in [Our own documentation](../Plugins/connectors.md) and also in [Pyinfra's documentation](https://docs.pyinfra.com/en/3.x/api/connectors.html).
 
 I'll try my best to explain exactly how to create a working Connector.
 
