@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 """
 Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
-0.1s startup time, which is a 25% increase, and that's just not acceptable for a CLI tool. So instead,
+0.15s startup time, which is a significant increase, and that's just not acceptable for a CLI tool. So instead,
 We use __slots__ and a custom __init__ to achieve the same thing, but with a much lower startup time. Plus,
 this way we have more control over the initialization and can do things like validation or default values more easily.
 
@@ -12,7 +12,26 @@ cool, right?
 """
 
 
-class TeamPrunePayload:
+class BasePayload:
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{slot}={getattr(self, slot)!r}" for slot in self.__slots__)
+        return f"{self.__class__.__name__}({attrs})"
+
+    def __eq__(self, other: Any) -> bool:
+        if self.__class__ is not other.__class__:
+            return NotImplemented
+
+        return all(
+            getattr(self, slot) == getattr(other, slot) for slot in self.__slots__
+        )
+
+    def to_dict(self):
+        return {s: getattr(self, s) for s in self.__slots__}
+
+
+class TeamPrunePayload(BasePayload):
     __slots__ = ("companies", "i_know_what_im_doing")
 
     def __init__(self, companies: list[str], i_know_what_im_doing: bool):
@@ -20,7 +39,7 @@ class TeamPrunePayload:
         self.i_know_what_im_doing = i_know_what_im_doing
 
 
-class TeamListPayload:
+class TeamListPayload(BasePayload):
     __slots__ = ("company", "no_pretty", "json")
 
     def __init__(self, company: str | None, no_pretty: bool, json: bool):
@@ -29,7 +48,7 @@ class TeamListPayload:
         self.json = json
 
 
-class TeamClonePayload:
+class TeamClonePayload(BasePayload):
     __slots__ = ("target", "path")
 
     def __init__(self, target: str, path: str | None):
@@ -37,7 +56,7 @@ class TeamClonePayload:
         self.path = path
 
 
-class TeamInitPayload:
+class TeamInitPayload(BasePayload):
     __slots__ = ("target", "path", "i_know_what_im_doing")
 
     def __init__(self, target: str, path: str | None, i_know_what_im_doing: bool):
@@ -46,14 +65,14 @@ class TeamInitPayload:
         self.i_know_what_im_doing = i_know_what_im_doing
 
 
-class TeamActivatePayload:
+class TeamActivatePayload(BasePayload):
     __slots__ = ("path",)
 
     def __init__(self, path: str | None):
         self.path = path
 
 
-class TeamDeactivatePayload:
+class TeamDeactivatePayload(BasePayload):
     __slots__ = ("company", "teams")
 
     def __init__(self, company: str, teams: list[str]):
@@ -61,7 +80,7 @@ class TeamDeactivatePayload:
         self.teams = teams
 
 
-class ExplainPayload:
+class ExplainPayload(BasePayload):
     __slots__ = ("topics", "no_pretty", "json", "details", "complexity")
 
     def __init__(
@@ -79,7 +98,7 @@ class ExplainPayload:
         self.complexity = complexity
 
 
-class SetPayload:
+class SetPayload(BasePayload):
     __slots__ = ("chobolo_file", "sops_file", "secrets_file")
 
     def __init__(
@@ -93,7 +112,7 @@ class SetPayload:
         self.secrets_file = secrets_file
 
 
-class ProviderConfigPayload:
+class ProviderConfigPayload(BasePayload):
     __slots__ = ("provider", "ephemeral_provider_args")
 
     def __init__(
@@ -107,7 +126,7 @@ class ProviderConfigPayload:
         )
 
 
-class SecretsContext:
+class SecretsContext(BasePayload):
     __slots__ = (
         "team",
         "sops_file_override",
@@ -131,21 +150,21 @@ class SecretsContext:
         self.i_know_what_im_doing = i_know_what_im_doing
 
 
-class ProviderExportArgs:
+class ProviderExportArgs(BasePayload):
     __slots__ = ()
 
     def __init__(self):
         pass
 
 
-class ProviderImportArgs:
+class ProviderImportArgs(BasePayload):
     __slots__ = ()
 
     def __init__(self):
         pass
 
 
-class SecretsExportPayload:
+class SecretsExportPayload(BasePayload):
     __slots__ = (
         "provider_name",
         "key_type",
@@ -185,7 +204,7 @@ class SecretsExportPayload:
         )
 
 
-class SecretsImportPayload:
+class SecretsImportPayload(BasePayload):
     __slots__ = ("provider_name", "key_type", "item_id", "provider_specific_args")
 
     def __init__(
@@ -205,7 +224,7 @@ class SecretsImportPayload:
         )
 
 
-class SecretsRotatePayload:
+class SecretsRotatePayload(BasePayload):
     __slots__ = ("type", "keys", "context", "index", "pgp_server", "create")
 
     def __init__(
@@ -225,7 +244,7 @@ class SecretsRotatePayload:
         self.create = create
 
 
-class SecretsListPayload:
+class SecretsListPayload(BasePayload):
     __slots__ = ("type", "context", "no_pretty", "json", "value")
 
     def __init__(
@@ -243,7 +262,7 @@ class SecretsListPayload:
         self.value = value
 
 
-class SecretsEditPayload:
+class SecretsEditPayload(BasePayload):
     __slots__ = ("context", "edit_sops_file")
 
     def __init__(self, context: SecretsContext, edit_sops_file: bool = False):
@@ -251,7 +270,7 @@ class SecretsEditPayload:
         self.edit_sops_file = edit_sops_file
 
 
-class SecretsPrintPayload:
+class SecretsPrintPayload(BasePayload):
     __slots__ = ("context", "print_sops_file", "as_json")
 
     def __init__(
@@ -265,7 +284,7 @@ class SecretsPrintPayload:
         self.as_json = as_json
 
 
-class SecretsCatPayload:
+class SecretsCatPayload(BasePayload):
     __slots__ = ("keys", "context", "cat_sops_file", "as_json", "value_only")
 
     def __init__(
@@ -283,7 +302,7 @@ class SecretsCatPayload:
         self.value_only = value_only
 
 
-class SecretsSetShamirPayload:
+class SecretsSetShamirPayload(BasePayload):
     __slots__ = ("index", "share", "context")
 
     def __init__(self, index: int, share: int, context: SecretsContext):
@@ -292,7 +311,7 @@ class SecretsSetShamirPayload:
         self.context = context
 
 
-class RambleCreatePayload:
+class RambleCreatePayload(BasePayload):
     __slots__ = ("target", "context", "encrypt", "keys")
 
     def __init__(
@@ -308,17 +327,18 @@ class RambleCreatePayload:
         self.keys = keys
 
 
-class RambleEditPayload:
+class RambleEditPayload(BasePayload):
     __slots__ = ("target", "context", "edit_sops_file")
 
     def __init__(
         self, target: str, context: SecretsContext, edit_sops_file: bool = False
     ):
+        self.target = target
         self.context = context
         self.edit_sops_file = edit_sops_file
 
 
-class RambleEncryptPayload:
+class RambleEncryptPayload(BasePayload):
     __slots__ = ("target", "context", "keys")
 
     def __init__(
@@ -332,7 +352,7 @@ class RambleEncryptPayload:
         self.keys = keys
 
 
-class RambleReadPayload:
+class RambleReadPayload(BasePayload):
     __slots__ = ("targets", "context", "no_pretty", "json", "values")
 
     def __init__(
@@ -350,7 +370,7 @@ class RambleReadPayload:
         self.values = values
 
 
-class RambleFindPayload:
+class RambleFindPayload(BasePayload):
     __slots__ = ("context", "find_term", "tag", "no_pretty", "json")
 
     def __init__(
@@ -368,25 +388,30 @@ class RambleFindPayload:
         self.json = json
 
 
-class RambleMovePayload:
+class RambleMovePayload(BasePayload):
     __slots__ = ("old", "new", "context")
 
+    # Since we use a singular "ramble_context" for all ramble operations,
+    # we can reduce code duplication by passing the whole context instead of just the team
+    # just be known that we use _only_ the team attribute of the context in the ramble move operation
     def __init__(self, old: str, new: str, context: SecretsContext):
         self.old = old
         self.new = new
         self.context = context
 
 
-class RambleDeletePayload:
+class RambleDeletePayload(BasePayload):
     __slots__ = ("ramble", "context")
 
+    # Same as the above
     def __init__(self, ramble: str, context: SecretsContext):
         self.ramble = ramble
         self.context = context
 
 
-class RambleUpdateEncryptPayload:
+class RambleUpdateEncryptPayload(BasePayload):
     __slots__ = ("context",)
 
+    # ye, only context
     def __init__(self, context: SecretsContext):
         self.context = context

@@ -294,7 +294,6 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     from pyinfra.api.connect import connect_all  # type: ignore
     from pyinfra.api.state import State, StateStage  # type: ignore
     from pyinfra.context import ctx_state  # type: ignore
-    from rich.prompt import Prompt
     # ------------------------------------
 
     inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
@@ -344,6 +343,8 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
         sudo_password = args.password.strip()
 
     if not sudo_password:
+        from rich.prompt import Prompt
+
         sudo_password = Prompt.ask(
             "[magenta]Please, enter sudo password[/]", password=True
         )

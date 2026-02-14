@@ -1,10 +1,10 @@
-import functools
-import os
-import shutil
+from functools import lru_cache
 
 
 def validate_path(path: str):
     """Validates given file system path."""
+    import os
+
     if (
         ".." in path
         or "//" in path
@@ -15,13 +15,15 @@ def validate_path(path: str):
 
 def checkDep(bin):
     """This just checks if a SHELL COMMAND exists in the system PATH."""
+    import shutil
+
     path = shutil.which(bin)
     if path is None:
         return False
     return True
 
 
-@functools.lru_cache(maxsize=None)
+@lru_cache(maxsize=None)
 def get_providerEps():
     from importlib.metadata import EntryPoint
 
@@ -35,5 +37,3 @@ def get_providerEps():
                 EntryPoint(name=name, value=value, group="chaos.providers")
             )
     return provider_eps
-
-
