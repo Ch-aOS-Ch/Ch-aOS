@@ -130,6 +130,79 @@ class SetPayload(BasePayload):
         self.secrets_file = secrets_file
 
 
+class CheckPayload(BasePayload):
+    __slots__ = (
+        "checks",
+        "chobolo",
+        "json",
+        "team",
+        "sops_file_override",
+        "secrets_file_override",
+        "update_plugins",
+    )
+
+    def __init__(
+        self,
+        checks: Literal[
+            "explanations",
+            "roles",
+            "aliases",
+            "providers",
+            "boats",
+            "secrets",
+            "limanis",
+            "templates",
+        ],
+        chobolo: str | None,
+        json: bool,
+        team: str | None,
+        sops_file_override: str | None,
+        secrets_file_override: str | None,
+        update_plugins: bool,
+    ):
+        self.checks = checks
+        self.chobolo = chobolo
+        self.json = json
+        self.team = team
+        self.sops_file_override = sops_file_override
+        self.secrets_file_override = secrets_file_override
+        self.update_plugins = update_plugins
+
+
+class StyxPayload(BasePayload):
+    __slots__ = ("styx_commands", "entries", "no_pretty", "json")
+
+    def __init__(
+        self,
+        styx_commands: Literal["invoke", "list", "destroy"],
+        entries: list[str],
+        no_pretty: bool,
+        json: bool,
+    ):
+        self.styx_commands = styx_commands
+        self.entries = entries
+        self.no_pretty = no_pretty
+        self.json = json
+
+
+class InitPayload(BasePayload):
+    __slots__ = ("init_command", "update_plugins", "targets", "template", "human")
+
+    def __init__(
+        self,
+        init_command: Literal["chobolo", "secrets"],
+        update_plugins: bool,
+        targets: list[str],
+        template: bool,
+        human: bool,
+    ):
+        self.init_command = init_command
+        self.update_plugins = update_plugins
+        self.targets = targets
+        self.template = template
+        self.human = human
+
+
 class ProviderConfigPayload(BasePayload):
     __slots__ = ("provider", "ephemeral_provider_args")
 

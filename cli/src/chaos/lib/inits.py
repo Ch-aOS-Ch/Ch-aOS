@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 from omegaconf import OmegaConf as oc
 
+from chaos.lib.args.dataclasses import InitPayload
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
@@ -613,3 +614,38 @@ def initSecrets():
         raise RuntimeError(
             f"Failed to write config file: {e}\nHint: Check if your GPG key is imported or if age keys are correct."
         ) from e
+
+
+def handle_init(payload: InitPayload):
+    import sys
+
+    from rich.console import Console
+
+    console = Console()
+    try:
+        match payload.init_command:
+            case "chobolo":
+                from omegaconf import OmegaConf as oc
+
+                from chaos.lib.plugDiscovery import get_plugins
+
+                keys = get_plugins(payload.update_plugins)[3]
+                conf = initChobolo(keys, payload.targets)
+
+                if not payload.template:
+                    path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
+                    oc.save(conf, path)
+
+                else:
+                    if payload.human:
+                        print(oc.to_yaml(conf, resolve=True))
+                    else:
+                        print(conf)
+
+            case "secrets":
+                initSecrets()
+            case _:
+                console.print("Unsupported init.")
+    except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
+        console.print(f"[bold red]ERROR:[/] {e}")
+        sys.exit(1)

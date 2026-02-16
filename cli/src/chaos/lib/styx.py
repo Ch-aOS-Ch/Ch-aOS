@@ -5,6 +5,7 @@ from typing import cast
 import requests
 from omegaconf import DictConfig, OmegaConf
 
+from chaos.lib.args.dataclasses import StyxPayload
 from chaos.lib.utils import validate_path
 
 TIMEOUT = 10
@@ -262,3 +263,33 @@ def uninstall_styx_entries(entries: list[str]):
         get_plugins(update_cache=True)
     except ImportError:
         pass
+
+
+def handle_styx(payload: StyxPayload):
+    import sys
+
+    from rich.console import Console
+
+    console = Console()
+    try:
+        match payload.styx_commands:
+            case "invoke":
+                install_styx_entries(payload.entries)
+
+            case "list":
+                listing: list[str] | str = list_styx_entries(
+                    payload.entries, payload.no_pretty, payload.json
+                )
+
+                if payload.no_pretty:
+                    print(listing)
+                else:
+                    console.print(listing)
+
+            case "destroy":
+                uninstall_styx_entries(payload.entries)
+            case _:
+                console.print("Unsupported styx subcommand.")
+    except (ValueError, FileNotFoundError, RuntimeError, EnvironmentError) as e:
+        console.print(f"[bold red]ERROR:[/] {e}")
+        sys.exit(1)

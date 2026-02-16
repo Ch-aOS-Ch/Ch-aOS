@@ -1,37 +1,13 @@
-import os
-import sys
-
-
 def handleInit(args):
-    from rich.console import Console
+    from chaos.lib.args.dataclasses import InitPayload
+    from chaos.lib.inits import handle_init
 
-    console = Console()
-    try:
-        from chaos.lib.inits import initChobolo, initSecrets
+    payload = InitPayload(
+        init_command=args.init_command,
+        update_plugins=getattr(args, "update_plugins", False),
+        targets=getattr(args, "targets", []),
+        template=getattr(args, "template", False),
+        human=getattr(args, "human", False),
+    )
 
-        match args.init_command:
-            case "chobolo":
-                from omegaconf import OmegaConf as oc
-
-                from chaos.lib.plugDiscovery import get_plugins
-
-                keys = get_plugins(args.update_plugins)[3]
-                conf = initChobolo(keys, args.targets)
-
-                if not args.template:
-                    path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
-                    oc.save(conf, path)
-
-                else:
-                    if args.human:
-                        print(oc.to_yaml(conf, resolve=True))
-                    else:
-                        print(conf)
-
-            case "secrets":
-                initSecrets()
-            case _:
-                console.print("Unsupported init.")
-    except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
-        console.print(f"[bold red]ERROR:[/] {e}")
-        sys.exit(1)
+    handle_init(payload)

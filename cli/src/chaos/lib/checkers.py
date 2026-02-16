@@ -1,6 +1,8 @@
 import os
 from typing import cast
 
+from .args.dataclasses import CheckPayload
+
 """
 Handles listing of roles/explanations/aliases with rich rendering.
 
@@ -204,3 +206,65 @@ def check_vault_auth():
             False,
             f"[bold red]ERROR:[/] Failed to authenticate with Vault at {vault_addr}: {e}",
         )
+
+
+def handle_check(payload: CheckPayload):
+    import sys
+
+    match payload.checks:
+        case "explanations":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            EXPLANATIONS = get_plugins(payload.update_plugins)[2]
+            checkExplanations(EXPLANATIONS, payload.json)
+        case "aliases":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
+            checkAliases(ROLE_ALIASES, payload.json)
+        case "roles":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            role_specs = get_plugins(payload.update_plugins)[0]
+            checkRoles(role_specs, payload.json)
+        case "providers":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            providers = get_plugins(payload.update_plugins)[4]
+            checkProviders(providers, payload.json)
+
+        case "boats":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            boats = get_plugins(payload.update_plugins)[5]
+            checkBoats(boats)
+
+        case "secrets":
+            from chaos.lib.checkers import checkSecrets
+            from chaos.lib.secret_backends.utils import get_sops_files
+
+            sec_file = get_sops_files(
+                payload.sops_file_override,
+                payload.secrets_file_override,
+                payload.team,
+            )[0]
+            checkSecrets(sec_file, payload.json)
+
+        case "limanis":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            limanis = get_plugins(payload.update_plugins)[6]
+            checkLimanis(limanis, payload.json)
+
+        case "templates":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            keys = get_plugins(payload.update_plugins)[3]
+            checkTemplates(keys, payload.json)
+
+        case _:
+            print(
+                "No valid checks passed, valid checks: explain, alias, roles, secrets"
+            )
+
+    sys.exit(0)
