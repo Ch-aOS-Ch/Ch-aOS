@@ -22,8 +22,8 @@ def handleSecrets(args):
         from chaos.lib.utils import get_providerEps
 
         team = getattr(args, "team", None)
-        sops_file_override = getattr(args, "sops_file", None)
-        secrets_file_override = getattr(args, "secrets_file", None)
+        sops_file_override = getattr(args, "sops_file_override", None)
+        secrets_file_override = getattr(args, "secrets_file_override", None)
 
         _, _, global_config = get_sops_files(
             sops_file_override, secrets_file_override, team

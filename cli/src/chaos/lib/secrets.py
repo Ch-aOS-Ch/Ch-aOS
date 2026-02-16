@@ -94,6 +94,8 @@ def listFp(payload: SecretsListPayload):
     """Lists all keys of a certain type from the sops config file."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
+    results = None
+
     context = payload.context
     _, sops_file_override, _ = get_sops_files(
         context.sops_file_override, context.secrets_file_override, context.team

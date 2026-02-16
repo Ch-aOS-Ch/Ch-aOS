@@ -470,3 +470,76 @@ class RambleUpdateEncryptPayload(BasePayload):
     # ye, only context
     def __init__(self, context: SecretsContext | dict[str, Any]):
         self.context = SecretsContext.from_dict_or_self(context)
+
+
+class ApplyPayload(BasePayload):
+    __slots__ = (
+        "update_plugins",
+        "i_know_what_im_doing",
+        "dry",
+        "verbose",
+        "v",
+        "tags",
+        "chobolo",
+        "secrets_file",
+        "sops_file",
+        "limani",
+        "logbook",
+        "fleet",
+        "sudo_password_file",
+        "password",
+        "secrets",
+        "serial",
+        "no_wait",
+        "export_logs",
+        "team",
+        "provider_config",
+    )
+
+    def __init__(
+        self,
+        update_plugins: bool,
+        i_know_what_im_doing: bool,
+        dry: bool,
+        verbose: int,
+        v: int,
+        tags: list[str] | None,
+        chobolo: str | None,
+        secrets_file: str | None,
+        sops_file: str | None,
+        limani: str | None,
+        logbook: bool,
+        fleet: bool,
+        sudo_password_file: str | None,
+        password: str | bool | None,
+        secrets: bool,
+        serial: bool,
+        no_wait: bool,
+        export_logs: bool,
+        team: str | None,
+        provider_config: ProviderConfigPayload | None = None,
+    ):
+        self.update_plugins = update_plugins
+        self.i_know_what_im_doing = i_know_what_im_doing
+        self.dry = dry
+        self.verbose = verbose
+        self.v = v
+        self.tags = tags
+        self.chobolo = chobolo
+        self.secrets_file = secrets_file
+        self.sops_file = sops_file
+        self.limani = limani
+        self.logbook = logbook
+        self.fleet = fleet
+        self.sudo_password_file = sudo_password_file
+        self.password = password
+        self.secrets = secrets
+        self.serial = serial
+        self.no_wait = no_wait
+        self.export_logs = export_logs
+        self.team = team
+        self.provider_config = (
+            provider_config
+            if provider_config is not None
+            else ProviderConfigPayload()
+        )
