@@ -10,7 +10,11 @@ def handleApply(args):
     from omegaconf import DictConfig
     from pyinfra.api import exceptions as pyinfra_exceptions  # type: ignore
 
-    from chaos.lib.args.dataclasses import ApplyPayload, ProviderConfigPayload
+    from chaos.lib.args.dataclasses import (
+        ApplyPayload,
+        ProviderConfigPayload,
+        SecretsContext,
+    )
     from chaos.lib.handlers import handleOrchestration
     from chaos.lib.plugDiscovery import load_roles
     from chaos.lib.utils import get_providerEps
@@ -41,16 +45,22 @@ def handleApply(args):
             ephemeral_provider_args=ephemeral_provider_args,
         )
 
+        secrets_context = SecretsContext(
+            team=getattr(args, "team", None),
+            sops_file_override=getattr(args, "sops_file", None),
+            secrets_file_override=getattr(args, "secrets_file", None),
+            provider_config=provider_config,
+            i_know_what_im_doing=getattr(args, "i_know_what_im_doing", False),
+        )
+
         payload = ApplyPayload(
             update_plugins=args.update_plugins,
             i_know_what_im_doing=args.i_know_what_im_doing,
             dry=args.dry,
             verbose=args.verbose,
             v=args.v,
-            tags=getattr(args, "tags", None),
+            tags=getattr(args, "tags", []),
             chobolo=getattr(args, "chobolo", None),
-            secrets_file=getattr(args, "secrets_file", None),
-            sops_file=getattr(args, "sops_file", None),
             limani=getattr(args, "limani", None),
             logbook=getattr(args, "logbook", False),
             fleet=getattr(args, "fleet", False),
@@ -60,8 +70,7 @@ def handleApply(args):
             serial=getattr(args, "serial", False),
             no_wait=getattr(args, "no_wait", False),
             export_logs=getattr(args, "export_logs", False),
-            team=getattr(args, "team", None),
-            provider_config=provider_config,
+            secrets_context=secrets_context,
         )
 
         if payload.tags:

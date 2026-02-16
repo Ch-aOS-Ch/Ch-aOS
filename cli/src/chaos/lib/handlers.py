@@ -110,12 +110,16 @@ def _get_configs(payload: ApplyPayload):
     chobolo_path = payload.chobolo or global_config.get("chobolo_file", None)
     validate_path(chobolo_path)
 
-    secrets_file_override = payload.secrets_file or global_config.get(
-        "secrets_file", None
+    secrets_file_override = (
+        payload.secrets_context.secrets_file_override
+        or global_config.get("secrets_file", None)
     )
     validate_path(secrets_file_override)
 
-    sops_file_override = payload.sops_file or global_config.get("sops_file", None)
+    sops_file_override = (
+        payload.secrets_context.sops_file_override
+        or global_config.get("sops_file", None)
+    )
     validate_path(sops_file_override)
 
     if not chobolo_path:
@@ -426,7 +430,10 @@ def handleSecRoles(
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             decrypted_secrets = decrypt_secrets(
-                secrets_file_override, sops_file_override, global_config, payload
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                payload.secrets_context,
             )
 
         if not decrypted_secrets:
@@ -440,7 +447,10 @@ def handleSecRoles(
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             decrypted_secrets = decrypt_secrets(
-                secrets_file_override, sops_file_override, global_config, payload
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                payload.secrets_context,
             )
 
     if isinstance(decrypted_secrets, str):

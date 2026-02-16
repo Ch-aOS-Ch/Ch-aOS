@@ -481,8 +481,6 @@ class ApplyPayload(BasePayload):
         "v",
         "tags",
         "chobolo",
-        "secrets_file",
-        "sops_file",
         "limani",
         "logbook",
         "fleet",
@@ -492,8 +490,7 @@ class ApplyPayload(BasePayload):
         "serial",
         "no_wait",
         "export_logs",
-        "team",
-        "provider_config",
+        "secrets_context",
     )
 
     def __init__(
@@ -503,21 +500,18 @@ class ApplyPayload(BasePayload):
         dry: bool,
         verbose: int,
         v: int,
-        tags: list[str] | None,
+        tags: list[str],
         chobolo: str | None,
-        secrets_file: str | None,
-        sops_file: str | None,
         limani: str | None,
         logbook: bool,
         fleet: bool,
         sudo_password_file: str | None,
-        password: str | bool | None,
+        password: str | None,
         secrets: bool,
         serial: bool,
         no_wait: bool,
         export_logs: bool,
-        team: str | None,
-        provider_config: ProviderConfigPayload | None = None,
+        secrets_context: SecretsContext | dict[str, Any],
     ):
         self.update_plugins = update_plugins
         self.i_know_what_im_doing = i_know_what_im_doing
@@ -526,8 +520,6 @@ class ApplyPayload(BasePayload):
         self.v = v
         self.tags = tags
         self.chobolo = chobolo
-        self.secrets_file = secrets_file
-        self.sops_file = sops_file
         self.limani = limani
         self.logbook = logbook
         self.fleet = fleet
@@ -537,9 +529,4 @@ class ApplyPayload(BasePayload):
         self.serial = serial
         self.no_wait = no_wait
         self.export_logs = export_logs
-        self.team = team
-        self.provider_config = (
-            provider_config
-            if provider_config is not None
-            else ProviderConfigPayload()
-        )
+        self.secrets_context = SecretsContext.from_dict_or_self(secrets_context)
