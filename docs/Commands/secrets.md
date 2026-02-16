@@ -86,4 +86,4 @@ chaos secrets shamir 0 2
 
 ## `secrets import`/`export`
 
-These commands allow you to securely transfer master keys to and from external password managers. See [Secret Providers](../advanced/providers.md) for more details.
+These commands allow you to securely transfer master keys to and from external password managers. See [Secret Providers](../Advanced/providers.md) for more details.

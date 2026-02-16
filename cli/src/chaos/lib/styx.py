@@ -53,6 +53,24 @@ def parse_styx_registry(registry_data, registry_names: list[str]) -> list[dict]:
     return entries
 
 
+def _check_hash(file_path: Path, expected_hash: str) -> tuple[bool, str | None]:
+    """Checks if the file at file_path matches the expected SHA-256 hash."""
+    from hashlib import sha256
+
+    sha256_hash = sha256()
+    try:
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+
+        calculated_hash = sha256_hash.hexdigest()
+
+        return calculated_hash == expected_hash, calculated_hash
+    except Exception as e:
+        print(f"Error checking hash for {file_path}: {e}")
+        return False, None
+
+
 def install_styx_entries(entries: list[str], force: bool = False):
     """
     Installs the given Styx registry entries.
@@ -70,6 +88,13 @@ def install_styx_entries(entries: list[str], force: bool = False):
         url = entry.get("repo")
         tag_version = entry.get("version")
         pkg_name = entry.get("name")
+        expected_hash = entry.get("hash", "")
+
+        if not expected_hash or len(expected_hash) != 64:
+            print(
+                f"Warning: Invalid or missing hash for '{pkg_name}'. Skipping package."
+            )
+            continue
 
         if not pkg_name:
             print("Skipping entry with missing name.")
@@ -95,7 +120,9 @@ def install_styx_entries(entries: list[str], force: bool = False):
         try:
             dir_name = Path(os.path.expanduser("~/.local/share/chaos/plugins"))
             dir_name.mkdir(parents=True, exist_ok=True)
+
             local_path = dir_name / wheel_local_filename
+            tmp_path = dir_name / f"{wheel_local_filename}.tmp"
 
             if local_path.exists() and not force:
                 print(f"Plugin '{pkg_name}' is already installed.")
@@ -109,16 +136,20 @@ def install_styx_entries(entries: list[str], force: bool = False):
                 if ".." in wheel_local_filename or "/" in wheel_local_filename:
                     raise ValueError("Security violation in filename")
 
-                with open(local_path, "wb") as wheel_file:
+                with open(tmp_path, "wb") as wheel_file:
                     for chunk in response.iter_content(chunk_size=8192):
                         wheel_file.write(chunk)
 
-            try:
-                from chaos.lib.plugDiscovery import get_plugins
+                is_correct, calculated_hash = _check_hash(tmp_path, expected_hash)
 
-                get_plugins(update_cache=True)
-            except ImportError:
-                print("Warning: Could not reload plugins cache (module not found).")
+                if not is_correct:
+                    tmp_path.unlink(missing_ok=True)  # Apaga o lixo
+                    print(
+                        f"Hash mismatch for '{pkg_name}'. Expected: {expected_hash}, Calculated: {calculated_hash}. Download may be corrupted or tampered with."
+                    )
+                    continue
+
+                tmp_path.rename(local_path)
 
             print(f"Successfully installed '{pkg_name}' version {tag_version}.")
 
@@ -131,6 +162,13 @@ def install_styx_entries(entries: list[str], force: bool = False):
                 print(f"HTTP Error installing {pkg_name}: {e}")
         except Exception as e:
             print(f"Error installing {pkg_name}: {e}")
+
+    try:
+        from chaos.lib.plugDiscovery import get_plugins
+
+        get_plugins(update_cache=True)
+    except ImportError:
+        print("Warning: Could not reload plugins cache (module not found).")
 
 
 def list_styx_entries(
@@ -178,12 +216,22 @@ def list_styx_entries(
             desc = data.get("about", "No description")
             ver = data.get("version", "unknown")
             repo = data.get("repo", "")
+            hash = data.get("hash", "")
 
             if not repo:
                 print(f"Warning: No repository URL for '{name}'.")
                 continue
 
-            output.append(f"{name} ({ver})\n   ┬\n   ├─ {desc}\n   ╰─ 🔗 {repo}")
+            output.append(
+                f"""{name} ({ver})
+┬"""
+                + "─" * (len(name) + 2 + len(ver))
+                + f"""
+├─ {desc}
+├─ 🔗 {repo}
+╰─ 🛡️ {hash[:8] + "..." + hash[-8:] if hash else "No hash provided"}
+"""
+            )
 
         return "\n\n".join(output)
 

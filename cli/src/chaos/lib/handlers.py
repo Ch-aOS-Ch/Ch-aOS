@@ -5,35 +5,32 @@ from pathlib import Path
 from typing import cast
 
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
-from rich.prompt import Confirm, Prompt
 
+from .args.dataclasses import ApplyPayload, SetPayload
 from .boats.base import Boat
 from .telemetry import ChaosTelemetry
 from .utils import validate_path
-
-console = Console()
 
 """
 Orchestration/Explanation Handlers for Chaos CLI
 """
 
 
-def handleVerbose(args):
+def handleVerbose(payload: ApplyPayload):
     """Handle verbosity levels for logging"""
     log_level = None
-    if args.verbose:
-        if args.verbose == 1:
+    if payload.verbose:
+        if payload.verbose == 1:
             log_level = logging.WARNING
-        elif args.verbose == 2:
+        elif payload.verbose == 2:
             log_level = logging.INFO
-        elif args.verbose == 3:
+        elif payload.verbose == 3:
             log_level = logging.DEBUG
-    elif args.v == 1:
+    elif payload.v == 1:
         log_level = logging.WARNING
-    elif args.v == 2:
+    elif payload.v == 2:
         log_level = logging.INFO
-    elif args.v == 3:
+    elif payload.v == 3:
         log_level = logging.DEBUG
 
     if log_level:
@@ -87,9 +84,9 @@ def _collect_fleet_health(state, stage):
             _fetch_and_record(host)
 
 
-def _resolve_limani(global_config: DictConfig, args):
-    if args.limani:
-        limani_name = args.limani
+def _resolve_limani(global_config: DictConfig, payload: ApplyPayload):
+    if payload.limani:
+        limani_name = payload.limani
     else:
         limani_name = global_config.get("limani")
 
@@ -102,7 +99,7 @@ def _resolve_limani(global_config: DictConfig, args):
     return limani_name
 
 
-def _get_configs(args):
+def _get_configs(payload: ApplyPayload):
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -110,15 +107,19 @@ def _get_configs(args):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
     global_config = cast(DictConfig, global_config)
 
-    chobolo_path = args.chobolo or global_config.get("chobolo_file", None)
+    chobolo_path = payload.chobolo or global_config.get("chobolo_file", None)
     validate_path(chobolo_path)
 
-    secrets_file_override = args.secrets_file_override or global_config.get(
-        "secrets_file", None
+    secrets_file_override = (
+        payload.secrets_context.secrets_file_override
+        or global_config.get("secrets_file", None)
     )
     validate_path(secrets_file_override)
 
-    sops_file_override = args.sops_file_override or global_config.get("sops_file", None)
+    sops_file_override = (
+        payload.secrets_context.sops_file_override
+        or global_config.get("sops_file", None)
+    )
     validate_path(sops_file_override)
 
     if not chobolo_path:
@@ -149,6 +150,9 @@ def _load_boats() -> list[type[Boat]]:
 
 
 def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
+    from rich.console import Console
+
+    console = Console()
     loaded_boat_classes = _load_boats()
     if not loaded_boat_classes:
         return global_state
@@ -172,9 +176,14 @@ def _handle_boats(global_state: DictConfig, boats: list) -> DictConfig:
     return global_state
 
 
-def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
+def _handle_fleet(payload: ApplyPayload, chobolo_config, chobolo_path, ikwid):
+    from rich.console import Console
+    from rich.prompt import Confirm
+
+    console = Console()
+
     isFleet = False
-    if hasattr(args, "fleet") and args.fleet:
+    if hasattr(payload, "fleet") and payload.fleet:
         chobolo_config = cast(DictConfig, chobolo_config)
         fleet_config = chobolo_config.get("fleet", {})
 
@@ -261,13 +270,15 @@ def _handle_fleet(args, chobolo_config, chobolo_path, ikwid):
     return False, 0, ["@local"]
 
 
-def setup_hosts(args, chobolo_config, chobolo_path, ikwid):
+def setup_hosts(payload: ApplyPayload, chobolo_config, chobolo_path, ikwid):
     from pyinfra.api.inventory import Inventory  # type: ignore
 
     parallels = 0
     hosts = ["@local"]
 
-    isFleet, parallels, hosts = _handle_fleet(args, chobolo_config, chobolo_path, ikwid)
+    isFleet, parallels, hosts = _handle_fleet(
+        payload, chobolo_config, chobolo_path, ikwid
+    )
 
     if not isFleet:
         inventory = Inventory((hosts, {}))
@@ -277,9 +288,15 @@ def setup_hosts(args, chobolo_config, chobolo_path, ikwid):
     return inventory, hosts, parallels
 
 
-def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
+def _setup_pyinfra_connection(
+    payload: ApplyPayload, chobolo_config, chobolo_path, ikwid
+):
     # --- Lazy import pyinfra components ---
     import time
+
+    from rich.console import Console
+
+    console = Console()
 
     from pyinfra.api.config import Config  # type: ignore
     from pyinfra.api.connect import connect_all  # type: ignore
@@ -287,18 +304,20 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
     from pyinfra.context import ctx_state  # type: ignore
     # ------------------------------------
 
-    inventory, hosts, parallels = setup_hosts(args, chobolo_config, chobolo_path, ikwid)
+    inventory, hosts, parallels = setup_hosts(
+        payload, chobolo_config, chobolo_path, ikwid
+    )
 
     config = Config(
         PARALLEL=parallels,
-        DIFF=args.logbook,
+        DIFF=payload.logbook,
     )
     state = State(inventory, config)
     state.current_stage = StateStage.Prepare
 
     start_time = time.time()
 
-    if args.logbook:
+    if payload.logbook:
         state.add_callback_handler(ChaosTelemetry())
         pyinfra_logger = logging.getLogger("pyinfra")
         pyinfra_logger.setLevel(logging.DEBUG)
@@ -308,10 +327,10 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     ctx_state.set(state)
     sudo_password = None
-    if args.sudo_password_file:
-        validate_path(args.sudo_password_file)
+    if payload.sudo_password_file:
+        validate_path(payload.sudo_password_file)
 
-        sudo_file = Path(args.sudo_password_file)
+        sudo_file = Path(payload.sudo_password_file)
         if not sudo_file.exists():
             raise FileNotFoundError(f"Sudo password file not found: {sudo_file}")
 
@@ -321,7 +340,7 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
         with open(sudo_file, "r") as f:
             sudo_password = f.read().strip()
 
-    if args.password is True:
+    if payload.password is True:
         if not sys.stdin.isatty():
             sudo_password = sys.stdin.read().strip()
             ikwid = True
@@ -330,10 +349,12 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
                 "'-ps' argument without value requires piped input or a value. "
                 "When using pipes, ensure stdin is not a TTY (e.g., 'cat file | chaos apply -ps')."
             )
-    elif args.password is not None:
-        sudo_password = args.password.strip()
+    elif payload.password is not None:
+        sudo_password = payload.password.strip()
 
     if not sudo_password:
+        from rich.prompt import Prompt
+
         sudo_password = Prompt.ask(
             "[magenta]Please, enter sudo password[/]", password=True
         )
@@ -353,15 +374,13 @@ def _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid):
 
     setup_duration = end_time - start_time
 
-    if args.logbook:
+    if payload.logbook:
         ChaosTelemetry.record_setup_phase(state, setup_duration)
 
     return state, skip
 
 
-def _setup_user_aliases(
-    console: Console, userAliases: DictConfig, ROLE_ALIASES: DictConfig
-):
+def _setup_user_aliases(console, userAliases: DictConfig, ROLE_ALIASES: DictConfig):
     for a in userAliases.keys():
         if a in ROLE_ALIASES:
             console.print(
@@ -389,8 +408,10 @@ def handleSecRoles(
     secrets_file_override,
     sops_file_override,
     global_config,
-    args,
+    payload: ApplyPayload,
 ):
+    from rich.prompt import Confirm
+
     if normalized_tag in enabledSecPlugins:
         confirm = (
             True
@@ -404,12 +425,15 @@ def handleSecRoles(
             return
 
     if not decrypted_secrets:
-        decrypt = args.secrets
+        decrypt = payload.secrets
         if decrypt:
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             decrypted_secrets = decrypt_secrets(
-                secrets_file_override, sops_file_override, global_config, args
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                payload.secrets_context,
             )
 
         if not decrypted_secrets:
@@ -423,7 +447,10 @@ def handleSecRoles(
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             decrypted_secrets = decrypt_secrets(
-                secrets_file_override, sops_file_override, global_config, args
+                secrets_file_override,
+                sops_file_override,
+                global_config,
+                payload.secrets_context,
             )
 
     if isinstance(decrypted_secrets, str):
@@ -444,11 +471,14 @@ def _run_tags(
     secrets_file_override,
     sops_file_override,
     global_config,
-    args,
+    payload: ApplyPayload,
     console_err,
     host,
 ):
-    for tag in args.tags:
+    from rich.console import Console
+
+    console = Console()
+    for tag in payload.tags:
         normalized_tag = _setup_normalized_tag(tag, ROLE_ALIASES)
         if normalized_tag in ROLES_DISPATCHER:
             if normalized_tag in SEC_HAVING_ROLES:
@@ -462,7 +492,7 @@ def _run_tags(
                     secrets_file_override,
                     sops_file_override,
                     global_config,
-                    args,
+                    payload,
                 )
 
             else:
@@ -478,25 +508,27 @@ def _run_tags(
 
 
 def handleOrchestration(
-    args,
-    dry,
-    ikwid,
+    payload: ApplyPayload,
     ROLES_DISPATCHER: DictConfig,
     ROLE_ALIASES: DictConfig = OmegaConf.create(),
 ):
     from pyinfra.api.connect import disconnect_all  # type: ignore
     from pyinfra.api.exceptions import PyinfraError  # type: ignore
     from pyinfra.api.operations import run_ops  # type: ignore
+    from rich.console import Console
 
     console = Console()
     console_err = Console(stderr=True)
 
+    if payload.verbose or payload.v > 0:
+        handleVerbose(payload)
+
     global_config, chobolo_path, secrets_file_override, sops_file_override = (
-        _get_configs(args)
+        _get_configs(payload)
     )
 
-    if args.logbook:
-        limani = _resolve_limani(global_config, args)
+    if payload.logbook:
+        limani = _resolve_limani(global_config, payload)
         ChaosTelemetry.load_limani_plugin(
             limani, cast(dict, OmegaConf.to_container(global_config, resolve=True))
         )
@@ -506,7 +538,9 @@ def handleOrchestration(
 
     chobolo_config = OmegaConf.load(chobolo_path)
 
-    state, skip = _setup_pyinfra_connection(args, chobolo_config, chobolo_path, ikwid)
+    state, skip = _setup_pyinfra_connection(
+        payload, chobolo_config, chobolo_path, payload.i_know_what_im_doing
+    )
 
     SEC_HAVING_ROLES = ["users", "secrets"]
     SEC_HAVING_ROLES.extend(enabledSecPlugins)
@@ -520,7 +554,7 @@ def handleOrchestration(
     decrypted_secrets = ()
     run_status = "success"
     try:
-        if args.logbook:
+        if payload.logbook:
             _collect_fleet_health(state, stage="pre_operations")
 
         for host in state.inventory.iter_activated_hosts():
@@ -537,14 +571,14 @@ def handleOrchestration(
                 secrets_file_override,
                 sops_file_override,
                 global_config,
-                args,
+                payload,
                 console_err,
                 host,
             )
 
-        if not dry:
-            run_ops(state, args.serial, args.no_wait)
-            if args.logbook:
+        if not payload.dry:
+            run_ops(state, payload.serial, payload.no_wait)
+            if payload.logbook:
                 _collect_fleet_health(state, stage="post_operations")
         else:
             console.print("[bold yellow]dry mode active, skipping.[/bold yellow]")
@@ -554,8 +588,8 @@ def handleOrchestration(
         console_err.print(f"[bold red]ERROR:[/] Pyinfra encountered an error: {e}")
 
     finally:
-        if args.logbook:
-            if args.export_logs:
+        if payload.logbook:
+            if payload.export_logs:
                 ChaosTelemetry.export_report()
             ChaosTelemetry.end_run(status=run_status)
 
@@ -564,7 +598,7 @@ def handleOrchestration(
         console.print("[bold green]Finalized.[/bold green]")
 
 
-def setMode(args):
+def setMode(payload: SetPayload):
     """
     Just handles configuring the tool.
     """
@@ -580,28 +614,30 @@ def setMode(args):
     else:
         global_config = OmegaConf.create()
 
-    if hasattr(args, "chobolo_file") and args.chobolo_file:
-        inputPath = Path(args.chobolo_file)
+    if hasattr(payload, "chobolo_file") and payload.chobolo_file:
+        inputPath = Path(payload.chobolo_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.chobolo_file = str(absolutePath)
-            print(f"- Default Ch-obolo set to: {args.chobolo_file}")
+            print(f"- Default Ch-obolo set to: {payload.chobolo_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
-    if hasattr(args, "secrets_file") and args.secrets_file:
-        inputPath = Path(args.secrets_file)
+
+    if hasattr(payload, "secrets_file") and payload.secrets_file:
+        inputPath = Path(payload.secrets_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.secrets_file = str(absolutePath)
-            print(f"- Default secrets file set to: {args.secrets_file}")
+            print(f"- Default secrets file set to: {payload.secrets_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
-    if hasattr(args, "sops_file") and args.sops_file:
-        inputPath = Path(args.sops_file)
+
+    if hasattr(payload, "sops_file") and payload.sops_file:
+        inputPath = Path(payload.sops_file)
         try:
             absolutePath = inputPath.resolve(strict=True)
             global_config.sops_file = str(absolutePath)
-            print(f"- Default sops file set to: {args.sops_file}")
+            print(f"- Default sops file set to: {payload.sops_file}")
         except FileNotFoundError:
             raise FileNotFoundError(f"ERROR: File not found in: {inputPath}")
 

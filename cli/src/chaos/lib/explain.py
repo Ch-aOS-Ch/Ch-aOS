@@ -2,13 +2,11 @@ import sys
 from importlib import import_module
 
 from omegaconf import OmegaConf
-from rich.console import Console
-from rich.text import Text
 
-console = Console()
+from .args.dataclasses import ExplainPayload
 
 
-def _setup_method_explain(EXPLAIN_DISPATCHER, role):
+def _setup_method_explain(EXPLAIN_DISPATCHER, role, console):
     try:
         module_name, class_name = EXPLAIN_DISPATCHER[role].split(":")
         module = import_module(module_name)
@@ -54,7 +52,7 @@ def list_explain_subtopics(explainObj, role, console):
     sys.exit(0)
 
 
-def handleExplain(args, EXPLAIN_DISPATCHER):
+def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER):
     """
     Another Chunker:
 
@@ -70,12 +68,15 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
     I really should add a "--complexity" flag to extend the capability of detailing even further.
     """
     from rich.align import Align
-    from rich.console import Group
+    from rich.console import Console, Group
     from rich.markdown import Markdown
     from rich.padding import Padding
     from rich.panel import Panel
     from rich.syntax import Syntax
+    from rich.text import Text
     from rich.tree import Tree
+
+    console = Console()
 
     DETAIL_LEVELS = {
         "basic": ["concept", "what", "why", "examples", "security"],
@@ -104,24 +105,24 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
         ],
     }
 
-    topics = args.topics
-    complexity = args.complexity
+    topics = payload.topics
+    complexity = payload.complexity
     if not isinstance(topics, list):
         topics = [topics]
 
     for topic in topics:
-        keysToShow = DETAIL_LEVELS.get(args.details, DETAIL_LEVELS["basic"])
+        keysToShow = DETAIL_LEVELS.get(payload.details, DETAIL_LEVELS["basic"])
         parts = topic.split(".")
         role = parts[0]
         sub_topic = parts[1] if len(parts) > 1 else None
 
         if role in EXPLAIN_DISPATCHER:
-            ExplainObj = _setup_method_explain(EXPLAIN_DISPATCHER, role)
+            ExplainObj = _setup_method_explain(EXPLAIN_DISPATCHER, role, console)
 
             methodName = f"explain_{sub_topic}" if sub_topic else f"explain_{role}"
 
             if sub_topic == "list":
-                if args.no_pretty:
+                if payload.no_pretty:
                     import json
 
                     if not hasattr(ExplainObj, "_order"):
@@ -140,8 +141,8 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
             if hasattr(ExplainObj, methodName):
                 method = getattr(ExplainObj, methodName)
                 explanation = method(complexity)
-                if args.no_pretty:
-                    if args.json:
+                if payload.no_pretty:
+                    if payload.json:
                         import json
 
                         print(
@@ -201,7 +202,10 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     explanation_renderables.append(
                         Padding.indent(
                             Syntax(
-                                explanation["validation"], "bash", line_numbers=True
+                                explanation["validation"],
+                                "bash",
+                                line_numbers=True,
+                                word_wrap=True,
                             ),
                             5,
                         )
@@ -215,7 +219,13 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                         if "yaml" in ex:
                             explanation_renderables.append(
                                 Padding.indent(
-                                    Syntax(ex["yaml"], "yaml", line_numbers=True), 5
+                                    Syntax(
+                                        ex["yaml"],
+                                        "yaml",
+                                        line_numbers=True,
+                                        word_wrap=True,
+                                    ),
+                                    5,
                                 )
                             )
                     explanation_renderables.append(Text("\n"))
@@ -281,7 +291,7 @@ def handleExplain(args, EXPLAIN_DISPATCHER):
                     Align.center(
                         Panel(
                             Group(*explanation_renderables),
-                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{args.details}-{args.complexity}[/])",
+                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{payload.details}-{payload.complexity}[/])",
                             border_style="green",
                             expand=False,
                             width=80 if len(explanation_renderables) > 1 else None,

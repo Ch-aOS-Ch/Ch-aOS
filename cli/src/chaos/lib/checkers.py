@@ -1,8 +1,6 @@
 import os
 from typing import cast
 
-from chaos.lib.utils import render_list_as_table
-
 """
 Handles listing of roles/explanations/aliases with rich rendering.
 
@@ -31,8 +29,10 @@ def printCheck(namespace, dispatcher, json_output=False):
             table = Table(show_lines=True)
             table.add_column("[green]Alias[/]", justify="center")
             table.add_column("[green]Maps to[/]", justify="center")
+
             for p, r in dispatcher.items():
                 table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
+
             console.print(
                 Align.center(
                     Panel(
@@ -43,12 +43,17 @@ def printCheck(namespace, dispatcher, json_output=False):
                     )
                 )
             )
+
             return
 
         title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
         if namespace == "secret":
+            from chaos.lib.display_utils import render_list_as_table
+
             render_list_as_table(dispatcher, title)
             return
+        from chaos.lib.display_utils import render_list_as_table
+
         render_list_as_table(list(dispatcher.keys()), title)
     else:
         import json
@@ -136,6 +141,10 @@ def checkLimanis(limanis, isJson=False):
     printCheck("limani", limanis, json_output=isJson)
 
 
+def checkTemplates(keys, isJson=False):
+    printCheck("template", keys, json_output=isJson)
+
+
 def is_vault_in_use(sops_file_path: str) -> bool:
     """
     checks if vault is in use in the sops file
@@ -175,9 +184,9 @@ def check_vault_auth():
         )
 
     try:
-        import hvac  # type: ignore
+        from hvac import Client
 
-        client = hvac.Client(url=vault_addr, token=vault_token)
+        client = Client(url=vault_addr, token=vault_token)
         if client.is_authenticated():
             return True, "[green]INFO:[/] Vault token is valid."
         else:

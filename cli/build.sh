@@ -2,19 +2,19 @@
 set -e
 
 function check_command() {
-  if ! command -v "$1" &>/dev/null; then
-    echo "Error: Command '$1' not found."
-    if [ "$1" == "uv" ]; then
-      echo "   Please install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    elif [ "$1" == "shiv" ]; then
-      echo "   Please install with: uv pip install shiv  (ou pip install shiv)"
+    if ! command -v "$1" &>/dev/null; then
+        echo "Error: Command '$1' not found."
+        if [ "$1" == "uv" ]; then
+            echo "   Please install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        elif [ "$1" == "shiv" ]; then
+            echo "   Please install with: uv pip install shiv  (ou pip install shiv)"
+        fi
+        exit 1
     fi
-    exit 1
-  fi
 }
 
 CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-VERSION="0.6.8"
+VERSION="0.6.9"
 DIST_DIR="$CLI_DIR/dist"
 ARTIFACTS_DIR="$DIST_DIR/artifacts"
 GPG_KEY=12FEDE6E939CA1DB84C222D55B8508C9C82A572E
@@ -35,8 +35,8 @@ uv pip compile "$CLI_DIR/pyproject.toml" -o "$ARTIFACTS_DIR/requirements.txt"
 
 echo "Building the with shiv --no-deps..."
 (
-  cd "$CLI_DIR" || exit
-  shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
+    cd "$CLI_DIR" || exit
+    shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
 )
 
 echo "Placing install script..."
@@ -45,8 +45,8 @@ chmod +x "$ARTIFACTS_DIR/install.sh"
 
 echo "Packaging..."
 (
-  cd "$ARTIFACTS_DIR" || exit
-  tar -czvf "$DIST_DIR/chaos-v$VERSION-shiv-dist.tar.gz" .
+    cd "$ARTIFACTS_DIR" || exit
+    tar -czvf "$DIST_DIR/chaos-v$VERSION-shiv-dist.tar.gz" .
 )
 
 echo "Signing package with GPG key $GPG_KEY..."

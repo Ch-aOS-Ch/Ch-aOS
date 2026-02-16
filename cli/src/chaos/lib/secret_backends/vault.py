@@ -1,7 +1,6 @@
 from typing import cast
 
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
 
 from chaos.lib.secret_backends.utils import (
     _generic_handle_add,
@@ -10,14 +9,15 @@ from chaos.lib.secret_backends.utils import (
     flatten,
 )
 
-console = Console()
-
 """
 Vault specific handlers for add/rem/list
 """
 
 
 def listVault(sops_file_override):
+    from rich.console import Console
+
+    console = Console()
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
@@ -43,7 +43,10 @@ def listVault(sops_file_override):
         raise RuntimeError(f"Failed to update sops config file: {e}") from e
 
 
-def handleVaultAdd(args, sops_file_override, keys):
+def handleVaultAdd(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     valids = set()
     for key in keys:
         clean_key = key.strip()
@@ -55,10 +58,13 @@ def handleVaultAdd(args, sops_file_override, keys):
             console.print(f"[bold red]ERROR:[/] {message} Skipping key '{key}'.")
             continue
 
-    _generic_handle_add("vault", args, sops_file_override, valids)
+    _generic_handle_add("vault", payload, sops_file_override, valids)
 
 
-def handleVaultRem(args, sops_file_override, keys):
+def handleVaultRem(payload, sops_file_override, keys):
+    from rich.console import Console
+
+    console = Console()
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
@@ -86,7 +92,7 @@ def handleVaultRem(args, sops_file_override, keys):
                     f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping."
                 )
 
-        _generic_handle_rem("vault", args, sops_file_override, keys_to_remove)
+        _generic_handle_rem("vault", payload, sops_file_override, keys_to_remove)
 
     except Exception as e:
         raise RuntimeError(f"Failed to update sops config file: {e}") from e

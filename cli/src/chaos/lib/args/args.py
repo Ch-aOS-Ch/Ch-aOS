@@ -2,6 +2,7 @@ import argparse
 import functools
 import os
 import subprocess
+import sys
 
 if "_ARGCOMPLETE" in os.environ:
     try:
@@ -48,6 +49,14 @@ class ExplainCompleter:
 
         all_comps = list(self._topics.keys())
         return [comp for comp in all_comps if comp.startswith(prefix)]
+
+
+class ChaosParser(argparse.ArgumentParser):
+    def error(self, message):
+        import sys
+
+        self.print_help(sys.stderr)
+        sys.exit(2)
 
 
 @functools.lru_cache(maxsize=None)
@@ -158,9 +167,7 @@ KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO B
 
 
 def argParsing():
-    parser = argparse.ArgumentParser(
-        description="chaos system manager.",
-    )
+    parser = ChaosParser(description="Ch-aOS system management CLI.", prog="chaos")
 
     parser.add_argument(
         "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
@@ -186,27 +193,73 @@ def argParsing():
 
     subParser = parser.add_subparsers(dest="command", help="Available subcommands")
 
-    addStyxParsers(subParser)
-    addTeamParsers(subParser)
-    addExplainParsers(subParser)
-    addApplyParsers(subParser)
-    addSecParsers(subParser)
-    addCheckParsers(subParser)
-    addSetParsers(subParser)
-    addRambleParsers(subParser)
-    addInitParsers(subParser)
+    styxParser = subParser.add_parser("styx", help="Manage Styx registry entries.")
+    teamParser = subParser.add_parser("team", help="Manage your teams.")
+    expParser = subParser.add_parser(
+        "explain", help="Explain a role topic or subtopic."
+    )
+    secParser = subParser.add_parser(
+        "secrets",
+        help="Manage your secrets.",
+    )
+    applyParser = subParser.add_parser("apply", help="Apply an available role")
+    checkParser = subParser.add_parser(
+        "check", help="Check and list roles, aliases and explanations"
+    )
+    setParser = subParser.add_parser("set", help="Set configuration files")
+    rambleParser = subParser.add_parser("ramble", help="Annotate your rambles!")
+    initParser = subParser.add_parser(
+        "init", help="Let Ch-aOS handle the boiler plates!"
+    )
+
+    if "_ARGCOMPLETE" in os.environ:
+        import argcomplete
+
+        addStyxParsers(styxParser)
+        addTeamParsers(teamParser)
+        addExplainParsers(expParser)
+        addApplyParsers(applyParser)
+        addSecParsers(secParser)
+        addCheckParsers(checkParser)
+        addSetParsers(setParser)
+        addRambleParsers(rambleParser)
+        addInitParsers(initParser)
+
+        argcomplete.autocomplete(parser)
+
+    elif len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        match cmd:
+            case "styx":
+                addStyxParsers(styxParser)
+            case "team":
+                addTeamParsers(teamParser)
+            case "explain":
+                addExplainParsers(expParser)
+            case "apply":
+                addApplyParsers(applyParser)
+            case "secrets":
+                addSecParsers(secParser)
+            case "check":
+                addCheckParsers(checkParser)
+            case "set":
+                addSetParsers(setParser)
+            case "ramble":
+                addRambleParsers(rambleParser)
+            case "init":
+                addInitParsers(initParser)
 
     return parser
 
 
-def addSecParsers(parser):
-    secParser = parser.add_parser("secrets", help="Manage your secrets.")
+def addSecParsers(secParser):
     secSubParser = secParser.add_subparsers(
         dest="secrets_commands", help="Secret subcommands", required=True
     )
 
     secExport = secSubParser.add_parser(
-        "export", help="Export keys to a Password Manager."
+        "export",
+        help="Export Keys to a Password or Secret Manager.",
     )
     secSubExport = secExport.add_subparsers(
         dest="export_commands", help="Secret export subcommands", required=True
@@ -453,8 +506,7 @@ def addSecParsers(parser):
     add_provider_args(secShamir)
 
 
-def addRambleParsers(parser):
-    rambleParser = parser.add_parser("ramble", help="Annotate your rambles!")
+def addRambleParsers(rambleParser):
 
     rambSubParser = rambleParser.add_subparsers(
         dest="ramble_commands", help="Ramble subcommands", required=True
@@ -642,8 +694,7 @@ def addRambleParsers(parser):
     )
 
 
-def addExplainParsers(parser):
-    expParser = parser.add_parser("explain", help="Explain a role topic or subtopic.")
+def addExplainParsers(expParser):
 
     topics = expParser.add_argument(
         "topics",
@@ -681,10 +732,7 @@ def addExplainParsers(parser):
     topics.completer = ExplainCompleter()  # type: ignore
 
 
-def addCheckParsers(parser):
-    checkParser = parser.add_parser(
-        "check", help="Check and list roles, aliases and explanations"
-    )
+def addCheckParsers(checkParser):
 
     checkParser.add_argument(
         "checks",
@@ -696,6 +744,7 @@ def addCheckParsers(parser):
             "boats",
             "secrets",
             "limanis",
+            "templates",
         ],
         help="The operations you want to check.",
     )
@@ -729,8 +778,7 @@ def addCheckParsers(parser):
     ).completer = FilesCompleter()  # type: ignore
 
 
-def addSetParsers(parser):
-    setParser = parser.add_parser("set", help="Set configuration files")
+def addSetParsers(setParser):
     setSubParser = setParser.add_subparsers(dest="set_command")
 
     chParser = setSubParser.add_parser(
@@ -749,9 +797,7 @@ def addSetParsers(parser):
     sopsParser.add_argument("sops_file", help="Sops file path")
 
 
-def addApplyParsers(parser):
-    applyParser = parser.add_parser("apply", help="Apply an available role")
-
+def addApplyParsers(applyParser):
     tags = applyParser.add_argument(
         "tags", nargs="+", help="The tag(s) for the role(s) to be executed."
     )
@@ -852,8 +898,7 @@ def addApplyParsers(parser):
     add_provider_args(applyParser)
 
 
-def addTeamParsers(parser):
-    teamParser = parser.add_parser("team", help="Manage your teams.")
+def addTeamParsers(teamParser):
     teamSubParser = teamParser.add_subparsers(
         dest="team_commands", help="Team management commands", required=True
     )
@@ -939,8 +984,7 @@ def addTeamParsers(parser):
     )
 
 
-def addInitParsers(parser):
-    initParser = parser.add_parser("init", help="Let Ch-aOS handle the boiler plates!")
+def addInitParsers(initParser):
     initSubParser = initParser.add_subparsers(
         dest="init_command", help="What to initialize", required=True
     )
@@ -961,14 +1005,17 @@ def addInitParsers(parser):
         action="store_true",
         help="In case of -t, makes the output more human-readable.",
     )
+    chobolo_parser.add_argument(
+        "targets",
+        nargs="*",
+        help="Optional target plugins to be included in the template.",
+    )
     initSubParser.add_parser(
         "secrets", help="Initialize both a secrets file and a sops file!"
     )
 
 
-def addStyxParsers(parser):
-    styxParser = parser.add_parser("styx", help="Manage Styx registry entries.")
-
+def addStyxParsers(styxParser):
     styxSubParser = styxParser.add_subparsers(
         dest="styx_commands", help="Styx subcommands", required=True
     )

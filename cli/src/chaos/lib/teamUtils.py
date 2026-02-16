@@ -4,15 +4,10 @@ from typing import Optional, cast
 
 import yaml
 from omegaconf import DictConfig, OmegaConf
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 
 from chaos.lib.utils import checkDep
 
 from .utils import validate_path
-
-console = Console()
 
 """Team Utilities for Chaos CLI."""
 
@@ -51,8 +46,11 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
 
     If neither of those, it creates the symlink and notifies the user.
     """
+    from rich.console import Console
+
+    console = Console()
     try:
-        src = base_path
+        src = base_path / f"{company}/{team}"
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
 
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -81,9 +79,8 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
         raise RuntimeError(f"Failed to activate team: {e}") from e
 
 
-def _validate_paths(args):
+def _validate_paths(batch: str):
     """Protection against path traversal and invalid names."""
-    batch = args.target
 
     parts = batch.split(".")
     company = parts[0]
@@ -120,10 +117,38 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
     if not chaos_file.exists():
         chaosContent = {
             "company": company,
-            "teams": [team],
-            "people": [person] if person else [],
+            "teams": [{"name": team, "people": [person] if person else []}],
             "engine": [engine] if engine != "both" else ["age", "gpg"],
         }
+
+        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+
+    else:
+        chaosContent = yaml.load(open(chaos_file, "r"), Loader=yaml.FullLoader)
+        for t in chaosContent.get("teams", []):
+            if t.get("name") == team:
+                people = t.get("people", [])
+                if person and person not in people:
+                    people.append(person)
+                    t["people"] = people
+                break
+            else:
+                chaosContent["teams"].append(
+                    {"name": team, "people": [person] if person else []}
+                )
+
+        engines = chaosContent.get("engine", [])
+        if engine == "both":
+            if "age" not in engines:
+                engines.append("age")
+
+            if "gpg" not in engines:
+                engines.append("gpg")
+
+        elif engine not in engines:
+            engines.append(engine)
+            chaosContent["engine"] = engines
+
         yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
 
 
@@ -143,7 +168,7 @@ def _get_chaos_file(path) -> DictConfig:
     chaosContent = cast(DictConfig, chaosContent)
     if (
         not chaosContent.get("company")
-        or not chaosContent.get("team")
+        or not chaosContent.get("teams")
         or not chaosContent.get("engine")
     ):
         raise ValueError(
@@ -171,6 +196,11 @@ def _create_sops_config(
 
     Yeah Yeah, it's kinda big, but it's flexible, secure and more importantly: It does one singular thing.
     """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
     sops_file = teamDir / "sops-config.yml"
     if sops_file.exists():
         if not Confirm.ask(

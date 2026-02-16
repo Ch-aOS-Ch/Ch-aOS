@@ -6,55 +6,80 @@ from pathlib import Path
 
 import yaml
 from omegaconf import OmegaConf as oc
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
-
-console = Console()
 
 """
 Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
 """
 
 
-def initChobolo(keys, args):
+def initChobolo(keys: dict, targets: list):
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
+
+    if not targets:
+        finalConf = oc.create()
+        addedKeys = set()
+
+        for k in keys.values():
+            lis = loadList(k)
+
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            from rich.console import Console
+
+                            console = Console()
+                            console.print(
+                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+
+                    finalConf = oc.merge(finalConf, newCfg)
+            elif lis is not None:
+                from rich.console import Console
+
+                console = Console()
+                console.print(
+                    f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
+                )
+        return finalConf
+
     finalConf = oc.create()
     addedKeys = set()
 
-    for k in keys.values():
-        lis = loadList(k)
+    for target in targets:
+        if target in keys:
+            lis = loadList(keys[target])
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            from rich.console import Console
 
-        if isinstance(lis, list):
-            for v in lis:
-                newCfg = oc.create(v)
+                            console = Console()
+                            console.print(
+                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{target}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+                    finalConf = oc.merge(finalConf, newCfg)
 
-                for rootKey in newCfg.keys():
-                    if rootKey in addedKeys:
-                        console.print(
-                            f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
-                        )
-                    else:
-                        addedKeys.add(rootKey)
+            elif lis is not None:
+                from rich.console import Console
 
-                finalConf = oc.merge(finalConf, newCfg)
-        elif lis is not None:
-            console.print(
-                f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
-            )
-
-    if not args.template:
-        path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
-        oc.save(finalConf, path)
-    else:
-        if args.human:
-            print(oc.to_yaml(finalConf, resolve=True))
-        else:
-            print(finalConf)
+                console = Console()
+                console.print(
+                    f"[yellow]Warning:[/] Spec '{target}' did not return a list. Skipped."
+                )
+    return finalConf
 
 
 # -------------- SECRET INITING -------------
@@ -68,6 +93,11 @@ def checkForSsh():
 
 
 def setupSshToAge():
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     """
     Setup age keys using ssh-to-age conversion.
 
@@ -171,6 +201,11 @@ def setupSshToAge():
 
 
 def setupAge():
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     """
     Setup Age keys for Sops encryption.
 
@@ -267,6 +302,9 @@ def genBatchGpg(name, email):
 
     deps: gnupg
     """
+    from rich.console import Console
+
+    console = Console()
     batch = f"""
 Key-Type: EdDSA
 Key-Curve: ed25519
@@ -316,6 +354,12 @@ Expire-Date: 0
 
 
 def genGpgManual():
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Prompt
+
+    console = Console()
+
     """
     Lists all existing GPG secret keys and prompts user to select one by fingerprint.
     """
@@ -349,6 +393,12 @@ def genGpgManual():
 
 
 def setupGpg():
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     "Setup GPG keys for Sops encryption."
     if not checkDep("gpg"):
         raise EnvironmentError(
@@ -386,6 +436,10 @@ def setupGpg():
 
 def setupSsh():
     """Setup SSH key for Sops encryption."""
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
     amount = None
     public_keys = checkForSsh()
     if public_keys:
@@ -446,6 +500,12 @@ def setupSsh():
 
 def initSecrets():
     "Main Entry point for initializing secrets management with SOPS."
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     if not checkDep("sops"):
         raise EnvironmentError(
             "sops is not installed. It is required for this software."

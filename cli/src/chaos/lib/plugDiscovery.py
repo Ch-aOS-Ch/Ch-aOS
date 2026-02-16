@@ -15,7 +15,17 @@ pluginDevPath = os.getenv("CHAOS_DEV_PATH", None)
 if pluginDevPath:
     absPath = os.path.abspath(pluginDevPath)
     if os.path.exists(absPath):
-        sys.path.insert(0, pluginDevPath)
+        wheel_files = list(Path(absPath).glob("*.whl"))
+        for whl in wheel_files:
+            try:
+                whl_path = str(whl.resolve())
+                if whl_path not in sys.path:
+                    sys.path.insert(0, whl_path)
+            except Exception as e:
+                print(
+                    f"Warning: Could not load plugin wheel '{whl}': {e}",
+                    file=sys.stderr,
+                )
     else:
         print(
             f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr
