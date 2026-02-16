@@ -222,12 +222,16 @@ def list_styx_entries(
                 print(f"Warning: No repository URL for '{name}'.")
                 continue
 
-            output.append(f"""{name} ({ver})
-┬
+            output.append(
+                f"""{name} ({ver})
+┬"""
+                + "─" * (len(name) + 2 + len(ver))
+                + f"""
 ├─ {desc}
 ├─ 🔗 {repo}
 ╰─ 🛡️ {hash[:8] + "..." + hash[-8:] if hash else "No hash provided"}
-""")
+"""
+            )
 
         return "\n\n".join(output)
 
