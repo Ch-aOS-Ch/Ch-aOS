@@ -744,6 +744,7 @@ def addCheckParsers(checkParser):
             "boats",
             "secrets",
             "limanis",
+            "templates",
         ],
         help="The operations you want to check.",
     )
@@ -1003,6 +1004,11 @@ def addInitParsers(initParser):
         "--human",
         action="store_true",
         help="In case of -t, makes the output more human-readable.",
+    )
+    chobolo_parser.add_argument(
+        "targets",
+        nargs="*",
+        help="Optional target plugins to be included in the template.",
     )
     initSubParser.add_parser(
         "secrets", help="Initialize both a secrets file and a sops file!"

@@ -16,7 +16,7 @@ def handleInit(args):
                 from chaos.lib.plugDiscovery import get_plugins
 
                 keys = get_plugins(args.update_plugins)[3]
-                conf = initChobolo(keys)
+                conf = initChobolo(keys, args.targets)
 
                 if not args.template:
                     path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")

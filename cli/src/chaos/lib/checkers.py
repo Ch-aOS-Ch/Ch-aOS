@@ -141,6 +141,10 @@ def checkLimanis(limanis, isJson=False):
     printCheck("limani", limanis, json_output=isJson)
 
 
+def checkTemplates(keys, isJson=False):
+    printCheck("template", keys, json_output=isJson)
+
+
 def is_vault_in_use(sops_file_path: str) -> bool:
     """
     checks if vault is in use in the sops file

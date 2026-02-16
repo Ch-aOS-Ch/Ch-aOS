@@ -56,6 +56,13 @@ def handleCheck(args):
             limanis = get_plugins(args.update_plugins)[6]
             checkLimanis(limanis, args.json)
 
+        case "templates":
+            from chaos.lib.checkers import checkTemplates
+            from chaos.lib.plugDiscovery import get_plugins
+
+            keys = get_plugins(args.update_plugins)[3]
+            checkTemplates(keys, args.json)
+
         case _:
             print(
                 "No valid checks passed, valid checks: explain, alias, roles, secrets"

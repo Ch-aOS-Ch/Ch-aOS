@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 """
 Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
-0.15s startup time, which is a significant increase, and that's just not acceptable for a CLI tool. So instead,
-We use __slots__ and a custom __init__ to achieve the same thing, but with a much lower startup time. Plus,
-this way we have more control over the initialization and can do things like validation or default values more easily.
+    0.15s startup time, which is a significant increase, and that's just not acceptable for a CLI tool. So instead,
+    We use __slots__ and a custom __init__ to achieve the same thing, but with a much lower startup time. Plus,
+    this way we have more control over the initialization and can do things like validation or default values more easily.
 
 cool, right?
 """
 
 
 class BasePayload:
+    """
+    Base class for all payloads.
+
+    These are mutable DTOs optimized for CLI startup performance.
+    We use __slots__ instead of dataclasses to keep import time minimal.
+    """
+
     __slots__ = ()
 
     def __repr__(self) -> str:
@@ -27,8 +34,19 @@ class BasePayload:
             getattr(self, slot) == getattr(other, slot) for slot in self.__slots__
         )
 
-    def to_dict(self):
-        return {s: getattr(self, s) for s in self.__slots__}
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload to dictionary, recursively converting nested payloads."""
+
+        return {
+            s: getattr(self, s).to_dict()
+            if isinstance(getattr(self, s), BasePayload)
+            else getattr(self, s)
+            for s in self.__slots__
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(**{s: data[s] for s in cls.__slots__ if s in data})
 
 
 class TeamPrunePayload(BasePayload):
@@ -149,6 +167,24 @@ class SecretsContext(BasePayload):
         self.provider_config = provider_config
         self.i_know_what_im_doing = i_know_what_im_doing
 
+    @classmethod
+    def from_dict_or_self(
+        cls, value: SecretsContext | dict[str, Any]
+    ) -> SecretsContext:
+        if isinstance(value, cls):
+            return value
+
+        elif isinstance(value, dict):
+            if "provider_config" in value and isinstance(
+                value["provider_config"], dict
+            ):
+                value["provider_config"] = ProviderConfigPayload.from_dict(
+                    value["provider_config"]
+                )
+
+            return cls.from_dict(value)
+        raise TypeError(f"Expected {cls.__name__} or dict, got {type(value)}")
+
 
 class ProviderExportArgs(BasePayload):
     __slots__ = ()
@@ -231,17 +267,18 @@ class SecretsRotatePayload(BasePayload):
         self,
         type: Literal["age", "pgp", "vault"],
         keys: list[str],
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         index: int | None = None,
         pgp_server: str | None = None,
         create: bool = False,
     ):
         self.type = type
         self.keys = keys
-        self.context = context
         self.index = index
         self.pgp_server = pgp_server
         self.create = create
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class SecretsListPayload(BasePayload):
@@ -250,24 +287,28 @@ class SecretsListPayload(BasePayload):
     def __init__(
         self,
         type: Literal["age", "pgp", "vault"],
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         no_pretty: bool = False,
         json: bool = False,
         value: bool = False,
     ):
         self.type = type
-        self.context = context
         self.no_pretty = no_pretty
         self.json = json
         self.value = value
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class SecretsEditPayload(BasePayload):
     __slots__ = ("context", "edit_sops_file")
 
-    def __init__(self, context: SecretsContext, edit_sops_file: bool = False):
-        self.context = context
+    def __init__(
+        self, context: SecretsContext | dict[str, Any], edit_sops_file: bool = False
+    ):
         self.edit_sops_file = edit_sops_file
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class SecretsPrintPayload(BasePayload):
@@ -275,13 +316,14 @@ class SecretsPrintPayload(BasePayload):
 
     def __init__(
         self,
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         print_sops_file: bool = False,
         as_json: bool = False,
     ):
-        self.context = context
         self.print_sops_file = print_sops_file
         self.as_json = as_json
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class SecretsCatPayload(BasePayload):
@@ -290,25 +332,28 @@ class SecretsCatPayload(BasePayload):
     def __init__(
         self,
         keys: list[str],
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         cat_sops_file: bool = False,
         as_json: bool = False,
         value_only: bool = False,
     ):
         self.keys = keys
-        self.context = context
         self.cat_sops_file = cat_sops_file
         self.as_json = as_json
         self.value_only = value_only
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class SecretsSetShamirPayload(BasePayload):
     __slots__ = ("index", "share", "context")
 
-    def __init__(self, index: int, share: int, context: SecretsContext):
+    def __init__(
+        self, index: int, share: int, context: SecretsContext | dict[str, Any]
+    ):
         self.index = index
         self.share = share
-        self.context = context
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleCreatePayload(BasePayload):
@@ -317,25 +362,30 @@ class RambleCreatePayload(BasePayload):
     def __init__(
         self,
         target: str,
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         encrypt: bool,
         keys: list[str] | None = None,
     ):
         self.target = target
-        self.context = context
         self.encrypt = encrypt
         self.keys = keys
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleEditPayload(BasePayload):
     __slots__ = ("target", "context", "edit_sops_file")
 
     def __init__(
-        self, target: str, context: SecretsContext, edit_sops_file: bool = False
+        self,
+        target: str,
+        context: SecretsContext | dict[str, Any],
+        edit_sops_file: bool = False,
     ):
         self.target = target
-        self.context = context
         self.edit_sops_file = edit_sops_file
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleEncryptPayload(BasePayload):
@@ -344,12 +394,13 @@ class RambleEncryptPayload(BasePayload):
     def __init__(
         self,
         target: str,
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         keys: list[str] | None = None,
     ):
         self.target = target
-        self.context = context
         self.keys = keys
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleReadPayload(BasePayload):
@@ -358,16 +409,17 @@ class RambleReadPayload(BasePayload):
     def __init__(
         self,
         targets: list[str],
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         no_pretty: bool = False,
         json: bool = False,
         values: list[str] | None = None,
     ):
         self.targets = targets
-        self.context = context
         self.no_pretty = no_pretty
         self.json = json
         self.values = values
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleFindPayload(BasePayload):
@@ -375,17 +427,18 @@ class RambleFindPayload(BasePayload):
 
     def __init__(
         self,
-        context: SecretsContext,
+        context: SecretsContext | dict[str, Any],
         find_term: str | None = None,
         tag: str | None = None,
         no_pretty: bool = False,
         json: bool = False,
     ):
-        self.context = context
         self.find_term = find_term
         self.tag = tag
         self.no_pretty = no_pretty
         self.json = json
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleMovePayload(BasePayload):
@@ -394,24 +447,26 @@ class RambleMovePayload(BasePayload):
     # Since we use a singular "ramble_context" for all ramble operations,
     # we can reduce code duplication by passing the whole context instead of just the team
     # just be known that we use _only_ the team attribute of the context in the ramble move operation
-    def __init__(self, old: str, new: str, context: SecretsContext):
+    def __init__(self, old: str, new: str, context: SecretsContext | dict[str, Any]):
         self.old = old
         self.new = new
-        self.context = context
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleDeletePayload(BasePayload):
     __slots__ = ("ramble", "context")
 
     # Same as the above
-    def __init__(self, ramble: str, context: SecretsContext):
+    def __init__(self, ramble: str, context: SecretsContext | dict[str, Any]):
         self.ramble = ramble
-        self.context = context
+
+        self.context = SecretsContext.from_dict_or_self(context)
 
 
 class RambleUpdateEncryptPayload(BasePayload):
     __slots__ = ("context",)
 
     # ye, only context
-    def __init__(self, context: SecretsContext):
-        self.context = context
+    def __init__(self, context: SecretsContext | dict[str, Any]):
+        self.context = SecretsContext.from_dict_or_self(context)

@@ -16,35 +16,69 @@ Scripts for initializing various parts of Ch-aOS, including Chobolo configuratio
 """
 
 
-def initChobolo(keys):
+def initChobolo(keys: dict, targets: list):
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
-    from rich.console import Console
 
-    console = Console()
+    if not targets:
+        finalConf = oc.create()
+        addedKeys = set()
+
+        for k in keys.values():
+            lis = loadList(k)
+
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            from rich.console import Console
+
+                            console = Console()
+                            console.print(
+                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+
+                    finalConf = oc.merge(finalConf, newCfg)
+            elif lis is not None:
+                from rich.console import Console
+
+                console = Console()
+                console.print(
+                    f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
+                )
+        return finalConf
+
     finalConf = oc.create()
     addedKeys = set()
 
-    for k in keys.values():
-        lis = loadList(k)
+    for target in targets:
+        if target in keys:
+            lis = loadList(keys[target])
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            from rich.console import Console
 
-        if isinstance(lis, list):
-            for v in lis:
-                newCfg = oc.create(v)
+                            console = Console()
+                            console.print(
+                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{target}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+                    finalConf = oc.merge(finalConf, newCfg)
 
-                for rootKey in newCfg.keys():
-                    if rootKey in addedKeys:
-                        console.print(
-                            f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
-                        )
-                    else:
-                        addedKeys.add(rootKey)
+            elif lis is not None:
+                from rich.console import Console
 
-                finalConf = oc.merge(finalConf, newCfg)
-        elif lis is not None:
-            console.print(
-                f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
-            )
-
+                console = Console()
+                console.print(
+                    f"[yellow]Warning:[/] Spec '{target}' did not return a list. Skipped."
+                )
     return finalConf
 
 
