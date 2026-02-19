@@ -15,10 +15,13 @@ cool, right?
 def _serialize(value: Any):
     if isinstance(value, BasePayload):
         return value.to_dict()
+
     if isinstance(value, list):
         return [_serialize(v) for v in value]
+
     if isinstance(value, dict):
         return {k: _serialize(v) for k, v in value.items()}
+
     return value
 
 
@@ -391,6 +394,25 @@ class InitPayload(BasePayload):
 class ProviderConfigPayload(BasePayload):
     __slots__ = ("provider", "ephemeral_provider_args")
 
+    @classmethod
+    def from_dict_or_self(
+        cls, value: ProviderConfigPayload | dict[str, Any]
+    ) -> ProviderConfigPayload:
+        if isinstance(value, cls):
+            return value
+
+        elif isinstance(value, dict):
+            if "provider_config" in value and isinstance(
+                value["provider_config"], dict
+            ):
+                value["provider_config"] = ProviderConfigPayload.from_dict(
+                    value["provider_config"]
+                )
+
+            return cls.from_dict(value)
+
+        raise TypeError(f"Expected {cls.__name__} or dict, got {type(value)}")
+
     def __init__(
         self,
         provider: str | None = None,
@@ -416,13 +438,17 @@ class SecretsContext(BasePayload):
         team: str | None = None,
         sops_file_override: str | None = None,
         secrets_file_override: str | None = None,
-        provider_config: ProviderConfigPayload | None = None,
+        provider_config: ProviderConfigPayload | dict[str, Any] | None = None,
         i_know_what_im_doing: bool = False,
     ):
         self.team = team
         self.sops_file_override = sops_file_override
         self.secrets_file_override = secrets_file_override
-        self.provider_config = provider_config
+        self.provider_config = (
+            ProviderConfigPayload.from_dict_or_self(provider_config)
+            if provider_config is not None
+            else None
+        )
         self.i_know_what_im_doing = i_know_what_im_doing
 
     @classmethod
