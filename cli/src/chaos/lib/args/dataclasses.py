@@ -12,12 +12,32 @@ cool, right?
 """
 
 
+def _serialize(value: Any):
+    if isinstance(value, BasePayload):
+        return value.to_dict()
+    if isinstance(value, list):
+        return [_serialize(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _serialize(v) for k, v in value.items()}
+    return value
+
+
 class BasePayload:
     """
     Base class for all payloads.
 
     These are mutable DTOs optimized for CLI startup performance.
     We use __slots__ instead of dataclasses to keep import time minimal.
+
+    This object has the following methods:
+        - __repr__: A string representation of the object, useful for debugging.
+
+        - __eq__: A method to compare two payload objects for equality.
+
+        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
+
+        - from_dict: A class method to create a payload object from a dictionary, useful for deserialization.
+            Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
     """
 
     __slots__ = ()
@@ -37,16 +57,181 @@ class BasePayload:
     def to_dict(self) -> dict[str, Any]:
         """Convert payload to dictionary, recursively converting nested payloads."""
 
-        return {
-            s: getattr(self, s).to_dict()
-            if isinstance(getattr(self, s), BasePayload)
-            else getattr(self, s)
-            for s in self.__slots__
-        }
+        return {s: _serialize(getattr(self, s)) for s in self.__slots__}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(**{s: data[s] for s in cls.__slots__ if s in data})
+
+
+class DataGatherRequest(BasePayload):
+    """
+    This payload is a data gathering request, which is meant to be used as a request to gather data BEFORE the execution of the main
+        logic, and it is meant to be used in the "pre" phase of the execution.
+
+
+    This object has the following attributes:
+        - name: The name of the data gathering request, e.g. "aws_credentials", "kubeconfig", etc.
+
+        - fields: A list of DataGatherPayload objects, each representing a piece of data that needs to be gathered for this request.
+
+
+    I KNOW its another layer of indirection. This is necessary for the interfaces to be able to group multiple data gathering fields
+        under the same request, and to be able to show them to the user in a more organized way.
+
+
+    Yes, I know I could just use return[DGP(), DGP(), DGP()] instead of return[DGR("aws_credentials", [DGP(), DGP()])], but this way
+        we can have a name for the group of data being gathered, which can be useful for the interfaces to show a more user-friendly message
+        to the user.
+    """
+
+    __slots__ = ("name", "fields")
+
+    def __init__(
+        self,
+        name: str,
+        fields: list[DataGatherPayload],
+    ):
+        self.name = name
+        self.fields = fields
+
+
+class Delta(BasePayload):
+    """
+    This payload is only used by the Role.delta() method, it must return this DTO in order for Role.plan(delta) to work properly, and
+        for the interface to be able to show the users what changes are going to happen if they apply the plan.
+    """
+
+    __slots__ = ("to_add", "to_remove", "metadata")
+
+    def __init__(
+        self,
+        to_add: list[str] | None = None,
+        to_remove: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        self.to_add = to_add or []
+        self.to_remove = to_remove or []
+        self.metadata = metadata or {}
+
+
+class DataGatherPayload(BasePayload):
+    """
+    This payload is a data gathering payload, which is meant to gather data BEFORE the execution of the main
+        logic, and it is meant to be used in the "pre" phase of the execution.
+
+
+    This object has the following attributes:
+        - name: The name of the data being gathered, e.g. "aws_credentials", "kubeconfig", etc.
+
+        - prompt: The prompt to show to the user when asking for the data, e.g. "Please enter your AWS credentials".
+
+        - input_type: The type of input expected, should be used by the CLI to manage how to gather the data.
+            e.g. if input_type is "choice", the interface should show the choices to the user and let them select one, if it's "secret",
+            the interface should hide the input, etc.
+
+        - required: A boolean indicating whether the data is required or not, if it's required, the interface should keep asking for the
+            data until it is provided, if it's not required, the user should be able to skip it.
+
+        - default: The default value to use if the user decides to skip providing the data, should only be used if required is False.
+
+        - choices: A list of choices to show to the user if the input_type is "choice", should be None otherwise.
+
+        - metadata: A dictionary containing any additional information that might be useful for the interface when gathering the data,
+            e.g. if the input_type is "secret", the metadata might contain information about how to validate the secret, etc.
+
+
+    This object has the following methods:
+        - __repr__: A string representation of the object, useful for debugging.
+
+        - __eq__: A method to compare two ResultPayload objects for equality.
+
+        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
+
+        - from_dict: A class method to create a ResultPayload object from a dictionary, useful for deserialization.
+            Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
+
+    """
+
+    __slots__ = (
+        "name",
+        "prompt",
+        "input_type",
+        "required",
+        "default",
+        "choices",
+        "metadata",
+    )
+
+    def __init__(
+        self,
+        prompt: str | None = None,
+        name: str | None = None,
+        input_type: Literal[
+            "string", "integer", "boolean", "choice", "secret"
+        ] = "string",
+        required: bool = False,
+        default: Any = None,
+        choices: list[Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        self.name = name
+        self.prompt = prompt
+        self.input_type = input_type
+        self.required = required
+        self.default = default
+        self.choices = choices
+        self.metadata = metadata
+
+
+class ResultPayload(BasePayload):
+    """
+    With the implementation of this payload, we mark the start of the API refactoring de-facto for our CLI.
+
+
+    This payload is meant to be used as a STANDARD RETURN TYPE for all API calls in the library, and it should
+        be used as such in the future for all API calls.
+
+
+    This object has the following attributes:
+        - success: A boolean indicating whether the operation was successful or not.
+
+        - message: A list of strings containing any messages that should be returned to the user.
+
+        - data: Any data that should be returned to the user, can be of any type
+
+        - error: A list of strings containing any error messages that should be returned to the user.
+
+
+    This object has the following methods:
+        - __repr__: A string representation of the object, useful for debugging.
+
+        - __eq__: A method to compare two ResultPayload objects for equality.
+
+        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
+
+        - from_dict: A class method to create a ResultPayload object from a dictionary, useful for deserialization.
+            Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
+    """
+
+    __slots__ = (
+        "success",
+        "message",
+        "data",
+        "error",
+    )
+
+    def __init__(
+        self,
+        success: bool,
+        message: list[str] | None = None,
+        data: Any = None,
+        error: list[str] | None = None,
+    ):
+        self.success = success
+        self.message = message or []
+        self.data = data
+        self.error = error or []
 
 
 class TeamPrunePayload(BasePayload):
