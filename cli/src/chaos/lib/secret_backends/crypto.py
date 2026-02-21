@@ -180,3 +180,84 @@ def _import_vault_keys(key_content: str) -> None:
 
     with currentPathVaultFile.open("w") as f:
         f.write(key_content)
+
+
+def is_vault_in_use(sops_file_path: str) -> bool:
+    """
+    checks if vault is in use in the sops file
+    yeah, just that
+    """
+    import os
+    from typing import cast
+
+    from omegaconf import DictConfig, OmegaConf
+
+    if not sops_file_path or not os.path.exists(sops_file_path):
+        return False
+    try:
+        config = OmegaConf.load(sops_file_path)
+        config = cast(DictConfig, config)
+        creation_rules = config.get("creation_rules", [])
+        for rule in creation_rules:
+            for key_group in rule.get("key_groups", []):
+                if "vault" in key_group and key_group.get("vault"):
+                    return True
+    except Exception:
+        return False
+    return False
+
+
+def check_vault_auth():
+    """checks if vault auth is valid"""
+    import os
+
+    import requests
+
+    vault_addr = os.getenv("VAULT_ADDR")
+    if not vault_addr:
+        return (
+            False,
+            "[bold red]ERROR:[/] VAULT_ADDR environment variable is not set, which is required when using Vault keys.",
+        )
+
+    vault_token = os.getenv("VAULT_TOKEN")
+    if not vault_token:
+        return (
+            False,
+            "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault.",
+        )
+
+    try:
+        headers = {"X-Vault-Token": vault_token}
+        check_url = f"{vault_addr}/v1/auth/token/lookup-self"
+
+        response = requests.get(check_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        if response.status_code == 200:
+            return True, "[green]INFO:[/] Vault token is valid."
+        elif response.status_code == 403:
+            return (
+                False,
+                "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault.",
+            )
+        else:
+            return (
+                False,
+                f"[]bold red]ERROR:[/] Unexpected response from Vault: {response.status_code}",
+            )
+
+    except requests.exceptions.RequestException as e:
+        return (
+            False,
+            f"[bold red]ERROR:[/] Failed to connect to Vault at {vault_addr}: {e}",
+        )
+    except ImportError:
+        return (
+            False,
+            "[bold red]ERROR:[/] The 'hvac' library is not installed. Please install it to use Vault features (`pip install hvac`).",
+        )
+    except Exception as e:
+        return (
+            False,
+            f"[bold red]ERROR:[/] Failed to authenticate with Vault at {vault_addr}: {e}",
+        )

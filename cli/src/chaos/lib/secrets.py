@@ -248,7 +248,7 @@ def handleSecEdit(payload: SecretsEditPayload):
     import os
     import subprocess
 
-    from chaos.lib.checkers import is_vault_in_use
+    from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _resolveProvider, get_sops_files
 
     context = payload.context
@@ -259,7 +259,7 @@ def handleSecEdit(payload: SecretsEditPayload):
     provider = _resolveProvider(context, global_config)
 
     if is_vault_in_use(sopsFile):
-        from chaos.lib.checkers import check_vault_auth
+        from chaos.lib.secret_backends.crypto import check_vault_auth
 
         is_authed, message = check_vault_auth()
         if not is_authed:
@@ -302,7 +302,7 @@ def handleSecPrint(payload: SecretsPrintPayload):
     import json
     import subprocess
 
-    from chaos.lib.checkers import is_vault_in_use
+    from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
 
     context = payload.context
@@ -325,7 +325,7 @@ def handleSecPrint(payload: SecretsPrintPayload):
         )
 
     if is_vault_in_use(sopsFile):
-        from chaos.lib.checkers import check_vault_auth
+        from chaos.lib.secret_backends.crypto import check_vault_auth
 
         is_authed, message = check_vault_auth()
         if not is_authed:
@@ -367,7 +367,7 @@ def handleSecCat(payload: SecretsCatPayload):
     import subprocess
     from io import StringIO
 
-    from chaos.lib.checkers import is_vault_in_use
+    from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
 
     context = payload.context
@@ -384,7 +384,7 @@ def handleSecCat(payload: SecretsCatPayload):
         )
 
     if is_vault_in_use(sopsFile):
-        from chaos.lib.checkers import check_vault_auth
+        from chaos.lib.secret_backends.crypto import check_vault_auth
 
         is_authed, message = check_vault_auth()
         if not is_authed:

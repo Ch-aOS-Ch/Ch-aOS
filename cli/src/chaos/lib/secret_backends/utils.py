@@ -402,7 +402,7 @@ def handleUpdateAllSecrets(context: SecretsContext):
     from omegaconf import OmegaConf
     from rich.console import Console
 
-    from chaos.lib.checkers import check_vault_auth, is_vault_in_use
+    from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 
     console = Console()
     console.print("\n[bold cyan]Starting key update for all secret files...[/]")
@@ -710,7 +710,7 @@ def decrypt_secrets(
 ) -> str:
     import subprocess
 
-    from chaos.lib.checkers import check_vault_auth, is_vault_in_use
+    from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
     from chaos.lib.utils import checkDep
 
     if not checkDep("sops"):

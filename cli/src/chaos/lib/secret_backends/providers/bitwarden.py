@@ -679,6 +679,8 @@ class BitwardenRbwProvider(Provider):
 
         console = Console()
 
+        key_content = ""
+
         match keyType:
             case "age":
                 if not keyPath:
@@ -852,4 +854,3 @@ class BitwardenRbwProvider(Provider):
         id = items[0].split("\t")[0]
 
         return id
-
