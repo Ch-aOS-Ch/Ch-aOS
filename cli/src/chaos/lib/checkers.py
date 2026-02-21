@@ -61,7 +61,7 @@ def checkSecrets(secrets_file) -> ResultPayload:
     flat_secrets = _flatten_dict_keys(secrets_dict)
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All secrets are valid."],
+        message=["All secrets are valid"],
         data=flat_secrets,
         error=None,
     )
@@ -72,7 +72,7 @@ def checkSecrets(secrets_file) -> ResultPayload:
 def checkRoles(ROLES_DISPATCHER) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All roles are valid."],
+        message=["All roles are valid"],
         data=list(ROLES_DISPATCHER.keys()),
         error=None,
     )
@@ -83,7 +83,7 @@ def checkRoles(ROLES_DISPATCHER) -> ResultPayload:
 def checkExplanations(EXPLANATIONS) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All explanations are valid."],
+        message=["All explanations are valid"],
         data=list(EXPLANATIONS.keys()),
         error=None,
     )
@@ -96,9 +96,7 @@ def checkAliases(ROLE_ALIASES) -> ResultPayload:
     result = ResultPayload(
         success=True,
         data=payload,
-        message=["[green]INFO:[/] All explanations are valid."]
-        if not warnings
-        else messages,
+        message=["All explanations are valid"] if not warnings else messages,
         error=warnings if warnings else None,
     )
 
@@ -108,7 +106,7 @@ def checkAliases(ROLE_ALIASES) -> ResultPayload:
 def checkProviders(providers) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All providers are valid."],
+        message=["All providers are valid"],
         data=list(providers.keys()),
         error=None,
     )
@@ -119,7 +117,7 @@ def checkProviders(providers) -> ResultPayload:
 def checkBoats(boats) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All boats are valid."],
+        message=["All boats are valid"],
         data=list(boats.keys()),
         error=None,
     )
@@ -130,7 +128,7 @@ def checkBoats(boats) -> ResultPayload:
 def checkLimanis(limanis) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All limanis are valid."],
+        message=["All limanis are valid"],
         data=list(limanis.keys()),
         error=None,
     )
@@ -141,7 +139,7 @@ def checkLimanis(limanis) -> ResultPayload:
 def checkTemplates(keys) -> ResultPayload:
     result = ResultPayload(
         success=True,
-        message=["[green]INFO:[/] All templates are valid."],
+        message=["All templates are valid"],
         data=list(keys.keys()),
         error=None,
     )
