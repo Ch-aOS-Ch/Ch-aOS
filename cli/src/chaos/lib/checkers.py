@@ -1,7 +1,7 @@
 import os
 from typing import cast
 
-from .args.dataclasses import CheckPayload
+from .args.dataclasses import CheckPayload, ResultPayload
 
 """
 Handles listing of roles/explanations/aliases with rich rendering.
@@ -25,9 +25,7 @@ def printCheck(namespace, dispatcher, json_output=False):
             console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
             return
 
-        if namespace == "alias":
-            dispatcher = _handleAliases(dispatcher)
-
+        if namespace == "aliases":
             table = Table(show_lines=True)
             table.add_column("[green]Alias[/]", justify="center")
             table.add_column("[green]Maps to[/]", justify="center")
@@ -41,22 +39,22 @@ def printCheck(namespace, dispatcher, json_output=False):
                         table,
                         border_style="green",
                         expand=False,
-                        title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:",
+                        title=f"[italic][green]Available [/][bold blue]{namespace}[/][/]:",
                     )
                 )
             )
 
             return
 
-        title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
-        if namespace == "secret":
+        title = f"[italic][green]Available [/][bold blue]{namespace}[/][/]"
+        if namespace == "secrets":
             from chaos.lib.display_utils import render_list_as_table
 
             render_list_as_table(dispatcher, title)
             return
         from chaos.lib.display_utils import render_list_as_table
 
-        render_list_as_table(list(dispatcher.keys()), title)
+        render_list_as_table(list(dispatcher), title)
     else:
         import json
 
@@ -111,40 +109,97 @@ def flatten_dict_keys(d, parent_key="", sep="."):
     return items
 
 
-def checkSecrets(secrets_file, isJson=False):
+def checkSecrets(secrets_file) -> ResultPayload:
     from omegaconf import OmegaConf
 
     secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
     flat_secrets = flatten_dict_keys(secrets_dict)
-    printCheck("secret", flat_secrets, json_output=isJson)
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All secrets are valid."],
+        data=flat_secrets,
+        error=None,
+    )
+
+    return result
 
 
-def checkRoles(ROLES_DISPATCHER, isJson=False):
-    printCheck("role", ROLES_DISPATCHER, json_output=isJson)
+def checkRoles(ROLES_DISPATCHER) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All roles are valid."],
+        data=list(ROLES_DISPATCHER.keys()),
+        error=None,
+    )
+
+    return result
 
 
-def checkExplanations(EXPLANATIONS, isJson=False):
-    printCheck("explanation", EXPLANATIONS, json_output=isJson)
+def checkExplanations(EXPLANATIONS) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All explanations are valid."],
+        data=list(EXPLANATIONS.keys()),
+        error=None,
+    )
+
+    return result
 
 
-def checkAliases(ROLE_ALIASES, isJson=False):
-    printCheck("alias", ROLE_ALIASES, json_output=isJson)
+def checkAliases(ROLE_ALIASES) -> ResultPayload:
+    payload = _handleAliases(ROLE_ALIASES)
+    result = ResultPayload(
+        success=True,
+        data=payload,
+        message=["[green]INFO:[/] All explanations are valid."],
+        error=None,
+    )
+
+    return result
 
 
-def checkProviders(providers, isJson=False):
-    printCheck("provider", providers, json_output=isJson)
+def checkProviders(providers) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All providers are valid."],
+        data=list(providers.keys()),
+        error=None,
+    )
+
+    return result
 
 
-def checkBoats(boats, isJson=False):
-    printCheck("boat", boats, json_output=isJson)
+def checkBoats(boats) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All boats are valid."],
+        data=list(boats.keys()),
+        error=None,
+    )
+
+    return result
 
 
-def checkLimanis(limanis, isJson=False):
-    printCheck("limani", limanis, json_output=isJson)
+def checkLimanis(limanis) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All limanis are valid."],
+        data=list(limanis.keys()),
+        error=None,
+    )
+
+    return result
 
 
-def checkTemplates(keys, isJson=False):
-    printCheck("template", keys, json_output=isJson)
+def checkTemplates(keys) -> ResultPayload:
+    result = ResultPayload(
+        success=True,
+        message=["[green]INFO:[/] All templates are valid."],
+        data=list(keys.keys()),
+        error=None,
+    )
+
+    return result
 
 
 def is_vault_in_use(sops_file_path: str) -> bool:
@@ -224,35 +279,38 @@ def check_vault_auth():
 
 
 def handle_check(payload: CheckPayload):
-    import sys
-
     match payload.checks:
         case "explanations":
             from chaos.lib.plugDiscovery import get_plugins
 
             EXPLANATIONS = get_plugins(payload.update_plugins)[2]
-            checkExplanations(EXPLANATIONS, payload.json)
+            result: ResultPayload = checkExplanations(EXPLANATIONS)
+            return result
         case "aliases":
             from chaos.lib.plugDiscovery import get_plugins
 
             ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
-            checkAliases(ROLE_ALIASES, payload.json)
+            result: ResultPayload = checkAliases(ROLE_ALIASES)
+            return result
         case "roles":
             from chaos.lib.plugDiscovery import get_plugins
 
             role_specs = get_plugins(payload.update_plugins)[0]
-            checkRoles(role_specs, payload.json)
+            result: ResultPayload = checkRoles(role_specs)
+            return result
         case "providers":
             from chaos.lib.plugDiscovery import get_plugins
 
             providers = get_plugins(payload.update_plugins)[4]
-            checkProviders(providers, payload.json)
+            result: ResultPayload = checkProviders(providers)
+            return result
 
         case "boats":
             from chaos.lib.plugDiscovery import get_plugins
 
             boats = get_plugins(payload.update_plugins)[5]
-            checkBoats(boats)
+            result: ResultPayload = checkBoats(boats)
+            return result
 
         case "secrets":
             from chaos.lib.checkers import checkSecrets
@@ -263,23 +321,29 @@ def handle_check(payload: CheckPayload):
                 payload.secrets_file_override,
                 payload.team,
             )[0]
-            checkSecrets(sec_file, payload.json)
+            result: ResultPayload = checkSecrets(sec_file)
+            return result
 
         case "limanis":
             from chaos.lib.plugDiscovery import get_plugins
 
             limanis = get_plugins(payload.update_plugins)[6]
-            checkLimanis(limanis, payload.json)
+            result: ResultPayload = checkLimanis(limanis)
+            return result
 
         case "templates":
             from chaos.lib.plugDiscovery import get_plugins
 
             keys = get_plugins(payload.update_plugins)[3]
-            checkTemplates(keys, payload.json)
+            result: ResultPayload = checkTemplates(keys)
+            return result
 
         case _:
-            print(
-                "No valid checks passed, valid checks: explain, alias, roles, secrets"
+            return ResultPayload(
+                success=False,
+                message=[
+                    "[bold red]ERROR:[/] No valid checks passed, valid checks: explain, alias, roles, secrets"
+                ],
+                data=None,
+                error=["Invalid check type"],
             )
-
-    sys.exit(0)

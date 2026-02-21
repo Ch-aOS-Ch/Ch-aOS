@@ -1,3 +1,6 @@
+from chaos.lib.args.dataclasses import ResultPayload
+
+
 def handleCheck(args):
     from chaos.lib.args.dataclasses import CheckPayload
     from chaos.lib.checkers import handle_check
@@ -11,4 +14,10 @@ def handleCheck(args):
         secrets_file_override=getattr(args, "secrets_file_override", None),
         update_plugins=getattr(args, "update_plugins", False),
     )
-    handle_check(payload)
+
+    result: ResultPayload = handle_check(payload)
+
+    if result.success:
+        from chaos.lib.checkers import printCheck
+
+        printCheck(payload.checks, result.data, json_output=payload.json)
