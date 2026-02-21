@@ -164,7 +164,6 @@ def cloneGitTeam(payload: TeamClonePayload):
 
     Validity = presence of .chaos.yml with required fields.
     """
-    from git import Repo
 
     repo = payload.target
     path = payload.path
@@ -173,9 +172,9 @@ def cloneGitTeam(payload: TeamClonePayload):
 
     try:
         if path:
-            Repo.clone_from(repo, path)
+            subprocess.run(["git", "clone", repo, path], check=True)
         else:
-            Repo.clone_from(repo, repo.split("/")[-1].replace(".git", ""))
+            subprocess.run(["git", "clone", repo], check=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to clone repository '{repo}': {e}") from e
 

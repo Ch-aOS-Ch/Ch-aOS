@@ -17,7 +17,6 @@ dependencies = [
     "argcomplete",
     "rich",
     "requests",
-    "gitpython",
     "greenlet",
     "zope.event",
     "zope.interface",
