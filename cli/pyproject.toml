@@ -16,7 +16,6 @@ dependencies = [
     "passlib",
     "argcomplete",
     "rich",
-    "hvac",
     "requests",
     "gitpython",
     "greenlet",
