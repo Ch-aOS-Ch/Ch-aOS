@@ -10,65 +10,10 @@ Handles listing of roles/explanations/aliases with rich rendering.
 """
 
 
-def printCheck(namespace, dispatcher, json_output=False):
-    """
-    Handles the printing of the lists.
-    """
-    if not json_output:
-        from rich.align import Align
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-
-        console = Console()
-        if not dispatcher:
-            console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
-            return
-
-        if namespace == "aliases":
-            table = Table(show_lines=True)
-            table.add_column("[green]Alias[/]", justify="center")
-            table.add_column("[green]Maps to[/]", justify="center")
-
-            for p, r in dispatcher.items():
-                table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
-
-            console.print(
-                Align.center(
-                    Panel(
-                        table,
-                        border_style="green",
-                        expand=False,
-                        title=f"[italic][green]Available [/][bold blue]{namespace}[/][/]:",
-                    )
-                )
-            )
-
-            return
-
-        title = f"[italic][green]Available [/][bold blue]{namespace}[/][/]"
-        if namespace == "secrets":
-            from chaos.lib.display_utils import render_list_as_table
-
-            render_list_as_table(dispatcher, title)
-            return
-        from chaos.lib.display_utils import render_list_as_table
-
-        render_list_as_table(list(dispatcher), title)
-    else:
-        import json
-
-        if namespace == "secret":
-            print(json.dumps(dispatcher, indent=2))
-            return
-        print(json.dumps(list(dispatcher.keys()), indent=2))
-
-
 def _handleAliases(dispatcher):
     from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
 
-    console = Console()
+    warnings = []
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -79,16 +24,14 @@ def _handleAliases(dispatcher):
     userAliases = global_config.get("aliases", {})
     for a in userAliases.keys():
         if a in dispatcher:
-            console.print(
-                f"[bold yellow]WARNING:[/] Alias {a} already exists in Aliases installed. Skipping."
-            )
+            warnings.append(f"Alias {a} already exists in Aliases installed. Skipping.")
             del userAliases[a]
 
     dispatcher.update(userAliases)
-    return dispatcher
+    return dispatcher, warnings
 
 
-def flatten_dict_keys(d, parent_key="", sep="."):
+def _flatten_dict_keys(d, parent_key="", sep="."):
     """
     Flattens a nested dictionary and returns a list of keys in dot notation.
     Skips the 'sops' key during the flattening process and appends it at the end if it exists.
@@ -102,7 +45,7 @@ def flatten_dict_keys(d, parent_key="", sep="."):
             continue
 
         if isinstance(v, dict) and v:
-            items.extend(flatten_dict_keys(v, new_key, sep=sep))
+            items.extend(_flatten_dict_keys(v, new_key, sep=sep))
         else:
             items.append(new_key)
 
@@ -113,7 +56,7 @@ def checkSecrets(secrets_file) -> ResultPayload:
     from omegaconf import OmegaConf
 
     secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
-    flat_secrets = flatten_dict_keys(secrets_dict)
+    flat_secrets = _flatten_dict_keys(secrets_dict)
     result = ResultPayload(
         success=True,
         message=["[green]INFO:[/] All secrets are valid."],
@@ -147,12 +90,12 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload:
 
 
 def checkAliases(ROLE_ALIASES) -> ResultPayload:
-    payload = _handleAliases(ROLE_ALIASES)
+    payload, warnings = _handleAliases(ROLE_ALIASES)
     result = ResultPayload(
         success=True,
         data=payload,
         message=["[green]INFO:[/] All explanations are valid."],
-        error=None,
+        error=warnings if warnings else None,
     )
 
     return result
@@ -202,7 +145,7 @@ def checkTemplates(keys) -> ResultPayload:
     return result
 
 
-def handle_check(payload: CheckPayload):
+def handle_check(payload: CheckPayload) -> ResultPayload:
     match payload.checks:
         case "explanations":
             from chaos.lib.plugDiscovery import get_plugins
@@ -265,9 +208,7 @@ def handle_check(payload: CheckPayload):
         case _:
             return ResultPayload(
                 success=False,
-                message=[
-                    "[bold red]ERROR:[/] No valid checks passed, valid checks: explain, alias, roles, secrets"
-                ],
+                message=[],
                 data=None,
-                error=["Invalid check type"],
+                error=["No valid checks passed."],
             )
