@@ -1,8 +1,7 @@
 from typing import cast
 
-from omegaconf import OmegaConf
-
 from chaos.lib.args.dataclasses import (
+    ResultPayload,
     SecretsCatPayload,
     SecretsEditPayload,
     SecretsExportPayload,
@@ -90,11 +89,13 @@ def handleRotateRemove(payload: SecretsRotatePayload):
         handleUpdateAllSecrets(context)
 
 
-def listFp(payload: SecretsListPayload):
+def listFp(payload: SecretsListPayload) -> ResultPayload:
     """Lists all keys of a certain type from the sops config file."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
     results = None
+    messages = []
+    errors = []
 
     context = payload.context
     _, sops_file_override, _ = get_sops_files(
@@ -108,40 +109,26 @@ def listFp(payload: SecretsListPayload):
         case "pgp":
             from chaos.lib.secret_backends.pgp import listPgp
 
-            results = listPgp(sops_file_override)
+            results, warnings, errors, messages = listPgp(sops_file_override)
         case "age":
             from chaos.lib.secret_backends.age import listAge
 
-            results = listAge(sops_file_override)
+            results, warnings, errors, messages = listAge(sops_file_override)
         case "vault":
             from chaos.lib.secret_backends.vault import listVault
 
-            results = listVault(sops_file_override)
+            results, warnings, errors, messages = listVault(sops_file_override)
 
-    if results:
-        if payload.no_pretty:
-            if payload.value:
-                print("\n".join(results))
-                return
+    response = ResultPayload(
+        success=True if not errors else False,
+        message=[f"Listed {payload.type} keys successfully."]
+        if not messages
+        else messages,
+        data=results,
+        error=errors if errors else None,
+    )
 
-            if payload.json:
-                import json
-
-                print(json.dumps(list(results), indent=2))
-                return
-
-            print(OmegaConf.to_yaml(list(results)))
-            return
-
-        from chaos.lib.display_utils import render_list_as_table
-
-        title = f"[italic][green]Found {payload.type} Keys:[/][/]"
-        render_list_as_table(list(results), title)
-    else:
-        from rich.console import Console
-
-        console = Console()
-        console.print(f"[cyan]INFO:[/] No {payload.type} keys to be shown.")
+    return response
 
 
 def handleSetShamir(payload: SecretsSetShamirPayload):

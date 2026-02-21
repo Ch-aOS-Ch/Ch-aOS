@@ -16,19 +16,19 @@ AGE specific handlers for add/rem/list
 
 
 def listAge(sops_file_override):
-    from rich.console import Console
-
-    console = Console()
-
+    warnings = []
+    error = []
+    messages = []
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
         creation_rules = sops_config.get("creation_rules")
         if not creation_rules:
-            console.print(
-                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            messages.append(
+                "No 'creation_rules' found in the sops config. Nothing to do."
             )
-            return
+            error.append("No 'creation_rules' found in the sops config. Nothing to do.")
+            return set(), warnings, error, messages
 
         all_age_keys_in_config = set()
         for rule in creation_rules:
@@ -37,12 +37,15 @@ def listAge(sops_file_override):
                     all_age_keys_in_config.update(flatten(key_group.age))
 
         if not all_age_keys_in_config:
-            console.print("[cyan]INFO:[/] No keys to be shown.")
+            messages.append("No keys to be shown.")
+            warnings.append("No keys to be shown.")
 
-        return all_age_keys_in_config
+        return all_age_keys_in_config, warnings, error, messages
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        error.append(f"Failed to read sops config file: {e}")
+        messages.append(f"Failed to read sops config file: {e}")
+        return set(), warnings, error, messages
 
 
 def handleAgeAdd(payload, sops_file_override, keys):

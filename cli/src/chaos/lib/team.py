@@ -3,9 +3,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from omegaconf import OmegaConf
-
 from chaos.lib.args.dataclasses import (
+    ResultPayload,
     TeamActivatePayload,
     TeamClonePayload,
     TeamDeactivatePayload,
@@ -24,7 +23,7 @@ from chaos.lib.teamUtils import (
     _validate_paths,
     _validate_teamDir,
 )
-from chaos.lib.utils import checkDep, render_list_as_table, validate_path
+from chaos.lib.utils import checkDep, validate_path
 
 """
 Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
@@ -202,39 +201,34 @@ def cloneGitTeam(payload: TeamClonePayload):
         _symlink_teamDir(company, base_path, team.get("name", ""))
 
 
-def listTeams(payload: TeamListPayload):
+def listTeams(payload: TeamListPayload) -> ResultPayload:
     """Lists all activated teams, optionally filtered by company."""
-    from rich.console import Console
+    messages = []
 
-    console = Console()
+    result = ResultPayload(message=messages, success=True, data=None, error=None)
+
     company = payload.company
+
     baseDir = (
         Path(f"~/.local/share/chaos/teams/{company}").expanduser()
         if company
         else Path("~/.local/share/chaos/teams").expanduser()
     )
+
     if not baseDir.exists():
-        console.print("[bold yellow]No teams have been activated yet.[/]")
-        return
+        messages.append("No teams have been activated yet.")
+        result.success = False
+        return result
+
     teams = _list_teams_in_dir(baseDir)
+
     if not teams:
-        console.print("[bold yellow]No teams have been activated yet.[/]")
-        return
+        messages.append("No teams have been activated yet.")
+        result.success = False
+        return result
 
-    if payload.no_pretty:
-        if payload.json:
-            import json as js
-
-            print(
-                js.dumps(
-                    OmegaConf.to_container(OmegaConf.create(list(teams))), indent=2
-                )
-            )
-            return
-        print(OmegaConf.to_yaml(OmegaConf.create(list(teams))))
-        return
-    title = "[italic][green]Found teams:[/][/]"
-    render_list_as_table(list(teams), title)
+    result.data = teams
+    return result
 
 
 def deactivateTeam(payload: TeamDeactivatePayload):

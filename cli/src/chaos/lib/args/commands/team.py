@@ -1,5 +1,7 @@
 import sys
 
+from chaos.lib.args.dataclasses import ResultPayload
+
 
 def handleTeam(args):
     from rich.console import Console
@@ -15,7 +17,35 @@ def handleTeam(args):
                     company=args.company, no_pretty=args.no_pretty, json=args.json
                 )
 
-                listTeams(payload)
+                result: ResultPayload = listTeams(payload)
+
+                teams = result.data
+
+                if not result.success:
+                    for m in result.message:
+                        console.print(f"[bold red]ERROR:[/] {m}")
+                    sys.exit(1)
+
+                if payload.no_pretty:
+                    if payload.json:
+                        import json as js
+
+                        from omegaconf import OmegaConf
+
+                        print(
+                            js.dumps(
+                                OmegaConf.to_container(OmegaConf.create(list(teams))),
+                                indent=2,
+                            )
+                        )
+                    from omegaconf import OmegaConf
+
+                    print(OmegaConf.to_yaml(OmegaConf.create(list(teams))))
+                from chaos.lib.display_utils import render_list_as_table
+
+                title = "[italic][green]Found teams:[/][/]"
+                render_list_as_table(list(teams), title)
+
             case "activate":
                 from chaos.lib.args.dataclasses import TeamActivatePayload
                 from chaos.lib.team import activateTeam

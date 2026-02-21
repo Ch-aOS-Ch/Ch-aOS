@@ -1,5 +1,7 @@
 import sys
 
+from chaos.lib.args.dataclasses import ResultPayload
+
 
 def handleSecrets(args):
     from rich.console import Console
@@ -164,8 +166,38 @@ def handleSecrets(args):
                     value=getattr(args, "value", False),
                 )
 
-                listFp(payload)
+                result: ResultPayload = listFp(payload)
+                results = result.data
 
+                if result.error:
+                    for error in result.message:
+                        console.print(f"[bold red][italic]ERROR:[/] {error}")
+                        return
+
+                if results:
+                    if payload.no_pretty:
+                        if payload.value:
+                            print("\n".join(results))
+
+                        elif payload.json:
+                            import json
+
+                            print(json.dumps(list(results), indent=2))
+
+                        else:
+                            from omegaconf import OmegaConf
+
+                            print(OmegaConf.to_yaml(list(results)))
+
+                    from chaos.lib.display_utils import render_list_as_table
+
+                    title = f"[italic][green]Found {payload.type} Keys:[/][/]"
+                    render_list_as_table(list(results), title)
+                else:
+                    from rich.console import Console
+
+                    console = Console()
+                    console.print(f"[cyan]INFO:[/] No {payload.type} keys to be shown.")
             case "edit":
                 from ...secrets import handleSecEdit
 
