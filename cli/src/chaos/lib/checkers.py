@@ -189,16 +189,21 @@ def check_vault_auth():
 
     try:
         headers = {"X-Vault-Token": vault_token}
-        health_url = f"{vault_addr}/v1/sys/health"
+        check_url = f"{vault_addr}/v1/auth/token/lookup-self"
 
-        response = requests.get(health_url, headers=headers, timeout=5)
+        response = requests.get(check_url, headers=headers, timeout=5)
         response.raise_for_status()
         if response.status_code == 200:
             return True, "[green]INFO:[/] Vault token is valid."
-        else:
+        elif response.status_code == 403:
             return (
                 False,
                 "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault.",
+            )
+        else:
+            return (
+                False,
+                f"[]bold red]ERROR:[/] Unexpected response from Vault: {response.status_code}",
             )
 
     except requests.exceptions.RequestException as e:
