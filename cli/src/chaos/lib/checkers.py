@@ -171,6 +171,8 @@ def is_vault_in_use(sops_file_path: str) -> bool:
 
 def check_vault_auth():
     """checks if vault auth is valid"""
+    import requests
+
     vault_addr = os.getenv("VAULT_ADDR")
     if not vault_addr:
         return (
@@ -186,16 +188,24 @@ def check_vault_auth():
         )
 
     try:
-        from hvac import Client
+        headers = {"X-Vault-Token": vault_token}
+        health_url = f"{vault_addr}/v1/sys/health"
 
-        client = Client(url=vault_addr, token=vault_token)
-        if client.is_authenticated():
+        response = requests.get(health_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        if response.status_code == 200:
             return True, "[green]INFO:[/] Vault token is valid."
         else:
             return (
                 False,
                 "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault.",
             )
+
+    except requests.exceptions.RequestException as e:
+        return (
+            False,
+            f"[bold red]ERROR:[/] Failed to connect to Vault at {vault_addr}: {e}",
+        )
     except ImportError:
         return (
             False,
