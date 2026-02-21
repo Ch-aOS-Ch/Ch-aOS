@@ -49,7 +49,7 @@ def _printCheck(namespace, dispatcher, json_output=False):
     else:
         import json
 
-        if namespace == "secret":
+        if namespace == "secrets":
             print(json.dumps(dispatcher, indent=2))
             return
         print(json.dumps(list(dispatcher.keys()), indent=2))
