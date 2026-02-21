@@ -9,7 +9,7 @@ from chaos.lib.args.dataclasses import (
     RambleEncryptPayload,
     SecretsContext,
 )
-from chaos.lib.checkers import check_vault_auth, is_vault_in_use
+from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 from chaos.lib.secret_backends.utils import (
     _getProvider,
     _handle_provider_arg,
