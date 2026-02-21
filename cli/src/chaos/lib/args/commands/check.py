@@ -77,11 +77,11 @@ def handleCheck(args):
         console = Console()
         if not result.success:
             for error in result.message:
-                console.print(f"[bold red][italic]Error:[/] {error}[/]")
+                console.print(f"[bold red][italic]Error:[/] {error}")
             return
 
         for error in result.message:
-            console.print(f"[bold yellow]WARNING:[/] {error}[/]")
+            console.print(f"[bold yellow]WARNING:[/] {error}")
 
     if result.success:
         _printCheck(payload.checks, result.data, json_output=payload.json)

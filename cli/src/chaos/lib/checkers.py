@@ -23,7 +23,7 @@ def _handleAliases(dispatcher):
     global_config = cast(DictConfig, global_config)
 
     userAliases = global_config.get("aliases", {})
-    for a in userAliases.keys():
+    for a in list(userAliases.keys()):
         if a in dispatcher:
             warnings.append("conflicting alias")
             messages.append(f"Alias {a} conflicts with an existing alias. Skipping.")
