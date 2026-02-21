@@ -26,13 +26,6 @@
 
 Now, now, with all of these nautical references, I couldn't just not add this one! Think about it, you have a very good way to _configure_ your system, but what about _provisioning_ it? Ch-aOS Archipelago (or just pelago) would be a tool that utilizes the same plugin-based architecture to provision new systems on the cloud, using Pulumi as the underlying provisioning engine. Instead of just provisioning it, tho, it would be able to apply Ch-aOS configurations to it as well, making it a one-command solution for going from 0 to a fully configured VM! (chaos.isles)
 
-## Atomicity and Rollbacks
-
-**Atomicity is Important. Period.** Implementing atomic operations is more of a roles problem than a core one, however, Ch-aOS' core could provide a built-in mechanism to support atomic and granular _rollbacks_, for instance, saving the state of the *Ch-obolos* inside ovf /var/lib after applying all changes, this would allow users to revert to a previous state in case of breakage. Atomicity can be achieved by using try/except blocks in python roles, this approach would require roles to be written with atomicity in mind, like normal configuration managers do.
-+1 I can already hear you say "but what about using filesystem snapshots?" Well, yes, that could be an option, but it would require users to use specific filesystems (like btrfs or zfs) and would add complexity to the core. This approach would be more universal and easier to implement across different systems.
-+1 I can and will implement a dedicated role abstract class to help role developers, with an apply() and undo() methods, but the _rollbacks_ mechanism would be built into the core.
-BTW: hey, not even Ansible has atomicity and rollbacks out of the box, this is something complex to do, and the lack of it does not really stop Ansible from being very popular, so this would not be a deal breaker for Ch-aOS either!
-
 ## (Another big task) Ch-aOS Capitain... or should I say, Ch-apetanios
 
 **So, you know Ansible Tower and you know Puppet Master, get ready for...** Ch-aOS Ch-apetanios! A centralized server that should provide a single point of management for multiple Ch-aOS managed systems. There are a... "few" steps to achieve this, such as:

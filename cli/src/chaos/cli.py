@@ -81,6 +81,11 @@ Best practices for this project:
             and that we will not change it any time soon, as this gives us some pretty nice benefits (I mean, the CLI started in 0.5 seconds before,
             now it starts in about 0.1s to 0.069s depending on the state of the machine, so it is a pretty nice improvement)
 
+        Once PEP 810 hits the scene, we will check if its a good fit for our codebase (we need it to work with py3.11 in some way, since its our
+            minimum supported version, if it does, we will go back to PEP8 standards for imports, just with "lazy" in front of them.
+            IF it doesn't, we will keep doing what we're doing. LSPs and type checking + performance are more important than
+            "code conventions" for us, so we will choose the best option for our codebase, not the one that is more "standard".
+
 
     If you display something to the user, first make it beautiful and nice for humans, then make it be beautiful and nice for machines.
         This means that if you're printing something to the user, keep in mind that the user might not want to see only a pretty table,
