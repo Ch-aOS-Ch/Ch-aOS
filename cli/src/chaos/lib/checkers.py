@@ -14,6 +14,7 @@ def _handleAliases(dispatcher):
     from omegaconf import DictConfig, OmegaConf
 
     warnings = []
+    messages = []
     CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
@@ -24,11 +25,12 @@ def _handleAliases(dispatcher):
     userAliases = global_config.get("aliases", {})
     for a in userAliases.keys():
         if a in dispatcher:
-            warnings.append(f"Alias {a} already exists in Aliases installed. Skipping.")
+            warnings.append("conflicting alias")
+            messages.append(f"Alias {a} conflicts with an existing alias. Skipping.")
             del userAliases[a]
 
     dispatcher.update(userAliases)
-    return dispatcher, warnings
+    return dispatcher, warnings, messages
 
 
 def _flatten_dict_keys(d, parent_key="", sep="."):
@@ -90,11 +92,13 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload:
 
 
 def checkAliases(ROLE_ALIASES) -> ResultPayload:
-    payload, warnings = _handleAliases(ROLE_ALIASES)
+    payload, warnings, messages = _handleAliases(ROLE_ALIASES)
     result = ResultPayload(
         success=True,
         data=payload,
-        message=["[green]INFO:[/] All explanations are valid."],
+        message=["[green]INFO:[/] All explanations are valid."]
+        if not warnings
+        else messages,
         error=warnings if warnings else None,
     )
 
@@ -208,7 +212,9 @@ def handle_check(payload: CheckPayload) -> ResultPayload:
         case _:
             return ResultPayload(
                 success=False,
-                message=[],
+                message=[
+                    "No valid checks passed. Please specify one of: explanations, aliases, roles, providers, boats, secrets, limanis, templates."
+                ],
                 data=None,
-                error=["No valid checks passed."],
+                error=["Invalid checks"],
             )

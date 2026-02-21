@@ -76,11 +76,11 @@ def handleCheck(args):
 
         console = Console()
         if not result.success:
-            for error in result.error:
-                console.print(f"[bold red][italic]Error:[/] {result.error}[/]")
+            for error in result.message:
+                console.print(f"[bold red][italic]Error:[/] {error}[/]")
             return
 
-        for error in result.error:
+        for error in result.message:
             console.print(f"[bold yellow]WARNING:[/] {error}[/]")
 
     if result.success:
