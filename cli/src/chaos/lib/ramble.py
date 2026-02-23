@@ -822,17 +822,21 @@ def handleFindRamble(payload):
     """
     from omegaconf import DictConfig, OmegaConf
 
+    from chaos.lib.args.dataclasses import ResultPayload
+
     team = payload.context.team
     RAMBLE_DIR = _get_ramble_dir(team)
     search_term = payload.find_term
     required_tag = payload.tag
     results = []
+    warnings = []
 
     GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
     global_config = cast(DictConfig, global_config)
 
     sops_file_override = payload.context.sops_file_override or global_config.get(
@@ -872,39 +876,20 @@ def handleFindRamble(payload):
             page = ramble_file.stem
             results.append(f"{ramble}.{page}")
         except Exception as e:
-            from rich.console import Console
-
-            console = Console()
-            console.print(
-                f"[bold yellow]Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}[/]"
+            warnings.append(
+                f"Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}"
             )
             continue
 
     if not results:
-        from rich.console import Console
+        return ResultPayload(
+            success=True,
+            data=[],
+            message=["Could not find any rambles."],
+            error=warnings,
+        )
 
-        console = Console()
-        console.print("Could not find any rambles.")
-        return
-
-    if payload.no_pretty:
-        if payload.json:
-            import json as js
-
-            print(
-                js.dumps(
-                    OmegaConf.to_container(OmegaConf.create(results), resolve=True),
-                    indent=2,
-                )
-            )
-            return
-        print(OmegaConf.to_yaml(OmegaConf.create(results)))
-        return
-
-    title = "[italic][green]Found ramblings:[/][/]"
-    from chaos.lib.display_utils import render_list_as_table
-
-    render_list_as_table(results, title)
+    return ResultPayload(success=True, data=results, message=warnings)
 
 
 def handleMoveRamble(payload):

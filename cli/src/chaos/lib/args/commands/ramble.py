@@ -102,7 +102,41 @@ def handleRamble(args):
                     context=ramble_context,
                 )
 
-                handleFindRamble(payload)
+                result = handleFindRamble(payload)
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(f"[cyan]INFO:[/] {msg}")
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold yellow]WARNING:[/] {err}")
+
+                if result.success and result.data:
+                    from omegaconf import OmegaConf
+
+                    results = result.data
+                    if payload.no_pretty:
+                        if payload.json:
+                            import json as js
+
+                            print(
+                                js.dumps(
+                                    OmegaConf.to_container(
+                                        OmegaConf.create(results), resolve=True
+                                    ),
+                                    indent=2,
+                                )
+                            )
+                        else:
+                            print(OmegaConf.to_yaml(OmegaConf.create(results)))
+                    else:
+                        from chaos.lib.display_utils import render_list_as_table
+
+                        title = "[italic][green]Found ramblings:[/][/]"
+                        render_list_as_table(results, title)
+                elif not result.error:
+                    console.print("[yellow]Could not find any rambles.[/]")
             case "move":
                 from ...ramble import handleMoveRamble
 
