@@ -641,7 +641,7 @@ class SecretsSetShamirPayload(BasePayload):
 
 
 class RambleCreatePayload(BasePayload):
-    __slots__ = ("target", "context", "encrypt", "keys")
+    __slots__ = ("target", "context", "encrypt", "keys", "confirmed")
 
     def __init__(
         self,
@@ -649,10 +649,12 @@ class RambleCreatePayload(BasePayload):
         context: SecretsContext | dict[str, Any],
         encrypt: bool,
         keys: list[str] | None = None,
+        confirmed: bool = False,
     ):
         self.target = target
         self.encrypt = encrypt
         self.keys = keys
+        self.confirmed = confirmed
 
         self.context = SecretsContext.from_dict_or_self(context)
 
@@ -739,11 +741,17 @@ class RambleMovePayload(BasePayload):
 
 
 class RambleDeletePayload(BasePayload):
-    __slots__ = ("ramble", "context")
+    __slots__ = ("ramble", "context", "confirmed")
 
     # Same as the above
-    def __init__(self, ramble: str, context: SecretsContext | dict[str, Any]):
+    def __init__(
+        self,
+        ramble: str,
+        context: SecretsContext | dict[str, Any],
+        confirmed: bool = False,
+    ):
         self.ramble = ramble
+        self.confirmed = confirmed
 
         self.context = SecretsContext.from_dict_or_self(context)
 
