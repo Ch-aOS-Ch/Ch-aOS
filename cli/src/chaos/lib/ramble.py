@@ -84,6 +84,8 @@ def is_safe_path(target_path: Path, team) -> bool:
         return True
     except FileNotFoundError as e:
         raise FileNotFoundError("Ramble directory not found.") from e
+    except ValueError as e:
+        raise ValueError(f"Invalid path: {e}") from e
     except Exception as e:
         raise RuntimeError(f"Secure validation failed: {e}") from e
 
@@ -107,7 +109,7 @@ def _read_ramble_content(ramble_path, sops_config, context, global_config):
             if not sops_config:
                 raise ValueError(
                     "This ramble appears to be encrypted, but no sops configuration was found.\n"
-                    "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
+                    "   Provide one with '-ss /path/to/.sops.yml' or set a default with 'chaos set sops /path/to/.sops.yml'."
                 )
 
             if is_vault_in_use(sops_config):
@@ -154,7 +156,10 @@ def gatherReadRamble(payload: RambleReadPayload) -> DataGatherRequest | None:
     Analyzes the read targets and returns a DataGatherRequest if any journals need page selection.
     """
     fields = []
-    CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    try:
+        CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    except (ValueError, FileNotFoundError):
+        return None
 
     for target in payload.targets:
         if ".." in target or "/" in target:
@@ -197,7 +202,11 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
     """
     ramble = payload.target
     team = payload.context.team
-    CONFIG_DIR = _get_ramble_dir(team)
+
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError):
+        return None
 
     if "." in ramble:
         parts = ramble.split(".", 1)
@@ -300,7 +309,10 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
         return None
 
     team = payload.context.team
-    CONFIG_DIR = _get_ramble_dir(team)
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError):
+        return None
     path = CONFIG_DIR / ramble
 
     if path.exists() and path.is_dir():
@@ -324,7 +336,7 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
 
 def handleEditRamble(payload: RambleEditPayload) -> ResultPayload:
     """
-    Prepares editing of an existing ramble journal or page, returning info for CLI to handle it.
+    Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
     """
     from omegaconf import DictConfig, OmegaConf
 
@@ -355,8 +367,6 @@ def handleEditRamble(payload: RambleEditPayload) -> ResultPayload:
         page = parts[1] if parts[1] else directory
         file_path = CONFIG_DIR / directory / f"{page}.yml"
     else:
-        # This case should have been handled by gathering if it's a journal
-        # But if it wasn't, we can't do much.
         return ResultPayload(
             success=False, error=[f"Ambiguous ramble target: {ramble}"]
         )
@@ -557,11 +567,13 @@ def handleReadRamble(payload: RambleReadPayload) -> ResultPayload:
     )
 
     results = {}
-    CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    try:
+        CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
 
     for target in payload.targets:
         if "." not in target:
-            # If it's still just a journal name, we skip it as it should have been gathered.
             continue
 
         parts = target.split(".", 1)
@@ -573,7 +585,6 @@ def handleReadRamble(payload: RambleReadPayload) -> ResultPayload:
             ramble_data, _ = _read_ramble_content(
                 full_path, sops_file_override, payload.context, global_config
             )
-            # Convert OmegaConf to dict for serialization
             results[target] = OmegaConf.to_container(ramble_data, resolve=True)
         except Exception as e:
             return ResultPayload(success=False, error=[str(e)])
@@ -592,7 +603,12 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload:
     from chaos.lib.args.dataclasses import ResultPayload
 
     team = payload.context.team
-    RAMBLE_DIR = _get_ramble_dir(team)
+
+    try:
+        RAMBLE_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
     search_term = payload.find_term
     required_tag = payload.tag
     results = []
@@ -613,14 +629,15 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload:
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         try:
             if search_term and required_tag:
+                bare_data = OmegaConf.load(ramble_file)
+                bare_data = cast(DictConfig, bare_data)
+                tags = bare_data.get("tags", [])
+                if required_tag not in tags:
+                    continue
+
                 data, text = _read_ramble_content(
                     ramble_file, sops_file_override, payload.context, global_config
                 )
-
-                if required_tag:
-                    tags = data.get("tags", [])
-                    if required_tag not in tags:
-                        continue
 
                 if search_term and search_term.lower() not in text.lower():
                     continue
@@ -774,7 +791,7 @@ def gatherDelRamble(payload: RambleDeletePayload) -> DataGatherRequest | None:
         fields=[
             DataGatherPayload(
                 name="confirm_delete",
-                prompt=f"Are you [red][italic]sure[/][/] you want to delete {ramble}?",
+                prompt=f"Are you sure you want to delete {ramble}?",
                 input_type="boolean",
                 required=True,
             )

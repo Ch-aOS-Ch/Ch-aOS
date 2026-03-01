@@ -217,14 +217,14 @@ def check_vault_auth():
     if not vault_addr:
         return (
             False,
-            "[bold red]ERROR:[/] VAULT_ADDR environment variable is not set, which is required when using Vault keys.",
+            "VAULT_ADDR environment variable is not set, which is required when using Vault keys.",
         )
 
     vault_token = os.getenv("VAULT_TOKEN")
     if not vault_token:
         return (
             False,
-            "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault.",
+            "VAULT_TOKEN environment variable is not set. Please log in to Vault.",
         )
 
     try:
@@ -234,30 +234,30 @@ def check_vault_auth():
         response = requests.get(check_url, headers=headers, timeout=5)
         response.raise_for_status()
         if response.status_code == 200:
-            return True, "[green]INFO:[/] Vault token is valid."
+            return True, "Vault token is valid."
         elif response.status_code == 403:
             return (
                 False,
-                "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault.",
+                "Vault token is invalid or expired. Please log in to Vault.",
             )
         else:
             return (
                 False,
-                f"[]bold red]ERROR:[/] Unexpected response from Vault: {response.status_code}",
+                f"Unexpected response from Vault: {response.status_code}",
             )
 
     except requests.exceptions.RequestException as e:
         return (
             False,
-            f"[bold red]ERROR:[/] Failed to connect to Vault at {vault_addr}: {e}",
+            f"Failed to connect to Vault at {vault_addr}: {e}",
         )
     except ImportError:
         return (
             False,
-            "[bold red]ERROR:[/] The 'hvac' library is not installed. Please install it to use Vault features (`pip install hvac`).",
+            "The 'hvac' library is not installed. Please install it to use Vault features (pip install hvac).",
         )
     except Exception as e:
         return (
             False,
-            f"[bold red]ERROR:[/] Failed to authenticate with Vault at {vault_addr}: {e}",
+            f"Failed to authenticate with Vault at {vault_addr}: {e}",
         )

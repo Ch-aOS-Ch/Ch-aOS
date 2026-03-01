@@ -209,11 +209,11 @@ def handleRamble(args):
                             )
                             sys.exit(1)
 
+                        from rich.panel import Panel
                         from rich.prompt import Prompt
                         from rich.table import Table
 
                         table = Table(
-                            title=f"Choices for {target}",
                             show_header=True,
                             header_style="bold magenta",
                             border_style="green",
@@ -221,13 +221,16 @@ def handleRamble(args):
                         )
 
                         table.add_column("Index", style="dim", width=6)
-                        table.add_column("Rambles", style="cyan")
+                        table.add_column("Ramblings", style="cyan")
 
                         selected = ""
 
                         for i in range(len(field.choices)):
                             table.add_row(str(i), field.choices[i])
-                        console.print(table, justify="center")
+                        console.print(
+                            Panel(table, title=f"Ramble: {payload.targets}"),
+                            justify="center",
+                        )
 
                         while (
                             not selected.isdigit()
@@ -252,6 +255,7 @@ def handleRamble(args):
                 payload.targets = new_targets
 
             result = handleReadRamble(payload)
+
             if not result.success:
                 for err in result.error:
                     console.print(f"[bold red]ERROR:[/] {err}")
@@ -271,6 +275,7 @@ def handleRamble(args):
                 keys=getattr(args, "keys", None),
                 context=ramble_context,
             )
+
             try:
                 request = gatherCreateRamble(payload)
             except (ValueError, FileNotFoundError) as e:
@@ -280,6 +285,8 @@ def handleRamble(args):
             if request:
                 from rich.prompt import Confirm
 
+                # We already know there's only one field here, so we can directly access it
+                # Also, we already know that it is a confirmation prompt, so we can skip checking the input type
                 field = request.fields[0]
                 if Confirm.ask(cast(str, field.prompt), default=field.default):
                     payload.confirmed = True
@@ -326,6 +333,7 @@ def handleRamble(args):
 
                     for msg in enc_result.message:
                         console.print(f"[green]{msg}[/]")
+
         case "edit":
             from ...ramble import gatherEditRamble, handleEditRamble
 
