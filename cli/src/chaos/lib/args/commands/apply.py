@@ -27,7 +27,14 @@ def handleApply(args):
         from chaos.lib.plugDiscovery import get_plugins
 
         role_specs, ROLE_ALIASES = get_plugins(args.update_plugins)[0:2]
-        ROLES_DISPATCHER = load_roles(role_specs)
+
+        tags = getattr(args, "tags", [])
+        requested_roles = set()
+        for tag in tags:
+            normalized_tag = ROLE_ALIASES.get(tag, tag) if ROLE_ALIASES else tag
+            requested_roles.add(normalized_tag)
+
+        ROLES_DISPATCHER = load_roles(role_specs, requested_names=requested_roles)
 
         provider_eps = get_providerEps()
         provider_classes = [ep.load() for ep in provider_eps] if provider_eps else []

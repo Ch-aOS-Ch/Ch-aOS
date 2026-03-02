@@ -174,12 +174,15 @@ def get_plugins(update_cache=False):
     )
 
 
-def load_roles(roles_spec):
+def load_roles(roles_spec, requested_names=None):
     """
     Load role functions based on their specifications.
+    If requested_names is provided, only roles in that list will be loaded.
     """
     loaded_roles = {}
     for name, spec in roles_spec.items():
+        if requested_names is not None and name not in requested_names:
+            continue
         try:
             module_name, func_name = spec.split(":", 1)
             module = import_module(module_name)
