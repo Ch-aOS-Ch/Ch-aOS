@@ -352,13 +352,14 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def handleSecEdit(payload: SecretsEditPayload):
+def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
     """Opens the secrets file in SOPS for editing."""
-    import os
-    import subprocess
 
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _resolveProvider, get_sops_files
+
+    errors = []
+    messages = []
 
     context = payload.context
     secretsFile, sopsFile, global_config = get_sops_files(
@@ -372,38 +373,24 @@ def handleSecEdit(payload: SecretsEditPayload):
 
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            errors.append(message)
 
     if not secretsFile or not sopsFile:
-        raise FileNotFoundError(
+        errors.append(
             "SOPS check requires both secrets file and sops config file paths.\n"
             "       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'."
         )
 
-    try:
-        if payload.edit_sops_file:
-            editor = os.getenv("EDITOR", "nano")
-            subprocess.run([editor, sopsFile], check=True)
-        elif provider:
-            provider.edit(secretsFile, sopsFile)
-        else:
-            subprocess.run(["sops", "--config", sopsFile, secretsFile], check=True)
-
-    except subprocess.CalledProcessError as e:
-        from rich.console import Console
-
-        console = Console()
-        if e.returncode == 200:  # sops exit code for no changes
-            console.print("File has not changed, exiting.")
-            return
-        else:
-            raise RuntimeError(
-                f"SOPS editing failed with exit code {e.returncode}."
-            ) from e
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
-            "'sops' command not found. Please ensure sops is installed and in your PATH."
-        ) from e
+    return ResultPayload(
+        success=len(errors) == 0,
+        message=messages,
+        error=errors,
+        data={
+            "provider": provider if provider else None,
+            "secrets_file": secretsFile,
+            "sops_file": sopsFile,
+        },
+    )
 
 
 def handleSecPrint(payload: SecretsPrintPayload):

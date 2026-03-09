@@ -246,7 +246,54 @@ def handleSecrets(args):
                     context=context, edit_sops_file=getattr(args, "sops", False)
                 )
 
-                handleSecEdit(payload)
+                result = handleSecEdit(payload)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                    if result.message:
+                        for msg in result.message:
+                            console.print(msg)
+
+                import os
+                import subprocess
+
+                try:
+                    if payload.edit_sops_file:
+                        editor = os.getenv("EDITOR", "nano")
+                        subprocess.run([editor, result.data["sops_file"]], check=True)
+
+                    elif result.data["provider"]:
+                        result.data["provider"].edit(
+                            result.data["secrets_file"], result.data["sops_file"]
+                        )
+
+                    else:
+                        subprocess.run(
+                            [
+                                "sops",
+                                "--config",
+                                result.data["sops_file"],
+                                result.data["secrets_file"],
+                            ],
+                            check=True,
+                        )
+
+                except subprocess.CalledProcessError as e:
+                    from rich.console import Console
+
+                    console = Console()
+                    if e.returncode == 200:  # sops exit code for no changes
+                        return
+                    else:
+                        raise RuntimeError(
+                            f"SOPS editing failed with exit code {e.returncode}."
+                        ) from e
+                except FileNotFoundError as e:
+                    raise FileNotFoundError(
+                        "'sops' command not found. Please ensure sops is installed and in your PATH."
+                    ) from e
 
             case "set-shamir":
                 from ...secrets import gatherSetShamir, handleSetShamir
