@@ -53,6 +53,45 @@ def gatherRotateRemove(payload: SecretsRotatePayload) -> DataGatherRequest | Non
     return None
 
 
+def gatherImportSec(payload: SecretsImportPayload) -> DataGatherRequest | None:
+    """
+    Checks if confirmation is needed for importing keys.
+    """
+    from pathlib import Path
+
+    if payload.key_type == "age":
+        currentPathAgeFile = Path.cwd() / "keys.txt"
+        if currentPathAgeFile.exists() and not payload.confirmed:
+            return DataGatherRequest(
+                name="secrets_import_confirm",
+                fields=[
+                    DataGatherPayload(
+                        name="confirmed",
+                        prompt="A 'keys.txt' file already exists in the current directory. Do you want to overwrite it?",
+                        input_type="boolean",
+                        required=True,
+                        default=False,
+                    )
+                ],
+            )
+    elif payload.key_type == "vault":
+        currentVaultFile = Path.cwd() / "vault_keys.txt"
+        if currentVaultFile.exists() and not payload.confirmed:
+            return DataGatherRequest(
+                name="secrets_import_confirm",
+                fields=[
+                    DataGatherPayload(
+                        name="confirmed",
+                        prompt="A 'vault_keys.txt' file already exists in the current directory. Do you want to overwrite it?",
+                        input_type="boolean",
+                        required=True,
+                        default=False,
+                    )
+                ],
+            )
+    return None
+
+
 def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | None:
     fields = []
 
@@ -303,7 +342,9 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
                         messages.extend(upd_msgs)
                         errors.extend(upd_errs)
                 else:
-                    messages.append("Aborting.")
+                    messages.append(
+                        f"Shamir threshold removal for rule {rule_index} was not confirmed. No changes were made."
+                    )
             else:
                 messages.append(
                     f"No Shamir threshold to remove from rule {rule_index}."
@@ -396,7 +437,9 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
 
 
 def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload:
-    """Prints the decrypted secrets file to stdout."""
+    """
+    Decrypts the secrets file and returns the decrypted content as a string.
+    """
 
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
@@ -471,7 +514,9 @@ def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload:
 
 
 def handleSecCat(payload: SecretsCatPayload) -> ResultPayload:
-    """Prints specific keys from the decrypted secrets file to stdout."""
+    """
+    decrypts the secrets file and returns the values of the specified keys.
+    """
     import subprocess
     from io import StringIO
 
@@ -546,15 +591,15 @@ def handleSecCat(payload: SecretsCatPayload) -> ResultPayload:
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleExportSec(payload: SecretsExportPayload, global_config):
+def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload:
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)
-    provider.export_secrets(payload)
+    return provider.export_secrets(payload)
 
 
-def handleImportSec(payload: SecretsImportPayload, global_config):
+def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload:
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)
-    provider.import_secrets(payload)
+    return provider.import_secrets(payload)

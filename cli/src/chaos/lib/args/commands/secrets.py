@@ -93,10 +93,21 @@ def handleSecrets(args):
                     provider_specific_args=provider_specific_args,
                 )
 
-                handleExportSec(payload, global_config)
+                result = handleExportSec(payload, global_config)
+                
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+                
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                
+                if not result.success:
+                    sys.exit(1)
 
             case "import":
-                from ...secrets import handleImportSec
+                from ...secrets import gatherImportSec, handleImportSec
 
                 provider_name = args.import_commands
                 provider_class = None
@@ -127,7 +138,29 @@ def handleSecrets(args):
                     provider_specific_args=provider_specific_args,
                 )
 
-                handleImportSec(payload, global_config)
+                request = gatherImportSec(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    field = request.fields[0]
+                    if Confirm.ask(str(field.prompt), default=field.default):
+                        payload.confirmed = True
+                    else:
+                        console.print("[green]Alright![/] Aborting.")
+                        return
+
+                result = handleImportSec(payload, global_config)
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                if not result.success:
+                    sys.exit(1)
 
             case "rotate-add":
                 from ...secrets import gatherRotateAdd, handleRotateAdd
@@ -268,9 +301,16 @@ def handleSecrets(args):
                         subprocess.run([editor, result.data["sops_file"]], check=True)
 
                     elif result.data["provider"]:
-                        result.data["provider"].edit(
+                        with result.data["provider"].edit(
                             result.data["secrets_file"], result.data["sops_file"]
-                        )
+                        ) as (cmd, env, pass_fds):
+                            subprocess.run(
+                                cmd,
+                                check=True,
+                                env=env,
+                                pass_fds=pass_fds,
+                                shell=True,
+                            )
 
                     else:
                         subprocess.run(

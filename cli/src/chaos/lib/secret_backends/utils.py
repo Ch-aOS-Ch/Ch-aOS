@@ -87,9 +87,6 @@ def setup_gpg_keys(gnupghome) -> None:
     """
     import subprocess
 
-    from rich.console import Console
-
-    console = Console()
     actualGnupgHome_path = Path(os.getenv("GNUPGHOME", str(Path.home() / ".gnupg")))
     temp_gnupg_path = Path(gnupghome.name)
 
@@ -103,10 +100,8 @@ def setup_gpg_keys(gnupghome) -> None:
         shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
         os.chmod(detstPriv, 0o700)
 
-    except Exception as e:
-        console.print(
-            f"[bold yellow]Warning:[/] Could not fully prepare temporary GPG directory: {e}"
-        )
+    except Exception:
+        pass
 
     pubKeyDump = temp_gnupg_path / "host_pubkeys.gpg"
 
@@ -116,9 +111,10 @@ def setup_gpg_keys(gnupghome) -> None:
                 ["gpg", "--export"], stdout=f, check=True, stderr=subprocess.DEVNULL
             )
 
-    except subprocess.CalledProcessError as e:
-        console.print(f"[bold yellow]Warning:[/] Could not export public GPG keys: {e}")
-        return
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            "Failed to export GPG public keys from the existing GNUPGHOME."
+        )
 
     temp_env = os.environ.copy()
     temp_env["GNUPGHOME"] = str(temp_gnupg_path)
@@ -130,10 +126,7 @@ def setup_gpg_keys(gnupghome) -> None:
             stderr=subprocess.DEVNULL,
             env=temp_env,
         )
-    except subprocess.CalledProcessError as e:
-        console.print(
-            f"[bold yellow]Warning:[/] Could not import public GPG keys into temporary GNUPGHOME: {e}"
-        )
+    except subprocess.CalledProcessError:
         return
 
     src_trust = actualGnupgHome_path / "trustdb.gpg"
@@ -243,9 +236,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
     Gets sops files, secrets files and config files
     """
     from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
 
-    console = Console()
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
@@ -301,10 +292,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     )
                 override_path = (teamPath / sops_file_override).resolve(strict=False)
                 if not str(override_path).startswith(str(teamPath)):
-                    import sys
-
-                    console.print("[bold red]ERROR:[/] Path traversal detected.")
-                    sys.exit(1)
+                    raise ValueError("Path traversal detected.")
                 sopsFile = teamPath / sops_file_override
 
             if secrets_file_override:
@@ -343,13 +331,8 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                         secretsFile = secrets_config.get("sec_file")
                     if not sopsFile:
                         sopsFile = secrets_config.get("sec_sops")
-            except Exception as e:
-                import sys
-
-                print(
-                    f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}",
-                    file=sys.stderr,
-                )
+            except Exception:
+                pass
 
     validate_path(secretsFile)
     validate_path(sopsFile)
@@ -397,7 +380,9 @@ def handleUpdateAllSecrets(context: SecretsContext):
     The rest of the functions should be auto explicative.
     """
     import subprocess
+
     from omegaconf import OmegaConf
+
     from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 
     messages = ["\nStarting key update for all secret files..."]
@@ -445,17 +430,15 @@ def handleUpdateAllSecrets(context: SecretsContext):
                     )
                 messages.append("Keys updated successfully.")
         except subprocess.CalledProcessError as e:
-            errors.append(
-                f"Failed to update keys for {main_secrets_file}: {e.stderr}"
-            )
+            errors.append(f"Failed to update keys for {main_secrets_file}: {e.stderr}")
         except Exception as e:
             errors.append(f"Could not process file {main_secrets_file}: {e}")
     else:
         messages.append("Main secrets file not found or not configured. Skipping.")
 
     messages.append("\nUpdating ramble files...")
-    from chaos.lib.ramble import handleUpdateEncryptRamble
     from chaos.lib.args.dataclasses import RambleUpdateEncryptPayload
+    from chaos.lib.ramble import handleUpdateEncryptRamble
 
     payload = RambleUpdateEncryptPayload(context=context)
     result = handleUpdateEncryptRamble(payload)

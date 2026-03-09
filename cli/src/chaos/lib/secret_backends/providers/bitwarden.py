@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, cast
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
     ProviderImportArgs,
+    ResultPayload,
     SecretsExportPayload,
 )
 from chaos.lib.utils import checkDep
@@ -94,100 +95,99 @@ class BitwardenPasswordProvider(Provider):
         secBwImport = subparser.add_parser("bw", help="Bitwarden CLI import options")
         return secBwImport
 
-    def export_secrets(self, payload: SecretsExportPayload) -> None:
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
         """
         Exports keys to Bitwarden as new notes.
         """
-        from rich.console import Console
-
-        console = Console()
-
-        self.check_status()
-
-        provider_args = cast(BitwardenExportArgs, payload.provider_specific_args)
-
-        keyType = payload.key_type
-        keyPath = payload.keys
-        item_name = payload.item_name
-        fingerprints = payload.fingerprints
-        tags = provider_args.bw_tags
-        save_to_config = payload.save_to_config
-        no_import = payload.no_import
-
-        collection_id = (
-            self.config.get("secret_providers", {})
-            .get("bw", {})
-            .get("collection_id", "")
-        )
-        organization_id = (
-            self.config.get("secret_providers", {})
-            .get("bw", {})
-            .get("organization_id", "")
-        )
-
-        if provider_args.collection_id:
-            collection_id = provider_args.collection_id
-        if provider_args.organization_id:
-            organization_id = provider_args.organization_id
-
-        key_content = ""
-        if keyType == "age":
-            if not keyPath:
-                raise ValueError("No age key path passed via --keys.")
-            keyPath = Path(keyPath).expanduser()
-            if not keyPath.is_file():
-                raise FileNotFoundError(f"Path {keyPath} is not a file.")
-
-            with open(keyPath, "r") as f:
-                key_content = f.read()
-
-            pubkey, seckey = extract_age_keys(key_content)
-
-            if not pubkey:
-                raise ValueError(
-                    "Could not find a public key in the provided age key file. Expected a line starting with '# public key:'."
-                )
-            if not seckey:
-                raise ValueError(
-                    "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
-                )
-
-            console.print(f"[green]INFO:[/] Exporting age public key: {pubkey}")
-
-        elif keyType == "gpg":
-            if not fingerprints:
-                raise ValueError(
-                    "At least one GPG fingerprint is required via --fingerprints."
-                )
-            if not checkDep("gpg"):
-                raise EnvironmentError(
-                    "The 'gpg' CLI tool is required but not found in PATH."
-                )
-
-            key_content = extract_gpg_keys(fingerprints)
-
-        elif keyType == "vault":
-            vaultAddr = payload.vault_addr
-            if not keyPath:
-                raise ValueError("No Vault key path passed via --keys.")
-            if not vaultAddr:
-                raise ValueError("No Vault address passed via --vault-addr.")
-
-            keyPath = Path(keyPath).expanduser()
-            if not keyPath.is_file():
-                raise FileNotFoundError(f"Path {keyPath} is not a file.")
-
-            key_content = setup_vault_keys(vaultAddr, keyPath)
-
-        else:
-            raise ValueError(f"Unsupported key type: {keyType}")
-
-        if not key_content:
-            raise ValueError("No key content to export.")
-        if no_import:
-            key_content = f"# NO-IMPORT\n{key_content}"
+        messages = []
+        errors = []
 
         try:
+            self.check_status()
+
+            provider_args = cast(BitwardenExportArgs, payload.provider_specific_args)
+
+            keyType = payload.key_type
+            keyPath = payload.keys
+            item_name = payload.item_name
+            fingerprints = payload.fingerprints
+            tags = provider_args.bw_tags
+            save_to_config = payload.save_to_config
+            no_import = payload.no_import
+
+            collection_id = (
+                self.config.get("secret_providers", {})
+                .get("bw", {})
+                .get("collection_id", "")
+            )
+            organization_id = (
+                self.config.get("secret_providers", {})
+                .get("bw", {})
+                .get("organization_id", "")
+            )
+
+            if provider_args.collection_id:
+                collection_id = provider_args.collection_id
+            if provider_args.organization_id:
+                organization_id = provider_args.organization_id
+
+            key_content = ""
+            if keyType == "age":
+                if not keyPath:
+                    raise ValueError("No age key path passed via --keys.")
+                keyPath = Path(keyPath).expanduser()
+                if not keyPath.is_file():
+                    raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                with open(keyPath, "r") as f:
+                    key_content = f.read()
+
+                pubkey, seckey = extract_age_keys(key_content)
+
+                if not pubkey:
+                    raise ValueError(
+                        "Could not find a public key in the provided age key file. Expected a line starting with '# public key:'."
+                    )
+                if not seckey:
+                    raise ValueError(
+                        "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
+                    )
+
+                messages.append(f"Exporting age public key: {pubkey}")
+
+            elif keyType == "gpg":
+                if not fingerprints:
+                    raise ValueError(
+                        "At least one GPG fingerprint is required via --fingerprints."
+                    )
+                if not checkDep("gpg"):
+                    raise EnvironmentError(
+                        "The 'gpg' CLI tool is required but not found in PATH."
+                    )
+
+                key_content = extract_gpg_keys(fingerprints)
+
+            elif keyType == "vault":
+                vaultAddr = payload.vault_addr
+                if not keyPath:
+                    raise ValueError("No Vault key path passed via --keys.")
+                if not vaultAddr:
+                    raise ValueError("No Vault address passed via --vault-addr.")
+
+                keyPath = Path(keyPath).expanduser()
+                if not keyPath.is_file():
+                    raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                key_content = setup_vault_keys(vaultAddr, keyPath)
+
+            else:
+                raise ValueError(f"Unsupported key type: {keyType}")
+
+            if not key_content:
+                raise ValueError("No key content to export.")
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
+
             template_str = subprocess.run(
                 ["bw", "get", "template", "item"],
                 capture_output=True,
@@ -225,8 +225,8 @@ class BitwardenPasswordProvider(Provider):
             created_item = json.loads(created_item_json)
             item_id = created_item.get("id")
 
-            console.print(
-                f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item '{created_item['name']}' (ID: {created_item['id']})."
+            messages.append(
+                f"Successfully exported {keyType} key to Bitwarden item '{created_item['name']}' (ID: {created_item['id']})."
             )
 
             if save_to_config and item_id:
@@ -237,12 +237,11 @@ class BitwardenPasswordProvider(Provider):
                     data_to_save["organization_id"] = organization_id
                 _save_to_config(backend="bw", data_to_save=data_to_save)
 
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Error creating item in Bitwarden: {e.stderr.strip()}"
-            ) from e
-        except (json.JSONDecodeError, KeyError) as e:
-            raise RuntimeError(f"Failed to parse Bitwarden output: {e}") from e
+        except Exception as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        return ResultPayload(success=True, message=messages)
 
     def check_status(self):
         if not checkDep("bw"):
@@ -361,70 +360,84 @@ class BitwardenSecretsProvider(Provider):
         )
         return secBwsImport
 
-    def export_secrets(self, payload: SecretsExportPayload) -> None:
-        self.check_status()
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        messages = []
+        errors = []
+        try:
+            self.check_status()
 
-        provider_args = cast(BitwardenSecretsExportArgs, payload.provider_specific_args)
+            provider_args = cast(
+                BitwardenSecretsExportArgs, payload.provider_specific_args
+            )
 
-        keyType = payload.key_type
-        key = payload.item_name
-        fingerprints = payload.fingerprints
-        save_to_config = payload.save_to_config
-        no_import = payload.no_import
+            keyType = payload.key_type
+            key = payload.item_name
+            fingerprints = payload.fingerprints
+            save_to_config = payload.save_to_config
+            no_import = payload.no_import
 
-        _, _, config = get_sops_files(None, None, None)
+            _, _, config = get_sops_files(None, None, None)
 
-        project_id = (
-            config.get("secret_providers", {}).get("bws", {}).get("project_id", "")
-        )
+            project_id = (
+                config.get("secret_providers", {}).get("bws", {}).get("project_id", "")
+            )
 
-        if provider_args.project_id:
-            project_id = provider_args.project_id
+            if provider_args.project_id:
+                project_id = provider_args.project_id
 
-        if not keyType:
-            raise ValueError("Key type must be specified for export.")
-        if not project_id:
-            raise ValueError("Project ID must be specified for export.")
-        if not key:
-            raise ValueError("Item name must be specified for export.")
+            if not keyType:
+                raise ValueError("Key type must be specified for export.")
+            if not project_id:
+                raise ValueError("Project ID must be specified for export.")
+            if not key:
+                raise ValueError("Item name must be specified for export.")
 
-        match keyType:
-            case "age":
-                if not payload.keys:
-                    raise ValueError("No age key path passed via --keys.")
-                keyPath = Path(payload.keys)
+            match keyType:
+                case "age":
+                    if not payload.keys:
+                        raise ValueError("No age key path passed via --keys.")
+                    keyPath = Path(payload.keys)
 
-                self._exportBwsAgeKey(
-                    keyPath, key, project_id, save_to_config, no_import
-                )
-
-            case "gpg":
-                if not fingerprints:
-                    raise ValueError(
-                        "At least one GPG fingerprint is required via --fingerprints."
+                    res = self._exportBwsAgeKey(
+                        keyPath, key, project_id, save_to_config, no_import
                     )
-                if not checkDep("gpg"):
-                    raise EnvironmentError(
-                        "The 'gpg' CLI tool is required but not found in PATH."
+                    messages.extend(res.message)
+
+                case "gpg":
+                    if not fingerprints:
+                        raise ValueError(
+                            "At least one GPG fingerprint is required via --fingerprints."
+                        )
+                    if not checkDep("gpg"):
+                        raise EnvironmentError(
+                            "The 'gpg' CLI tool is required but not found in PATH."
+                        )
+
+                    res = self._exportBwsGpgKey(
+                        key, project_id, fingerprints, save_to_config, no_import
                     )
+                    messages.extend(res.message)
 
-                self._exportBwsGpgKey(
-                    key, project_id, fingerprints, save_to_config, no_import
-                )
+                case "vault":
+                    vaultAddr = payload.vault_addr
+                    if not payload.keys:
+                        raise ValueError("No Vault key path passed via --keys.")
 
-            case "vault":
-                vaultAddr = payload.vault_addr
-                if not payload.keys:
-                    raise ValueError("No Vault key path passed via --keys.")
+                    keyPath = Path(payload.keys)
 
-                keyPath = Path(payload.keys)
+                    if not vaultAddr:
+                        raise ValueError("No Vault address passed via --vault-addr.")
 
-                if not vaultAddr:
-                    raise ValueError("No Vault address passed via --vault-addr.")
+                    res = self._exportBwsVaultKey(
+                        keyPath, vaultAddr, key, project_id, save_to_config, no_import
+                    )
+                    messages.extend(res.message)
 
-                self._exportBwsVaultKey(
-                    keyPath, vaultAddr, key, project_id, save_to_config, no_import
-                )
+        except Exception as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        return ResultPayload(success=True, message=messages)
 
     def check_status(self):
         if not checkDep("bws"):
@@ -480,23 +493,21 @@ class BitwardenSecretsProvider(Provider):
         project_id: str,
         save_to_config: bool,
         no_import: bool,
-    ) -> None:
-        from rich.console import Console
-
-        console = Console()
+    ) -> ResultPayload:
+        messages = []
         key_content = setup_vault_keys(vaultAddr, keyPath)
         if no_import:
             key_content = f"# NO-IMPORT\n{key_content}"
 
         cmd = ["bws", "secret", "create", key, key_content, project_id]
-        console.print(f"[cyan]INFO:[/] Exporting Vault key from {keyPath}")
+        messages.append(f"Exporting Vault key from {keyPath}")
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             created_item = json.loads(result.stdout)
             item_id = created_item.get("id")
-            console.print(
-                f"[green]Successfully exported Vault key '{key}' to Bitwarden with id {item_id}[/green]"
+            messages.append(
+                f"Successfully exported Vault key '{key}' to Bitwarden with id {item_id}"
             )
 
             if save_to_config and item_id:
@@ -505,7 +516,7 @@ class BitwardenSecretsProvider(Provider):
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
-                f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}"
+                f"Error exporting Vault key to Bitwarden: {e.stderr.strip()}"
             ) from e
         except FileNotFoundError:
             raise RuntimeError(
@@ -513,8 +524,10 @@ class BitwardenSecretsProvider(Provider):
             ) from None
         except Exception as e:
             raise RuntimeError(
-                f"Unexpected error exporting GPG key to Bitwarden: {str(e)}"
+                f"Unexpected error exporting Vault key to Bitwarden: {str(e)}"
             ) from e
+
+        return ResultPayload(success=True, message=messages)
 
     def _exportBwsGpgKey(
         self,
@@ -523,25 +536,23 @@ class BitwardenSecretsProvider(Provider):
         fingerprints: list[str],
         save_to_config: bool,
         no_import: bool,
-    ) -> None:
-        from rich.console import Console
-
-        console = Console()
+    ) -> ResultPayload:
+        messages = []
         key_content = extract_gpg_keys(fingerprints)
         if no_import:
             key_content = f"# NO-IMPORT\n{key_content}"
 
         cmd = ["bws", "secret", "create", key, key_content, project_id]
-        console.print(
-            f"[cyan]INFO:[/] Exporting GPG key for fingerprints: {', '.join(fingerprints)}"
+        messages.append(
+            f"Exporting GPG key for fingerprints: {', '.join(fingerprints)}"
         )
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             created_item = json.loads(result.stdout)
             item_id = created_item.get("id")
-            console.print(
-                f"[green]Successfully exported GPG key '{key}' to Bitwarden with id {item_id}[/green]"
+            messages.append(
+                f"Successfully exported GPG key '{key}' to Bitwarden with id {item_id}"
             )
 
             if save_to_config and item_id:
@@ -561,6 +572,8 @@ class BitwardenSecretsProvider(Provider):
                 f"Unexpected error exporting GPG key to Bitwarden: {str(e)}"
             ) from e
 
+        return ResultPayload(success=True, message=messages)
+
     def _exportBwsAgeKey(
         self,
         key_path: Path,
@@ -568,10 +581,8 @@ class BitwardenSecretsProvider(Provider):
         project_id: str,
         save_to_config: bool,
         no_import: bool,
-    ) -> None:
-        from rich.console import Console
-
-        console = Console()
+    ) -> ResultPayload:
+        messages = []
         value = self._get_age_key_content(key_path)
         if no_import:
             value = f"# NO-IMPORT\n{value}"
@@ -592,14 +603,14 @@ class BitwardenSecretsProvider(Provider):
 
         cmd = ["bws", "secret", "create", key, value, project_id]
 
-        console.print(f"[cyan]INFO:[/] Exporting age public key: {pubKey}")
+        messages.append(f"Exporting age public key: {pubKey}")
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             created_item = json.loads(result.stdout)
             item_id = created_item.get("id")
 
-            console.print(
-                f"[green]Successfully exported age key '{key}' to Bitwarden with id {item_id}[/green]"
+            messages.append(
+                f"Successfully exported age key '{key}' to Bitwarden with id {item_id}"
             )
 
             if save_to_config and item_id:
@@ -618,6 +629,8 @@ class BitwardenSecretsProvider(Provider):
             raise RuntimeError(
                 f"Unexpected error exporting age key to Bitwarden: {str(e)}"
             ) from e
+
+        return ResultPayload(success=True, message=messages)
 
 
 class BitwardenRbwProvider(Provider):
@@ -662,89 +675,88 @@ class BitwardenRbwProvider(Provider):
         )
         return secRbwExport
 
-    def export_secrets(self, payload: SecretsExportPayload) -> None:
-        keyType = payload.key_type
-        keyPath = payload.keys
-        fingerprints = payload.fingerprints
-        item_name = payload.item_name
-        vaultAddr = payload.vault_addr
-        save_to_config = payload.save_to_config
-        no_import = payload.no_import
-
-        isUnlocked, msg = self.check_status()
-        if not isUnlocked:
-            raise PermissionError(msg)
-
-        from rich.console import Console
-
-        console = Console()
-
-        key_content = ""
-
-        match keyType:
-            case "age":
-                if not keyPath:
-                    raise ValueError("No age key path passed via --keys.")
-                keyPath = Path(keyPath).expanduser()
-                if not keyPath.is_file():
-                    raise FileNotFoundError(f"Path {keyPath} is not a file.")
-
-                with open(keyPath, "r") as f:
-                    key_content = f.read()
-                pubkey, seckey = extract_age_keys(key_content)
-
-                if not pubkey:
-                    raise ValueError(
-                        "Could not find a public key in the provided age key file. Expected a line starting with '# public key:'."
-                    )
-
-                if not seckey:
-                    raise ValueError(
-                        "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
-                    )
-                console.print(f"[green]INFO:[/] Exporting age public key: {pubkey}")
-
-            case "gpg":
-                if not fingerprints:
-                    raise ValueError(
-                        "At least one GPG fingerprint is required via --fingerprints."
-                    )
-                if not checkDep("gpg"):
-                    raise EnvironmentError(
-                        "The 'gpg' CLI tool is required but not found in PATH."
-                    )
-
-                key_content = extract_gpg_keys(fingerprints)
-
-            case "vault":
-                if not keyPath:
-                    raise ValueError("No Vault key path passed via --keys.")
-                if not vaultAddr:
-                    raise ValueError("No Vault address passed via --vault-addr.")
-                keyPath = Path(keyPath).expanduser()
-
-                if not keyPath.is_file():
-                    raise FileNotFoundError(f"Path {keyPath} is not a file.")
-
-                key_content = setup_vault_keys(vaultAddr, keyPath)
-
-        if not key_content:
-            raise ValueError("No key content to export.")
-
-        if not item_name:
-            raise ValueError("No item name provided for export.")
-
-        if no_import:
-            key_content = f"# NO-IMPORT\n{key_content}"
-
-        processed_key_content = "\n".join(
-            f" {line}" if line.startswith("#") else line
-            for line in key_content.splitlines()
-        )
-
-        credential_content = f"ch-aos\n{processed_key_content}"
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        messages = []
+        errors = []
 
         try:
+            keyType = payload.key_type
+            keyPath = payload.keys
+            fingerprints = payload.fingerprints
+            item_name = payload.item_name
+            vaultAddr = payload.vault_addr
+            save_to_config = payload.save_to_config
+            no_import = payload.no_import
+
+            isUnlocked, msg = self.check_status()
+            if not isUnlocked:
+                raise PermissionError(msg)
+
+            key_content = ""
+
+            match keyType:
+                case "age":
+                    if not keyPath:
+                        raise ValueError("No age key path passed via --keys.")
+                    keyPath = Path(keyPath).expanduser()
+                    if not keyPath.is_file():
+                        raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                    with open(keyPath, "r") as f:
+                        key_content = f.read()
+                    pubkey, seckey = extract_age_keys(key_content)
+
+                    if not pubkey:
+                        raise ValueError(
+                            "Could not find a public key in the provided age key file. Expected a line starting with '# public key:'."
+                        )
+
+                    if not seckey:
+                        raise ValueError(
+                            "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
+                        )
+                    messages.append(f"Exporting age public key: {pubkey}")
+
+                case "gpg":
+                    if not fingerprints:
+                        raise ValueError(
+                            "At least one GPG fingerprint is required via --fingerprints."
+                        )
+                    if not checkDep("gpg"):
+                        raise EnvironmentError(
+                            "The 'gpg' CLI tool is required but not found in PATH."
+                        )
+
+                    key_content = extract_gpg_keys(fingerprints)
+
+                case "vault":
+                    if not keyPath:
+                        raise ValueError("No Vault key path passed via --keys.")
+                    if not vaultAddr:
+                        raise ValueError("No Vault address passed via --vault-addr.")
+                    keyPath = Path(keyPath).expanduser()
+
+                    if not keyPath.is_file():
+                        raise FileNotFoundError(f"Path {keyPath} is not a file.")
+
+                    key_content = setup_vault_keys(vaultAddr, keyPath)
+
+            if not key_content:
+                raise ValueError("No key content to export.")
+
+            if not item_name:
+                raise ValueError("No item name provided for export.")
+
+            if no_import:
+                key_content = f"# NO-IMPORT\n{key_content}"
+
+            processed_key_content = "\n".join(
+                f" {line}" if line.startswith("#") else line
+                for line in key_content.splitlines()
+            )
+
+            credential_content = f"ch-aos\n{processed_key_content}"
+
             subprocess.run(
                 ["rbw", "add", f"Ch-aOS {keyType.upper()} Key: {item_name}", "ch-aos"],
                 check=True,
@@ -752,21 +764,23 @@ class BitwardenRbwProvider(Provider):
                 text=True,
                 capture_output=True,
             )
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Error creating item in Bitwarden via rbw: {e.stderr.strip()}"
-            ) from e
 
-        item_id = self._get_item_id(f"Ch-aOS {keyType.upper()} Key: {item_name}")
-        console.print(
-            f"[bold green]Success![/] Successfully exported {keyType} key to Bitwarden item with ID: {item_id}."
-        )
-        if item_id and save_to_config:
-            console.print(
-                f"[green]INFO:[/] Saving Bitwarden item ID '{item_id}' to chaos config."
+            item_id = self._get_item_id(f"Ch-aOS {keyType.upper()} Key: {item_name}")
+            messages.append(
+                f"Successfully exported {keyType} key to Bitwarden item with ID: {item_id}."
             )
-            data_to_save = {f"{keyType}_id": item_id}
-            _save_to_config(backend="rbw", data_to_save=data_to_save)
+            if item_id and save_to_config:
+                messages.append(
+                    f"Saving Bitwarden item ID '{item_id}' to chaos config."
+                )
+                data_to_save = {f"{keyType}_id": item_id}
+                _save_to_config(backend="rbw", data_to_save=data_to_save)
+
+        except Exception as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        return ResultPayload(success=True, message=messages)
 
     def check_status(self) -> Tuple[bool, str]:
         if not checkDep("rbw"):

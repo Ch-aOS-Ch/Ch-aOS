@@ -64,9 +64,7 @@ def ephemeralGpgKey(key_bytes: bytes):
             yield {"GNUPGHOME": str(temp_path)}
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Erro ao importar chave GPG efêmera: {e.stderr.decode()}"
-            )
+            raise RuntimeError(f"Failed to import GPG key: {e.stderr.decode()}")
 
 
 @contextmanager

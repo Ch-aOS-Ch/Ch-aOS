@@ -4,6 +4,8 @@ import subprocess
 import zlib
 from pathlib import Path
 
+from chaos.lib.args.dataclasses import ResultPayload
+
 
 def compress(data: bytes) -> str:
     """
@@ -130,35 +132,38 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
 
-def _import_age_keys(key_content: str) -> None:
-    from rich.console import Console
-    from rich.prompt import Confirm
-
-    console = Console()
+def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload:
     currentPathAgeFile = Path.cwd() / "keys.txt"
+    messages = []
+    errors = []
 
-    if currentPathAgeFile.exists():
-        console.print(
-            "[yellow]WARNING:[/] A 'keys.txt' file already exists in the current directory. It will be overwritten."
+    if currentPathAgeFile.exists() and not confirmed:
+        return ResultPayload(
+            success=False,
+            message=["A 'keys.txt' file already exists in the current directory."],
+            error=["Confirmation needed to overwrite 'keys.txt'."],
         )
-        confirm = Confirm.ask("Do you want to proceed?", default=False)
 
-        if not confirm:
-            console.print("Operation cancelled by user.")
-            return
+    try:
+        with currentPathAgeFile.open("w") as f:
+            sanitized_content = "".join(
+                line.lstrip() for line in key_content.splitlines()
+            )
+            f.write(sanitized_content)
+            if not sanitized_content.endswith("\n"):
+                f.write("\n")
+        messages.append("Age key imported successfully to 'keys.txt'.")
+    except Exception as e:
+        errors.append(f"Error importing age key: {str(e)}")
+        return ResultPayload(success=False, error=errors)
 
-    with currentPathAgeFile.open("w") as f:
-        sanitized_content = "".join(line.lstrip() for line in key_content.splitlines())
-        f.write(sanitized_content)
-        if not sanitized_content.endswith(""):
-            f.write("")
+    return ResultPayload(success=True, message=messages)
 
 
-def _import_gpg_keys(secKey: str) -> None:
-    from rich.console import Console
-
-    console = Console()
+def _import_gpg_keys(secKey: str) -> ResultPayload:
     decompressedKey = decompress(secKey)
+    messages = []
+    errors = []
 
     try:
         import_cmd = ["gpg", "--batch", "--import"]
@@ -168,18 +173,28 @@ def _import_gpg_keys(secKey: str) -> None:
             check=True,
             capture_output=True,
         )
-        console.print(
-            "[green]GPG key imported into your local GPG keyring successfully.[/green]"
-        )
+        messages.append("GPG key imported into your local GPG keyring successfully.")
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error importing GPG key: {e.stderr.strip()}") from e
+        errors.append(f"Error importing GPG key: {e.stderr.decode().strip()}")
+        return ResultPayload(success=False, error=errors)
+
+    return ResultPayload(success=True, message=messages)
 
 
-def _import_vault_keys(key_content: str) -> None:
+def _import_vault_keys(key_content: str) -> ResultPayload:
     currentPathVaultFile = Path.cwd() / "vault_key.txt"
+    messages = []
+    errors = []
 
-    with currentPathVaultFile.open("w") as f:
-        f.write(key_content)
+    try:
+        with currentPathVaultFile.open("w") as f:
+            f.write(key_content)
+        messages.append("Vault key imported successfully to 'vault_key.txt'.")
+    except Exception as e:
+        errors.append(f"Error importing Vault key: {str(e)}")
+        return ResultPayload(success=False, error=errors)
+
+    return ResultPayload(success=True, message=messages)
 
 
 def is_vault_in_use(sops_file_path: str) -> bool:

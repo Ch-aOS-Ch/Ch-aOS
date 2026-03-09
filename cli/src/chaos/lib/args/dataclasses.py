@@ -525,7 +525,7 @@ class SecretsExportPayload(BasePayload):
 
 
 class SecretsImportPayload(BasePayload):
-    __slots__ = ("provider_name", "key_type", "item_id", "provider_specific_args")
+    __slots__ = ("provider_name", "key_type", "item_id", "provider_specific_args", "confirmed")
 
     def __init__(
         self,
@@ -533,10 +533,12 @@ class SecretsImportPayload(BasePayload):
         key_type: Literal["age", "gpg", "vault"],
         item_id: str | None = None,
         provider_specific_args: ProviderImportArgs | None = None,
+        confirmed: bool = False,
     ):
         self.provider_name = provider_name
         self.key_type = key_type
         self.item_id = item_id
+        self.confirmed = confirmed
         self.provider_specific_args = (
             provider_specific_args
             if provider_specific_args is not None

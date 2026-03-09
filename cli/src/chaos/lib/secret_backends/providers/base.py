@@ -10,6 +10,7 @@ from typing import List, Tuple, Union
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
     ProviderImportArgs,
+    ResultPayload,
     SecretsContext,
     SecretsExportPayload,
     SecretsImportPayload,
@@ -167,11 +168,14 @@ class Provider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def export_secrets(self, payload: SecretsExportPayload) -> None:
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
         """
         Exports local keys to the provider.
         """
-        raise NotImplementedError
+        return ResultPayload(
+            success=False,
+            message=["Export not implemented for this provider."],
+        )
 
     def getAgeKeys(self, item_id: str) -> tuple[str, str, str]:
         """
@@ -260,78 +264,91 @@ class Provider(ABC):
 
         return vault_addr, vault_token, key_content
 
-    def import_secrets(self, payload: SecretsImportPayload) -> None:
+    def import_secrets(self, payload: SecretsImportPayload) -> ResultPayload:
         """
         Imports remote keys from the provider to local.
         """
-        from rich.console import Console
+        messages = []
+        errors = []
 
-        console = Console()
+        try:
+            self.check_status()
 
-        self.check_status()
+            keyType = payload.key_type
+            item_id = payload.item_id
+            if not keyType:
+                raise ValueError("Key type must be specified for import.")
+            if not item_id:
+                raise ValueError("Item ID must be specified for import.")
 
-        keyType = payload.key_type
-        item_id = payload.item_id
-        if not keyType:
-            raise ValueError("Key type must be specified for import.")
-        if not item_id:
-            raise ValueError("Item ID must be specified for import.")
-        match keyType:
-            case "age":
-                pubKey, secKey, key_content = self.getAgeKeys(item_id)
-                if "# NO-IMPORT" in key_content:
-                    raise ValueError(
-                        f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported."
+            match keyType:
+                case "age":
+                    pubKey, secKey, key_content = self.getAgeKeys(item_id)
+                    if "# NO-IMPORT" in key_content:
+                        raise ValueError(
+                            f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                        )
+
+                    import_result = _import_age_keys(
+                        key_content, confirmed=payload.confirmed
                     )
+                    if not import_result.success:
+                        return import_result
 
-                console.print(
-                    f"[green]Successfully imported age key from {self.name}.[/green]"
-                )
-                console.print(f"Public Key: [bold]{pubKey}[/bold]")
-                console.print(f"Secret Key: [bold]{secKey}[/bold]")
+                    messages.append(f"Successfully imported age key from {self.name}.")
+                    messages.append(f"Public Key: {pubKey}")
+                    messages.append(f"Secret Key: {secKey}")
+                    messages.extend(import_result.message)
 
-                _import_age_keys(key_content)
+                case "gpg":
+                    fingerprints, secKey, key_content = self.getGpgKeys(item_id)
+                    if "# NO-IMPORT" in key_content:
+                        raise ValueError(
+                            f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                        )
 
-            case "gpg":
-                fingerprints, secKey, key_content = self.getGpgKeys(item_id)
-                if "# NO-IMPORT" in key_content:
-                    raise ValueError(
-                        f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                    import_result = _import_gpg_keys(secKey)
+                    if not import_result.success:
+                        return import_result
+
+                    messages.append(f"Successfully imported GPG key from {self.name}.")
+                    if fingerprints:
+                        messages.append(f"Fingerprints: {fingerprints}")
+                    messages.extend(import_result.message)
+
+                case "vault":
+                    vault_addr, vault_token, key_content = self.getVaultKeys(item_id)
+                    if "# NO-IMPORT" in key_content:
+                        raise ValueError(
+                            f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                        )
+
+                    import_result = _import_vault_keys(key_content)
+                    if not import_result.success:
+                        return import_result
+
+                    messages.append(
+                        f"Successfully imported Vault key from {self.name}."
                     )
+                    messages.append(f"Vault Address: {vault_addr}")
+                    messages.append(f"Vault Token: {vault_token}")
+                    messages.extend(import_result.message)
 
-                console.print(
-                    f"[green]Successfully imported GPG key from {self.name}.[/green]"
-                )
-                if fingerprints:
-                    console.print(f"Fingerprints: [bold]{fingerprints}[/bold]")
+                case _:
+                    raise ValueError(f"Unsupported key type '{keyType}'.")
 
-                _import_gpg_keys(secKey)
+        except Exception as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
 
-            case "vault":
-                vault_addr, vault_token, key_content = self.getVaultKeys(item_id)
-                if "# NO-IMPORT" in key_content:
-                    raise ValueError(
-                        f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported."
-                    )
+        return ResultPayload(success=True, message=messages)
 
-                console.print(
-                    f"[green]Successfully imported Vault key from {self.name}.[/green]"
-                )
-                console.print(f"Vault Address: [bold]{vault_addr}[/bold]")
-                console.print(f"Vault Token: [bold]{vault_token}[/bold]")
-
-                key_content = (
-                    f"# Vault Address:: {vault_addr}\nVault Key: {vault_token}\n"
-                )
-
-                _import_vault_keys(key_content)
-
-    def edit(self, secrets_file: str, sops_file: str) -> None:
+    @contextmanager
+    def edit(self, secrets_file: str, sops_file: str) -> Iterator[Tuple[str, dict, List[int]]]:
         """
-        Edit secrets using SOPS.
-        Args:
-            secrets_file (str): Path to the secrets file.
-            sops_file (str): Path to the SOPS file.
+        Context manager to prepare the SOPS edit command and its environment.
+        Yields:
+            tuple: (command_string, environment_dict, pass_fds_list)
         """
         sops_command = ["sops", "--config", sops_file, secrets_file]
         with self.setupEphemeralEnv() as ctx:
@@ -343,23 +360,7 @@ class Provider(ABC):
             if prefix:
                 cmd = f"{prefix} {cmd}"
 
-            try:
-                subprocess.run(
-                    cmd,
-                    check=True,
-                    env=env,
-                    pass_fds=pass_fds,
-                    shell=True,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
-            except subprocess.CalledProcessError as e:
-                if e.returncode == 200:
-                    return
-                err = (
-                    e.stderr.strip() if e.stderr else "No additional error information."
-                )
-                raise RuntimeError(f"Error running SOPS edit command: {err}") from e
+            yield cmd, env, pass_fds
 
     def decrypt(self, secrets_file: str, sops_file: str) -> str:
         """

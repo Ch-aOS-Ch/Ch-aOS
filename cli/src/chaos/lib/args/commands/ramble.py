@@ -415,7 +415,18 @@ def handleRamble(args):
 
                 try:
                     if provider:
-                        provider.edit(str(target_file), sops_config)
+                        with provider.edit(str(target_file), sops_config) as (
+                            cmd,
+                            env,
+                            pass_fds,
+                        ):
+                            subprocess.run(
+                                cmd,
+                                check=True,
+                                env=env,
+                                pass_fds=pass_fds,
+                                shell=True,
+                            )
                     else:
                         subprocess.run(
                             ["sops", "--config", sops_config, str(target_file)],
