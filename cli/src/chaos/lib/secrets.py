@@ -17,7 +17,7 @@ Module for handling secret management operations such as adding/removing keys, e
 """
 
 
-def handleRotateAdd(payload: SecretsRotatePayload):
+def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload:
     """
     Adds a new key to the sops config file and (if -u), updates all secrets.
 
@@ -33,29 +33,42 @@ def handleRotateAdd(payload: SecretsRotatePayload):
     keys = payload.keys
 
     if not sops_file_override:
-        raise FileNotFoundError("No sops config file found.")
+        return ResultPayload(success=False, error=["No sops config file found."])
+
+    messages = []
+    errors = []
 
     match payload.type:
         case "pgp":
             from chaos.lib.secret_backends.pgp import handlePgpAdd
 
-            handlePgpAdd(payload, sops_file_override, keys)
+            msgs, errs = handlePgpAdd(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
         case "age":
             from chaos.lib.secret_backends.age import handleAgeAdd
 
-            handleAgeAdd(payload, sops_file_override, keys)
+            msgs, errs = handleAgeAdd(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
         case "vault":
             from chaos.lib.secret_backends.vault import handleVaultAdd
 
-            handleVaultAdd(payload, sops_file_override, keys)
+            msgs, errs = handleVaultAdd(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
 
-    if context.i_know_what_im_doing:
+    if context.i_know_what_im_doing and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-        handleUpdateAllSecrets(context)
+        upd_msgs, upd_errs = handleUpdateAllSecrets(context)
+        messages.extend(upd_msgs)
+        errors.extend(upd_errs)
+
+    return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def handleRotateRemove(payload: SecretsRotatePayload):
+def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload:
     """Removes a key from the sops config file and (if -u), updates all secrets."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
@@ -67,26 +80,39 @@ def handleRotateRemove(payload: SecretsRotatePayload):
     keys = payload.keys
 
     if not sops_file_override:
-        raise FileNotFoundError("No sops config file found.")
+        return ResultPayload(success=False, error=["No sops config file found."])
+
+    messages = []
+    errors = []
 
     match payload.type:
         case "pgp":
             from chaos.lib.secret_backends.pgp import handlePgpRem
 
-            handlePgpRem(payload, sops_file_override, keys)
+            msgs, errs = handlePgpRem(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
         case "age":
             from chaos.lib.secret_backends.age import handleAgeRem
 
-            handleAgeRem(payload, sops_file_override, keys)
+            msgs, errs = handleAgeRem(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
         case "vault":
             from chaos.lib.secret_backends.vault import handleVaultRem
 
-            handleVaultRem(payload, sops_file_override, keys)
+            msgs, errs = handleVaultRem(payload, sops_file_override, keys)
+            messages.extend(msgs)
+            errors.extend(errs)
 
-    if context.i_know_what_im_doing:
+    if context.i_know_what_im_doing and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-        handleUpdateAllSecrets(context)
+        upd_msgs, upd_errs = handleUpdateAllSecrets(context)
+        messages.extend(upd_msgs)
+        errors.extend(upd_errs)
+
+    return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
 def listFp(payload: SecretsListPayload) -> ResultPayload:
@@ -131,31 +157,29 @@ def listFp(payload: SecretsListPayload) -> ResultPayload:
     return response
 
 
-def handleSetShamir(payload: SecretsSetShamirPayload):
+def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
     """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
     import os
 
-    from rich.console import Console
-
     from chaos.lib.secret_backends.utils import get_sops_files
 
-    console = Console()
     context = payload.context
     _, sops_file_override, _ = get_sops_files(
         context.sops_file_override, context.secrets_file_override, context.team
     )
 
     if not sops_file_override:
-        raise FileNotFoundError("No sops config file found.")
+        return ResultPayload(success=False, error=["No sops config file found."])
 
     if not os.path.exists(sops_file_override):
-        raise FileNotFoundError(
-            f"Sops config file does not exist at path: {sops_file_override}"
-        )
+        return ResultPayload(success=False, error=[f"Sops config file does not exist at path: {sops_file_override}"])
 
     threshold: int = payload.share
     rule_index: int = payload.index
     ikwid = context.i_know_what_im_doing
+
+    messages = []
+    errors = []
 
     try:
         from omegaconf import DictConfig, OmegaConf
@@ -165,14 +189,10 @@ def handleSetShamir(payload: SecretsSetShamirPayload):
         creation_rules = config_data.get("creation_rules")
 
         if not creation_rules:
-            raise ValueError(
-                f"No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold."
-            )
+            return ResultPayload(success=False, error=[f"No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold."])
 
         if not (0 <= rule_index < len(creation_rules)):
-            raise ValueError(
-                f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
-            )
+            return ResultPayload(success=False, error=[f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."])
 
         rule = creation_rules[rule_index]
         key_groups = rule.get("key_groups", [])
@@ -185,8 +205,8 @@ def handleSetShamir(payload: SecretsSetShamirPayload):
                 if confirm:
                     del rule["shamir_threshold"]
                     OmegaConf.save(config_data, sops_file_override)
-                    console.print(
-                        f"[bold green]Successfully removed Shamir threshold from rule {rule_index} in {sops_file_override}[/]"
+                    messages.append(
+                        f"Successfully removed Shamir threshold from rule {rule_index} in {sops_file_override}"
                     )
                     confirm_update = True if ikwid else False
                     if confirm_update:
@@ -194,40 +214,41 @@ def handleSetShamir(payload: SecretsSetShamirPayload):
                             handleUpdateAllSecrets,
                         )
 
-                        handleUpdateAllSecrets(context)
+                        upd_msgs, upd_errs = handleUpdateAllSecrets(context)
+                        messages.extend(upd_msgs)
+                        errors.extend(upd_errs)
                 else:
-                    console.print("Aborting.")
+                    messages.append("Aborting.")
             else:
-                console.print(f"No Shamir threshold to remove from rule {rule_index}.")
+                messages.append(f"No Shamir threshold to remove from rule {rule_index}.")
 
-            return
+            return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
         if num_key_groups < 2:
-            raise ValueError(
-                f"Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined."
-            )
+            return ResultPayload(success=False, error=[f"Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined."])
 
         if not (1 <= threshold <= num_key_groups):
-            raise ValueError(
-                f"Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups})."
-            )
+            return ResultPayload(success=False, error=[f"Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups})."])
 
         rule["shamir_threshold"] = threshold
 
         OmegaConf.save(config=config_data, f=sops_file_override)
 
-        console.print(
-            f"[bold green]Successfully set Shamir threshold to {threshold} for rule {rule_index} in {sops_file_override}[/]"
+        messages.append(
+            f"Successfully set Shamir threshold to {threshold} for rule {rule_index} in {sops_file_override}"
         )
 
         confirm = True if ikwid else False
         if confirm:
             from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
-            handleUpdateAllSecrets(context)
+            upd_msgs, upd_errs = handleUpdateAllSecrets(context)
+            messages.extend(upd_msgs)
+            errors.extend(upd_errs)
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        return ResultPayload(success=False, error=[f"Failed to update sops config file: {e}"])
+    return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
 def handleSecEdit(payload: SecretsEditPayload):

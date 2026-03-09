@@ -141,7 +141,18 @@ def handleSecrets(args):
                     create=getattr(args, "create", False),
                 )
 
-                handleRotateAdd(payload)
+                result = handleRotateAdd(payload)
+                if not result.success and result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                    if result.message:
+                        for msg in result.message:
+                            console.print(msg)
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
 
             case "rotate-rm":
                 from ...secrets import handleRotateRemove
@@ -153,7 +164,15 @@ def handleSecrets(args):
                     index=getattr(args, "index", None),
                 )
 
-                handleRotateRemove(payload)
+                result = handleRotateRemove(payload)
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                if not result.success:
+                    sys.exit(1)
 
             case "list":
                 from ...secrets import listFp
@@ -214,7 +233,15 @@ def handleSecrets(args):
                     index=args.index, share=args.share, context=context
                 )
 
-                handleSetShamir(payload)
+                result = handleSetShamir(payload)
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                if not result.success:
+                    sys.exit(1)
 
             case "print":
                 from ...secrets import handleSecPrint

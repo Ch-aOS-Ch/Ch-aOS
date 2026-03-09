@@ -48,36 +48,37 @@ def listVault(sops_file_override):
 
 
 def handleVaultAdd(payload, sops_file_override, keys):
-    from rich.console import Console
-
-    console = Console()
+    messages = []
+    errors = []
     valids = set()
     for key in keys:
         clean_key = key.strip()
         is_valid, message = _is_valid_vault_key(clean_key)
         if is_valid:
-            console.print(f"[green]INFO:[/] {message}")
+            messages.append(message)
             valids.add(clean_key)
         else:
-            console.print(f"[bold red]ERROR:[/] {message} Skipping key '{key}'.")
+            errors.append(f"{message} Skipping key '{key}'.")
             continue
 
-    _generic_handle_add("vault", payload, sops_file_override, valids)
+    msgs, errs = _generic_handle_add("vault", payload, sops_file_override, valids)
+    messages.extend(msgs)
+    errors.extend(errs)
+    return messages, errors
 
 
 def handleVaultRem(payload, sops_file_override, keys):
-    from rich.console import Console
-
-    console = Console()
+    messages = []
+    errors = []
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            console.print(
-                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            errors.append(
+                "No 'creation_rules' found in the sops config. Nothing to do."
             )
-            return
+            return messages, errors
 
         all_vault_keys_in_config = set()
         for rule in creation_rules:
@@ -92,11 +93,14 @@ def handleVaultRem(payload, sops_file_override, keys):
             if clean_key in all_vault_keys_in_config:
                 keys_to_remove.add(clean_key)
             else:
-                console.print(
-                    f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping."
+                messages.append(
+                    f"Key: {key_to_check} not found in sops config. Skipping."
                 )
 
-        _generic_handle_rem("vault", payload, sops_file_override, keys_to_remove)
+        msgs, errs = _generic_handle_rem("vault", payload, sops_file_override, keys_to_remove)
+        messages.extend(msgs)
+        errors.extend(errs)
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        errors.append(f"Failed to update sops config file: {e}")
+    return messages, errors

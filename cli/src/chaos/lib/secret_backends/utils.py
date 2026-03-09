@@ -397,15 +397,11 @@ def handleUpdateAllSecrets(context: SecretsContext):
     The rest of the functions should be auto explicative.
     """
     import subprocess
-    from argparse import Namespace
-
     from omegaconf import OmegaConf
-    from rich.console import Console
-
     from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 
-    console = Console()
-    console.print("\n[bold cyan]Starting key update for all secret files...[/]")
+    messages = ["\nStarting key update for all secret files..."]
+    errors = []
 
     main_secrets_file, sops_file_path, global_config = get_sops_files(
         context.sops_file_override, context.secrets_file_override, context.team
@@ -414,18 +410,19 @@ def handleUpdateAllSecrets(context: SecretsContext):
     if is_vault_in_use(sops_file_path):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            errors.append(message)
+            return messages, errors
 
     if not sops_file_path:
-        console.print(
-            "[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update."
+        messages.append(
+            "Warning: No sops config file found for main secrets. Skipping main secrets file update."
         )
     elif main_secrets_file and Path(main_secrets_file).exists():
         try:
             data = OmegaConf.load(main_secrets_file)
             if "sops" in data:
-                console.print(
-                    f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]"
+                messages.append(
+                    f"Updating keys for main secrets file: {main_secrets_file}"
                 )
 
                 provider = _resolveProvider(context, global_config)
@@ -446,36 +443,29 @@ def handleUpdateAllSecrets(context: SecretsContext):
                         text=True,
                         capture_output=True,
                     )
-                console.print("[green]Keys updated successfully.[/green]")
+                messages.append("Keys updated successfully.")
         except subprocess.CalledProcessError as e:
-            console.print(
-                f"[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}"
+            errors.append(
+                f"Failed to update keys for {main_secrets_file}: {e.stderr}"
             )
         except Exception as e:
-            console.print(
-                f"[bold red]ERROR:[/] Could not process file {main_secrets_file}: {e}"
-            )
+            errors.append(f"Could not process file {main_secrets_file}: {e}")
     else:
-        console.print(
-            "[dim]Main secrets file not found or not configured. Skipping.[/dim]"
-        )
+        messages.append("Main secrets file not found or not configured. Skipping.")
 
-    console.print("\n[bold cyan]Updating ramble files...[/]")
+    messages.append("\nUpdating ramble files...")
     from chaos.lib.ramble import handleUpdateEncryptRamble
+    from chaos.lib.args.dataclasses import RambleUpdateEncryptPayload
 
-    mock_args = Namespace(
-        sops_file_override=context.sops_file_override,
-        team=context.team,
-        provider=context.provider_config.provider if context.provider_config else None,
-    )
-    if context.provider_config:
-        for (
-            key,
-            value,
-        ) in context.provider_config.ephemeral_provider_args.items():
-            setattr(mock_args, key, value)
+    payload = RambleUpdateEncryptPayload(context=context)
+    result = handleUpdateEncryptRamble(payload)
 
-    handleUpdateEncryptRamble(mock_args)
+    if result.message:
+        messages.extend(result.message)
+    if result.error:
+        errors.extend(result.error)
+
+    return messages, errors
 
 
 def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
@@ -564,12 +554,12 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
 
 def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids: set):
     from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
 
-    console = Console()
+    messages = []
+    errors = []
     if not valids:
-        console.print("No valid keys. Returning.")
-        return
+        messages.append("No valid keys. Returning.")
+        return messages, errors
 
     try:
         create = payload.create
@@ -577,17 +567,19 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            raise ValueError(
+            errors.append(
                 f"No 'creation_rules' found in {sops_file_override}. Cannot add keys."
             )
+            return messages, errors
 
         rule_index = payload.index
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                raise ValueError(
+                errors.append(
                     f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
                 )
+                return messages, errors
             rules_to_process = [creation_rules[rule_index]]
 
         if not create:
@@ -610,14 +602,14 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
                         setattr(key_group, key_type, keys_to_write)
 
             if not total_added_keys:
-                console.print(
-                    f"[yellow]All provided keys are already in the relevant sops config '{key_type}' sections, or no '{key_type}' sections were found. No changes made.[/]"
+                messages.append(
+                    f"All provided keys are already in the relevant sops config '{key_type}' sections, or no '{key_type}' sections were found. No changes made."
                 )
-                return
+                return messages, errors
 
             OmegaConf.save(config_data, sops_file_override)
-            console.print(
-                f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}"
+            messages.append(
+                f"Successfully updated sops config! New keys added: {list(total_added_keys)}"
             )
         else:
             for rule in rules_to_process:
@@ -628,51 +620,54 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
                     rule.key_groups = [new_group]
 
             OmegaConf.save(config_data, sops_file_override)
-            console.print(
-                f"[bold green]Successfully updated sops config![/] New {key_type.upper()} key group created with keys: {list(valids)}"
+            messages.append(
+                f"Successfully updated sops config! New {key_type.upper()} key group created with keys: {list(valids)}"
             )
 
     except Exception as e:
-        raise RuntimeError(
+        errors.append(
             f"Failed to load or save sops config file {sops_file_override}: {e}"
-        ) from e
+        )
+    return messages, errors
 
 
 def _generic_handle_rem(
     key_type: str, payload, sops_file_override: str, keys_to_remove: set
 ):
     from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
 
-    console = Console()
+    messages = []
+    errors = []
     rule_index = payload.index
     ikwid = payload.context.i_know_what_im_doing
 
     if not keys_to_remove:
-        console.print("No keys to remove. Exiting.")
-        return
+        messages.append("No keys to remove. Exiting.")
+        return messages, errors
 
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            console.print(
-                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            errors.append(
+                "No 'creation_rules' found in the sops config. Nothing to do."
             )
-            return
+            return messages, errors
 
         if not ikwid:
-            console.print("Keys to remove:")
+            msgs = ["Keys to remove:"]
             for key in keys_to_remove:
-                console.print(f"  {key}")
+                msgs.append(f"  {key}")
+            messages.append("\n".join(msgs))
 
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                raise ValueError(
+                errors.append(
                     f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
                 )
+                return messages, errors
             rules_to_process = [creation_rules[rule_index]]
 
         for rule in rules_to_process:
@@ -697,12 +692,13 @@ def _generic_handle_rem(
                         del rule.key_groups[i]
 
         OmegaConf.save(config_data, sops_file_override)
-        console.print(
-            f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}"
+        messages.append(
+            f"Successfully updated sops config! Keys removed: {list(keys_to_remove)}"
         )
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        errors.append(f"Failed to update sops config file: {e}")
+    return messages, errors
 
 
 def decrypt_secrets(

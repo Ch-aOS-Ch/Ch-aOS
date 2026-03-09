@@ -49,40 +49,41 @@ def listAge(sops_file_override):
 
 
 def handleAgeAdd(payload, sops_file_override, keys):
-    from rich.console import Console
-
-    console = Console()
     valids = set()
+    messages = []
+    errors = []
     for key in keys:
         clean_key = key.strip()
         if not is_valid_age_key(clean_key):
-            console.print(f"[bold red]ERROR:[/] Invalid age key: {key}. Skipping.")
-            console.print("[cyan]INFO:[/] To get your age public key:")
-            console.print(
-                "[cyan]INFO:[/]   - From a native age private key file (e.g., ~/.config/chaos/keys.txt): [italic]age-keygen -y ~/.config/chaos/keys.txt[/]"
+            errors.append(f"Invalid age key: {key}. Skipping.")
+            errors.append("To get your age public key:")
+            errors.append(
+                "  - From a native age private key file (e.g., ~/.config/chaos/keys.txt): age-keygen -y ~/.config/chaos/keys.txt"
             )
-            console.print(
-                "[cyan]INFO:[/]   - From an SSH public key (e.g., ~/.ssh/id_rsa.pub, requires ssh-to-age): [italic]ssh-to-age -i ~/.ssh/id_rsa.pub[/]"
+            errors.append(
+                "  - From a SSH public key (e.g., ~/.ssh/id_rsa.pub, requires ssh-to-age): ssh-to-age -i ~/.ssh/id_rsa.pub"
             )
             continue
         valids.add(clean_key)
 
-    _generic_handle_add("age", payload, sops_file_override, valids)
+    msgs, errs = _generic_handle_add("age", payload, sops_file_override, valids)
+    messages.extend(msgs)
+    errors.extend(errs)
+    return messages, errors
 
 
 def handleAgeRem(payload, sops_file_override, keys):
-    from rich.console import Console
-
-    console = Console()
+    messages = []
+    errors = []
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            console.print(
-                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            errors.append(
+                "No 'creation_rules' found in the sops config. Nothing to do."
             )
-            return
+            return messages, errors
 
         all_age_keys_in_config = set()
         for rule in creation_rules:
@@ -97,11 +98,16 @@ def handleAgeRem(payload, sops_file_override, keys):
             if clean_key in all_age_keys_in_config:
                 keys_to_remove.add(clean_key)
             else:
-                console.print(
-                    f"[cyan]INFO:[/] Key: {key_to_check} not found in sops config. Skipping."
+                messages.append(
+                    f"Key: {key_to_check} not found in sops config. Skipping."
                 )
 
-        _generic_handle_rem("age", payload, sops_file_override, keys_to_remove)
+        msgs, errs = _generic_handle_rem(
+            "age", payload, sops_file_override, keys_to_remove
+        )
+        messages.extend(msgs)
+        errors.extend(errs)
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        errors.append(f"Failed to update sops config file: {e}")
+    return messages, errors
