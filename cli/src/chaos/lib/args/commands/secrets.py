@@ -94,15 +94,15 @@ def handleSecrets(args):
                 )
 
                 result = handleExportSec(payload, global_config)
-                
+
                 if result.message:
                     for msg in result.message:
                         console.print(msg)
-                
+
                 if result.error:
                     for err in result.error:
                         console.print(f"[bold red]ERROR:[/] {err}")
-                
+
                 if not result.success:
                     sys.exit(1)
 

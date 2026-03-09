@@ -238,11 +238,14 @@ class ResultPayload(BasePayload):
 
 
 class TeamPrunePayload(BasePayload):
-    __slots__ = ("companies", "i_know_what_im_doing")
+    __slots__ = ("companies", "i_know_what_im_doing", "confirmed")
 
-    def __init__(self, companies: list[str], i_know_what_im_doing: bool):
+    def __init__(
+        self, companies: list[str], i_know_what_im_doing: bool, confirmed: bool = False
+    ):
         self.companies = companies
         self.i_know_what_im_doing = i_know_what_im_doing
+        self.confirmed = confirmed
 
 
 class TeamListPayload(BasePayload):
@@ -263,12 +266,39 @@ class TeamClonePayload(BasePayload):
 
 
 class TeamInitPayload(BasePayload):
-    __slots__ = ("target", "path", "i_know_what_im_doing")
+    __slots__ = (
+        "target",
+        "path",
+        "i_know_what_im_doing",
+        "confirmed",
+        "init_git",
+        "overwrite_sops",
+        "engine",
+        "use_vault",
+        "continue_no_vault",
+    )
 
-    def __init__(self, target: str, path: str | None, i_know_what_im_doing: bool):
+    def __init__(
+        self,
+        target: str,
+        path: str | None,
+        i_know_what_im_doing: bool,
+        confirmed: bool = False,
+        init_git: bool = False,
+        overwrite_sops: bool = False,
+        engine: str | None = None,
+        use_vault: bool = False,
+        continue_no_vault: bool = False,
+    ):
         self.target = target
         self.path = path
         self.i_know_what_im_doing = i_know_what_im_doing
+        self.confirmed = confirmed
+        self.init_git = init_git
+        self.overwrite_sops = overwrite_sops
+        self.engine = engine
+        self.use_vault = use_vault
+        self.continue_no_vault = continue_no_vault
 
 
 class TeamActivatePayload(BasePayload):
@@ -279,11 +309,12 @@ class TeamActivatePayload(BasePayload):
 
 
 class TeamDeactivatePayload(BasePayload):
-    __slots__ = ("company", "teams")
+    __slots__ = ("company", "teams", "confirmed")
 
-    def __init__(self, company: str, teams: list[str]):
+    def __init__(self, company: str, teams: list[str], confirmed: bool = False):
         self.company = company
         self.teams = teams
+        self.confirmed = confirmed
 
 
 class ExplainPayload(BasePayload):
@@ -525,7 +556,13 @@ class SecretsExportPayload(BasePayload):
 
 
 class SecretsImportPayload(BasePayload):
-    __slots__ = ("provider_name", "key_type", "item_id", "provider_specific_args", "confirmed")
+    __slots__ = (
+        "provider_name",
+        "key_type",
+        "item_id",
+        "provider_specific_args",
+        "confirmed",
+    )
 
     def __init__(
         self,
@@ -547,7 +584,15 @@ class SecretsImportPayload(BasePayload):
 
 
 class SecretsRotatePayload(BasePayload):
-    __slots__ = ("type", "keys", "context", "index", "pgp_server", "create", "update_confirmed")
+    __slots__ = (
+        "type",
+        "keys",
+        "context",
+        "index",
+        "pgp_server",
+        "create",
+        "update_confirmed",
+    )
 
     def __init__(
         self,
@@ -637,7 +682,12 @@ class SecretsSetShamirPayload(BasePayload):
     __slots__ = ("index", "share", "context", "confirmed", "update_confirmed")
 
     def __init__(
-        self, index: int, share: int, context: SecretsContext | dict[str, Any], confirmed: bool = False, update_confirmed: bool = False
+        self,
+        index: int,
+        share: int,
+        context: SecretsContext | dict[str, Any],
+        confirmed: bool = False,
+        update_confirmed: bool = False,
     ):
         self.index = index
         self.share = share

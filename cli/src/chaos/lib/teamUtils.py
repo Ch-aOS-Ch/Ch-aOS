@@ -36,7 +36,7 @@ def _validate_deps():
     return hasAge, hasPgp
 
 
-def _symlink_teamDir(company: str, base_path: Path, team: str):
+def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
     """
     Creates a symlink from the team directory to the chaos teams activation directory.
 
@@ -44,11 +44,8 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
     If it points to a different location, it raises an error.
     If a file or directory already exists at the activation path, it raises an error.
 
-    If neither of those, it creates the symlink and notifies the user.
+    If neither of those, it creates the symlink and returns a success message.
     """
-    from rich.console import Console
-
-    console = Console()
     try:
         src = base_path / f"{company}/{team}"
         dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
@@ -57,10 +54,7 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
 
         if dest.is_symlink():
             if dest.resolve() == src.resolve():
-                console.print(
-                    f"[bold green]Success![/] Team [bold]{team}[/] from company [bold]{company}[/] is already active."
-                )
-                return
+                return f"Team {team} from company {company} is already active."
             else:
                 raise FileExistsError(
                     f"Another project for team '{team}' in company '{company}' is already active from a different path."
@@ -72,9 +66,7 @@ def _symlink_teamDir(company: str, base_path: Path, team: str):
 
         dest.symlink_to(src, target_is_directory=True)
 
-        console.print(
-            f"[bold green]Success![/] Team [bold]{team}[/] from company [bold]{company}[/] activated at [dim]{dest}[/]"
-        )
+        return f"Team {team} from company {company} activated at {dest}"
     except Exception as e:
         raise RuntimeError(f"Failed to activate team: {e}") from e
 
@@ -179,7 +171,13 @@ def _get_chaos_file(path) -> DictConfig:
 
 
 def _create_sops_config(
-    teamDir, hasAge: bool, choices: list[str], person: str | None, ikwid
+    teamDir,
+    hasAge: bool,
+    choices: list[str],
+    person: str | None,
+    ikwid,
+    engine: str,
+    useVault: bool,
 ) -> Optional[str]:
     """
     Creates a sops-config.yml file in the team directory with the appropriate configuration.
@@ -196,33 +194,7 @@ def _create_sops_config(
 
     Yeah Yeah, it's kinda big, but it's flexible, secure and more importantly: It does one singular thing.
     """
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.prompt import Confirm, Prompt
-
-    console = Console()
     sops_file = teamDir / "sops-config.yml"
-    if sops_file.exists():
-        if not Confirm.ask(
-            f"A sops configuration already exists at [dim]{sops_file}[/]. Overwrite?",
-            default=False,
-        ):
-            console.print("[yellow]Operation cancelled. Keeping existing config.[/]")
-            return None
-
-    default = "age" if hasAge else "gpg"
-    console.print(
-        Panel(
-            "Chaos uses [bold]SOPS[/] for encryption.\nYou need to choose a backend engine to handle the keys.",
-            title="Secrets Initialization",
-            border_style="green",
-        )
-    )
-    engine = (
-        "age"
-        if ikwid
-        else Prompt.ask("Choose encryption engine", choices=choices, default=default)
-    )
 
     dev_key_groups = []
     prod_key_groups = []
@@ -230,44 +202,27 @@ def _create_sops_config(
 
     hasVault = checkDep("vault")
 
-    if hasVault:
-        useVault = (
-            True
-            if ikwid
-            else Confirm.ask(
-                "Do you wish to use vault? (recommended for security)", default=True
-            )
+    if hasVault and useVault:
+        dev_key_groups.extend(
+            [
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
+            ]
         )
-        if useVault:
-            dev_key_groups.extend(
-                [
-                    {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
-                    {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
-                ]
-            )
-            prod_key_groups.extend(
-                [
-                    {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
-                    {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
-                    {"hc_vault": ["VAULT-SECURITY-TEAM-URI-INSTANCE"]},
-                    {"hc_vault": ["VAULT-COMPLIANCE-TEAM-URI-INSTANCE"]},
-                ]
-            )
-            ramblings_key_groups.extend(
-                [
-                    {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
-                    {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
-                ]
-            )
-    else:
-        console.print(
-            "[bold yellow]WARNING:[/] Vault is not installed. Using vault is the more secure way to manage your secrets."
+        prod_key_groups.extend(
+            [
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
+                {"hc_vault": ["VAULT-SECURITY-TEAM-URI-INSTANCE"]},
+                {"hc_vault": ["VAULT-COMPLIANCE-TEAM-URI-INSTANCE"]},
+            ]
         )
-        confirm = Confirm.ask("Do you wish to continue without vault?", default=False)
-        if not confirm:
-            raise RuntimeError(
-                "Operation cancelled. Please install vault and try again."
-            )
+        ramblings_key_groups.extend(
+            [
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
+            ]
+        )
 
     if engine in ["gpg", "both"]:
         dev_key_groups.extend(
@@ -326,10 +281,6 @@ def _create_sops_config(
     try:
         with open(sops_file, "w") as f:
             yaml.dump(sopsContent, f, default_flow_style=False)
-
-        console.print(
-            f"[bold green]Success![/] SOPS configuration generated at: [dim]{sops_file}[/]"
-        )
 
     except Exception as e:
         raise RuntimeError(f"Failed to write config file: {e}") from e
