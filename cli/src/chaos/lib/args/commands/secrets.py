@@ -130,7 +130,7 @@ def handleSecrets(args):
                 handleImportSec(payload, global_config)
 
             case "rotate-add":
-                from ...secrets import handleRotateAdd
+                from ...secrets import gatherRotateAdd, handleRotateAdd
 
                 payload = SecretsRotatePayload(
                     type=args.type,
@@ -141,21 +141,34 @@ def handleSecrets(args):
                     create=getattr(args, "create", False),
                 )
 
+                request = gatherRotateAdd(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
+
                 result = handleRotateAdd(payload)
+
                 if not result.success and result.error:
                     for err in result.error:
                         console.print(f"[bold red]ERROR:[/] {err}")
+                    for msg in result.message:
+                        console.print(msg)
+                    sys.exit(1)
 
-                    if result.message:
-                        for msg in result.message:
-                            console.print(msg)
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
 
                 if result.message:
                     for msg in result.message:
                         console.print(msg)
 
             case "rotate-rm":
-                from ...secrets import handleRotateRemove
+                from ...secrets import gatherRotateRemove, handleRotateRemove
 
                 payload = SecretsRotatePayload(
                     type=args.type,
@@ -163,6 +176,15 @@ def handleSecrets(args):
                     context=context,
                     index=getattr(args, "index", None),
                 )
+
+                request = gatherRotateRemove(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
 
                 result = handleRotateRemove(payload)
                 if result.message:
@@ -227,11 +249,26 @@ def handleSecrets(args):
                 handleSecEdit(payload)
 
             case "set-shamir":
-                from ...secrets import handleSetShamir
+                from ...secrets import gatherSetShamir, handleSetShamir
 
                 payload = SecretsSetShamirPayload(
                     index=args.index, share=args.share, context=context
                 )
+
+                request = gatherSetShamir(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.confirmed = True
+                            else:
+                                console.print("[green]Alright![/] Aborting.")
+                                sys.exit(0)
+                        elif field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
 
                 result = handleSetShamir(payload)
                 if result.message:

@@ -81,16 +81,18 @@ def handlePgpAdd(payload, sops_file_override, keys):
                 )
                 continue
             try:
-                subprocess.run(
-                    ["gpg", "--keyserver", server, "--recv-keys", clean_key], check=True
-                )
+                command_message = subprocess.run(
+                    ["gpg", "--keyserver", server, "--recv-keys", clean_key],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout
+                messages.append(command_message)
                 messages.append(
                     f"Fingerprint {key} was successfully imported from {server}"
                 )
             except subprocess.SubprocessError as e:
-                errors.append(
-                    f"Could not import {key} from {server}: {e}.\nSkipping."
-                )
+                errors.append(f"Could not import {key} from {server}: {e}.\nSkipping.")
                 continue
         valids.add(clean_key)
     msgs, errs = _generic_handle_add("pgp", payload, sops_file_override, valids)
@@ -122,9 +124,7 @@ def handlePgpRem(payload, sops_file_override, keys):
         for key_to_check in keys:
             clean_key = key_to_check.replace(" ", "")
             if not is_valid_fp(clean_key):
-                errors.append(
-                    f"Invalid PGP fingerprint: {key_to_check}. Skipping."
-                )
+                errors.append(f"Invalid PGP fingerprint: {key_to_check}. Skipping.")
                 continue
 
             if clean_key in all_pgp_keys_in_config:
@@ -133,7 +133,9 @@ def handlePgpRem(payload, sops_file_override, keys):
                 messages.append(
                     f"Fingerprint: {key_to_check} not found in sops config. Skipping."
                 )
-        msgs, errs = _generic_handle_rem("pgp", payload, sops_file_override, keys_to_remove)
+        msgs, errs = _generic_handle_rem(
+            "pgp", payload, sops_file_override, keys_to_remove
+        )
         messages.extend(msgs)
         errors.extend(errs)
 

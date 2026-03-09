@@ -1,6 +1,8 @@
 from typing import cast
 
 from chaos.lib.args.dataclasses import (
+    DataGatherPayload,
+    DataGatherRequest,
     ResultPayload,
     SecretsCatPayload,
     SecretsEditPayload,
@@ -15,6 +17,74 @@ from chaos.lib.args.dataclasses import (
 """
 Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
 """
+
+
+def gatherRotateAdd(payload: SecretsRotatePayload) -> DataGatherRequest | None:
+    if not payload.context.i_know_what_im_doing and not payload.update_confirmed:
+        return DataGatherRequest(
+            name="secrets_rotate_add",
+            fields=[
+                DataGatherPayload(
+                    name="update_confirmed",
+                    prompt="Do you want to update all existing secrets with the new keys?",
+                    input_type="boolean",
+                    required=True,
+                    default=False,
+                )
+            ],
+        )
+    return None
+
+
+def gatherRotateRemove(payload: SecretsRotatePayload) -> DataGatherRequest | None:
+    if not payload.context.i_know_what_im_doing and not payload.update_confirmed:
+        return DataGatherRequest(
+            name="secrets_rotate_remove",
+            fields=[
+                DataGatherPayload(
+                    name="update_confirmed",
+                    prompt="Do you want to update all existing secrets to remove the keys?",
+                    input_type="boolean",
+                    required=True,
+                    default=False,
+                )
+            ],
+        )
+    return None
+
+
+def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | None:
+    fields = []
+
+    if (
+        payload.share <= 0
+        and not payload.context.i_know_what_im_doing
+        and not payload.confirmed
+    ):
+        fields.append(
+            DataGatherPayload(
+                name="confirmed",
+                prompt=f"Are you sure you want to remove the Shamir threshold for rule {payload.index}?",
+                input_type="boolean",
+                required=True,
+                default=False,
+            )
+        )
+
+    if not payload.context.i_know_what_im_doing and not payload.update_confirmed:
+        fields.append(
+            DataGatherPayload(
+                name="update_confirmed",
+                prompt="Do you want to update all existing secrets to apply the new Shamir threshold?",
+                input_type="boolean",
+                required=True,
+                default=False,
+            )
+        )
+
+    if fields:
+        return DataGatherRequest(name="secrets_set_shamir", fields=fields)
+    return None
 
 
 def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload:
@@ -58,7 +128,7 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload:
             messages.extend(msgs)
             errors.extend(errs)
 
-    if context.i_know_what_im_doing and not errors:
+    if (context.i_know_what_im_doing or payload.update_confirmed) and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
         upd_msgs, upd_errs = handleUpdateAllSecrets(context)
@@ -105,7 +175,7 @@ def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload:
             messages.extend(msgs)
             errors.extend(errs)
 
-    if context.i_know_what_im_doing and not errors:
+    if (context.i_know_what_im_doing or payload.update_confirmed) and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
         upd_msgs, upd_errs = handleUpdateAllSecrets(context)
@@ -172,7 +242,10 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
         return ResultPayload(success=False, error=["No sops config file found."])
 
     if not os.path.exists(sops_file_override):
-        return ResultPayload(success=False, error=[f"Sops config file does not exist at path: {sops_file_override}"])
+        return ResultPayload(
+            success=False,
+            error=[f"Sops config file does not exist at path: {sops_file_override}"],
+        )
 
     threshold: int = payload.share
     rule_index: int = payload.index
@@ -189,10 +262,20 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
         creation_rules = config_data.get("creation_rules")
 
         if not creation_rules:
-            return ResultPayload(success=False, error=[f"No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold."])
+            return ResultPayload(
+                success=False,
+                error=[
+                    f"No 'creation_rules' found in {sops_file_override}. Cannot set Shamir threshold."
+                ],
+            )
 
         if not (0 <= rule_index < len(creation_rules)):
-            return ResultPayload(success=False, error=[f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."])
+            return ResultPayload(
+                success=False,
+                error=[
+                    f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
+                ],
+            )
 
         rule = creation_rules[rule_index]
         key_groups = rule.get("key_groups", [])
@@ -200,7 +283,7 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
 
         if threshold <= 0:
             if rule.get("shamir_threshold") is not None:
-                confirm = True if ikwid else False
+                confirm = True if (ikwid or payload.confirmed) else False
 
                 if confirm:
                     del rule["shamir_threshold"]
@@ -208,7 +291,9 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
                     messages.append(
                         f"Successfully removed Shamir threshold from rule {rule_index} in {sops_file_override}"
                     )
-                    confirm_update = True if ikwid else False
+                    confirm_update = (
+                        True if (ikwid or payload.update_confirmed) else False
+                    )
                     if confirm_update:
                         from chaos.lib.secret_backends.utils import (
                             handleUpdateAllSecrets,
@@ -220,15 +305,29 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
                 else:
                     messages.append("Aborting.")
             else:
-                messages.append(f"No Shamir threshold to remove from rule {rule_index}.")
+                messages.append(
+                    f"No Shamir threshold to remove from rule {rule_index}."
+                )
 
-            return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
+            return ResultPayload(
+                success=len(errors) == 0, message=messages, error=errors
+            )
 
         if num_key_groups < 2:
-            return ResultPayload(success=False, error=[f"Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined."])
+            return ResultPayload(
+                success=False,
+                error=[
+                    f"Shamir threshold requires at least 2 key groups for rule {rule_index}, but only {num_key_groups} is defined."
+                ],
+            )
 
         if not (1 <= threshold <= num_key_groups):
-            return ResultPayload(success=False, error=[f"Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups})."])
+            return ResultPayload(
+                success=False,
+                error=[
+                    f"Shamir threshold ({threshold}) must be between 1 and the number of key groups ({num_key_groups})."
+                ],
+            )
 
         rule["shamir_threshold"] = threshold
 
@@ -238,7 +337,7 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
             f"Successfully set Shamir threshold to {threshold} for rule {rule_index} in {sops_file_override}"
         )
 
-        confirm = True if ikwid else False
+        confirm = True if (ikwid or payload.update_confirmed) else False
         if confirm:
             from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
 
@@ -247,7 +346,9 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
             errors.extend(upd_errs)
 
     except Exception as e:
-        return ResultPayload(success=False, error=[f"Failed to update sops config file: {e}"])
+        return ResultPayload(
+            success=False, error=[f"Failed to update sops config file: {e}"]
+        )
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 

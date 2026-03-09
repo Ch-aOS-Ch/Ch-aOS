@@ -545,7 +545,7 @@ class SecretsImportPayload(BasePayload):
 
 
 class SecretsRotatePayload(BasePayload):
-    __slots__ = ("type", "keys", "context", "index", "pgp_server", "create")
+    __slots__ = ("type", "keys", "context", "index", "pgp_server", "create", "update_confirmed")
 
     def __init__(
         self,
@@ -555,12 +555,14 @@ class SecretsRotatePayload(BasePayload):
         index: int | None = None,
         pgp_server: str | None = None,
         create: bool = False,
+        update_confirmed: bool = False,
     ):
         self.type = type
         self.keys = keys
         self.index = index
         self.pgp_server = pgp_server
         self.create = create
+        self.update_confirmed = update_confirmed
 
         self.context = SecretsContext.from_dict_or_self(context)
 
@@ -630,13 +632,15 @@ class SecretsCatPayload(BasePayload):
 
 
 class SecretsSetShamirPayload(BasePayload):
-    __slots__ = ("index", "share", "context")
+    __slots__ = ("index", "share", "context", "confirmed", "update_confirmed")
 
     def __init__(
-        self, index: int, share: int, context: SecretsContext | dict[str, Any]
+        self, index: int, share: int, context: SecretsContext | dict[str, Any], confirmed: bool = False, update_confirmed: bool = False
     ):
         self.index = index
         self.share = share
+        self.confirmed = confirmed
+        self.update_confirmed = update_confirmed
         self.context = SecretsContext.from_dict_or_self(context)
 
 
