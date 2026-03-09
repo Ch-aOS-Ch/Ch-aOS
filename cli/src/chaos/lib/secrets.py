@@ -374,12 +374,14 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
         is_authed, message = check_vault_auth()
         if not is_authed:
             errors.append(message)
+            return ResultPayload(success=False, error=errors)
 
     if not secretsFile or not sopsFile:
         errors.append(
             "SOPS check requires both secrets file and sops config file paths.\n"
             "       Configure them using 'chaos set sec' and 'chaos set sops', or pass them with '-sf' and '-ss'."
         )
+        return ResultPayload(success=False, error=errors)
 
     return ResultPayload(
         success=len(errors) == 0,
@@ -393,10 +395,8 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
     )
 
 
-def handleSecPrint(payload: SecretsPrintPayload):
+def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload:
     """Prints the decrypted secrets file to stdout."""
-    import json
-    import subprocess
 
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
@@ -408,58 +408,70 @@ def handleSecPrint(payload: SecretsPrintPayload):
 
     context = _handle_provider_arg(context, global_config)
 
+    errors = []
+    messages = []
+
     if not payload.print_sops_file:
         if not secretsFile:
-            raise FileNotFoundError(
+            errors.append(
                 "SOPS check requires a secrets file path.\n"
                 "       Configure one using 'chaos set secrets', or pass it with '-sf'."
             )
+            return ResultPayload(success=False, error=errors)
+
     if not sopsFile:
-        raise FileNotFoundError(
+        errors.append(
             "SOPS check requires a sops config file path.\n"
             "       Configure one using 'chaos set sops', or pass it with '-ss'."
         )
+        return ResultPayload(success=False, error=errors)
 
     if is_vault_in_use(sopsFile):
         from chaos.lib.secret_backends.crypto import check_vault_auth
 
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            errors.append(message)
+            return ResultPayload(success=False, error=errors)
+
+    import subprocess
 
     try:
         if payload.print_sops_file:
             decrypted_output = subprocess.run(
-                ["cat", sopsFile], check=True, capture_output=True, text=True
+                ["cat", sopsFile],
+                check=True,
+                capture_output=True,
+                text=True,
             ).stdout
+
         else:
             from .secret_backends.utils import decrypt_secrets
 
             decrypted_output = decrypt_secrets(
                 secretsFile, sopsFile, global_config, context
             )
-        if payload.as_json:
-            from omegaconf import OmegaConf
 
-            decrypted_output = json.dumps(
-                OmegaConf.to_container(
-                    OmegaConf.create(decrypted_output), resolve=True
-                ),
-                indent=2,
-            )
-        print(decrypted_output)
+        return ResultPayload(
+            success=len(errors) == 0,
+            message=messages,
+            error=errors,
+            data={"dec": decrypted_output},
+        )
+
     except subprocess.CalledProcessError as e:
         details = e.stderr.decode() if e.stderr else "No output."
-        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
+        errors.append(f"SOPS decryption failed.\nDetails: {details}")
+        return ResultPayload(success=False, message=messages, error=errors)
+    except FileNotFoundError:
+        errors.append(
             "'sops' command not found. Please ensure sops is installed and in your PATH."
-        ) from e
+        )
+        return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleSecCat(payload: SecretsCatPayload):
+def handleSecCat(payload: SecretsCatPayload) -> ResultPayload:
     """Prints specific keys from the decrypted secrets file to stdout."""
-    import json
     import subprocess
     from io import StringIO
 
@@ -473,18 +485,23 @@ def handleSecCat(payload: SecretsCatPayload):
 
     context = _handle_provider_arg(context, global_config)
 
+    errors = []
+    messages = []
+
     if not secretsFile or not sopsFile:
-        raise FileNotFoundError(
+        errors.append(
             "SOPS check requires both secrets file and sops config file paths.\n"
             "       Configure them using 'chaos -sec' and 'chaos -sops', or pass them with '-sf' and '-ss'."
         )
+        return ResultPayload(success=False, error=errors)
 
     if is_vault_in_use(sopsFile):
         from chaos.lib.secret_backends.crypto import check_vault_auth
 
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            errors.append(message)
+            return ResultPayload(success=False, error=errors)
 
     try:
         sopsDecryptResult = None
@@ -500,48 +517,33 @@ def handleSecCat(payload: SecretsCatPayload):
             )
 
         if sopsDecryptResult is None:
-            raise RuntimeError(
-                "SOPS decryption result is None. This should not happen."
-            )
+            errors.append("SOPS decryption result is None. This should not happen.")
+            return ResultPayload(success=False, message=messages, error=errors)
 
-        from omegaconf import DictConfig, ListConfig, OmegaConf
+        from omegaconf import OmegaConf
 
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
+        values = []
         for key in payload.keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)
             if value is None:
-                from rich.console import Console
-
-                console = Console()
-                console.print(
-                    f"[bold yellow]WARNING:[/]{key} not found in {secretsFile}."
-                )
+                messages.append(f"{key} not found in {secretsFile}.")
                 continue
 
-            if payload.value_only:
-                print(value)
-                continue
+            values.append((key, value))
+        return ResultPayload(
+            success=True, message=messages, error=errors, data={"values": values}
+        )
 
-            if not payload.as_json:
-                if isinstance(value, (DictConfig, ListConfig)):
-                    container = OmegaConf.create({key: value})
-                    print(f"{OmegaConf.to_yaml(container)}")
-                else:
-                    output_value = str(value)
-                    print(f"{key}: {output_value}")
-            else:
-                print(
-                    json.dumps(
-                        OmegaConf.to_container(OmegaConf.create({key: value})), indent=2
-                    )
-                )
     except subprocess.CalledProcessError as e:
         details = e.stderr if e.stderr else "No output."
-        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
+        errors.append(f"SOPS decryption failed.\nDetails: {details}")
+        return ResultPayload(success=False, message=messages, error=errors)
+    except FileNotFoundError:
+        errors.append(
             "'sops' command not found. Please ensure sops is installed and in your PATH."
-        ) from e
+        )
+        return ResultPayload(success=False, message=messages, error=errors)
 
 
 def handleExportSec(payload: SecretsExportPayload, global_config):

@@ -239,6 +239,7 @@ def handleSecrets(args):
 
                     console = Console()
                     console.print(f"[cyan]INFO:[/] No {payload.type} keys to be shown.")
+
             case "edit":
                 from ...secrets import handleSecEdit
 
@@ -255,6 +256,8 @@ def handleSecrets(args):
                     if result.message:
                         for msg in result.message:
                             console.print(msg)
+
+                    sys.exit(1)
 
                 import os
                 import subprocess
@@ -336,7 +339,29 @@ def handleSecrets(args):
                     as_json=getattr(args, "json", False),
                 )
 
-                handleSecPrint(payload)
+                result = handleSecPrint(payload)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                    sys.exit(1)
+
+                decrypted_output = result.data.get("dec", "")
+
+                if payload.as_json:
+                    import json
+
+                    from omegaconf import OmegaConf
+
+                    decrypted_output = json.dumps(
+                        OmegaConf.to_container(
+                            OmegaConf.create(decrypted_output), resolve=True
+                        ),
+                        indent=2,
+                    )
+                    return
+
+                print(decrypted_output)
 
             case "cat":
                 from ...secrets import handleSecCat
@@ -349,7 +374,42 @@ def handleSecrets(args):
                     value_only=getattr(args, "value", False),
                 )
 
-                handleSecCat(payload)
+                result = handleSecCat(payload)
+
+                if not result.success:
+                    if result.error:
+                        for err in result.error:
+                            console.print(f"[bold red]ERROR:[/] {err}")
+
+                for result_msg in result.message:
+                    console.print(result_msg)
+
+                for error in result.error:
+                    console.print(f"[bold red]ERROR:[/] {error}")
+
+                import json
+
+                from omegaconf import DictConfig, ListConfig, OmegaConf
+
+                for key, value in result.data["values"]:
+                    if payload.value_only:
+                        print(value)
+                        continue
+
+                    if not payload.as_json:
+                        if isinstance(value, (DictConfig, ListConfig)):
+                            container = OmegaConf.create({key: value})
+                            print(f"{OmegaConf.to_yaml(container)}")
+                        else:
+                            output_value = str(value)
+                            print(f"{key}: {output_value}")
+                    else:
+                        print(
+                            json.dumps(
+                                OmegaConf.to_container(OmegaConf.create({key: value})),
+                                indent=2,
+                            )
+                        )
 
             case _:
                 console.print("Unsupported secrets subcommand.")
