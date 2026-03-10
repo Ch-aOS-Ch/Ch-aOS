@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from omegaconf import OmegaConf as oc
 
-from chaos.lib.args.dataclasses import InitPayload
+from chaos.lib.args.dataclasses import InitPayload, ResultPayload
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
@@ -17,8 +17,11 @@ Scripts for initializing various parts of Ch-aOS, including Chobolo configuratio
 """
 
 
-def initChobolo(keys: dict, targets: list):
+def initChobolo(keys: dict, targets: list) -> ResultPayload:
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
+    messages = []
+
+    result = ResultPayload(success=True, message=messages, data=None)
 
     if not targets:
         finalConf = oc.create()
@@ -33,24 +36,17 @@ def initChobolo(keys: dict, targets: list):
 
                     for rootKey in newCfg.keys():
                         if rootKey in addedKeys:
-                            from rich.console import Console
-
-                            console = Console()
-                            console.print(
-                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
+                            result.message.append(
+                                f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{k}'. Merging, but verify priority."
                             )
                         else:
                             addedKeys.add(rootKey)
 
                     finalConf = oc.merge(finalConf, newCfg)
+                    result.data = finalConf
             elif lis is not None:
-                from rich.console import Console
-
-                console = Console()
-                console.print(
-                    f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
-                )
-        return finalConf
+                result.message.append(f"Spec '{k}' did not return a list. Skipped.")
+        return result
 
     finalConf = oc.create()
     addedKeys = set()
@@ -63,24 +59,19 @@ def initChobolo(keys: dict, targets: list):
                     newCfg = oc.create(v)
                     for rootKey in newCfg.keys():
                         if rootKey in addedKeys:
-                            from rich.console import Console
-
-                            console = Console()
-                            console.print(
-                                f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{target}'. Merging, but verify priority."
+                            result.message.append(
+                                f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{target}'. Merging, but verify priority."
                             )
                         else:
                             addedKeys.add(rootKey)
                     finalConf = oc.merge(finalConf, newCfg)
 
             elif lis is not None:
-                from rich.console import Console
-
-                console = Console()
-                console.print(
-                    f"[yellow]Warning:[/] Spec '{target}' did not return a list. Skipped."
+                result.message.append(
+                    f"Spec '{target}' did not return a list. Skipped."
                 )
-    return finalConf
+    result.data = finalConf
+    return result
 
 
 # -------------- SECRET INITING -------------
@@ -617,35 +608,28 @@ def initSecrets():
 
 
 def handle_init(payload: InitPayload):
-    import sys
 
-    from rich.console import Console
-
-    console = Console()
     try:
         match payload.init_command:
             case "chobolo":
-                from omegaconf import OmegaConf as oc
-
                 from chaos.lib.plugDiscovery import get_plugins
 
                 keys = get_plugins(payload.update_plugins)[3]
-                conf = initChobolo(keys, payload.targets)
-
-                if not payload.template:
-                    path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
-                    oc.save(conf, path)
-
-                else:
-                    if payload.human:
-                        print(oc.to_yaml(conf, resolve=True))
-                    else:
-                        print(conf)
+                result = initChobolo(keys, payload.targets)
+                return result
 
             case "secrets":
                 initSecrets()
+                return ResultPayload(
+                    success=True,
+                    message=["Secrets initialization complete through the CLI."],
+                    data=None,
+                )
             case _:
-                console.print("Unsupported init.")
+                return ResultPayload(
+                    success=False,
+                    message=[f"Unknown init command: {payload.init_command}"],
+                    data=None,
+                )
     except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
-        console.print(f"[bold red]ERROR:[/] {e}")
-        sys.exit(1)
+        return ResultPayload(success=False, message=[str(e)], data=None)
