@@ -109,12 +109,12 @@ class Delta(BasePayload):
 
     def __init__(
         self,
-        to_add: list[str] | None = None,
-        to_remove: list[str] | None = None,
+        to_add: dict[str, Any] | None = None,
+        to_remove: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ):
-        self.to_add = to_add or []
-        self.to_remove = to_remove or []
+        self.to_add = to_add or {}
+        self.to_remove = to_remove or {}
         self.metadata = metadata or {}
 
 
