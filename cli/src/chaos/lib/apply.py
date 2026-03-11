@@ -32,8 +32,7 @@ def handle_verbose(payload: ApplyPayload) -> None:
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload | None]:
-
+) -> tuple[DataGatherRequest | None, ResultPayload | None, dict[str, Role] | None]:
     i_know, sudo_password = _handle_password(payload, payload.i_know_what_im_doing)
     request = DataGatherRequest(name="apply", fields=[])
     result = ResultPayload(success=True, message=[], error=[], data={})
@@ -64,10 +63,6 @@ def gather_apply(
 
         role_class = loaded_roles[role]
 
-        # caching the role class for later use
-        # (avoid double import and loading, since we will be applying the same role later, this is just the gathering phase.)
-        result.data[role] = role_class
-
         roles_that_need_secrets = []
         secrets_needed = []
 
@@ -93,7 +88,7 @@ def gather_apply(
                 )
             )
 
-    return request, result
+    return request, result, loaded_roles
 
 
 def _handle_password(payload: ApplyPayload, ikwid: bool) -> tuple[bool, str | None]:
