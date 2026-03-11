@@ -839,6 +839,12 @@ class ApplyPayload(BasePayload):
         "no_wait",
         "export_logs",
         "secrets_context",
+        "confirmed_password",
+        "pyinfra_state",
+        "target_hosts",
+        "is_fleet_active",
+        "parallelism",
+        "fallback_to_local",
     )
 
     def __init__(
@@ -860,6 +866,12 @@ class ApplyPayload(BasePayload):
         no_wait: bool,
         export_logs: bool,
         secrets_context: SecretsContext | dict[str, Any],
+        confirmed_password: str = "",
+        pyinfra_state: Any = None,
+        target_hosts: list | None = None,
+        is_fleet_active: bool = False,
+        parallelism: int = 0,
+        fallback_to_local: bool = False,
     ):
         self.update_plugins = update_plugins
         self.i_know_what_im_doing = i_know_what_im_doing
@@ -878,3 +890,9 @@ class ApplyPayload(BasePayload):
         self.no_wait = no_wait
         self.export_logs = export_logs
         self.secrets_context = SecretsContext.from_dict_or_self(secrets_context)
+        self.confirmed_password = confirmed_password
+        self.pyinfra_state = pyinfra_state
+        self.target_hosts = target_hosts or ["@local"]
+        self.is_fleet_active = is_fleet_active
+        self.parallelism = parallelism
+        self.fallback_to_local = fallback_to_local
