@@ -68,6 +68,9 @@ def gather_apply(
         # (avoid double import and loading, since we will be applying the same role later, this is just the gathering phase.)
         result.data[role] = role_class
 
+        roles_that_need_secrets = []
+        secrets_needed = []
+
         if role_class.needs_secrets and not i_know:
             if not role_class.necessary_secret_dict_keys:
                 result.success = False
@@ -76,12 +79,17 @@ def gather_apply(
                 )
                 continue
 
+            roles_that_need_secrets.append(role)
+            secrets_needed.extend(role_class.necessary_secret_dict_keys)
+
+        if roles_that_need_secrets and not i_know and not payload.secrets:
             request.fields.append(
                 DataGatherPayload(
-                    prompt=f"Role '{role}' is asking for the secrets:\n{role_class.necessary_secret_dict_keys}\nDo you want to proceed? (y/n)",
-                    default=False,
-                    name=f"{role}_confirm",
+                    prompt=f"Role(s) {', '.join(roles_that_need_secrets)} require secrets.\nThey need the following keys: {', '.join(secrets_needed)}\nDo you want to provide them now?",
+                    name=f"{role}_secrets",
                     input_type="boolean",
+                    required=True,
+                    default=False,
                 )
             )
 
