@@ -37,3 +37,17 @@ def get_providerEps():
                 EntryPoint(name=name, value=value, group="chaos.providers")
             )
     return provider_eps
+
+
+@lru_cache(maxsize=None)
+def get_roleEps():
+    from importlib.metadata import EntryPoint
+
+    from chaos.lib.plugDiscovery import get_plugins
+
+    roles = get_plugins()[0]
+    role_eps = []
+    if roles:
+        for name, value in roles.items():
+            role_eps.append(EntryPoint(name=name, value=value, group="chaos.roles"))
+    return role_eps

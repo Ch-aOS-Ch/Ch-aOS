@@ -340,15 +340,12 @@ def _setup_pyinfra_connection(
         with open(sudo_file, "r") as f:
             sudo_password = f.read().strip()
 
-    if payload.password is True:
+    if payload.password:
         if not sys.stdin.isatty():
             sudo_password = sys.stdin.read().strip()
             ikwid = True
         else:
-            raise ValueError(
-                "'-ps' argument without value requires piped input or a value. "
-                "When using pipes, ensure stdin is not a TTY (e.g., 'cat file | chaos apply -ps')."
-            )
+            sudo_password = payload.password
     elif payload.password is not None:
         sudo_password = payload.password.strip()
 
