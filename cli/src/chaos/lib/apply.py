@@ -53,7 +53,7 @@ def gather_apply(
     except ValueError as e:
         result.success = False
         result.error.append(str(e))
-        return None, result
+        return None, result, None
 
     for role in payload.tags:
         if role not in loaded_roles:
