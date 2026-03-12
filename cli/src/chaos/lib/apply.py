@@ -40,7 +40,7 @@ def handle_verbose(payload: ApplyPayload) -> None:
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload | None, dict[str, Role] | None]:
+) -> tuple[DataGatherRequest | None, ResultPayload | None]:
     """
     Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
@@ -56,7 +56,7 @@ def gather_apply(
 
     sudo_password_result = _handle_password(payload)
     if not sudo_password_result.success:
-        return None, sudo_password_result, None
+        return None, sudo_password_result
 
     sudo_password = sudo_password_result.data
 
@@ -78,7 +78,7 @@ def gather_apply(
 
     result_load = _load_role_eps(payload.tags)
     if not result_load.success:
-        return request, result_load, None
+        return request, result_load
 
     loaded_roles = result_load.data
 
@@ -117,9 +117,10 @@ Do you want to provide them?""",
             )
         )
 
+    result.data["loaded_roles"] = loaded_roles
     if not request.fields:
-        return None, result, loaded_roles
-    return request, result, loaded_roles
+        return None, result
+    return request, result
 
 
 def gather_fleet(
