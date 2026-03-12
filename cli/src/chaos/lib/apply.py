@@ -50,8 +50,7 @@ def gather_apply(
     returns:
         - A DataGatherRequest if additional data needs to be gathered from the user, or None
         - A ResultPayload indicating the success or failure of the data gathering process, or None if a DataGatherRequest is returned.
-        - A dictionary of loaded Role classes keyed by their names if data gathering is successful, or None if a DataGatherRequest is
-            returned or if there was an error loading the roles.
+            The ResultPayload.data["loaded_roles"] field will contain the loaded role classes based on the tags in the payload.
     """
 
     sudo_password_result = _handle_password(payload)
@@ -290,7 +289,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
 
     returns:
         - A ResultPayload indicating the success or failure of the context gathering process, with the gathered context data if successful.
-            the context data is inside of the ResultPayload.data field, and any error messages are in the error field.
+            The context data is inside of the ResultPayload.data field, and any error messages are in the error field.
     """
 
     from omegaconf import OmegaConf
@@ -494,6 +493,12 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     """
     Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
          while also checking for circular references and conflicts.
+
+    parameters:
+        - payload: the ApplyPayload containing the initial tags and global configuration for resolving aliases.
+
+    returns:
+        - A ResultPayload indicating the success or failure of the alias resolution process, with any error messages in the error field,
     """
 
     from .plugDiscovery import get_plugins
@@ -575,9 +580,8 @@ def _setup_pyinfra(payload: ApplyPayload) -> None:
     parameters:
         - payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration and sudo password.
 
-    returns:
-        - The updated ApplyPayload with the pyinfra state set up and ready for executing plans. The pyinfra state will be stored in the
-             payload.pyinfra_state field for use in subsequent steps of the apply process.
+    mutates:
+        - payload.pyinfra_state: sets this attribute to the initialized pyinfra State object after setting up the inventory and connections
     """
 
     import logging
@@ -678,6 +682,25 @@ def _load_boats(necessary_boats: set[str]) -> ResultPayload:
 def _handle_boats(
     global_state: DictConfig, boats: ListConfig
 ) -> tuple[DictConfig, ResultPayload]:
+    """
+    Handles the processing of boats for fleet configuration, including loading necessary boat plugins and invoking their
+         get_fleet methods to gather host information.
+
+    parameters:
+        - global_state: the current global state as a DictConfig, which may be mutated by the boats' get_fleet methods to
+             include fleet information.
+             This state must be the chobolo file.
+        - boats: a ListConfig containing the boat configurations from the chobolo file, where each boat configuration should
+            include a "provider" key indicating the boat provider, and an optional "config" key with configuration for that boat.
+
+    returns:
+        - A DictConfig representing the potentially mutated global state after processing the boats.
+        - A ResultPayload indicating the success or failure of the boat processing, with any error messages in the error field.
+
+    mutates:
+        - global_state: this may be mutated by the boats' get_fleet methods to include new hosts and information to the
+            global state that will be used for setting up the fleet and inventory.
+    """
 
     from omegaconf import OmegaConf
 
@@ -731,6 +754,7 @@ def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], in
         - A list of tuples representing the target hosts and their associated data, extracted from the payload
         - An integer representing the parallelism settings for executing plans on the fleet, extracted from the payload.
     """
+
     from pyinfra.api.inventory import Inventory  # type: ignore
 
     if not payload.is_fleet_active:
@@ -844,15 +868,14 @@ def _handle_secrets_for_role(
     parameters:
         - role: the Role class for which to handle secrets, used to determine if secrets are needed and what keys are necessary.
         - payload: the ApplyPayload containing any overrides for secrets file path and sops file path, as well as the secrets context.
-        - secrets_file_override: the path to the secrets file, determined from the payload or global configuration, used for loading secrets.
-        - sops_file_override: the path to the sops file, determined from the payload or global configuration, used for decrypting secrets
-             if they are encrypted with sops.
-        - global_config: the loaded global configuration, which may contain additional context needed for decrypting secrets.
+            This payload must contain the decrypted secrets in the payload.decrypted_secrets attribute, which should be a string
+            representation of the decrypted secrets data.
+        - role_name: the name of the role, used for error messages.
 
     returns:
         - A ResultPayload indicating the success or failure of the secrets handling process, with any error messages in the error field,
-            and a dictionary of secrets for the role in the data field if successful. The secrets for the role will be filtered based on the
-            necessary_secret_dict_keys specified by the role, and will only include those keys that are present in the loaded secrets.
+            and a dictionary of secrets for the role in the data field if successful. The secrets for the role will be filtered based on
+            the necessary_secret_dict_keys specified by the role, and will only include those keys that are present in the loaded secrets.
     """
 
     decrypted_secrets = payload.decrypted_secrets
