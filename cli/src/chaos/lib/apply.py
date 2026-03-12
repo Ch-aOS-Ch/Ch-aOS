@@ -117,6 +117,17 @@ Do you want to provide them?""",
             )
         )
 
+    global_config, result = _get_configs(payload)
+    payload.global_config = global_config.to_container()
+
+    if not result.success:
+        return None, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error loading global configuration: {result.error}"],
+            data={},
+        )
+
     result.data["loaded_roles"] = loaded_roles
     if not request.fields:
         return None, result
@@ -284,17 +295,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
 
     from omegaconf import OmegaConf
 
-    _, result = _get_configs(payload)
-
-    if not result.success:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[f"Error loading global configuration: {result.error}"],
-            data={},
-        )
-
-    chobolo_path = result.data.get("chobolo_path", None)
+    chobolo_path = payload.global_config.get("chobolo_path", None)
 
     if role.needs_secrets and not payload.secrets:
         return ResultPayload(

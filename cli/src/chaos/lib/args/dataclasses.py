@@ -846,6 +846,7 @@ class ApplyPayload(BasePayload):
         "parallelism",
         "fallback_to_local",
         "decrypted_secrets",
+        "global_config",
     )
 
     def __init__(
@@ -874,6 +875,7 @@ class ApplyPayload(BasePayload):
         parallelism: int = 0,
         fallback_to_local: bool = False,
         decrypted_secrets: dict[str, Any] | None = None,
+        global_config: dict[str, Any] | None = None,
     ):
         self.update_plugins = update_plugins
         self.i_know_what_im_doing = i_know_what_im_doing
@@ -899,3 +901,4 @@ class ApplyPayload(BasePayload):
         self.parallelism = parallelism
         self.fallback_to_local = fallback_to_local
         self.decrypted_secrets = decrypted_secrets or {}
+        self.global_config = global_config or {}
