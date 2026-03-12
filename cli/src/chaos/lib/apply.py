@@ -279,7 +279,13 @@ def gather_fleet(
     )
 
 
-def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
+def run_context(
+    payload: ApplyPayload,
+    role: Role,
+    role_name: str,
+    restrictions: dict[str, dict[str, dict[str, bool]]],
+    host: Host,
+) -> ResultPayload:
     """
     Run the context method for a given role and host, gathering necessary configuration and secrets.
 
@@ -292,6 +298,10 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
         - A ResultPayload indicating the success or failure of the context gathering process, with the gathered context data if successful.
             The context data is inside of the ResultPayload.data field, and any error messages are in the error field.
     """
+
+    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
+    if result:
+        return result
 
     from omegaconf import OmegaConf
 
@@ -348,7 +358,13 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
     return ResultPayload(success=True, message=[], error=[], data=context)
 
 
-def run_delta(context: dict[str, Any], role: Role, role_name: str) -> ResultPayload:
+def run_delta(
+    context: dict[str, Any],
+    role: Role,
+    role_name: str,
+    restrictions: dict[str, dict[str, dict[str, bool]]],
+    host: Host,
+) -> ResultPayload:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
 
@@ -365,6 +381,10 @@ def run_delta(context: dict[str, Any], role: Role, role_name: str) -> ResultPayl
         - A Delta object representing the changes that need to be applied for the role, if the
             computation was successful. If there was an error, this will be an empty Delta with no changes.
     """
+
+    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
+    if result:
+        return result
 
     try:
         delta: Delta = role.delta(context)
@@ -383,8 +403,8 @@ def run_plan(
     delta: Delta,
     role: Role,
     role_name: str,
-    host: Host,
     restrictions: dict[str, dict[str, dict[str, bool]]],
+    host: Host,
 ) -> ResultPayload:
     """
     Runs the plan method for a given role and host, computing the necessary
@@ -430,51 +450,9 @@ def run_plan(
             If there are any errors or if the role is skipped due to restrictions, the plan will not be included in the data field.
     """
 
-    black_list = restrictions.get("black_list", {})
-    allow_list = restrictions.get("allow_list", {})
-
-    in_allow = allow_list.get(host.name, {}).get(role_name, False)
-    in_black = black_list.get(host.name, {}).get(role_name, False)
-
-    if in_allow and in_black:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[
-                f"Role '{role_name}' is both blacklisted and allowlisted for host '{host.name}'. Please resolve this conflict in your configuration."
-            ],
-            data={},
-        )
-
-    if in_black and not in_allow:
-        return ResultPayload(
-            success=True,
-            message=[],
-            error=[f"Role '{role_name}' is blacklisted for host '{host.name}'."],
-            data={},
-        )
-
-    if (
-        host.name in black_list
-        and not black_list.get(host.name, {})
-        and not allow_list.get(host.name, {})
-    ):
-        return ResultPayload(
-            success=True,
-            message=[],
-            error=[f"Host '{host.name}' is completely blacklisted."],
-            data={},
-        )
-
-    if host.name in allow_list and not in_allow:
-        return ResultPayload(
-            success=True,
-            message=[],
-            error=[
-                f"Host '{host.name}' is allowlisted but role '{role_name}' is not on the allowlist."
-            ],
-            data={},
-        )
+    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
+    if result:
+        return result
 
     try:
         plan = role.plan(payload.pyinfra_state, host, delta)
@@ -713,6 +691,58 @@ def teardown_pyinfra(
             success=False,
             message=[],
             error=[f"Error tearing down pyinfra: {str(e)}"],
+            data={},
+        )
+
+
+def _resolve_allowlist_blacklist_conflicts(
+    restrictions: dict[str, dict[str, dict[str, bool]]],
+    role_name: str,
+    host: Host,
+) -> ResultPayload | None:
+    black_list = restrictions.get("black_list", {})
+    allow_list = restrictions.get("allow_list", {})
+
+    in_allow = allow_list.get(host.name, {}).get(role_name, False)
+    in_black = black_list.get(host.name, {}).get(role_name, False)
+
+    if in_allow and in_black:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[
+                f"Role '{role_name}' is both blacklisted and allowlisted for host '{host.name}'. Please resolve this conflict in your configuration."
+            ],
+            data={},
+        )
+
+    if in_black and not in_allow:
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[f"Role '{role_name}' is blacklisted for host '{host.name}'."],
+            data={},
+        )
+
+    if (
+        host.name in black_list
+        and not black_list.get(host.name, {})
+        and not allow_list.get(host.name, {})
+    ):
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[f"Host '{host.name}' is completely blacklisted."],
+            data={},
+        )
+
+    if host.name in allow_list and not in_allow:
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[
+                f"Host '{host.name}' is allowlisted but role '{role_name}' is not on the allowlist."
+            ],
             data={},
         )
 
