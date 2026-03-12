@@ -279,13 +279,7 @@ def gather_fleet(
     )
 
 
-def run_context(
-    payload: ApplyPayload,
-    role: Role,
-    role_name: str,
-    restrictions: dict[str, dict[str, dict[str, bool]]],
-    host: Host,
-) -> ResultPayload:
+def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
     """
     Run the context method for a given role and host, gathering necessary configuration and secrets.
 
@@ -298,10 +292,6 @@ def run_context(
         - A ResultPayload indicating the success or failure of the context gathering process, with the gathered context data if successful.
             The context data is inside of the ResultPayload.data field, and any error messages are in the error field.
     """
-
-    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
-    if result:
-        return result
 
     from omegaconf import OmegaConf
 
@@ -362,8 +352,6 @@ def run_delta(
     context: dict[str, Any],
     role: Role,
     role_name: str,
-    restrictions: dict[str, dict[str, dict[str, bool]]],
-    host: Host,
 ) -> ResultPayload:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
@@ -382,10 +370,6 @@ def run_delta(
             computation was successful. If there was an error, this will be an empty Delta with no changes.
     """
 
-    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
-    if result:
-        return result
-
     try:
         delta: Delta = role.delta(context)
     except Exception as e:
@@ -403,7 +387,6 @@ def run_plan(
     delta: Delta,
     role: Role,
     role_name: str,
-    restrictions: dict[str, dict[str, dict[str, bool]]],
     host: Host,
 ) -> ResultPayload:
     """
@@ -449,10 +432,6 @@ def run_plan(
             The plan should be the data returned from the role.plan() method if all checks pass and the plan is computed successfully.
             If there are any errors or if the role is skipped due to restrictions, the plan will not be included in the data field.
     """
-
-    result = _resolve_allowlist_blacklist_conflicts(restrictions, role_name, host)
-    if result:
-        return result
 
     try:
         plan = role.plan(payload.pyinfra_state, host, delta)
@@ -695,7 +674,7 @@ def teardown_pyinfra(
         )
 
 
-def _resolve_allowlist_blacklist_conflicts(
+def resolve_allowlist_blacklist_conflicts(
     restrictions: dict[str, dict[str, dict[str, bool]]],
     role_name: str,
     host: Host,
