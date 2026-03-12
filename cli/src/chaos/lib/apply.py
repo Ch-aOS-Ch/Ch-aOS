@@ -648,22 +648,31 @@ def _load_boats(necessary_boats: set[str]) -> ResultPayload:
 
     from .plugDiscovery import get_plugins
 
-    boats = get_plugins()[5]
+    all_boats = get_plugins()[5]
     loaded_boat_classes = []
-    if boats:
-        try:
-            for ep in boats.values():
-                ep = cast(EntryPoint, ep)
-                if ep.name not in necessary_boats:
-                    continue
+    if not all_boats:
+        return ResultPayload(success=True, message=[], error=[], data=[])
+    for boat_name in necessary_boats:
+        if boat_name not in all_boats:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"No plugin found for boat provider '{boat_name}'."],
+                data=[],
+            )
 
-                loaded_boat_class = ep.load()
-                loaded_boat_classes.append(loaded_boat_class)
+        try:
+            ep = cast(EntryPoint, all_boats[boat_name])
+            loaded_boat_class = ep.load()
+            loaded_boat_classes.append(loaded_boat_class)
         except ImportError as e:
             return ResultPayload(
                 success=False,
                 message=[],
-                error=[f"Error loading boat plugins: {str(e)}"],
+                error=[
+                    f"Error loading plugin for boat provider '{boat_name}': {str(e)}"
+                ],
+                data=[],
             )
     return ResultPayload(success=True, message=[], error=[], data=loaded_boat_classes)
 
