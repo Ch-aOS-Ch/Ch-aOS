@@ -9,7 +9,7 @@ description = "Declarative OS configuration manager"
 readme = "README.md"
 requires-python = ">=3.11,<=3.14.3"
 dependencies = [
-    "pyinfra",
+    "pyinfra>=3.7",
     "pynacl>=1.6.2",
     "omegaconf",
     "urllib3>=2.6.3",

@@ -619,8 +619,9 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
 
         ctx_state.set(state)
 
-        sudo_password = payload.confirmed_password
-        state.config.SUDO_PASSWORD = sudo_password
+        password = payload.confirmed_password
+        state.config.SU_PASSWORD = password
+        state.config.SUDO_PASSWORD = password
 
         connect_all(state)
 
