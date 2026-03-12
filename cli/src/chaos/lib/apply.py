@@ -295,11 +295,19 @@ def run_plan(
     host,
     black_list: dict[str, dict[str, bool]],
 ) -> ResultPayload:
-    if black_list[host][role_name]:
+    if black_list.get(host, {}).get(role_name, False):
         return ResultPayload(
             success=True,
             message=[],
             error=[f"Role '{role_name}' is blacklisted for host '{host}'."],
+            data={},
+        )
+
+    if host in black_list and not black_list.get(host, {}):
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[f"Host '{host}' is blacklisted."],
             data={},
         )
 
