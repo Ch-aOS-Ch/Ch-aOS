@@ -293,9 +293,25 @@ def run_plan(
     role: Role,
     role_name: str,
     host,
-    black_list: dict[str, dict[str, bool]],
+    restrictions: dict[str, dict[str, dict[str, bool]]],
 ) -> ResultPayload:
-    if black_list.get(host, {}).get(role_name, False):
+    black_list = restrictions.get("black_list", {})
+    allow_list = restrictions.get("allow_list", {})
+
+    in_allow = allow_list.get(host, {}).get(role_name, False)
+    in_black = black_list.get(host, {}).get(role_name, False)
+
+    if in_allow and in_black:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[
+                f"Role '{role_name}' is both blacklisted and allowlisted for host '{host}'. Please resolve this conflict in your configuration."
+            ],
+            data={},
+        )
+
+    if in_black and not in_allow:
         return ResultPayload(
             success=True,
             message=[],
@@ -303,11 +319,15 @@ def run_plan(
             data={},
         )
 
-    if host in black_list and not black_list.get(host, {}):
+    if (
+        host in black_list
+        and not black_list.get(host, {})
+        and not allow_list.get(host, {})
+    ):
         return ResultPayload(
             success=True,
             message=[],
-            error=[f"Host '{host}' is blacklisted."],
+            error=[f"Host '{host}' is completely blacklisted."],
             data={},
         )
 
