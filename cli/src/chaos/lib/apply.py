@@ -331,6 +331,16 @@ def run_plan(
             data={},
         )
 
+    if host in allow_list and not in_allow:
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[
+                f"Host '{host}' is allowlisted but role '{role_name}' is not on the allowlist."
+            ],
+            data={},
+        )
+
     try:
         plan = role.plan(payload.pyinfra_state, host, delta)
     except Exception as e:
