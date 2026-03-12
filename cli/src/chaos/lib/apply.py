@@ -658,6 +658,8 @@ def resolve_allowlist_blacklist(
     This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
         in said host or if there are any conflicts in the configuration that should be reported as errors.
 
+        It should be called before running the get_context for a role on a host.
+
 
     parameters:
         - role_name: the name of the role for which to check restrictions, used for error messages.
