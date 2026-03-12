@@ -6,6 +6,7 @@ from chaos.lib.args.dataclasses import (
     ApplyPayload,
     DataGatherPayload,
     DataGatherRequest,
+    Delta,
     ResultPayload,
 )
 from chaos.lib.boats.base import Boat
@@ -103,7 +104,7 @@ def gather_fleet(
 ) -> tuple[DataGatherRequest | None, ResultPayload]:
     from typing import cast
 
-    from omegaconf import DictConfig, OmegaConf
+    from omegaconf import OmegaConf
 
     if not payload.fleet:
         return None, ResultPayload(
@@ -219,55 +220,6 @@ def gather_fleet(
     )
 
 
-def setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
-    import logging
-    import time
-
-    from pyinfra.api.config import Config  # type: ignore
-    from pyinfra.api.connect import connect_all  # type: ignore
-    from pyinfra.api.state import State, StateStage  # type: ignore
-    from pyinfra.context import ctx_state  # type: ignore
-
-    from .telemetry import ChaosTelemetry
-
-    inventory, _, parallels = _setup_hosts(payload)
-
-    config = Config(
-        PARALLEL=parallels,
-        DIFF=payload.logbook,
-    )
-
-    state = State(inventory, config)
-    state.current_stage = StateStage.Prepare
-
-    start_time = time.time()
-
-    if payload.logbook:
-        state.add_callback_handler(ChaosTelemetry())
-        pyinfra_logger = logging.getLogger("pyinfra")
-        pyinfra_logger.setLevel(logging.DEBUG)
-        handler = ChaosTelemetry.PyinfraFactLogHandler()
-        pyinfra_logger.addHandler(handler)
-        ChaosTelemetry.start_run()
-
-    ctx_state.set(state)
-
-    sudo_password = payload.confirmed_password
-    state.config.SUDO_PASSWORD = sudo_password
-
-    connect_all(state)
-
-    end_time = time.time()
-    setup_duration = end_time - start_time
-
-    if payload.logbook:
-        ChaosTelemetry.record_setup_phase(state, setup_duration)
-
-    payload.pyinfra_state = state
-
-    return payload
-
-
 def run_context(payload: ApplyPayload, role: Role, host) -> ResultPayload:
     from omegaconf import OmegaConf
 
@@ -318,6 +270,98 @@ def run_context(payload: ApplyPayload, role: Role, host) -> ResultPayload:
     )
 
     return ResultPayload(success=True, message=[], error=[], data=context)
+
+
+def run_delta(
+    context: dict[str, Any], role: Role, role_name: str
+) -> tuple[ResultPayload, Delta]:
+    try:
+        delta: Delta = role.delta(context)
+    except Exception as e:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error computing delta for role '{role_name}': {str(e)}"],
+            data={},
+        ), Delta(to_add={}, to_remove={})
+    return ResultPayload(success=True, message=[], error=[], data={}), delta
+
+
+def run_plan(
+    payload: ApplyPayload,
+    delta: Delta,
+    role: Role,
+    role_name: str,
+    host,
+    black_list: dict[str, dict[str, bool]],
+) -> ResultPayload:
+    if black_list[host][role_name]:
+        return ResultPayload(
+            success=True,
+            message=[],
+            error=[f"Role '{role_name}' is blacklisted for host '{host}'."],
+            data={},
+        )
+
+    try:
+        plan = role.plan(payload.pyinfra_state, host, delta)
+    except Exception as e:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error computing plan for role '{role_name}': {str(e)}"],
+            data={},
+        )
+    return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
+
+
+def _setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
+    import logging
+    import time
+
+    from pyinfra.api.config import Config  # type: ignore
+    from pyinfra.api.connect import connect_all  # type: ignore
+    from pyinfra.api.state import State, StateStage  # type: ignore
+    from pyinfra.context import ctx_state  # type: ignore
+
+    from .telemetry import ChaosTelemetry
+
+    inventory, _, parallels = _setup_hosts(payload)
+
+    config = Config(
+        PARALLEL=parallels,
+        DIFF=payload.logbook,
+    )
+
+    state = State(inventory, config)
+    state.current_stage = StateStage.Prepare
+
+    start_time = time.time()
+
+    if payload.logbook:
+        state.add_callback_handler(ChaosTelemetry())
+        pyinfra_logger = logging.getLogger("pyinfra")
+        pyinfra_logger.setLevel(logging.DEBUG)
+        handler = ChaosTelemetry.PyinfraFactLogHandler()
+        pyinfra_logger.addHandler(handler)
+        ChaosTelemetry.start_run()
+
+    ctx_state.set(state)
+
+    sudo_password = payload.confirmed_password
+    state.config.SUDO_PASSWORD = sudo_password
+
+    connect_all(state)
+
+    end_time = time.time()
+    setup_duration = end_time - start_time
+
+    if payload.logbook:
+        ChaosTelemetry.record_setup_phase(state, setup_duration)
+
+    payload.pyinfra_state = state
+
+    return payload
 
 
 def _load_boats() -> list[type[Boat]]:
@@ -379,7 +423,7 @@ def _get_configs(payload: ApplyPayload):
     import os
     from typing import cast
 
-    from omegaconf import DictConfig, OmegaConf
+    from omegaconf import OmegaConf
 
     from .utils import validate_path
 
