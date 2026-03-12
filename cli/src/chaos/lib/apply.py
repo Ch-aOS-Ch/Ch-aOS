@@ -117,6 +117,8 @@ Do you want to provide them?""",
             )
         )
 
+    if not request.fields:
+        return None, result, loaded_roles
     return request, result, loaded_roles
 
 
