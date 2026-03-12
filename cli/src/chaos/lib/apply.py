@@ -554,8 +554,6 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     for tag in payload.tags:
         _resolve_alias(tag, local_seen=set())
 
-    payload.tags = resolved_tags
-
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
