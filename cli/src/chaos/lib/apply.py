@@ -39,9 +39,10 @@ def handle_verbose(payload: ApplyPayload) -> None:
 def gather_apply(
     payload: ApplyPayload,
 ) -> tuple[DataGatherRequest | None, ResultPayload | None, dict[str, Role] | None]:
-    i_know, sudo_password = _handle_password(payload, payload.i_know_what_im_doing)
+    sudo_password = _handle_password(payload)
     request = DataGatherRequest(name="apply", fields=[])
     result = ResultPayload(success=True, message=[], error=[], data={})
+    i_know = payload.i_know_what_im_doing
     if not sudo_password:
         request.fields.append(
             DataGatherPayload(
@@ -249,21 +250,21 @@ def run_context(payload: ApplyPayload, role: Role, host) -> ResultPayload:
 
     secrets_for_role = {}
 
-    secrets_result, secrets_dict = _handle_secrets_for_role(
+    secrets_result = _handle_secrets_for_role(
         role, payload, secrets_file_override, sops_file_override, global_config
     )
 
-    if not secrets_result["success"]:
+    if not secrets_result.success:
         return ResultPayload(
             success=False,
             message=[],
             error=[
-                f"Role '{role}' requires secrets but they could not be loaded: {secrets_result['error']}"
+                f"Role '{role}' requires secrets but they could not be loaded: {secrets_result.error}"
             ],
             data={},
         )
 
-    secrets_for_role: dict[str, Any] = secrets_dict
+    secrets_for_role: dict[str, Any] = secrets_result.data
 
     context = role.get_context(
         payload.pyinfra_state, host, chobolo_for_role, secrets_for_role
@@ -502,7 +503,7 @@ def _handle_secrets_for_role(
     secrets_file_override: str,
     sops_file_override: str,
     global_config,
-) -> tuple[dict[str, bool | str], dict[str, Any]]:
+) -> ResultPayload:
     if role.needs_secrets and payload.secrets:
         from omegaconf import OmegaConf
 
@@ -516,13 +517,20 @@ def _handle_secrets_for_role(
                 payload.secrets_context,
             )
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to decrypt secrets: {str(e)}",
-            }, {}
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error decrypting secrets: {str(e)}"],
+                data={},
+            )
 
         if not decrypted_secrets:
-            return {"success": False, "error": "No secrets were decrypted."}, {}
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=["No secrets could be decrypted."],
+                data={},
+            )
 
         loaded_secrets = OmegaConf.create(decrypted_secrets).to_container()
         secrets_for_role = {
@@ -530,18 +538,16 @@ def _handle_secrets_for_role(
             for key in role.necessary_secret_dict_keys
             if key in loaded_secrets
         }
-        return {"success": True}, secrets_for_role
-    return {"success": True}, {}
+        return ResultPayload(success=True, message=[], error=[], data=secrets_for_role)
+    return ResultPayload(success=True, message=[], error=[], data={})
 
 
-def _handle_password(payload: ApplyPayload, ikwid: bool) -> tuple[bool, str | None]:
-    import sys
+def _handle_password(payload: ApplyPayload) -> str:
     from pathlib import Path
 
     from .utils import validate_path
 
-    sudo_password = None
-    i_know = ikwid
+    sudo_password = ""
     if payload.sudo_password_file:
         validate_path(payload.sudo_password_file)
 
@@ -556,15 +562,9 @@ def _handle_password(payload: ApplyPayload, ikwid: bool) -> tuple[bool, str | No
             sudo_password = f.read().strip()
 
     if payload.password:
-        if not sys.stdin.isatty():
-            sudo_password = sys.stdin.read().strip()
-            ikwid = True
-        else:
-            sudo_password = payload.password
-    elif payload.password is not None:
-        sudo_password = payload.password.strip()
+        sudo_password = payload.password
 
-    return i_know, sudo_password
+    return sudo_password
 
 
 def _load_role_eps(role_names: list[str]) -> dict[str, Role]:
