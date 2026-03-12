@@ -568,7 +568,7 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def _setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
+def _setup_pyinfra(payload: ApplyPayload) -> None:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
@@ -624,8 +624,6 @@ def _setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
         ChaosTelemetry.record_setup_phase(state, setup_duration)
 
     payload.pyinfra_state = state
-
-    return payload
 
 
 def _load_boats(necessary_boats: set[str]) -> ResultPayload:
