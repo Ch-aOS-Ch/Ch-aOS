@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from omegaconf import DictConfig, ListConfig
 
@@ -573,7 +573,7 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def _setup_pyinfra(payload: ApplyPayload) -> None:
+def setup_pyinfra(payload: ApplyPayload) -> None:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
@@ -628,6 +628,30 @@ def _setup_pyinfra(payload: ApplyPayload) -> None:
         ChaosTelemetry.record_setup_phase(state, setup_duration)
 
     payload.pyinfra_state = state
+
+
+def teardown_pyinfra(
+    payload: ApplyPayload, run_status: Literal["success", "failure"]
+) -> None:
+    """
+    Teardown the pyinfra state and connections after the apply operation is complete.
+
+    Should be used inside of a finally block to ensure all connections will be properly closed.
+    parameters:
+        - payload: the ApplyPayload containing the pyinfra state to be torn down.
+    """
+
+    from pyinfra.api.connect import disconnect_all
+
+    if payload.logbook:
+        from .telemetry import ChaosTelemetry
+
+        if payload.export_logs:
+            ChaosTelemetry.export_report()
+        ChaosTelemetry.end_run(run_status)
+
+    if payload.pyinfra_state:
+        disconnect_all(payload.pyinfra_state)
 
 
 def _load_boats(necessary_boats: set[str]) -> ResultPayload:
