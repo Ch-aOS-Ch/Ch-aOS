@@ -845,6 +845,7 @@ class ApplyPayload(BasePayload):
         "is_fleet_active",
         "parallelism",
         "fallback_to_local",
+        "decrypted_secrets",
     )
 
     def __init__(
@@ -872,6 +873,7 @@ class ApplyPayload(BasePayload):
         is_fleet_active: bool = False,
         parallelism: int = 0,
         fallback_to_local: bool = False,
+        decrypted_secrets: dict[str, Any] | None = None,
     ):
         self.update_plugins = update_plugins
         self.i_know_what_im_doing = i_know_what_im_doing
@@ -896,3 +898,4 @@ class ApplyPayload(BasePayload):
         self.is_fleet_active = is_fleet_active
         self.parallelism = parallelism
         self.fallback_to_local = fallback_to_local
+        self.decrypted_secrets = decrypted_secrets or {}

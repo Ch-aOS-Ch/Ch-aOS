@@ -284,7 +284,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
 
     from omegaconf import OmegaConf
 
-    global_config, result = _get_configs(payload)
+    _, result = _get_configs(payload)
 
     if not result.success:
         return ResultPayload(
@@ -295,8 +295,6 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
         )
 
     chobolo_path = result.data.get("chobolo_path", None)
-    secrets_file_override = result.data.get("secrets_file_override", None)
-    sops_file_override = result.data.get("sops_file_override", None)
 
     if role.needs_secrets and not payload.secrets:
         return ResultPayload(
@@ -320,9 +318,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
 
     secrets_for_role = {}
 
-    secrets_result = _handle_secrets_for_role(
-        role, payload, secrets_file_override, sops_file_override, global_config
-    )
+    secrets_result = _handle_secrets_for_role(role, payload)
 
     if not secrets_result.success:
         return ResultPayload(
@@ -819,9 +815,6 @@ def _get_configs(payload: ApplyPayload) -> tuple[DictConfig, ResultPayload]:
 def _handle_secrets_for_role(
     role: Role,
     payload: ApplyPayload,
-    secrets_file_override: str,
-    sops_file_override: str,
-    global_config: DictConfig,
 ) -> ResultPayload:
     """
     Handles the loading and decryption of secrets for a given role based on the payload and global configuration.
@@ -840,25 +833,10 @@ def _handle_secrets_for_role(
             necessary_secret_dict_keys specified by the role, and will only include those keys that are present in the loaded secrets.
     """
 
+    decrypted_secrets = payload.decrypted_secrets
+
     if role.needs_secrets and payload.secrets:
         from omegaconf import OmegaConf
-
-        from chaos.lib.secret_backends.utils import decrypt_secrets
-
-        try:
-            decrypted_secrets = decrypt_secrets(
-                secrets_file_override,
-                sops_file_override,
-                global_config,
-                payload.secrets_context,
-            )
-        except Exception as e:
-            return ResultPayload(
-                success=False,
-                message=[],
-                error=[f"Error decrypting secrets: {str(e)}"],
-                data={},
-            )
 
         if not decrypted_secrets:
             return ResultPayload(
