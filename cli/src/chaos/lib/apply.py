@@ -483,6 +483,11 @@ def run_plan(
 
 
 def resolve_alias(payload: ApplyPayload) -> ResultPayload:
+    """
+    Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
+         while also checking for circular references and conflicts.
+    """
+
     from .plugDiscovery import get_plugins
 
     warnings = []
@@ -816,6 +821,7 @@ def _get_configs(payload: ApplyPayload) -> tuple[DictConfig, ResultPayload]:
 def _handle_secrets_for_role(
     role: Role,
     payload: ApplyPayload,
+    role_name: str = "",
 ) -> ResultPayload:
     """
     Handles the loading and decryption of secrets for a given role based on the payload and global configuration.
@@ -856,7 +862,7 @@ def _handle_secrets_for_role(
                     success=False,
                     message=[],
                     error=[
-                        f"Role '{role.__name__}' requires secret key '{key}' which was not found in the decrypted secrets."
+                        f"Role '{role_name}' requires secret key '{key}' which was not found in the decrypted secrets."
                     ],
                     data={},
                 )
