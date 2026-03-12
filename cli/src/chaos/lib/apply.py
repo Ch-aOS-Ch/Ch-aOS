@@ -488,7 +488,7 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     warnings = []
 
     plug_aliases = get_plugins()[1]
-    user_config = _get_configs(payload)[0]
+    user_config = payload.global_config
     user_aliases = user_config.get("aliases", {}) if user_config else {}
 
     merged_aliases = {}
