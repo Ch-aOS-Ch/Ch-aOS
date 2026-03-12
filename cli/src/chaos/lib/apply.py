@@ -347,9 +347,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
     return ResultPayload(success=True, message=[], error=[], data=context)
 
 
-def run_delta(
-    context: dict[str, Any], role: Role, role_name: str
-) -> tuple[ResultPayload, Delta]:
+def run_delta(context: dict[str, Any], role: Role, role_name: str) -> ResultPayload:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
 
@@ -375,8 +373,8 @@ def run_delta(
             message=[],
             error=[f"Error computing delta for role '{role_name}': {str(e)}"],
             data={},
-        ), Delta(to_add={}, to_remove={})
-    return ResultPayload(success=True, message=[], error=[], data={}), delta
+        )
+    return ResultPayload(success=True, message=[], error=[], data=delta)
 
 
 def run_plan(
@@ -487,6 +485,32 @@ def run_plan(
             data={},
         )
     return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
+
+
+def execute_plans(payload: ApplyPayload) -> ResultPayload:
+    """
+    Executes all computed state operations for the roles on the target hosts using pyinfra, and gathers the results of the execution.
+
+    parameters:
+        - payload: the ApplyPayload containing the pyinfra state with the computed plans for each role and host
+            as well as any flags for telemetry.
+    """
+
+    from pyinfra.api.operations import run_ops
+
+    try:
+        if payload.dry:
+            return ResultPayload(success=True, message=[], error=[])
+
+        run_ops(payload.pyinfra_state, payload.serial, payload.no_wait)
+        return ResultPayload(success=True, message=[], error=[])
+    except Exception as e:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error executing plans with pyinfra: {str(e)}"],
+            data={},
+        )
 
 
 def resolve_alias(payload: ApplyPayload) -> ResultPayload:
