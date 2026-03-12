@@ -449,7 +449,7 @@ def run_plan(
         )
 
     if (
-        host in black_list
+        host.name in black_list
         and not black_list.get(host.name, {})
         and not allow_list.get(host.name, {})
     ):
