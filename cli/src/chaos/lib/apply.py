@@ -573,15 +573,17 @@ def resolve_alias(payload: ApplyPayload) -> ResultPayload:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def setup_pyinfra(payload: ApplyPayload) -> None:
+def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
     parameters:
         - payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration and sudo password.
 
-    mutates:
-        - payload.pyinfra_state: sets this attribute to the initialized pyinfra State object after setting up the inventory and connections
+    returns:
+        - ResultPayload indicating the success or failure of the pyinfra setup process, with any error messages in the error field.
+            Additionally, if successful, the ResultPayload.data field will contain the initialized pyinfra State object that is ready
+            for executing plans.
     """
 
     import logging
@@ -594,64 +596,84 @@ def setup_pyinfra(payload: ApplyPayload) -> None:
 
     from .telemetry import ChaosTelemetry
 
-    inventory, _, parallels = _setup_hosts(payload)
+    try:
+        inventory, _, parallels = _setup_hosts(payload)
 
-    config = Config(
-        PARALLEL=parallels,
-        DIFF=payload.logbook,
-    )
+        config = Config(
+            PARALLEL=parallels,
+            DIFF=payload.logbook,
+        )
 
-    state = State(inventory, config)
-    state.current_stage = StateStage.Prepare
+        state = State(inventory, config)
+        state.current_stage = StateStage.Prepare
 
-    start_time = time.time()
+        start_time = time.time()
 
-    if payload.logbook:
-        state.add_callback_handler(ChaosTelemetry())
-        pyinfra_logger = logging.getLogger("pyinfra")
-        pyinfra_logger.setLevel(logging.DEBUG)
-        handler = ChaosTelemetry.PyinfraFactLogHandler()
-        pyinfra_logger.addHandler(handler)
-        ChaosTelemetry.start_run()
+        if payload.logbook:
+            state.add_callback_handler(ChaosTelemetry())
+            pyinfra_logger = logging.getLogger("pyinfra")
+            pyinfra_logger.setLevel(logging.DEBUG)
+            handler = ChaosTelemetry.PyinfraFactLogHandler()
+            pyinfra_logger.addHandler(handler)
+            ChaosTelemetry.start_run()
 
-    ctx_state.set(state)
+        ctx_state.set(state)
 
-    sudo_password = payload.confirmed_password
-    state.config.SUDO_PASSWORD = sudo_password
+        sudo_password = payload.confirmed_password
+        state.config.SUDO_PASSWORD = sudo_password
 
-    connect_all(state)
+        connect_all(state)
 
-    end_time = time.time()
-    setup_duration = end_time - start_time
+        end_time = time.time()
+        setup_duration = end_time - start_time
 
-    if payload.logbook:
-        ChaosTelemetry.record_setup_phase(state, setup_duration)
+        if payload.logbook:
+            ChaosTelemetry.record_setup_phase(state, setup_duration)
 
-    payload.pyinfra_state = state
+        return ResultPayload(success=True, message=[], error=[], data=state)
+    except Exception as e:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error setting up pyinfra: {str(e)}"],
+            data={},
+        )
 
 
 def teardown_pyinfra(
     payload: ApplyPayload, run_status: Literal["success", "failure"]
-) -> None:
+) -> ResultPayload:
     """
     Teardown the pyinfra state and connections after the apply operation is complete.
 
     Should be used inside of a finally block to ensure all connections will be properly closed.
     parameters:
         - payload: the ApplyPayload containing the pyinfra state to be torn down.
+
+    returns:
+        - ResultPayload indicating the success or failure of the pyinfra teardown process, with any error messages in the error field.
     """
 
     from pyinfra.api.connect import disconnect_all
 
-    if payload.logbook:
-        from .telemetry import ChaosTelemetry
+    try:
+        if payload.logbook:
+            from .telemetry import ChaosTelemetry
 
-        if payload.export_logs:
-            ChaosTelemetry.export_report()
-        ChaosTelemetry.end_run(run_status)
+            if payload.export_logs:
+                ChaosTelemetry.export_report()
+            ChaosTelemetry.end_run(run_status)
 
-    if payload.pyinfra_state:
-        disconnect_all(payload.pyinfra_state)
+        if payload.pyinfra_state:
+            disconnect_all(payload.pyinfra_state)
+        return ResultPayload(success=True, message=[], error=[], data={})
+    except Exception as e:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error tearing down pyinfra: {str(e)}"],
+            data={},
+        )
 
 
 def _load_boats(necessary_boats: set[str]) -> ResultPayload:
