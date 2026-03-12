@@ -39,10 +39,16 @@ def handle_verbose(payload: ApplyPayload) -> None:
 def gather_apply(
     payload: ApplyPayload,
 ) -> tuple[DataGatherRequest | None, ResultPayload | None, dict[str, Role] | None]:
-    sudo_password = _handle_password(payload)
+    sudo_password_result = _handle_password(payload)
+    if not sudo_password_result.success:
+        return None, sudo_password_result, None
+
+    sudo_password = sudo_password_result.data
+
     request = DataGatherRequest(name="apply", fields=[])
     result = ResultPayload(success=True, message=[], error=[], data={})
     i_know = payload.i_know_what_im_doing
+
     if not sudo_password:
         request.fields.append(
             DataGatherPayload(
@@ -55,12 +61,11 @@ def gather_apply(
     else:
         result.data["sudo_password"] = sudo_password
 
-    try:
-        loaded_roles = _load_role_eps(payload.tags)
-    except ValueError as e:
-        result.success = False
-        result.error.append(str(e))
-        return None, result, None
+    result_load = _load_role_eps(payload.tags)
+    if not result_load.success:
+        return request, result, None
+
+    loaded_roles = result_load.data
 
     roles_that_need_secrets = []
     secrets_needed = []
@@ -139,7 +144,16 @@ def gather_fleet(
     fleet_boats = fleet_config.get("boats", [])
 
     try:
-        boat_config = _handle_boats(chobolo_config, fleet_boats).get("fleet", {})
+        boat_config, result = _handle_boats(chobolo_config, fleet_boats)
+        if not result.success:
+            return None, ResultPayload(
+                success=False,
+                error=[
+                    f"Error processing boats for fleet configuration: {result.error}"
+                ],
+            )
+
+        boat_config = boat_config.get("fleet", {}) if boat_config else {}
     except Exception as e:
         return None, ResultPayload(success=False, error=[str(e)])
 
@@ -224,9 +238,19 @@ def gather_fleet(
 def run_context(payload: ApplyPayload, role: Role, host) -> ResultPayload:
     from omegaconf import OmegaConf
 
-    global_config, chobolo_path, secrets_file_override, sops_file_override = (
-        _get_configs(payload)
-    )
+    global_config, result = _get_configs(payload)
+
+    if not result.success:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error loading global configuration: {result.error}"],
+            data={},
+        )
+
+    chobolo_path = result.data.get("chobolo_path", None)
+    secrets_file_override = result.data.get("secrets_file_override", None)
+    sops_file_override = result.data.get("sops_file_override", None)
 
     if role.needs_secrets and not payload.secrets:
         return ResultPayload(
@@ -403,7 +427,7 @@ def _setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
     return payload
 
 
-def _load_boats() -> list[type[Boat]]:
+def _load_boats() -> tuple[list[type[Boat]], ResultPayload]:
     from importlib.metadata import EntryPoint
     from typing import cast
 
@@ -418,19 +442,27 @@ def _load_boats() -> list[type[Boat]]:
                 loaded_boat_class = ep.load()
                 loaded_boat_classes.append(loaded_boat_class)
         except ImportError as e:
-            raise ImportError(f"failed to load boat plugin: {e}")
-    return loaded_boat_classes
+            return [], ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error loading boat plugins: {str(e)}"],
+            )
+    return loaded_boat_classes, ResultPayload(success=True, message=[], error=[])
 
 
-def _handle_boats(global_state, boats: list) -> DictConfig:
+def _handle_boats(global_state, boats: list) -> tuple[DictConfig, ResultPayload]:
     from omegaconf import OmegaConf
 
-    loaded_boat_classes = _load_boats()
+    loaded_boat_classes, result = _load_boats()
+
+    if not result.success:
+        return global_state, result
+
     if not loaded_boat_classes:
-        return global_state
+        return global_state, ResultPayload(success=True, message=[], error=[])
 
     if not boats:
-        return global_state
+        return global_state, ResultPayload(success=True, message=[], error=[])
 
     for boat_config in boats:
         for boat_class in loaded_boat_classes:
@@ -440,11 +472,13 @@ def _handle_boats(global_state, boats: list) -> DictConfig:
                 try:
                     global_state = boat_instance.get_fleet(global_state)
                 except Exception as e:
-                    raise RuntimeError(
-                        f"Boat '{boat_class.name}' failed to process fleet configuration: {e}"
-                    ) from e
+                    return global_state, ResultPayload(
+                        success=False,
+                        message=[],
+                        error=[f"Error processing boat '{boat_class.name}': {str(e)}"],
+                    )
 
-    return global_state
+    return global_state, ResultPayload(success=True, message=[], error=[])
 
 
 def _setup_hosts(payload: ApplyPayload):
@@ -458,7 +492,7 @@ def _setup_hosts(payload: ApplyPayload):
     return inventory, payload.target_hosts, payload.parallelism
 
 
-def _get_configs(payload: ApplyPayload):
+def _get_configs(payload: ApplyPayload) -> tuple[DictConfig, ResultPayload]:
     import os
     from typing import cast
 
@@ -474,27 +508,65 @@ def _get_configs(payload: ApplyPayload):
     global_config = cast(DictConfig, global_config)
 
     chobolo_path = payload.chobolo or global_config.get("chobolo_file", None)
-    validate_path(chobolo_path)
+    try:
+        validate_path(chobolo_path)
+    except Exception as e:
+        return global_config, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error with chobolo file path: {str(e)}"],
+            data={},
+        )
 
     secrets_file_override = (
         payload.secrets_context.secrets_file_override
         or global_config.get("secrets_file", None)
     )
-    validate_path(secrets_file_override)
+    try:
+        validate_path(secrets_file_override)
+    except Exception as e:
+        return global_config, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error with secrets file path: {str(e)}"],
+            data={},
+        )
 
     sops_file_override = (
         payload.secrets_context.sops_file_override
         or global_config.get("sops_file", None)
     )
-    validate_path(sops_file_override)
-
-    if not chobolo_path:
-        raise FileNotFoundError(
-            "No Ch-obolo passed\n"
-            "   Use '-e /path/to/file.yml' or configure a base Ch-obolo with 'chaos set chobolo /path/to/file.yml'."
+    try:
+        validate_path(sops_file_override)
+    except Exception as e:
+        return global_config, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error with sops file path: {str(e)}"],
+            data={},
         )
 
-    return global_config, chobolo_path, secrets_file_override, sops_file_override
+    if not chobolo_path:
+        return (
+            global_config,
+            ResultPayload(
+                success=False,
+                message=[],
+                error=["No chobolo file specified in payload or global config."],
+                data={},
+            ),
+        )
+
+    return global_config, ResultPayload(
+        success=True,
+        message=[],
+        error=[],
+        data={
+            "chobolo_path": chobolo_path,
+            "secrets_file_override": secrets_file_override,
+            "sops_file_override": sops_file_override,
+        },
+    )
 
 
 def _handle_secrets_for_role(
@@ -542,21 +614,39 @@ def _handle_secrets_for_role(
     return ResultPayload(success=True, message=[], error=[], data={})
 
 
-def _handle_password(payload: ApplyPayload) -> str:
+def _handle_password(payload: ApplyPayload) -> ResultPayload:
     from pathlib import Path
 
     from .utils import validate_path
 
     sudo_password = ""
     if payload.sudo_password_file:
-        validate_path(payload.sudo_password_file)
+        try:
+            validate_path(payload.sudo_password_file)
+        except Exception as e:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error with sudo password file path: {str(e)}"],
+                data={},
+            )
 
         sudo_file = Path(payload.sudo_password_file)
         if not sudo_file.exists():
-            raise FileNotFoundError(f"Sudo password file not found: {sudo_file}")
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Sudo password file not found: {sudo_file}"],
+                data={},
+            )
 
         if not sudo_file.is_file():
-            raise ValueError(f"Sudo password file path is not a file: {sudo_file}")
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Sudo password file path is not a file: {sudo_file}"],
+                data={},
+            )
 
         with open(sudo_file, "r") as f:
             sudo_password = f.read().strip()
@@ -564,10 +654,10 @@ def _handle_password(payload: ApplyPayload) -> str:
     if payload.password:
         sudo_password = payload.password
 
-    return sudo_password
+    return ResultPayload(success=True, message=[], error=[], data=sudo_password)
 
 
-def _load_role_eps(role_names: list[str]) -> dict[str, Role]:
+def _load_role_eps(role_names: list[str]) -> ResultPayload:
     from chaos.lib.utils import get_roleEps
 
     role_eps = get_roleEps()
@@ -575,11 +665,21 @@ def _load_role_eps(role_names: list[str]) -> dict[str, Role]:
     for role_name in role_names:
         matching_eps = [ep for ep in role_eps if ep.name == role_name]
         if not matching_eps:
-            raise ValueError(f"Role '{role_name}' not found among available plugins.")
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Role '{role_name}' not found among available plugins."],
+                data={},
+            )
         elif len(matching_eps) > 1:
-            raise ValueError(
-                f"Multiple plugins found for role '{role_name}'. Please specify a unique name."
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Multiple plugins found for role '{role_name}'. Please specify a unique name."
+                ],
+                data={},
             )
         else:
             loaded_roles[role_name] = matching_eps[0].load()
-    return loaded_roles
+    return ResultPayload(success=True, message=[], error=[], data=loaded_roles)
