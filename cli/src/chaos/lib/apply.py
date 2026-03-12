@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, Any
 
+from omegaconf import DictConfig, ListConfig
+
 if TYPE_CHECKING:
-    from omegaconf import DictConfig, ListConfig
     from pyinfra.api.host import Host
 
     from chaos.lib.args.dataclasses import (
@@ -481,6 +482,81 @@ def run_plan(
     return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
 
 
+def resolve_alias(payload: ApplyPayload) -> ResultPayload:
+    from .plugDiscovery import get_plugins
+
+    warnings = []
+
+    plug_aliases = get_plugins()[1]
+    user_config = _get_configs(payload)[0]
+    user_aliases = user_config.get("aliases", {}) if user_config else {}
+
+    merged_aliases = {}
+    if plug_aliases:
+        merged_aliases.update(plug_aliases)
+
+    if user_aliases:
+        for k, v in user_aliases.items():
+            if k in merged_aliases:
+                warnings.append(
+                    f"Alias '{k}' from user configuration overrides plugin alias."
+                )
+            merged_aliases[k] = v
+
+    resolved_tags = []
+    seen_aliases = set()
+
+    def _resolve_alias(tag: str, local_seen: set) -> None:
+        if tag in local_seen:
+            if tag not in resolved_tags:
+                resolved_tags.append(tag)
+
+            if len(local_seen) > 1:
+                warnings.append(
+                    f"Circular alias detected for '{tag}'. Skipping to prevent infinite loop."
+                )
+            return
+        if tag in merged_aliases:
+            new_seen = local_seen | {tag}
+            if tag in seen_aliases:
+                warnings.append(
+                    f"Duplicate alias '{tag}' specified in tags. Only the first occurrence will be used."
+                )
+                return
+
+            seen_aliases.add(tag)
+            target = merged_aliases[tag]
+
+            if isinstance(target, str):
+                targets = target.split(" ")
+
+            elif isinstance(target, (list, tuple)):
+                targets = list(target)
+
+            else:
+                warnings.append(
+                    f"Alias '{tag}' has an invalid target type: {type(target)}. Skipping."
+                )
+
+                targets = []
+
+            for t in targets:
+                _resolve_alias(t, local_seen=new_seen)
+
+            seen_aliases.remove(tag)
+
+        else:
+            if tag not in resolved_tags:
+                resolved_tags.append(tag)
+
+    for tag in payload.tags:
+        _resolve_alias(tag, local_seen=set())
+
+    payload.tags = resolved_tags
+
+    return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
+
+
 def _setup_pyinfra(payload: ApplyPayload) -> ApplyPayload:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
@@ -791,12 +867,25 @@ def _handle_secrets_for_role(
                 data={},
             )
 
-        loaded_secrets = OmegaConf.create(decrypted_secrets).to_container()
-        secrets_for_role = {
-            key: loaded_secrets[key]
-            for key in role.necessary_secret_dict_keys
-            if key in loaded_secrets
-        }
+        loaded_secrets_conf = OmegaConf.create(decrypted_secrets)
+        secrets_for_role = {}
+        for key in role.necessary_secret_dict_keys:
+            value = OmegaConf.select(loaded_secrets_conf, key, default=None)
+            if value is None:
+                return ResultPayload(
+                    success=False,
+                    message=[],
+                    error=[
+                        f"Role '{role.__name__}' requires secret key '{key}' which was not found in the decrypted secrets."
+                    ],
+                    data={},
+                )
+
+            if isinstance(value, (DictConfig, ListConfig)):
+                secrets_for_role[key] = OmegaConf.to_container(value, resolve=True)
+            else:
+                secrets_for_role[key] = value
+
         return ResultPayload(success=True, message=[], error=[], data=secrets_for_role)
     return ResultPayload(success=True, message=[], error=[], data={})
 
