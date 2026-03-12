@@ -4,6 +4,7 @@ from omegaconf import DictConfig, ListConfig
 
 if TYPE_CHECKING:
     from pyinfra.api.host import Host
+    from pyinfra.api.state import State
 
     from chaos.lib.args.dataclasses import (
         ApplyPayload,
@@ -634,6 +635,19 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
         start_time = time.time()
 
         if payload.logbook:
+            limani_result = _resolve_limani(payload.global_config, payload)
+            if not limani_result.success:
+                return ResultPayload(
+                    success=False,
+                    message=[],
+                    error=[
+                        f"Error resolving limani for telemetry: {limani_result.error}"
+                    ],
+                    data={},
+                )
+
+            ChaosTelemetry.load_limani_plugin(limani_result.data, payload.global_config)
+
             state.add_callback_handler(ChaosTelemetry())
             pyinfra_logger = logging.getLogger("pyinfra")
             pyinfra_logger.setLevel(logging.DEBUG)
@@ -654,6 +668,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
 
         if payload.logbook:
             ChaosTelemetry.record_setup_phase(state, setup_duration)
+            _collect_fleet_health(state, stage="pre_operations")
 
         return ResultPayload(success=True, message=[], error=[], data=state)
     except Exception as e:
@@ -687,6 +702,7 @@ def teardown_pyinfra(
 
             if payload.export_logs:
                 ChaosTelemetry.export_report()
+            _collect_fleet_health(payload.pyinfra_state, stage="post_operations")
             ChaosTelemetry.end_run(run_status)
 
         if payload.pyinfra_state:
@@ -699,6 +715,52 @@ def teardown_pyinfra(
             error=[f"Error tearing down pyinfra: {str(e)}"],
             data={},
         )
+
+
+def _collect_fleet_health(
+    state: State, stage: Literal["pre_operations", "post_operations"]
+) -> None:
+    """
+    Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
+
+    if state.pool is available, it uses it to parallelize fact collection across hosts.
+    Otherwise, it falls back to sequential collection.
+    Args:
+        state (State): The current pyinfra state containing the inventory and connection pool.
+        stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
+    """
+    from .facts.facts import LoadAverage, RamUsage
+    from .telemetry import ChaosTelemetry
+
+    def _fetch_and_record(host: Host):
+        ram_data = host.get_fact(RamUsage)
+        load_data = host.get_fact(LoadAverage)
+        ChaosTelemetry.record_snapshot(host, ram_data, load_data, stage=stage)
+
+    if state.pool:
+        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
+    else:
+        for host in state.inventory.iter_activated_hosts():
+            _fetch_and_record(host)
+
+
+def _resolve_limani(
+    global_config: dict[str, Any], payload: ApplyPayload
+) -> ResultPayload:
+    if payload.limani:
+        limani_name = payload.limani
+    else:
+        limani_name = global_config.get("limani", "")
+
+    if not limani_name:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=["No limani specified in payload or global config."],
+            data={},
+        )
+
+    return ResultPayload(success=True, message=[], error=[], data=limani_name)
 
 
 def _load_boats(necessary_boats: set[str]) -> ResultPayload:
