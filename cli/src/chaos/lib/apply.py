@@ -63,7 +63,7 @@ def gather_apply(
 
     result_load = _load_role_eps(payload.tags)
     if not result_load.success:
-        return request, result, None
+        return request, result_load, None
 
     loaded_roles = result_load.data
 
