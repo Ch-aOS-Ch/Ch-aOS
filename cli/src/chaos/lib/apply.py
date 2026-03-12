@@ -400,31 +400,6 @@ def run_plan(
         - role: the Role class for which to run the plan method.
         - role_name: the name of the role, used for error messages and checking restrictions.
         - host: the Host object representing the target host for which to compute the plan.
-        - restrictions: a dictionary containing any allowlist or blacklist restrictions for roles and hosts, used
-            to determine if the role should be applied to the host or if there are any conflicts in the configuration.
-
-            This dictionary should be inside of the chobolo file, and should have the following structure:
-                restrictions:
-                    black_list:
-                        host1:
-                            role1: true
-                            role2: true
-                        host2:
-                            role3: true
-
-                    allow_list:
-                        host1:
-                            role3: true
-                        host3:
-                            role1: true
-                            role4: true
-
-        - The function will check the restrictions in the following order:
-            1. A conflict check to see if the role is both blacklisted and allowlisted for the host, which will result in an error.
-            2. A check to see if the role is blacklisted for the host, which will skip the role for that host.
-            3. A check to see if the host is completely blacklisted (if it is host: {} and not in an allow_list), which will skip all roles
-                for that host.
-            4. A check to see if the host is allowlisted but the role is not on the allowlist, which will skip it.
 
     returns:
         - A ResultPayload indicating the success or failure of the plan computation process, with any error
@@ -674,11 +649,47 @@ def teardown_pyinfra(
         )
 
 
-def resolve_allowlist_blacklist_conflicts(
+def resolve_allowlist_blacklist(
     restrictions: dict[str, dict[str, dict[str, bool]]],
     role_name: str,
     host: Host,
 ) -> ResultPayload | None:
+    """
+    This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
+        in said host or if there are any conflicts in the configuration that should be reported as errors.
+
+
+    parameters:
+        - role_name: the name of the role for which to check restrictions, used for error messages.
+        - host: the Host object representing the target host for which to check restrictions, used for error messages.
+        - restrictions: a dictionary containing any allowlist or blacklist restrictions for roles and hosts, used
+        to determine if the role should be applied to the host or if there are any conflicts in the configuration.
+
+        This dictionary should be inside of the chobolo file, and should have the following structure:
+            restrictions:
+                black_list:
+                    host1:
+                        role1: true
+                        role2: true
+                    host2:
+                        role3: true
+
+                allow_list:
+                    host1:
+                        role3: true
+                    host3:
+                        role1: true
+                        role4: true
+
+    notes:
+        - The function will check the restrictions in the following order:
+            1. A conflict check to see if the role is both blacklisted and allowlisted for the host, which will result in an error.
+            2. A check to see if the role is blacklisted for the host, which will skip the role for that host.
+            3. A check to see if the host is completely blacklisted (if it is host: {} and not in an allow_list), which will skip all roles
+                for that host.
+            4. A check to see if the host is allowlisted but the role is not on the allowlist, which will skip it.
+    """
+
     black_list = restrictions.get("black_list", {})
     allow_list = restrictions.get("allow_list", {})
 
