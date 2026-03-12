@@ -311,11 +311,19 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
         else OmegaConf.create()
     )
 
-    chobolo_for_role = {
-        key: chobolo_data[key]
-        for key in role.necessary_chobolo_keys
-        if key in chobolo_data
-    }
+    chobolo_for_role = {}
+    for key in role.necessary_chobolo_keys:
+        value = OmegaConf.select(chobolo_data, key, default=None)
+        if value is None:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Role '{role}' requires chobolo key '{key}' which was not found in the chobolo data."
+                ],
+                data={},
+            )
+        chobolo_for_role[key] = value
 
     secrets_for_role = {}
 
@@ -952,24 +960,37 @@ def _load_role_eps(role_names: list[str]) -> ResultPayload:
 
     role_eps = get_roleEps()
     loaded_roles = {}
-    for role_name in role_names:
-        matching_eps = [ep for ep in role_eps if ep.name == role_name]
-        if not matching_eps:
-            return ResultPayload(
-                success=False,
-                message=[],
-                error=[f"Role '{role_name}' not found among available plugins."],
-                data={},
-            )
-        elif len(matching_eps) > 1:
+
+    ep_map = {}
+    for ep in role_eps:
+        if ep.name in ep_map:
             return ResultPayload(
                 success=False,
                 message=[],
                 error=[
-                    f"Multiple plugins found for role '{role_name}'. Please specify a unique name."
+                    f"Multiple role plugins found with the name '{ep.name}'. Please resolve this conflict."
                 ],
                 data={},
             )
-        else:
-            loaded_roles[role_name] = matching_eps[0].load()
+        ep_map[ep.name] = ep
+
+    for role_name in role_names:
+        if role_name not in ep_map:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"No plugin found for role '{role_name}'."],
+                data={},
+            )
+        try:
+            loaded_role = ep_map[role_name].load()
+            loaded_roles[role_name] = loaded_role
+        except ImportError as e:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error loading plugin for role '{role_name}': {str(e)}"],
+                data={},
+            )
+
     return ResultPayload(success=True, message=[], error=[], data=loaded_roles)
