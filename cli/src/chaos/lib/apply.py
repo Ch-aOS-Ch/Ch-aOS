@@ -155,7 +155,7 @@ def gather_fleet(
         fleet:
             parallelism: int (optional, default 0 for no parallelism)
             hosts:
-                - host1:
+                host1:
                     param1: value1
                     param2: value2
     """
@@ -209,7 +209,7 @@ def gather_fleet(
     except Exception as e:
         return None, ResultPayload(success=False, error=[str(e)])
 
-    fleet_hosts = boat_config.get("hosts", [])
+    fleet_hosts = boat_config.get("hosts", {})
 
     if not fleet_hosts:
         if payload.i_know_what_im_doing:
@@ -233,32 +233,42 @@ def gather_fleet(
 
     hosts = []
     container = OmegaConf.to_container(fleet_hosts, resolve=True)
+    container = cast(dict[str, dict[str, Any]], container)
 
-    if not isinstance(container, list):
+    if not isinstance(container, dict):
         return None, ResultPayload(
             success=False,
             error=[
-                f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a list of dicts of hosts."
+                f"Fleet hosts configuration in {chobolo_path} is malformed. Expected a dict of hosts"
             ],
         )
 
     messages = []
-    for host_item in container:
-        if not isinstance(host_item, dict) or len(host_item) != 1:
-            messages.append(
-                f"Malformed host entry in fleet configuration: {host_item}. It must be a dictionary with a single host name as the key. Skipping."
-            )
-            continue
-
-        hostname = list(host_item.keys())[0]
-        host_data = host_item[hostname]
+    for hostname, host_data in container.items():
         if not isinstance(host_data, dict):
             messages.append(
-                f"Malformed host data for host '{hostname}' in fleet configuration. It must be a dictionary of host parameters. Skipping."
+                f"Malformed host data for host '{hostname}' in fleet configuration {host_data}. It must be a dictionary of host parameters. Skipping."
             )
             continue
 
         hosts.append((hostname, host_data))
+
+    # for host_item in container:
+    #     if not isinstance(host_item, dict) or len(host_item) != 1:
+    #         messages.append(
+    #             f"Malformed host entry in fleet configuration: {host_item}. It must be a dictionary with a single host name as the key. Skipping."
+    #         )
+    #         continue
+
+    #     hostname = list(host_item.keys())[0]
+    #     host_data = host_item[hostname]
+    #     if not isinstance(host_data, dict):
+    #         messages.append(
+    #             f"Malformed host data for host '{hostname}' in fleet configuration. It must be a dictionary of host parameters. Skipping."
+    #         )
+    #         continue
+
+    #     hosts.append((hostname, host_data))
 
     if not hosts:
         if payload.i_know_what_im_doing:

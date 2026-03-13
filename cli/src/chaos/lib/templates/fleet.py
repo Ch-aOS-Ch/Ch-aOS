@@ -23,12 +23,10 @@ fleet = {
             },
         ],
         "parallelism": 0,
-        "hosts": [
-            {
-                "host1": {"param1": "value1", "param2": "value2"},
-                "host2": {"param1": "value1", "param2": "value2"},
-            }
-        ],
+        "hosts": {
+            "host1": {"param1": "value1", "param2": "value2"},
+            "host2": {"param1": "value1", "param2": "value2"},
+        },
     },
     "ATTENTION": """
 All fleet features are completely optional. Boats and hosts are independent of each other.
