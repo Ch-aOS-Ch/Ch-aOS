@@ -31,7 +31,8 @@ fleet = {
             "ATTENTION": "host4 is not mentioned in any list, so it is allowed in all role tags by default",
         },
     },
-    "ATTENTION": """
-All fleet features are completely optional. Boats and hosts are independent of each other.
+    "ATTENTION": """All fleet features are completely optional.
+Boats and hosts are independent of each other.
+Fleet is not necessary for Ch-aOS to work, without them it is applied to the local machine only.
 """,
 }

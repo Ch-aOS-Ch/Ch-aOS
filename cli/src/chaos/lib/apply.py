@@ -205,7 +205,7 @@ def gather_fleet(
                 ],
             )
 
-        boat_config = boat_config.get("fleet", {}) if boat_config else {}
+        boat_config = boat_config.get("fleet", {}) if boat_config else fleet_config
     except Exception as e:
         return None, ResultPayload(success=False, error=[str(e)])
 
