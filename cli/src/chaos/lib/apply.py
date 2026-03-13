@@ -253,23 +253,6 @@ def gather_fleet(
 
         hosts.append((hostname, host_data))
 
-    # for host_item in container:
-    #     if not isinstance(host_item, dict) or len(host_item) != 1:
-    #         messages.append(
-    #             f"Malformed host entry in fleet configuration: {host_item}. It must be a dictionary with a single host name as the key. Skipping."
-    #         )
-    #         continue
-
-    #     hostname = list(host_item.keys())[0]
-    #     host_data = host_item[hostname]
-    #     if not isinstance(host_data, dict):
-    #         messages.append(
-    #             f"Malformed host data for host '{hostname}' in fleet configuration. It must be a dictionary of host parameters. Skipping."
-    #         )
-    #         continue
-
-    #     hosts.append((hostname, host_data))
-
     if not hosts:
         if payload.i_know_what_im_doing:
             return None, ResultPayload(
