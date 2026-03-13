@@ -21,6 +21,111 @@ def handle_verbose(payload) -> None:
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 
+def _print_messages(result, console):
+    """Helper to print warnings and errors from a ResultPayload."""
+    import sys
+
+    if result.success:
+        return
+    for message in result.message:
+        console.print(f"[bold yellow]WARNING:[/] {message}")
+
+    for error in result.error:
+        console.print(f"[bold red]ERROR:[/] {error}")
+    sys.exit(1)
+
+
+def _check_and_exit_on_error(result, console, stage_name="orchestration"):
+    """Checks a result, prints its messages, and exits if it failed."""
+    import sys
+
+    if not result:
+        console.print(f"[bold red]ERROR:[/] No valid result from {stage_name}.")
+        sys.exit(1)
+
+    _print_messages(result, console)
+
+    if not result.success:
+        sys.exit(1)
+
+
+def _handle_apply_prompts(request, payload, console, prompt, confirm):
+    """Handles the interactive data gathering for the apply phase."""
+    import sys
+
+    if not request:
+        return
+
+    if not sys.stdin.isatty():
+        console.print(
+            "[bold yellow]WARNING:[/] No TTY detected. Skipping interactive prompts. If you need to provide secrets, please run the command in an interactive terminal."
+        )
+        return
+
+    for field in request.fields:
+        if field.input_type == "secret":
+            if field.prompt:
+                value = prompt.ask(field.prompt, password=True)
+                payload.password = value
+
+        if field.input_type == "boolean":
+            if field.prompt:
+                confirmation = confirm.ask(field.prompt, default=field.default)
+                if not confirmation:
+                    console.print("[bold red]Aborting apply due to user response.[/]")
+                    sys.exit(1)
+                payload.secrets = True
+
+
+def _handle_fleet_prompts(request, console, confirm):
+    """Handles the interactive data gathering for the fleet phase."""
+    import sys
+
+    if not request:
+        return
+
+    for field in request.fields:
+        if field.input_type == "boolean":
+            if field.prompt:
+                confirmation = confirm.ask(field.prompt, default=field.default)
+                if not confirmation:
+                    console.print("[bold red]Aborting apply due to user response.[/]")
+                    sys.exit(1)
+
+
+def _render_delta(
+    delta,
+    role_name,
+    host_name,
+    ikwid,
+    console,
+):
+    """Renders the proposed changes (delta) to the console."""
+    to_add = delta.to_add
+    to_remove = delta.to_remove
+
+    if not (to_add or to_remove) or ikwid:
+        return
+
+    console.print(
+        f"[bold blue]INFO:[/] Role [bold]{role_name}[/] on host: {host_name} has the following delta:"
+    )
+
+    if to_add:
+        for item, details in to_add.items():
+            if details:
+                console.print(f"  ----- To add: {item} -----")
+                for detail in details:
+                    console.print(f"    [green]+ {detail}[/]")
+
+    if to_remove:
+        for item, details in to_remove.items():
+            if details:
+                console.print(f"  ----- To remove: {item} -----")
+                for detail in details:
+                    console.print(f"    [red]- {detail}[/]")
+
+
 def handleApply(args):
     import sys
     from typing import TYPE_CHECKING
@@ -99,50 +204,16 @@ def handleApply(args):
     from chaos.lib.apply import resolve_aliases
 
     alias_result = resolve_aliases(payload)
+    _print_messages(alias_result, console)
     if alias_result.success:
-        for message in alias_result.message:
-            console.print(f"[bold yellow]WARNING:[/] {message}")
         payload.tags = alias_result.data
 
     from chaos.lib.apply import gather_apply
 
-    request_n_result = gather_apply(payload)
-    apply_request = request_n_result[0]
-    apply_result = request_n_result[1]
+    apply_request, apply_result = gather_apply(payload)
 
-    if apply_request:
-        if not sys.stdin.isatty():
-            console.print(
-                "[bold yellow]WARNING:[/] No TTY detected. Skipping interactive prompts. If you need to provide secrets, please run the command in an interactive terminal."
-            )
-        else:
-            for field in apply_request.fields:
-                if field.input_type == "secret":
-                    if field.prompt:
-                        value = prompt.ask(field.prompt, password=True)
-                        payload.password = value
-                if field.input_type == "boolean":
-                    if field.prompt:
-                        confirmation = confirm.ask(field.prompt, default=field.default)
-                        if not confirmation:
-                            console.print(
-                                "[bold red]Aborting apply due to user response.[/]"
-                            )
-                            sys.exit(1)
-                        payload.secrets = True
-
-    if not apply_result:
-        console.print("[bold red]ERROR:[/] No valid result from apply orchestration.")
-        sys.exit(1)
-
-    if not apply_result.success:
-        for message in apply_result.message:
-            console.print(f"[bold yellow]WARNING:[/] {message}")
-
-        for error in apply_result.error:
-            console.print(f"[bold red]ERROR:[/] {error}")
-
-        sys.exit(1)
+    _handle_apply_prompts(apply_request, payload, console, prompt, confirm)
+    _check_and_exit_on_error(apply_result, console, "apply orchestration")
 
     payload.global_config = apply_result.data["global_config"]
     payload.chobolo = apply_result.data["chobolo_path"]
@@ -163,42 +234,15 @@ def handleApply(args):
 
     fleet_request, fleet_result = gather_fleet(payload, chobolo_config, payload.chobolo)
 
-    if fleet_request:
-        for field in fleet_request.fields:
-            if field.input_type == "boolean":
-                if field.prompt:
-                    confirmation = confirm.ask(field.prompt, default=field.default)
-                    if not confirmation:
-                        console.print(
-                            "[bold red]Aborting apply due to user response.[/]"
-                        )
-                        sys.exit(1)
-
-    if not fleet_result:
-        console.print("[bold red]ERROR:[/] No valid result from fleet orchestration.")
-        sys.exit(1)
-
-    if not fleet_result.success:
-        for message in fleet_result.message:
-            console.print(f"[bold yellow]WARNING:[/] {message}")
-
-        for error in fleet_result.error:
-            console.print(f"[bold red]ERROR:[/] {error}")
-
-        sys.exit(1)
+    _handle_fleet_prompts(fleet_request, console, confirm)
+    _check_and_exit_on_error(fleet_result, console, "fleet orchestration")
 
     try:
         run_status = "success"
         from chaos.lib.apply import setup_pyinfra
 
         setup_result = setup_pyinfra(payload)
-        if not setup_result.success:
-            for message in setup_result.message:
-                console.print(f"[bold yellow]WARNING:[/] {message}")
-
-            for error in setup_result.error:
-                console.print(f"[bold red]ERROR:[/] {error}")
-            sys.exit(1)
+        _check_and_exit_on_error(setup_result, console, "setup pyinfra")
 
         payload.pyinfra_state = setup_result.data
 
@@ -236,95 +280,58 @@ def handleApply(args):
                     chobolo_config.get("restrictions", {}), role.name, host
                 )
                 if allowlist_blacklist_result:
+                    _print_messages(allowlist_blacklist_result, console)
                     if not allowlist_blacklist_result.success:
-                        for message in allowlist_blacklist_result.message:
-                            console.print(f"[bold yellow]WARNING:[/] {message}")
-
-                        for error in allowlist_blacklist_result.error:
-                            console.print(f"[bold red]ERROR:[/] {error}")
                         sys.exit(1)
-                    for message in allowlist_blacklist_result.message:
-                        console.print(f"[bold yellow]WARNING:[/] {message}")
                     continue
 
                 context_result = run_context(payload, role, host)
+                _print_messages(context_result, console)
                 if not context_result.success:
-                    for message in context_result.message:
-                        console.print(f"[bold yellow]WARNING:[/] {message}")
-
-                    for error in context_result.error:
-                        console.print(f"[bold red]ERROR:[/] {error}")
                     run_status = "failure"
                     continue
 
                 context = context_result.data
 
                 delta_result = run_delta(context, role, role.name)
+                _print_messages(delta_result, console)
                 if not delta_result.success:
-                    for message in delta_result.message:
-                        console.print(f"[bold yellow]WARNING:[/] {message}")
-
-                    for error in delta_result.error:
-                        console.print(f"[bold red]ERROR:[/] {error}")
                     run_status = "failure"
                     continue
 
                 delta: Delta = delta_result.data
 
-                to_add = delta.to_add
-                to_remove = delta.to_remove
-                what_change = delta.is_changing
-
-                if to_add or to_remove:
-                    if not payload.i_know_what_im_doing:
-                        console.print(
-                            f"[bold blue]INFO:[/] Role [bold]{role.name}[/] on host: {host.name} has the following delta:"
-                        )
-
-                if to_add:
-                    if not payload.i_know_what_im_doing:
-                        console.print(f"  ----- {what_change} to add -----")
-                        for item in to_add:
-                            console.print(f"    [green]+ {item}[/]")
-
-                if to_remove:
-                    if not payload.i_know_what_im_doing:
-                        console.print(f"  ----- {what_change} to remove -----")
-                        for item in to_remove:
-                            console.print(f"    [red]- {item}[/]")
+                _render_delta(
+                    delta, role.name, host.name, payload.i_know_what_im_doing, console
+                )
 
                 if (
-                    not confirm.ask("Do you want to apply this change?", default=True)
-                    and not payload.i_know_what_im_doing
-                ):
+                    delta.to_add or delta.to_remove
+                ) and not payload.i_know_what_im_doing:
                     if not confirm.ask(
-                        "Do you want to try and apply these changes to other hosts?",
-                        default=False,
+                        "Do you want to apply this change?", default=True
                     ):
-                        console.print(
-                            "[bold red]Aborting apply due to user response.[/]"
-                        )
-                        sys.exit(1)
-                    continue
+                        if not confirm.ask(
+                            "Do you want to try and apply these changes to other hosts?",
+                            default=False,
+                        ):
+                            console.print(
+                                "[bold red]Aborting apply due to user response.[/]"
+                            )
+                            sys.exit(1)
+                        continue
 
                 plan_result = run_plan(payload, delta, role, role.name, host)
+                _print_messages(plan_result, console)
                 if not plan_result.success:
-                    for message in plan_result.message:
-                        console.print(f"[bold yellow]WARNING:[/] {message}")
-
-                    for error in plan_result.error:
-                        console.print(f"[bold red]ERROR:[/] {error}")
                     run_status = "failure"
                     continue
 
         from chaos.lib.apply import execute_plans
 
         execute_result = execute_plans(payload)
+        _print_messages(execute_result, console)
         if not execute_result.success:
-            for message in execute_result.message:
-                console.print(f"[bold yellow]WARNING:[/] {message}")
-            for error in execute_result.error:
-                console.print(f"[bold red]ERROR:[/] {error}")
             run_status = "failure"
             console.print("[bold red]Apply execution completed with errors.[/]")
             sys.exit(1)
@@ -337,10 +344,4 @@ def handleApply(args):
         from chaos.lib.apply import teardown_pyinfra
 
         teardown_result = teardown_pyinfra(payload, run_status)
-        if not teardown_result.success:
-            for message in teardown_result.message:
-                console.print(f"[bold yellow]WARNING:[/] {message}")
-
-            for error in teardown_result.error:
-                console.print(f"[bold red]ERROR:[/] {error}")
-            sys.exit(1)
+        _check_and_exit_on_error(teardown_result, console, "teardown pyinfra")
