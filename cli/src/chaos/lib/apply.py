@@ -150,6 +150,14 @@ def gather_fleet(
         - A DataGatherRequest if additional data needs to be gathered from the user, or None
         - A ResultPayload indicating the success or failure of the data gathering process, with relevant data about
              the fleet configuration if successful.
+
+    expected format in chobolo file:
+        fleet:
+            parallelism: int (optional, default 0 for no parallelism)
+            hosts:
+                - host1:
+                    param1: value1
+                    param2: value2
     """
 
     from typing import cast
@@ -855,6 +863,14 @@ def _handle_boats(
     mutates:
         - global_state: this may be mutated by the boats' get_fleet methods to include new hosts and information to the
             global state that will be used for setting up the fleet and inventory.
+
+    expected format for boats in chobolo file:
+        fleet:
+            boats:
+                - provider: boat_provider_name
+                  config:
+                    param1: value1
+                    param2: value2
     """
 
     from omegaconf import OmegaConf

@@ -20,6 +20,9 @@ Best practices for this project:
         Good rule of thumb is that if the function is about 100 lines long, try to reason with yourself
             about what the function is doing, if it is doing more than 2 concepts, it's time for the big ol refac hammer.
 
+        Think about it like this "to do that, I need to do this and this", if you have more than 2 "this", then consider
+            refactoring it into multiple functions. Not necessary always, but it is a good way to think about it.
+
         Do note that a code review will be conducted and we will be looking at the code and giving feedback on it, so
             even if you think your code is fine, we might ask you to refactor it or to docstring it, it is not a judgmeent of
             your coding skills, we just want to keep our codebase easy to read and maintain.
