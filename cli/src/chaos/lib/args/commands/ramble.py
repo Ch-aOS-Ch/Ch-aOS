@@ -261,6 +261,10 @@ def handleRamble(args):
                     console.print(f"[bold red]ERROR:[/] {err}")
                 sys.exit(1)
 
+            if result.data is None:
+                console.print("[yellow]No data found for the given targets.[/]")
+                sys.exit(0)
+
             for target, data in result.data.items():
                 render_ramble(
                     data, target, payload.no_pretty, payload.json, payload.values
@@ -304,6 +308,11 @@ def handleRamble(args):
                 console.print(f"[green]{msg}[/]")
 
             data = result.data
+            if not data or "file_to_edit" not in data:
+                console.print(
+                    "[bold red]ERROR:[/] No file to edit returned from ramble creation."
+                )
+                sys.exit(1)
             editor = os.getenv("EDITOR", "nano")
             import subprocess
 
@@ -364,6 +373,18 @@ def handleRamble(args):
                 sys.exit(1)
 
             data = result.data
+            if (
+                not data
+                or "file_path" not in data
+                or "is_encrypted" not in data
+                or "sops_config" not in data
+                or "edit_sops_file" not in data
+            ):
+                console.print(
+                    "[bold red]ERROR:[/] Incomplete data returned from ramble edit."
+                )
+                sys.exit(1)
+
             file_path = data["file_path"]
             is_encrypted = data["is_encrypted"]
             sops_config = data["sops_config"]

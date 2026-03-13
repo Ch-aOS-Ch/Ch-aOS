@@ -132,7 +132,7 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
 
 
-def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload:
+def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload[None]:
     currentPathAgeFile = Path.cwd() / "keys.txt"
     messages = []
     errors = []
@@ -160,7 +160,7 @@ def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload
     return ResultPayload(success=True, message=messages)
 
 
-def _import_gpg_keys(secKey: str) -> ResultPayload:
+def _import_gpg_keys(secKey: str) -> ResultPayload[None]:
     decompressedKey = decompress(secKey)
     messages = []
     errors = []
@@ -181,7 +181,7 @@ def _import_gpg_keys(secKey: str) -> ResultPayload:
     return ResultPayload(success=True, message=messages)
 
 
-def _import_vault_keys(key_content: str) -> ResultPayload:
+def _import_vault_keys(key_content: str) -> ResultPayload[None]:
     currentPathVaultFile = Path.cwd() / "vault_key.txt"
     messages = []
     errors = []

@@ -1,4 +1,5 @@
 from importlib import import_module
+from typing import Any
 
 from .args.dataclasses import ExplainPayload, ResultPayload
 
@@ -27,7 +28,9 @@ def _get_explain_subtopics(ExplainObj, role):
     return sorted(list(set(available_methods) - {role}))
 
 
-def handleExplain(payload: ExplainPayload, EXPLAIN_DISPATCHER) -> ResultPayload:
+def handleExplain(
+    payload: ExplainPayload, EXPLAIN_DISPATCHER
+) -> ResultPayload[dict[str, dict[str, Any]]]:
     topics = payload.topics
     complexity = payload.complexity
     if not isinstance(topics, list):

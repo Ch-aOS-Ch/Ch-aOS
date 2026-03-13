@@ -135,7 +135,7 @@ def gatherInitTeam(payload: TeamInitPayload) -> DataGatherRequest | None:
     return None
 
 
-def handleInitTeam(payload: TeamInitPayload) -> ResultPayload:
+def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
     messages = []
 
     try:
@@ -237,7 +237,7 @@ def handleInitTeam(payload: TeamInitPayload) -> ResultPayload:
     return ResultPayload(success=True, message=messages)
 
 
-def handleActivateTeam(payload: TeamActivatePayload) -> ResultPayload:
+def handleActivateTeam(payload: TeamActivatePayload) -> ResultPayload[None]:
     """
     Activates a team by reading the .chaos.yml file and creating necessary symlinks.
     """
@@ -317,7 +317,7 @@ def handleActivateTeam(payload: TeamActivatePayload) -> ResultPayload:
     return ResultPayload(success=True, message=messages)
 
 
-def handleCloneGitTeam(payload: TeamClonePayload) -> ResultPayload:
+def handleCloneGitTeam(payload: TeamClonePayload) -> ResultPayload[None]:
     """
     Clones a git repository and activates the team if valid.
     Validity = presence of .chaos.yml with required fields.
@@ -386,7 +386,7 @@ def handleCloneGitTeam(payload: TeamClonePayload) -> ResultPayload:
     return ResultPayload(success=True, message=messages)
 
 
-def listTeams(payload: TeamListPayload) -> ResultPayload:
+def listTeams(payload: TeamListPayload) -> ResultPayload[dict[str, list[str]]]:
     """Lists all activated teams, optionally filtered by company."""
     messages = []
 
@@ -438,7 +438,7 @@ def gatherDeactivateTeam(payload: TeamDeactivatePayload) -> DataGatherRequest | 
     return None
 
 
-def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload:
+def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload[None]:
     """Deactivates specified teams or all teams for a company."""
     company = payload.company
     if not company:
@@ -518,7 +518,7 @@ def gatherPruneTeams(payload: TeamPrunePayload) -> DataGatherRequest | None:
     )
 
 
-def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload:
+def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload[None]:
     """Prunes stale team symlinks that point to non-existent directories."""
     confirm = payload.confirmed if not payload.i_know_what_im_doing else True
     if not confirm:

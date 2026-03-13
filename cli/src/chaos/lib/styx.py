@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import requests
 from omegaconf import DictConfig, OmegaConf
@@ -73,7 +73,9 @@ def _check_hash(
         return False, None, f"Error checking hash for {file_path}: {e}"
 
 
-def install_styx_entries(entries: list[str], force: bool = False) -> ResultPayload:
+def install_styx_entries(
+    entries: list[str], force: bool = False
+) -> ResultPayload[None]:
     """
     Installs the given Styx registry entries.
     Args:
@@ -191,7 +193,7 @@ def install_styx_entries(entries: list[str], force: bool = False) -> ResultPaylo
     return ResultPayload(success=success, message=messages, error=errors)
 
 
-def list_styx_entries(entries: list[str] | None) -> ResultPayload:
+def list_styx_entries(entries: list[str] | None) -> ResultPayload[dict[str, Any]]:
     """Lists the available Styx registry entries."""
     raw_registry, error = get_styx_registry()
     if error:
@@ -226,7 +228,7 @@ def list_styx_entries(entries: list[str] | None) -> ResultPayload:
     return ResultPayload(success=True, data=output_data, error=errors)
 
 
-def uninstall_styx_entries(entries: list[str]) -> ResultPayload:
+def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
     """Uninstalls the given Styx registry entries."""
     messages = []
     errors = []
@@ -264,7 +266,7 @@ def uninstall_styx_entries(entries: list[str]) -> ResultPayload:
     return ResultPayload(success=success, message=messages, error=errors)
 
 
-def handle_styx(payload: StyxPayload) -> ResultPayload:
+def handle_styx(payload: StyxPayload) -> ResultPayload[dict[str, Any] | None]:
     try:
         match payload.styx_commands:
             case "invoke":

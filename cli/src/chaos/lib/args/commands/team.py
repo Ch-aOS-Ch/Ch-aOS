@@ -19,6 +19,10 @@ def handleTeam(args):
 
                 result: ResultPayload = listTeams(payload)
 
+                if not result.data:
+                    console.print("[yellow]No teams found.[/]")
+                    return
+
                 teams = result.data
 
                 if not result.success:
@@ -233,4 +237,3 @@ def handleTeam(args):
     ) as e:
         console.print(f"[bold red]ERROR:[/] {e}")
         sys.exit(1)
-

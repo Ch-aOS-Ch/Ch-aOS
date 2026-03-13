@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from omegaconf import OmegaConf as oc
@@ -12,12 +13,17 @@ from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
 
+if TYPE_CHECKING:
+    from omegaconf import DictConfig, ListConfig
+
 """
 Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
 """
 
 
-def initChobolo(keys: dict, targets: list) -> ResultPayload:
+def initChobolo(
+    keys: dict, targets: list
+) -> ResultPayload[DictConfig | ListConfig | None]:
     "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
     messages = []
 
@@ -607,7 +613,7 @@ def initSecrets():
         ) from e
 
 
-def handle_init(payload: InitPayload):
+def handle_init(payload: InitPayload) -> ResultPayload[DictConfig | ListConfig | None]:
 
     try:
         match payload.init_command:

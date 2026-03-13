@@ -206,7 +206,8 @@ def handleApply(args):
     alias_result = resolve_aliases(payload)
     _print_messages(alias_result, console)
     if alias_result.success:
-        payload.tags = alias_result.data
+        if alias_result.data:
+            payload.tags = alias_result.data
 
     from chaos.lib.apply import gather_apply
 
@@ -214,6 +215,10 @@ def handleApply(args):
 
     _handle_apply_prompts(apply_request, payload, console, prompt, confirm)
     _check_and_exit_on_error(apply_result, console, "apply orchestration")
+
+    if apply_result.data is None:
+        console.print("[bold red]ERROR:[/] No data returned from apply orchestration.")
+        sys.exit(1)
 
     payload.global_config = apply_result.data["global_config"]
     payload.chobolo = apply_result.data["chobolo_path"]
@@ -293,9 +298,23 @@ def handleApply(args):
 
                 context = context_result.data
 
+                if not context:
+                    console.print(
+                        f"[bold red]ERROR:[/] No context returned for role {role.name} on host {host.name}."
+                    )
+                    run_status = "failure"
+                    continue
+
                 delta_result = run_delta(context, role, role.name)
                 _print_messages(delta_result, console)
                 if not delta_result.success:
+                    run_status = "failure"
+                    continue
+
+                if delta_result.data is None:
+                    console.print(
+                        f"[bold red]ERROR:[/] No delta data returned for role {role.name} on host {host.name}."
+                    )
                     run_status = "failure"
                     continue
 

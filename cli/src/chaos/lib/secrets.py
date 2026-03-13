@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
@@ -126,7 +126,7 @@ def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | Non
     return None
 
 
-def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload:
+def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
     """
     Adds a new key to the sops config file and (if -u), updates all secrets.
 
@@ -177,7 +177,7 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload:
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload:
+def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload[None]:
     """Removes a key from the sops config file and (if -u), updates all secrets."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
@@ -224,7 +224,7 @@ def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload:
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def listFp(payload: SecretsListPayload) -> ResultPayload:
+def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
     """Lists all keys of a certain type from the sops config file."""
     from chaos.lib.secret_backends.utils import get_sops_files
 
@@ -259,14 +259,14 @@ def listFp(payload: SecretsListPayload) -> ResultPayload:
         message=[f"Listed {payload.type} keys successfully."]
         if not messages
         else messages,
+        error=errors,
         data=results,
-        error=errors if errors else None,
     )
 
     return response
 
 
-def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
+def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload[None]:
     """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
     import os
 
@@ -393,7 +393,7 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload:
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
+def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[dict[str, Any]]:
     """Opens the secrets file in SOPS for editing."""
 
     from chaos.lib.secret_backends.crypto import is_vault_in_use
@@ -436,7 +436,7 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload:
     )
 
 
-def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload:
+def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload[dict[str, str]]:
     """
     Decrypts the secrets file and returns the decrypted content as a string.
     """
@@ -513,7 +513,7 @@ def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload:
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleSecCat(payload: SecretsCatPayload) -> ResultPayload:
+def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
     """
     decrypts the secrets file and returns the values of the specified keys.
     """
@@ -591,14 +591,14 @@ def handleSecCat(payload: SecretsCatPayload) -> ResultPayload:
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload:
+def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload[Any]:
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)
     return provider.export_secrets(payload)
 
 
-def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload:
+def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload[Any]:
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)

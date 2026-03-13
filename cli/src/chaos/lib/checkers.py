@@ -1,5 +1,5 @@
 import os
-from typing import cast
+from typing import Any, cast
 
 from .args.dataclasses import CheckPayload, ResultPayload
 
@@ -54,7 +54,7 @@ def _flatten_dict_keys(d, parent_key="", sep="."):
     return items
 
 
-def checkSecrets(secrets_file) -> ResultPayload:
+def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
     from omegaconf import OmegaConf
 
     secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
@@ -69,7 +69,7 @@ def checkSecrets(secrets_file) -> ResultPayload:
     return result
 
 
-def checkRoles(ROLES_DISPATCHER) -> ResultPayload:
+def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All roles are valid"],
@@ -80,7 +80,7 @@ def checkRoles(ROLES_DISPATCHER) -> ResultPayload:
     return result
 
 
-def checkExplanations(EXPLANATIONS) -> ResultPayload:
+def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All explanations are valid"],
@@ -91,7 +91,7 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload:
     return result
 
 
-def checkAliases(ROLE_ALIASES) -> ResultPayload:
+def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, Any]]:
     payload, warnings, messages = _handleAliases(ROLE_ALIASES)
     result = ResultPayload(
         success=True,
@@ -103,7 +103,7 @@ def checkAliases(ROLE_ALIASES) -> ResultPayload:
     return result
 
 
-def checkProviders(providers) -> ResultPayload:
+def checkProviders(providers) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All providers are valid"],
@@ -114,7 +114,7 @@ def checkProviders(providers) -> ResultPayload:
     return result
 
 
-def checkBoats(boats) -> ResultPayload:
+def checkBoats(boats) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All boats are valid"],
@@ -125,7 +125,7 @@ def checkBoats(boats) -> ResultPayload:
     return result
 
 
-def checkLimanis(limanis) -> ResultPayload:
+def checkLimanis(limanis) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All limanis are valid"],
@@ -136,7 +136,7 @@ def checkLimanis(limanis) -> ResultPayload:
     return result
 
 
-def checkTemplates(keys) -> ResultPayload:
+def checkTemplates(keys) -> ResultPayload[list[str]]:
     result = ResultPayload(
         success=True,
         message=["All templates are valid"],
@@ -147,38 +147,38 @@ def checkTemplates(keys) -> ResultPayload:
     return result
 
 
-def handle_check(payload: CheckPayload) -> ResultPayload:
+def handle_check(payload: CheckPayload) -> ResultPayload[list[str] | dict[str, Any] | None]:
     match payload.checks:
         case "explanations":
             from chaos.lib.plugDiscovery import get_plugins
 
             EXPLANATIONS = get_plugins(payload.update_plugins)[2]
-            result_explain: ResultPayload = checkExplanations(EXPLANATIONS)
+            result_explain: ResultPayload[list[str]] = checkExplanations(EXPLANATIONS)
             return result_explain
         case "aliases":
             from chaos.lib.plugDiscovery import get_plugins
 
             ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
-            result_aliases: ResultPayload = checkAliases(ROLE_ALIASES)
+            result_aliases: ResultPayload[dict[str, Any]] = checkAliases(ROLE_ALIASES)
             return result_aliases
         case "roles":
             from chaos.lib.plugDiscovery import get_plugins
 
             role_specs = get_plugins(payload.update_plugins)[0]
-            result_roles: ResultPayload = checkRoles(role_specs)
+            result_roles: ResultPayload[list[str]] = checkRoles(role_specs)
             return result_roles
         case "providers":
             from chaos.lib.plugDiscovery import get_plugins
 
             providers = get_plugins(payload.update_plugins)[4]
-            result_providers: ResultPayload = checkProviders(providers)
+            result_providers: ResultPayload[list[str]] = checkProviders(providers)
             return result_providers
 
         case "boats":
             from chaos.lib.plugDiscovery import get_plugins
 
             boats = get_plugins(payload.update_plugins)[5]
-            result_boats: ResultPayload = checkBoats(boats)
+            result_boats: ResultPayload[list[str]] = checkBoats(boats)
             return result_boats
 
         case "secrets":
@@ -190,21 +190,21 @@ def handle_check(payload: CheckPayload) -> ResultPayload:
                 payload.secrets_file_override,
                 payload.team,
             )[0]
-            result_secrets: ResultPayload = checkSecrets(sec_file)
+            result_secrets: ResultPayload[list[str]] = checkSecrets(sec_file)
             return result_secrets
 
         case "limanis":
             from chaos.lib.plugDiscovery import get_plugins
 
             limanis = get_plugins(payload.update_plugins)[6]
-            result_limani: ResultPayload = checkLimanis(limanis)
+            result_limani: ResultPayload[list[str]] = checkLimanis(limanis)
             return result_limani
 
         case "templates":
             from chaos.lib.plugDiscovery import get_plugins
 
             keys = get_plugins(payload.update_plugins)[3]
-            result_templates: ResultPayload = checkTemplates(keys)
+            result_templates: ResultPayload[list[str]] = checkTemplates(keys)
             return result_templates
 
         case _:

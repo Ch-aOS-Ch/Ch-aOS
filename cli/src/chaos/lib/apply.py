@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload]:
+) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any]]]:
     """
     Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
@@ -51,6 +51,8 @@ def gather_apply(
             )
         )
     else:
+        if not result.data:
+            result.data = {}
         result.data["sudo_password"] = sudo_password
 
     result_load = _load_role_eps(payload.tags)
@@ -58,6 +60,10 @@ def gather_apply(
         return request, result_load
 
     loaded_roles = result_load.data
+    if not loaded_roles:
+        result.success = False
+        result.error.append("No valid roles found for the specified tags.")
+        return request, result
 
     roles_that_need_secrets = []
     secrets_needed = []
@@ -104,6 +110,11 @@ Do you want to provide them?""",
             data={},
         )
 
+    if not result.data:
+        return None, ResultPayload(
+            success=False, message=[], error=["No global configuration found."], data={}
+        )
+
     result.data["loaded_roles"] = loaded_roles
     result.data["global_config"] = global_config
     if not request.fields:
@@ -113,7 +124,7 @@ Do you want to provide them?""",
 
 def gather_fleet(
     payload: ApplyPayload, chobolo_config: DictConfig | ListConfig, chobolo_path: str
-) -> tuple[DataGatherRequest | None, ResultPayload]:
+) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any]]]:
     """
     Gather necessary data for fleet configuration, such as host information and parallelism settings.
 
@@ -257,7 +268,9 @@ def gather_fleet(
     )
 
 
-def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
+def run_context(
+    payload: ApplyPayload, role: Role, host: Host
+) -> ResultPayload[dict[str, Any]]:
     """
     Run the context method for a given role and host, gathering necessary configuration and secrets.
 
@@ -317,6 +330,14 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
             data={},
         )
 
+    if not secrets_result.data:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Role '{role}' requires secrets but no secrets were provided."],
+            data={},
+        )
+
     secrets_for_role: dict[str, Any] = secrets_result.data
 
     context = role.get_context(
@@ -330,7 +351,7 @@ def run_delta(
     context: dict[str, Any],
     role: Role,
     role_name: str,
-) -> ResultPayload:
+) -> ResultPayload[Any]:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
 
@@ -366,7 +387,7 @@ def run_plan(
     role: Role,
     role_name: str,
     host: Host,
-) -> ResultPayload:
+) -> ResultPayload[dict[str, Any]]:
     """
     Runs the plan method for a given role and host, computing the necessary
         operations to apply the role, while also checking against any allowlist or blacklist restrictions for the role and host.
@@ -398,7 +419,7 @@ def run_plan(
     return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
 
 
-def execute_plans(payload: ApplyPayload) -> ResultPayload:
+def execute_plans(payload: ApplyPayload) -> ResultPayload[dict[str, Any] | None]:
     """
     Executes all computed state operations for the roles on the target hosts using pyinfra, and gathers the results of the execution.
 
@@ -425,7 +446,7 @@ def execute_plans(payload: ApplyPayload) -> ResultPayload:
         )
 
 
-def resolve_aliases(payload: ApplyPayload) -> ResultPayload:
+def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
     """
     Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
          while also checking for circular references and conflicts.
@@ -509,7 +530,7 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
+def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any]:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
@@ -557,6 +578,14 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
                     data={},
                 )
 
+            if not limani_result.data:
+                return ResultPayload(
+                    success=False,
+                    message=[],
+                    error=["No limani specified for telemetry."],
+                    data={},
+                )
+
             ChaosTelemetry.load_limani_plugin(limani_result.data, payload.global_config)
 
             state.add_callback_handler(ChaosTelemetry())
@@ -593,7 +622,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
 
 def teardown_pyinfra(
     payload: ApplyPayload, run_status: Literal["success", "failure"]
-) -> ResultPayload:
+) -> ResultPayload[dict[str, Any]]:
     """
     Teardown the pyinfra state and connections after the apply operation is complete.
 
@@ -633,7 +662,7 @@ def resolve_allowlist_blacklist(
     restrictions: dict[str, dict[str, dict[str, bool]]],
     role_name: str,
     host: Host,
-) -> ResultPayload | None:
+) -> ResultPayload[dict[str, Any]] | None:
     """
     This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
         in said host or if there are any conflicts in the configuration that should be reported as errors.
@@ -748,7 +777,7 @@ def _collect_fleet_health(
 
 def _resolve_limani(
     global_config: dict[str, Any], payload: ApplyPayload
-) -> ResultPayload:
+) -> ResultPayload[Any]:
     if payload.limani:
         limani_name = payload.limani
     else:
@@ -765,7 +794,7 @@ def _resolve_limani(
     return ResultPayload(success=True, message=[], error=[], data=limani_name)
 
 
-def _load_boats(necessary_boats: set[str]) -> ResultPayload:
+def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[Any]]:
     """
     Loads boat plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.boats"
         It attempts to load all boat plugins and returns a list of the loaded boat classes.
@@ -816,7 +845,7 @@ def _load_boats(necessary_boats: set[str]) -> ResultPayload:
 
 def _handle_boats(
     global_state: DictConfig, boats: ListConfig
-) -> tuple[DictConfig, ResultPayload]:
+) -> tuple[DictConfig, ResultPayload[list[Any] | None]]:
     """
     Handles the processing of boats for fleet configuration, including loading necessary boat plugins and invoking their
          get_fleet methods to gather host information.
@@ -908,7 +937,9 @@ def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], in
     return inventory, payload.target_hosts, payload.parallelism
 
 
-def _get_configs(payload: ApplyPayload) -> tuple[DictConfig, ResultPayload]:
+def _get_configs(
+    payload: ApplyPayload,
+) -> tuple[DictConfig, ResultPayload[dict[str, Any]]]:
     """
     Loads global configuration from a chobolo file and validates paths for chobolo,
          secrets file, and sops file based on the payload and global configuration.
@@ -1004,7 +1035,7 @@ def _handle_secrets_for_role(
     role: Role,
     payload: ApplyPayload,
     role_name: str = "",
-) -> ResultPayload:
+) -> ResultPayload[dict[str, Any]]:
     """
     Handles the loading and decryption of secrets for a given role based on the payload and global configuration.
 
@@ -1057,7 +1088,7 @@ def _handle_secrets_for_role(
     return ResultPayload(success=True, message=[], error=[], data={})
 
 
-def _handle_password(payload: ApplyPayload) -> ResultPayload:
+def _handle_password(payload: ApplyPayload) -> ResultPayload[Any]:
     """
     Handles the retrieval of the sudo password based on the payload, either from a specified file or directly from the payload.
 
@@ -1114,7 +1145,7 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload:
     return ResultPayload(success=True, message=[], error=[], data=sudo_password)
 
 
-def _load_role_eps(role_names: list[str]) -> ResultPayload:
+def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Any]]:
     """
     Loads role plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.roles"
 

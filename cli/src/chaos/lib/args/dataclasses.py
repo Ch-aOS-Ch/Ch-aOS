@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TypeVar
 
 if TYPE_CHECKING:
     from pyinfra.api.state import State
+
+T = TypeVar("T", covariant=True)
 
 """
 Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
@@ -118,7 +120,6 @@ class Delta(BasePayload):
         metadata: dict[str, Any] | None = None,
     ):
         self.to_add = to_add or {}
-        self.is_changing = is_changing
         self.to_remove = to_remove or {}
         self.metadata = metadata or {}
 
@@ -192,7 +193,7 @@ class DataGatherPayload(BasePayload):
         self.metadata = metadata
 
 
-class ResultPayload(BasePayload):
+class ResultPayload(BasePayload, Generic[T]):
     """
     With the implementation of this payload, we mark the start of the API refactoring de-facto for our CLI.
 
@@ -233,7 +234,7 @@ class ResultPayload(BasePayload):
         self,
         success: bool,
         message: list[str] | None = None,
-        data: Any = None,
+        data: T | None = None,
         error: list[str] | None = None,
     ):
         self.success = success

@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
@@ -147,7 +147,7 @@ def _read_ramble_content(ramble_path, sops_config, context, global_config):
         ) from e
     except Exception as e:
         raise RuntimeError(
-            f"Could not read or parse ramble file: {ramble_path}\n{e}"
+            f"Could not read or parse ramble file: {ramble_path}: {e}"
         ) from e
 
 
@@ -234,7 +234,7 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
     return None
 
 
-def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload:
+def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[dict[str, Any]]:
     """
     Creates a new ramble journal or page, and returns the file path to open.
     """
@@ -334,7 +334,7 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
     return None
 
 
-def handleEditRamble(payload: RambleEditPayload) -> ResultPayload:
+def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]]:
     """
     Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
     """
@@ -400,7 +400,7 @@ def handleEditRamble(payload: RambleEditPayload) -> ResultPayload:
     )
 
 
-def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload:
+def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
     """
     Encrypts specified keys in a ramble page using sops.
 
@@ -549,7 +549,7 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload:
         return ResultPayload(success=False, error=[str(e)])
 
 
-def handleReadRamble(payload: RambleReadPayload) -> ResultPayload:
+def handleReadRamble(payload: RambleReadPayload) -> ResultPayload[dict[str, Any]]:
     """
     Reads the content of specified rambles and returns them.
     """
@@ -592,7 +592,7 @@ def handleReadRamble(payload: RambleReadPayload) -> ResultPayload:
     return ResultPayload(success=True, data=results)
 
 
-def handleFindRamble(payload: RambleFindPayload) -> ResultPayload:
+def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
     """
     Searches for rambles containing a specific term, optionally filtered by tag.
 
@@ -676,7 +676,7 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload:
     return ResultPayload(success=True, data=results, message=warnings)
 
 
-def handleMoveRamble(payload: RambleMovePayload) -> ResultPayload:
+def handleMoveRamble(payload: RambleMovePayload) -> ResultPayload[None]:
     "Moves or renames a ramble journal or page."
     team = payload.context.team
     old = payload.old
@@ -799,7 +799,7 @@ def gatherDelRamble(payload: RambleDeletePayload) -> DataGatherRequest | None:
     )
 
 
-def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload:
+def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload[None]:
     "Deletes a ramble journal or page."
     if not payload.confirmed:
         return ResultPayload(success=False, error=["Deletion not confirmed by user."])
@@ -847,7 +847,9 @@ def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload:
         return ResultPayload(success=False, error=[str(e)])
 
 
-def handleUpdateEncryptRamble(payload: RambleUpdateEncryptPayload) -> ResultPayload:
+def handleUpdateEncryptRamble(
+    payload: RambleUpdateEncryptPayload,
+) -> ResultPayload[None]:
     "Updates encryption keys for all encrypted rambles in the ramble directory."
     from omegaconf import DictConfig, OmegaConf
 

@@ -295,9 +295,18 @@ def handleSecrets(args):
                 import os
                 import subprocess
 
+                if result.data is None:
+                    raise ValueError("No data returned for sops file path.")
+
+                if not result.data.get("sops_file") or not result.data.get(
+                    "secrets_file"
+                ):
+                    raise ValueError("Missing required data for editing secrets.")
+
                 try:
                     if payload.edit_sops_file:
                         editor = os.getenv("EDITOR", "nano")
+
                         subprocess.run([editor, result.data["sops_file"]], check=True)
 
                     elif result.data["provider"]:
@@ -386,6 +395,9 @@ def handleSecrets(args):
                         console.print(f"[bold red]ERROR:[/] {err}")
                     sys.exit(1)
 
+                if not result.data or not result.data.get("dec"):
+                    console.print("[cyan]INFO:[/] No secrets found to print.")
+                    return
                 decrypted_output = result.data.get("dec", "")
 
                 if payload.as_json:
@@ -431,6 +443,9 @@ def handleSecrets(args):
 
                 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+                if not result.data or not result.data.get("values"):
+                    console.print("[cyan]INFO:[/] No secrets found to show.")
+                    return
                 for key, value in result.data["values"]:
                     if payload.value_only:
                         print(value)
