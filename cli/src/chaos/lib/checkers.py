@@ -153,33 +153,33 @@ def handle_check(payload: CheckPayload) -> ResultPayload:
             from chaos.lib.plugDiscovery import get_plugins
 
             EXPLANATIONS = get_plugins(payload.update_plugins)[2]
-            result: ResultPayload = checkExplanations(EXPLANATIONS)
-            return result
+            result_explain: ResultPayload = checkExplanations(EXPLANATIONS)
+            return result_explain
         case "aliases":
             from chaos.lib.plugDiscovery import get_plugins
 
             ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
-            result: ResultPayload = checkAliases(ROLE_ALIASES)
-            return result
+            result_aliases: ResultPayload = checkAliases(ROLE_ALIASES)
+            return result_aliases
         case "roles":
             from chaos.lib.plugDiscovery import get_plugins
 
             role_specs = get_plugins(payload.update_plugins)[0]
-            result: ResultPayload = checkRoles(role_specs)
-            return result
+            result_roles: ResultPayload = checkRoles(role_specs)
+            return result_roles
         case "providers":
             from chaos.lib.plugDiscovery import get_plugins
 
             providers = get_plugins(payload.update_plugins)[4]
-            result: ResultPayload = checkProviders(providers)
-            return result
+            result_providers: ResultPayload = checkProviders(providers)
+            return result_providers
 
         case "boats":
             from chaos.lib.plugDiscovery import get_plugins
 
             boats = get_plugins(payload.update_plugins)[5]
-            result: ResultPayload = checkBoats(boats)
-            return result
+            result_boats: ResultPayload = checkBoats(boats)
+            return result_boats
 
         case "secrets":
             from chaos.lib.checkers import checkSecrets
@@ -190,22 +190,22 @@ def handle_check(payload: CheckPayload) -> ResultPayload:
                 payload.secrets_file_override,
                 payload.team,
             )[0]
-            result: ResultPayload = checkSecrets(sec_file)
-            return result
+            result_secrets: ResultPayload = checkSecrets(sec_file)
+            return result_secrets
 
         case "limanis":
             from chaos.lib.plugDiscovery import get_plugins
 
             limanis = get_plugins(payload.update_plugins)[6]
-            result: ResultPayload = checkLimanis(limanis)
-            return result
+            result_limani: ResultPayload = checkLimanis(limanis)
+            return result_limani
 
         case "templates":
             from chaos.lib.plugDiscovery import get_plugins
 
             keys = get_plugins(payload.update_plugins)[3]
-            result: ResultPayload = checkTemplates(keys)
-            return result
+            result_templates: ResultPayload = checkTemplates(keys)
+            return result_templates
 
         case _:
             return ResultPayload(
