@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
+
+if TYPE_CHECKING:
+    from pyinfra.api.state import State
 
 """
 Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
@@ -105,15 +108,17 @@ class Delta(BasePayload):
         for the interface to be able to show the users what changes are going to happen if they apply the plan.
     """
 
-    __slots__ = ("to_add", "to_remove", "metadata")
+    __slots__ = ("to_add", "to_remove", "metadata", "is_changing")
 
     def __init__(
         self,
+        is_changing: str = "unknown",
         to_add: dict[str, Any] | None = None,
         to_remove: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ):
         self.to_add = to_add or {}
+        self.is_changing = is_changing
         self.to_remove = to_remove or {}
         self.metadata = metadata or {}
 
@@ -869,7 +874,7 @@ class ApplyPayload(BasePayload):
         export_logs: bool,
         secrets_context: SecretsContext | dict[str, Any],
         confirmed_password: str = "",
-        pyinfra_state: Any = None,
+        pyinfra_state: State | None = None,
         target_hosts: list | None = None,
         is_fleet_active: bool = False,
         parallelism: int = 0,

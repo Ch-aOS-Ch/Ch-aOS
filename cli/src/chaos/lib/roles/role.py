@@ -23,10 +23,12 @@ class Role(ABC):
 
     def __init__(
         self,
+        name: str,
         needs_secrets: bool = False,
         necessary_chobolo_keys: list[str] = [],
         necessary_secret_dict_keys: list[str] = [],
     ):
+        self.name = name
         self.necessary_chobolo_keys = necessary_chobolo_keys
         self.needs_secrets = needs_secrets
         self.necessary_secret_dict_keys = necessary_secret_dict_keys

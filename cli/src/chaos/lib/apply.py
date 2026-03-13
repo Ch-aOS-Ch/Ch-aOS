@@ -16,32 +16,9 @@ if TYPE_CHECKING:
     from chaos.lib.roles.role import Role
 
 
-def handle_verbose(payload: ApplyPayload) -> None:
-    """Handle verbosity levels for logging"""
-    import logging
-
-    log_level = None
-    if payload.verbose:
-        if payload.verbose == 1:
-            log_level = logging.WARNING
-        elif payload.verbose == 2:
-            log_level = logging.INFO
-        elif payload.verbose == 3:
-            log_level = logging.DEBUG
-    elif payload.v == 1:
-        log_level = logging.WARNING
-    elif payload.v == 2:
-        log_level = logging.INFO
-    elif payload.v == 3:
-        log_level = logging.DEBUG
-
-    if log_level:
-        logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
-
-
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload | None]:
+) -> tuple[DataGatherRequest | None, ResultPayload]:
     """
     Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
@@ -118,7 +95,6 @@ Do you want to provide them?""",
         )
 
     global_config, result = _get_configs(payload)
-    payload.global_config = global_config.to_container()
 
     if not result.success:
         return None, ResultPayload(
@@ -129,13 +105,14 @@ Do you want to provide them?""",
         )
 
     result.data["loaded_roles"] = loaded_roles
+    result.data["global_config"] = global_config
     if not request.fields:
         return None, result
     return request, result
 
 
 def gather_fleet(
-    payload: ApplyPayload, chobolo_config: DictConfig, chobolo_path: str
+    payload: ApplyPayload, chobolo_config: DictConfig | ListConfig, chobolo_path: str
 ) -> tuple[DataGatherRequest | None, ResultPayload]:
     """
     Gather necessary data for fleet configuration, such as host information and parallelism settings.
@@ -298,7 +275,7 @@ def run_context(payload: ApplyPayload, role: Role, host: Host) -> ResultPayload:
 
     chobolo_path = payload.global_config.get("chobolo_path", None)
 
-    if role.needs_secrets and not payload.secrets:
+    if role.needs_secrets and not payload.decrypted_secrets:
         return ResultPayload(
             success=False,
             message=[],
@@ -436,7 +413,8 @@ def execute_plans(payload: ApplyPayload) -> ResultPayload:
         if payload.dry:
             return ResultPayload(success=True, message=[], error=[])
 
-        run_ops(payload.pyinfra_state, payload.serial, payload.no_wait)
+        if payload.pyinfra_state:
+            run_ops(payload.pyinfra_state, payload.serial, payload.no_wait)
         return ResultPayload(success=True, message=[], error=[])
     except Exception as e:
         return ResultPayload(
@@ -447,7 +425,7 @@ def execute_plans(payload: ApplyPayload) -> ResultPayload:
         )
 
 
-def resolve_alias(payload: ApplyPayload) -> ResultPayload:
+def resolve_aliases(payload: ApplyPayload) -> ResultPayload:
     """
     Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
          while also checking for circular references and conflicts.
@@ -635,7 +613,8 @@ def teardown_pyinfra(
 
             if payload.export_logs:
                 ChaosTelemetry.export_report()
-            _collect_fleet_health(payload.pyinfra_state, stage="post_operations")
+            if payload.pyinfra_state:
+                _collect_fleet_health(payload.pyinfra_state, stage="post_operations")
             ChaosTelemetry.end_run(run_status)
 
         if payload.pyinfra_state:
