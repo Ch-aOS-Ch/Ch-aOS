@@ -1,12 +1,10 @@
 fleet = {
     "fleet": {
         "restrictions": {
-            "allow_list": [
-                {
-                    "host1": {"role_tag1": True},
-                    "ATTENTION": "host1 is allowed only in role_tag1",
-                },
-            ],
+            "allow_list": {
+                "host1": {"role_tag1": True},
+                "ATTENTION": "host1 is allowed only in role_tag1",
+            },
             "black_list": {
                 "host2": {},
                 "host3": {"role_tag1": True, "role_tag2": False},
