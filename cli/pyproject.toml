@@ -56,3 +56,6 @@ onepassword = "chaos.lib.secret_backends.providers.onepassword:OnePasswordProvid
 
 [project.entry-points."chaos.limanis"]
 chrima = "chaos.lib.limani.chrima:Chrima"
+
+[project.entry-points."chaos.keys"]
+fleet = "chaos.lib.templates.fleet:fleet"
