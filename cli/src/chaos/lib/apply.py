@@ -546,10 +546,10 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload:
     import logging
     import time
 
-    from pyinfra.api.config import Config  # type: ignore
-    from pyinfra.api.connect import connect_all  # type: ignore
-    from pyinfra.api.state import State, StateStage  # type: ignore
-    from pyinfra.context import ctx_state  # type: ignore
+    from pyinfra.api.config import Config
+    from pyinfra.api.connect import connect_all
+    from pyinfra.api.state import State, StateStage
+    from pyinfra.context import ctx_state
 
     from .telemetry import ChaosTelemetry
 
