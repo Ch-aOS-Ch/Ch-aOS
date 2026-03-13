@@ -66,6 +66,14 @@ There are several types of plugins:
 -   **Aliases**: These plugins add shortcuts to chaos roles (kinda basic ik).
 
 ??? quote "Hey, hey you there, I've got a secret to tell you"
-    Ch-aOS will have more types of plugins in the futures, chec k the [Chopping Board](chopping-board.md) for planned features!
+    Ch-aOS will have more types of plugins in the future, check the [Chopping Board](chopping-board.md) for planned features!
 
 This plugin-based architecture means you only install the functionality you need, and it allows the community to extend Ch-aOS for different distributions or use cases without modifying the central CLI, also, since it's made using a pyproject structure, one plugin can easily implement 2 or more types of plugins!
+
+## Learning: The process
+
+The system was designed to be very deep in functionality, however, I personally do not recommend you to try and learn everything at once.
+
+I specifically designed this project to have a "progressive disclosure"-like learning curve, where you can start with the basics (what is a Ch-obolo, what is a role, how to apply a role) and then gradually discover and learn more advanced features (like secrets management, custom roles, plugins, etc) as you need them.
+
+The best way to learn is to do a quick look at `chaos check explanations` and going through each of the ones you find interesting, then going through `chaos styx list` and finding a plugin you find useful (personally, I'd go for chaos-dots), `chaos styx invoke`ing it and reading through its `chaos explain` list of explanations. After that, try `chaos init chobolo`ing it, filling ouy the generated Ch-obolo file and applying the role. This is quite slow, I know, and you could just skip to the Ch-obolo file and start filling it out, but I find that going through the explanations and understanding what each variable does before applying it is a much better way to learn and understand the system, rather than just blindly applying something and hoping for the best.

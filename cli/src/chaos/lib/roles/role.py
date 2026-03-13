@@ -31,11 +31,12 @@ class Role(ABC):
         self.needs_secrets = needs_secrets
         self.necessary_secret_dict_keys = necessary_secret_dict_keys
 
-    @abstractmethod
     def get_context(
         self, state, host, chobolo: dict = {}, secrets: dict[str, Any] = {}
     ) -> dict[str, Any]:
         """
+        Optional method to implement for roles that require context data from the system.
+
         Get the context for the role.
         This method should be implemented by subclasses to return the necessary data and
             information present in the system for the specific context of the role.
@@ -53,9 +54,10 @@ class Role(ABC):
         """
         return {}
 
-    @abstractmethod
     def delta(self, context: dict[str, Any] = {}) -> Delta:
         """
+        Optional method to implement for roles that require calculating a delta to achieve their goals.
+
         Calculate the delta for the role.
 
         This method should be implemented by subclasses to calculate what it needs to do to
