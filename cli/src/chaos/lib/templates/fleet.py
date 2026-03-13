@@ -26,6 +26,9 @@ fleet = {
         "hosts": {
             "host1": {"param1": "value1", "param2": "value2"},
             "host2": {"param1": "value1", "param2": "value2"},
+            "host3": {"param1": "value1", "param2": "value2"},
+            "host4": {"param1": "value1", "param2": "value2"},
+            "ATTENTION": "host4 is not mentioned in any list, so it is allowed in all role tags by default",
         },
     },
     "ATTENTION": """
