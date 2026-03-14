@@ -320,7 +320,6 @@ def handleApply(args):
             sys.exit(1)
 
         if payload.secrets:
-            print("DECRYPTING SECRETS")
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             try:

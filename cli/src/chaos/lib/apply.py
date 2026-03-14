@@ -295,8 +295,6 @@ def run_context(
     """
 
     if role.needs_secrets and not payload.secrets:
-        print(role.needs_secrets)
-        print(payload.decrypted_secrets)
         return ResultPayload(
             success=False,
             message=[],
