@@ -287,7 +287,7 @@ def run_context(
 
     from omegaconf import OmegaConf
 
-    chobolo_path = payload.global_config.get("chobolo_path", None)
+    chobolo_path = payload.global_config.get("chobolo_file", None)
 
     if role.needs_secrets and not payload.decrypted_secrets:
         return ResultPayload(
@@ -307,7 +307,7 @@ def run_context(
                 success=False,
                 message=[],
                 error=[
-                    f"Role '{role}' requires chobolo key '{key}' which was not found in the chobolo data."
+                    f"Role '{role.name}' requires chobolo key '{key}' which was not found in the chobolo data in {chobolo_path}."
                 ],
                 data={},
             )
