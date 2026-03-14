@@ -2,17 +2,18 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from omegaconf import DictConfig, ListConfig
 
+from chaos.lib.args.dataclasses import (
+    ApplyPayload,
+    DataGatherPayload,
+    DataGatherRequest,
+    Delta,
+    ResultPayload,
+)
+
 if TYPE_CHECKING:
     from pyinfra.api.host import Host
     from pyinfra.api.state import State
 
-    from chaos.lib.args.dataclasses import (
-        ApplyPayload,
-        DataGatherPayload,
-        DataGatherRequest,
-        Delta,
-        ResultPayload,
-    )
     from chaos.lib.roles.role import Role
 
 
