@@ -52,18 +52,26 @@ def _check_and_exit_on_error(result, console, stage_name="orchestration"):
         sys.exit(1)
 
 
-def _handle_apply_prompts(request, payload, console, prompt, confirm):
+def _handle_apply_prompts(
+    request, payload, console, prompt, confirm, any_role_needs_secrets
+):
     """Handles the interactive data gathering for the apply phase."""
     import sys
 
     if not request:
-        return
+        return prompt, confirm
 
     if not sys.stdin.isatty():
         console.print(
             "[bold yellow]WARNING:[/] No TTY detected. Skipping interactive prompts. If you need to provide secrets, please run the command in an interactive terminal."
         )
-        return
+        return prompt, confirm
+
+    if not prompt or not confirm:
+        from rich.prompt import Confirm, Prompt
+
+        confirm = Confirm()
+        prompt = Prompt()
 
     for field in request.fields:
         if field.input_type == "secret":
@@ -77,7 +85,9 @@ def _handle_apply_prompts(request, payload, console, prompt, confirm):
                 if not confirmation:
                     console.print("[bold red]Aborting apply due to user response.[/]")
                     sys.exit(1)
-                payload.secrets = True
+                if any_role_needs_secrets:
+                    payload.secrets = True
+    return prompt, confirm
 
 
 def _handle_fleet_prompts(request, console, confirm):
@@ -85,29 +95,36 @@ def _handle_fleet_prompts(request, console, confirm):
     import sys
 
     if not request:
-        return
+        return confirm
 
-    for field in request.fields:
-        if field.input_type == "boolean":
-            if field.prompt:
-                confirmation = confirm.ask(field.prompt, default=field.default)
-                if not confirmation:
-                    console.print("[bold red]Aborting apply due to user response.[/]")
-                    sys.exit(1)
+    if sys.stdin.isatty():
+        if not confirm:
+            from rich.prompt import Confirm
+
+            confirm = Confirm()
+
+        for field in request.fields:
+            if field.input_type == "boolean":
+                if field.prompt:
+                    confirmation = confirm.ask(field.prompt, default=field.default)
+                    if not confirmation:
+                        console.print(
+                            "[bold red]Aborting apply due to user response.[/]"
+                        )
+                        sys.exit(1)
 
 
 def _render_delta(
     delta,
     role_name,
     host_name,
-    ikwid,
     console,
 ):
     """Renders the proposed changes (delta) to the console."""
     to_add = delta.to_add
     to_remove = delta.to_remove
 
-    if not (to_add or to_remove) or ikwid:
+    if not (to_add or to_remove):
         return
 
     console.print(
@@ -118,15 +135,15 @@ def _render_delta(
         for item, details in to_add.items():
             if details:
                 console.print(f"  ----- To add: {item} -----")
-                for detail in details:
-                    console.print(f"    [green]+ {detail}[/]")
+                to_add_string = "".join(f"    + {detail}\n" for detail in details)
+                console.print(f"[green]{to_add_string})[/]")
 
     if to_remove:
         for item, details in to_remove.items():
             if details:
                 console.print(f"  ----- To remove: {item} -----")
-                for detail in details:
-                    console.print(f"    [red]- {detail}[/]")
+                to_remove_string = "".join(f"    - {detail}\n" for detail in details)
+                console.print(f"[red]{to_remove_string})[/]")
 
 
 def handleApply(args):
@@ -134,19 +151,27 @@ def handleApply(args):
     from typing import TYPE_CHECKING
 
     from rich.console import Console
-    from rich.prompt import Confirm, Prompt
 
     console = Console()
-    prompt = Prompt()
-    confirm = Confirm()
 
+    from chaos.lib.apply import (
+        execute_plans,
+        gather_apply,
+        gather_fleet,
+        resolve_aliases,
+        resolve_allowlist_blacklist,
+        run_context,
+        run_delta,
+        run_plan,
+        setup_pyinfra,
+        teardown_pyinfra,
+    )
     from chaos.lib.args.dataclasses import (
         ApplyPayload,
         Delta,
         ProviderConfigPayload,
         SecretsContext,
     )
-    from chaos.lib.utils import get_providerEps
 
     if TYPE_CHECKING:
         from chaos.lib.roles.role import Role
@@ -158,20 +183,9 @@ def handleApply(args):
         sudo_pass = sys.stdin.read().strip()
         ikwid = True
 
-    provider_eps = get_providerEps()
-    provider_classes = [ep.load() for ep in provider_eps] if provider_eps else []
-
-    ephemeral_provider_args = {}
-    for provider_class in provider_classes:
-        flag_name, _ = provider_class.get_cli_name()
-        if flag_name and hasattr(args, flag_name):
-            value = getattr(args, flag_name, None)
-            if value:
-                ephemeral_provider_args[flag_name] = value
-
     provider_config = ProviderConfigPayload(
         provider=getattr(args, "provider", None),
-        ephemeral_provider_args=ephemeral_provider_args,
+        ephemeral_provider_args=None,
     )
 
     secrets_context = SecretsContext(
@@ -204,24 +218,45 @@ def handleApply(args):
 
     handle_verbose(payload)
 
-    from chaos.lib.apply import resolve_aliases
-
     alias_result = resolve_aliases(payload)
     _print_messages(alias_result, console)
     if alias_result.success:
         if alias_result.data:
             payload.tags = alias_result.data
 
-    from chaos.lib.apply import gather_apply
-
     apply_request, apply_result = gather_apply(payload)
-
-    _handle_apply_prompts(apply_request, payload, console, prompt, confirm)
-    _check_and_exit_on_error(apply_result, console, "apply orchestration")
 
     if apply_result.data is None:
         console.print("[bold red]ERROR:[/] No data returned from apply orchestration.")
         sys.exit(1)
+
+    prompt = None
+    confirm = None
+    prompt, confirm = _handle_apply_prompts(
+        apply_request,
+        payload,
+        console,
+        prompt,
+        confirm,
+        apply_result.data.get("any_role_needs_secrets", False),
+    )
+    _check_and_exit_on_error(apply_result, console, "apply orchestration")
+
+    if payload.secrets:
+        from chaos.lib.utils import get_providerEps
+
+        provider_eps = get_providerEps()
+        provider_classes = [ep.load() for ep in provider_eps] if provider_eps else []
+
+        ephemeral_provider_args = {}
+        for provider_class in provider_classes:
+            flag_name, _ = provider_class.get_cli_name()
+            if flag_name and hasattr(args, flag_name):
+                value = getattr(args, flag_name, None)
+                if value:
+                    ephemeral_provider_args[flag_name] = value
+
+        provider_config.ephemeral_provider_args = ephemeral_provider_args
 
     if not isinstance(apply_result.data, dict):
         console.print(
@@ -256,20 +291,24 @@ def handleApply(args):
 
     from omegaconf import OmegaConf
 
-    from chaos.lib.apply import gather_fleet
-
-    chobolo_config = (
+    chobolo_config_oc = (
         OmegaConf.load(payload.chobolo) if payload.chobolo else OmegaConf.create()
     )
 
-    fleet_request, fleet_result = gather_fleet(payload, chobolo_config, payload.chobolo)
+    fleet_request, fleet_result = gather_fleet(
+        payload, chobolo_config_oc, payload.chobolo
+    )
 
-    _handle_fleet_prompts(fleet_request, console, confirm)
+    confirm = _handle_fleet_prompts(fleet_request, console, confirm)
     _check_and_exit_on_error(fleet_result, console, "fleet orchestration")
+
+    if fleet_result.data:
+        payload.target_hosts = fleet_result.data.get("hosts", ["@local"])
+        payload.is_fleet_active = fleet_result.data.get("is_fleet", False)
+        payload.parallelism = fleet_result.data.get("parallels", 0)
 
     try:
         run_status = "success"
-        from chaos.lib.apply import setup_pyinfra
 
         setup_result = setup_pyinfra(payload)
         _check_and_exit_on_error(setup_result, console, "setup pyinfra")
@@ -281,6 +320,7 @@ def handleApply(args):
             sys.exit(1)
 
         if payload.secrets:
+            print("DECRYPTING SECRETS")
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             try:
@@ -291,7 +331,7 @@ def handleApply(args):
                     payload.secrets_context,
                 )
                 raw_container = OmegaConf.to_container(
-                    OmegaConf.create(secrets), resolve=True
+                    OmegaConf.create(secrets), resolve=False
                 )
 
                 payload.decrypted_secrets = cast(dict[str, Any], raw_container)
@@ -299,20 +339,15 @@ def handleApply(args):
                 console.print(f"[bold red]ERROR:[/] Failed to decrypt secrets: {e}")
                 sys.exit(1)
 
-        from chaos.lib.apply import (
-            resolve_allowlist_blacklist,
-            run_context,
-            run_delta,
-            run_plan,
-        )
-
-        chobolo_config = OmegaConf.to_container(chobolo_config, resolve=True)
+        chobolo_config = OmegaConf.to_container(chobolo_config_oc, resolve=False)
         chobolo_config = cast(dict[str, Any], chobolo_config)
+
+        restrictions = chobolo_config.get("restrictions", {})
 
         for host in payload.pyinfra_state.inventory.iter_activated_hosts():
             for role in loaded_roles.values():
                 allowlist_blacklist_result = resolve_allowlist_blacklist(
-                    chobolo_config.get("restrictions", {}), role.name, host
+                    restrictions, role.name, host
                 )
                 if allowlist_blacklist_result:
                     _print_messages(allowlist_blacklist_result, console)
@@ -320,7 +355,7 @@ def handleApply(args):
                         sys.exit(1)
                     continue
 
-                context_result = run_context(payload, role, host)
+                context_result = run_context(payload, role, host, chobolo_config)
                 _print_messages(context_result, console)
                 if not context_result.success:
                     run_status = "failure"
@@ -350,33 +385,36 @@ def handleApply(args):
 
                 delta: Delta = delta_result.data
 
-                _render_delta(
-                    delta, role.name, host.name, payload.i_know_what_im_doing, console
-                )
+                _render_delta(delta, role.name, host.name, console)
 
                 if (
                     delta.to_add or delta.to_remove
                 ) and not payload.i_know_what_im_doing:
-                    if not confirm.ask(
-                        "Do you want to apply this change?", default=True
-                    ):
+                    if sys.stdin.isatty():
+                        if not prompt or not confirm:
+                            from rich.prompt import Confirm, Prompt
+
+                            prompt = Prompt()
+                            confirm = Confirm()
+
                         if not confirm.ask(
-                            "Do you want to try and apply these changes to other hosts?",
-                            default=False,
+                            "Do you want to apply this change?", default=True
                         ):
-                            console.print(
-                                "[bold red]Aborting apply due to user response.[/]"
-                            )
-                            sys.exit(1)
-                        continue
+                            if not confirm.ask(
+                                "Do you want to try and apply these changes to other hosts?",
+                                default=False,
+                            ):
+                                console.print(
+                                    "[bold red]Aborting apply due to user response.[/]"
+                                )
+                                sys.exit(1)
+                            continue
 
                 plan_result = run_plan(payload, delta, role, role.name, host)
                 _print_messages(plan_result, console)
                 if not plan_result.success:
                     run_status = "failure"
                     continue
-
-        from chaos.lib.apply import execute_plans
 
         execute_result = execute_plans(payload)
         _print_messages(execute_result, console)
@@ -390,7 +428,5 @@ def handleApply(args):
         run_status = "failure"
 
     finally:
-        from chaos.lib.apply import teardown_pyinfra
-
         teardown_result = teardown_pyinfra(payload, run_status)
         _check_and_exit_on_error(teardown_result, console, "teardown pyinfra")

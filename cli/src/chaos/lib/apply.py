@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any] | str | None]]:
+) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any] | None]]:
     """
     Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
@@ -34,7 +34,12 @@ def gather_apply(
 
     sudo_password_result = _handle_password(payload)
     if not sudo_password_result.success:
-        return None, sudo_password_result
+        return None, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error handling sudo password: {sudo_password_result.error}"],
+            data=None,
+        )
 
     sudo_password = sudo_password_result.data
 
@@ -118,6 +123,7 @@ Do you want to provide them?""",
 
     result.data["loaded_roles"] = loaded_roles
     result.data["global_config"] = global_config
+    result.data["any_role_needs_secrets"] = bool(roles_that_need_secrets)
     if not request.fields:
         return None, result
     return request, result
@@ -270,7 +276,10 @@ def gather_fleet(
 
 
 def run_context(
-    payload: ApplyPayload, role: Role, host: Host
+    payload: ApplyPayload,
+    role: Role,
+    host: Host,
+    chobolo_data: dict[str, Any],
 ) -> ResultPayload[dict[str, Any]]:
     """
     Run the context method for a given role and host, gathering necessary configuration and secrets.
@@ -285,57 +294,45 @@ def run_context(
             The context data is inside of the ResultPayload.data field, and any error messages are in the error field.
     """
 
-    from omegaconf import OmegaConf
-
-    chobolo_path = payload.global_config.get("chobolo_file", None)
-
-    if role.needs_secrets and not payload.decrypted_secrets:
+    if role.needs_secrets and not payload.secrets:
+        print(role.needs_secrets)
+        print(payload.decrypted_secrets)
         return ResultPayload(
             success=False,
             message=[],
-            error=[f"Role '{role}' requires secrets but none were provided."],
+            error=[f"Role '{role.name}' requires secrets but none were provided."],
             data={},
         )
 
-    chobolo_data = OmegaConf.load(chobolo_path) if chobolo_path else OmegaConf.create()
+    chobolo_for_role = chobolo_data
 
-    chobolo_for_role = {}
-    for key in role.necessary_chobolo_keys:
-        value = OmegaConf.select(chobolo_data, key, default=None)
-        if value is None:
+    secrets_for_role = {}
+    secrets_result = None
+
+    if role.needs_secrets:
+        secrets_result = _handle_secrets_for_role(role, payload)
+
+        if not secrets_result.success:
             return ResultPayload(
                 success=False,
                 message=[],
                 error=[
-                    f"Role '{role.name}' requires chobolo key '{key}' which was not found in the chobolo data in {chobolo_path}."
+                    f"Role '{role.name}' requires secrets but they could not be loaded: {secrets_result.error}"
                 ],
                 data={},
             )
-        chobolo_for_role[key] = value
 
-    secrets_for_role = {}
+        if not secrets_result.data:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Role '{role.name}' requires secrets but no secrets were provided."
+                ],
+                data={},
+            )
 
-    secrets_result = _handle_secrets_for_role(role, payload)
-
-    if not secrets_result.success:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[
-                f"Role '{role}' requires secrets but they could not be loaded: {secrets_result.error}"
-            ],
-            data={},
-        )
-
-    if not secrets_result.data:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[f"Role '{role}' requires secrets but no secrets were provided."],
-            data={},
-        )
-
-    secrets_for_role: dict[str, Any] = secrets_result.data
+        secrets_for_role = secrets_result.data
 
     context = role.get_context(
         payload.pyinfra_state, host, chobolo_for_role, secrets_for_role
@@ -345,9 +342,7 @@ def run_context(
 
 
 def run_delta(
-    context: dict[str, Any],
-    role: Role,
-    role_name: str,
+    context: dict[str, Any], role: Role, role_name: str
 ) -> ResultPayload[Delta]:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
@@ -594,7 +589,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[State | None]:
 
         ctx_state.set(state)
 
-        password = payload.confirmed_password
+        password = payload.password
         state.config.SU_PASSWORD = password
         state.config.SUDO_PASSWORD = password
 
@@ -892,19 +887,22 @@ def _handle_boats(
     if not boats:
         return global_state, ResultPayload(success=True, message=[], error=[])
 
+    boat_map = {boat_class.name: boat_class for boat_class in loaded_boat_classes}
+
     for boat_config in boats:
-        for boat_class in loaded_boat_classes:
-            if boat_config.provider == boat_class.name:
-                instance_config = boat_config.get("config", OmegaConf.create())
-                boat_instance = boat_class(config=instance_config)
-                try:
-                    global_state = boat_instance.get_fleet(global_state)
-                except Exception as e:
-                    return global_state, ResultPayload(
-                        success=False,
-                        message=[],
-                        error=[f"Error processing boat '{boat_class.name}': {str(e)}"],
-                    )
+        provider = boat_config.get("provider")
+        if provider and provider in boat_map:
+            boat_class = boat_map[provider]
+            instance_config = boat_config.get("config", OmegaConf.create())
+            boat_instance = boat_class(config=instance_config)
+            try:
+                global_state = boat_instance.get_fleet(global_state)
+            except Exception as e:
+                return global_state, ResultPayload(
+                    success=False,
+                    message=[],
+                    error=[f"Error processing boat '{boat_class.name}': {str(e)}"],
+                )
 
     return global_state, ResultPayload(success=True, message=[], error=[])
 
@@ -1052,8 +1050,6 @@ def _handle_secrets_for_role(
     decrypted_secrets = payload.decrypted_secrets
 
     if role.needs_secrets and payload.secrets:
-        from omegaconf import OmegaConf
-
         if not decrypted_secrets:
             return ResultPayload(
                 success=False,
@@ -1062,10 +1058,16 @@ def _handle_secrets_for_role(
                 data={},
             )
 
-        loaded_secrets_conf = OmegaConf.create(decrypted_secrets)
         secrets_for_role = {}
         for key in role.necessary_secret_dict_keys:
-            value = OmegaConf.select(loaded_secrets_conf, key, default=None)
+            keys_path = key.split(".")
+            value = decrypted_secrets
+            try:
+                for k in keys_path:
+                    value = value[k]
+            except (KeyError, TypeError):
+                value = None
+
             if value is None:
                 return ResultPayload(
                     success=False,
@@ -1076,10 +1078,7 @@ def _handle_secrets_for_role(
                     data={},
                 )
 
-            if isinstance(value, (DictConfig, ListConfig)):
-                secrets_for_role[key] = OmegaConf.to_container(value, resolve=True)
-            else:
-                secrets_for_role[key] = value
+            secrets_for_role[key] = value
 
         return ResultPayload(success=True, message=[], error=[], data=secrets_for_role)
     return ResultPayload(success=True, message=[], error=[], data={})
