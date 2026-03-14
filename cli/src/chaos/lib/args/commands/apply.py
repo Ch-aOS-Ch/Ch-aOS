@@ -220,6 +220,28 @@ def handleApply(args):
         console.print("[bold red]ERROR:[/] No data returned from apply orchestration.")
         sys.exit(1)
 
+    if not isinstance(apply_result.data, dict):
+        console.print(
+            "[bold red]ERROR:[/] Apply orchestration returned invalid data format."
+        )
+        sys.exit(1)
+
+    if not apply_result.data:
+        console.print("[bold red]ERROR:[/] Apply orchestration returned empty data.")
+        sys.exit(1)
+
+    if not apply_result.data.get("global_config"):
+        console.print("[bold red]ERROR:[/] Global config is missing from apply result.")
+        sys.exit(1)
+
+    if not apply_result.data.get("chobolo_path"):
+        console.print("[bold red]ERROR:[/] Chobolo path is missing from apply result.")
+        sys.exit(1)
+
+    if not apply_result.data.get("loaded_roles"):
+        console.print("[bold red]ERROR:[/] Loaded roles are missing from apply result.")
+        sys.exit(1)
+
     payload.global_config = apply_result.data["global_config"]
     payload.chobolo = apply_result.data["chobolo_path"]
     payload.secrets_context.secrets_file_override = apply_result.data[

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any]]]:
+) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any] | str | None]]:
     """
     Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
@@ -351,7 +351,7 @@ def run_delta(
     context: dict[str, Any],
     role: Role,
     role_name: str,
-) -> ResultPayload[Any]:
+) -> ResultPayload[Delta]:
     """
     Run the delta method for a given role and context, computing the necessary changes to apply the role.
 
@@ -376,7 +376,7 @@ def run_delta(
             success=False,
             message=[],
             error=[f"Error computing delta for role '{role_name}': {str(e)}"],
-            data={},
+            data=None,
         )
     return ResultPayload(success=True, message=[], error=[], data=delta)
 
@@ -530,7 +530,7 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any]:
+def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[State | None]:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
@@ -575,7 +575,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any]:
                     error=[
                         f"Error resolving limani for telemetry: {limani_result.error}"
                     ],
-                    data={},
+                    data=None,
                 )
 
             if not limani_result.data:
@@ -583,7 +583,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any]:
                     success=False,
                     message=[],
                     error=["No limani specified for telemetry."],
-                    data={},
+                    data=None,
                 )
 
             ChaosTelemetry.load_limani_plugin(limani_result.data, payload.global_config)
@@ -616,7 +616,7 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any]:
             success=False,
             message=[],
             error=[f"Error setting up pyinfra: {str(e)}"],
-            data={},
+            data=None,
         )
 
 
@@ -777,7 +777,7 @@ def _collect_fleet_health(
 
 def _resolve_limani(
     global_config: dict[str, Any], payload: ApplyPayload
-) -> ResultPayload[Any]:
+) -> ResultPayload[str]:
     if payload.limani:
         limani_name = payload.limani
     else:
@@ -788,7 +788,7 @@ def _resolve_limani(
             success=False,
             message=[],
             error=["No limani specified in payload or global config."],
-            data={},
+            data=None,
         )
 
     return ResultPayload(success=True, message=[], error=[], data=limani_name)
@@ -1088,7 +1088,7 @@ def _handle_secrets_for_role(
     return ResultPayload(success=True, message=[], error=[], data={})
 
 
-def _handle_password(payload: ApplyPayload) -> ResultPayload[Any]:
+def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
     """
     Handles the retrieval of the sudo password based on the payload, either from a specified file or directly from the payload.
 
@@ -1116,7 +1116,7 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[Any]:
                 success=False,
                 message=[],
                 error=[f"Error with sudo password file path: {str(e)}"],
-                data={},
+                data=None,
             )
 
         sudo_file = Path(payload.sudo_password_file)
@@ -1125,7 +1125,7 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[Any]:
                 success=False,
                 message=[],
                 error=[f"Sudo password file not found: {sudo_file}"],
-                data={},
+                data=None,
             )
 
         if not sudo_file.is_file():
@@ -1133,7 +1133,7 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[Any]:
                 success=False,
                 message=[],
                 error=[f"Sudo password file path is not a file: {sudo_file}"],
-                data={},
+                data=None,
             )
 
         with open(sudo_file, "r") as f:
