@@ -137,15 +137,15 @@ def handleApply(args):
     prompt = Prompt()
     confirm = Confirm()
 
+    from chaos.lib.args.dataclasses import (
+        ApplyPayload,
+        Delta,
+        ProviderConfigPayload,
+        SecretsContext,
+    )
     from chaos.lib.utils import get_providerEps
 
     if TYPE_CHECKING:
-        from chaos.lib.args.dataclasses import (
-            ApplyPayload,
-            Delta,
-            ProviderConfigPayload,
-            SecretsContext,
-        )
         from chaos.lib.roles.role import Role
 
     ikwid = getattr(args, "i_know_what_im_doing", False)
