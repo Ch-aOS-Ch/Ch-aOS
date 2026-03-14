@@ -1189,7 +1189,7 @@ def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Any]]:
             )
         try:
             loaded_role = ep_map[role_name].load()
-            loaded_roles[role_name] = loaded_role
+            loaded_roles[role_name] = loaded_role()
         except ImportError as e:
             return ResultPayload(
                 success=False,
