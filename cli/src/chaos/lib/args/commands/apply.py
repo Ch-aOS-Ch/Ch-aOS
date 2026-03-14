@@ -252,7 +252,7 @@ def handleApply(args):
     ]
     payload.secrets_context.sops_file_override = apply_result.data["sops_file_override"]
 
-    loaded_roles: list[Role] = apply_result.data["loaded_roles"]
+    loaded_roles: dict[str, Role] = apply_result.data["loaded_roles"]
 
     from omegaconf import OmegaConf
 
@@ -310,7 +310,7 @@ def handleApply(args):
         chobolo_config = cast(dict[str, Any], chobolo_config)
 
         for host in payload.pyinfra_state.inventory.iter_activated_hosts():
-            for role in loaded_roles:
+            for role in loaded_roles.values():
                 allowlist_blacklist_result = resolve_allowlist_blacklist(
                     chobolo_config.get("restrictions", {}), role.name, host
                 )
