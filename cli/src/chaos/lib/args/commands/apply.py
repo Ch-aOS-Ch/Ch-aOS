@@ -1,3 +1,6 @@
+from typing import Any, cast
+
+
 def handle_verbose(payload) -> None:
     """Handle verbosity levels for logging"""
     import logging
@@ -287,7 +290,11 @@ def handleApply(args):
                     payload.global_config,
                     payload.secrets_context,
                 )
-                payload.decrypted_secrets = OmegaConf.create(secrets).to_container()
+                raw_container = OmegaConf.to_container(
+                    OmegaConf.create(secrets), resolve=True
+                )
+
+                payload.decrypted_secrets = cast(dict[str, Any], raw_container)
             except Exception as e:
                 console.print(f"[bold red]ERROR:[/] Failed to decrypt secrets: {e}")
                 sys.exit(1)
@@ -299,7 +306,8 @@ def handleApply(args):
             run_plan,
         )
 
-        chobolo_config = chobolo_config.to_container()
+        chobolo_config = OmegaConf.to_container(chobolo_config, resolve=True)
+        chobolo_config = cast(dict[str, Any], chobolo_config)
 
         for host in payload.pyinfra_state.inventory.iter_activated_hosts():
             for role in loaded_roles:

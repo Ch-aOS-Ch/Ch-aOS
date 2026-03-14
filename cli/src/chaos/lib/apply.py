@@ -297,11 +297,7 @@ def run_context(
             data={},
         )
 
-    chobolo_data = (
-        OmegaConf.load(chobolo_path).to_container()
-        if chobolo_path
-        else OmegaConf.create()
-    )
+    chobolo_data = OmegaConf.load(chobolo_path) if chobolo_path else OmegaConf.create()
 
     chobolo_for_role = {}
     for key in role.necessary_chobolo_keys:
