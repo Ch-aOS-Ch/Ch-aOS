@@ -148,7 +148,6 @@ def _render_delta(
 
 def handleApply(args):
     import sys
-    from typing import TYPE_CHECKING
 
     from rich.console import Console
 
@@ -172,9 +171,7 @@ def handleApply(args):
         ProviderConfigPayload,
         SecretsContext,
     )
-
-    if TYPE_CHECKING:
-        from chaos.lib.roles.role import Role
+    from chaos.lib.roles.role import Role
 
     ikwid = getattr(args, "i_know_what_im_doing", False)
 

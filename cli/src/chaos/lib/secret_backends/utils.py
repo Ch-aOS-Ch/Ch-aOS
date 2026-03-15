@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, cast
+from typing import Union, cast
 
 from ..args.dataclasses import (
     ProviderConfigPayload,
@@ -11,9 +11,6 @@ from ..args.dataclasses import (
 )
 from ..utils import validate_path
 from .providers.base import Provider
-
-if TYPE_CHECKING:
-    from .providers.base import Provider
 
 """
 Now now, I KNOW this is way too big of a file, but bear with me here

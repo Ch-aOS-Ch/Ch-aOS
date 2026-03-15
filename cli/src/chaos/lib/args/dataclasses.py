@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TypeVar
-
-if TYPE_CHECKING:
-    from pyinfra.api.state import State
+from typing import Any, Generic, Literal, Self, TypeVar
 
 T = TypeVar("T", covariant=True)
 
@@ -827,6 +824,8 @@ class RambleUpdateEncryptPayload(BasePayload):
 
 
 class ApplyPayload(BasePayload):
+    from pyinfra.api.state import State
+
     __slots__ = (
         "update_plugins",
         "i_know_what_im_doing",

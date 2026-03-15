@@ -3,18 +3,15 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import yaml
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as oc
 
 from chaos.lib.args.dataclasses import InitPayload, ResultPayload
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
-
-if TYPE_CHECKING:
-    from omegaconf import DictConfig, ListConfig
 
 """
 Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.

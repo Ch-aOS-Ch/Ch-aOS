@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from omegaconf import DictConfig, ListConfig
+from pyinfra.api.host import Host
+from pyinfra.api.state import State
 
 from chaos.lib.args.dataclasses import (
     ApplyPayload,
@@ -9,12 +11,7 @@ from chaos.lib.args.dataclasses import (
     Delta,
     ResultPayload,
 )
-
-if TYPE_CHECKING:
-    from pyinfra.api.host import Host
-    from pyinfra.api.state import State
-
-    from chaos.lib.roles.role import Role
+from chaos.lib.roles.role import Role
 
 
 def gather_apply(
