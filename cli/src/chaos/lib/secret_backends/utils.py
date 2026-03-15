@@ -235,12 +235,14 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
     """
     Gets sops files, secrets files and config files
     """
+    from pathlib import Path
+
     from omegaconf import DictConfig, OmegaConf
 
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     global_config = {}
@@ -270,7 +272,16 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             raise ValueError(f"Invalid team name '{team_name}'.")
 
         teamPath = Path(
-            os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team_name}")
+            os.getenv(
+                "CHAOS_TEAMS_DIR",
+                Path.home()
+                / ".local"
+                / "share"
+                / "chaos"
+                / "teams"
+                / company
+                / team_name,
+            )
         )
 
         if teamPath.exists():

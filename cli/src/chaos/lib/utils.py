@@ -3,13 +3,8 @@ from functools import lru_cache
 
 def validate_path(path: str):
     """Validates given file system path."""
-    import os
 
-    if (
-        ".." in path
-        or "//" in path
-        or (path.startswith("/") and not path.startswith(os.path.expanduser("~")))
-    ):
+    if ".." in path or "//" in path:
         raise ValueError(f"Invalid file path {path}.")
 
 

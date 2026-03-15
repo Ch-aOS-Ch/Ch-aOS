@@ -128,7 +128,12 @@ def install_styx_entries(
         wheel_local_filename = f"{pkg_name}.whl"
 
         try:
-            dir_name = Path(os.path.expanduser("~/.local/share/chaos/plugins"))
+            dir_name = Path(
+                os.getenv(
+                    "CHAOS_PLUGIN_DIR",
+                    Path.home() / ".local" / "share" / "chaos" / "plugins",
+                )
+            )
             dir_name.mkdir(parents=True, exist_ok=True)
 
             local_path = dir_name / wheel_local_filename
@@ -242,7 +247,15 @@ def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
             continue
 
         wheel_path = Path(
-            os.path.expanduser(f"~/.local/share/chaos/plugins/{wheel_filename}")
+            os.getenv(
+                "CHAOS_PLUGIN_DIR",
+                Path.home()
+                / ".local"
+                / "share"
+                / "chaos"
+                / "plugins"
+                / f"{wheel_filename}",
+            )
         )
 
         if not wheel_path.exists():

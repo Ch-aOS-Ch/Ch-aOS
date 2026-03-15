@@ -847,7 +847,12 @@ class ChaosTelemetry(BaseStateCallback):
                 print("{}", flush=True)
                 print(f"Error executing jq: {e}", file=sys.stderr)
 
-            logbook_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
+            logbook_dir = Path(
+                os.getenv(
+                    "CHAOS_LOGBOOK_DIR",
+                    Path.home() / ".local" / "share" / "chaos" / "logbooks",
+                )
+            )
             amount = len(list(logbook_dir.glob("chaos_logbook_*.json")))
             shutil.copy(
                 filepath,

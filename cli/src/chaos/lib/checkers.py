@@ -11,11 +11,13 @@ Handles listing of roles/explanations/aliases with rich rendering.
 
 
 def _handleAliases(dispatcher):
+    from pathlib import Path
+
     from omegaconf import DictConfig, OmegaConf
 
     warnings = []
     messages = []
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):
@@ -147,7 +149,9 @@ def checkTemplates(keys) -> ResultPayload[list[str]]:
     return result
 
 
-def handle_check(payload: CheckPayload) -> ResultPayload[list[str] | dict[str, Any] | None]:
+def handle_check(
+    payload: CheckPayload,
+) -> ResultPayload[list[str] | dict[str, Any] | None]:
     match payload.checks:
         case "explanations":
             from chaos.lib.plugDiscovery import get_plugins

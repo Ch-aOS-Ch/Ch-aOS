@@ -32,8 +32,13 @@ class Boat(ABC):
     'config' block is passed to its constructor.
     """
 
-    name: str = "override_me"  # Subclasses MUST override this class attribute
     config: DictConfig
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The name of the boat provider, used to match against the Ch-obolo configuration."""
+        raise NotImplementedError
 
     def __init__(self, config: DictConfig):
         """
@@ -41,8 +46,6 @@ class Boat(ABC):
         param config: A DictConfig object containing the configuration for this boat.
         """
         self.config = config
-        if self.name == "override_me":
-            raise NotImplementedError
 
     @abstractmethod
     def check_connection(self) -> bool:

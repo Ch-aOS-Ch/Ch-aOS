@@ -153,6 +153,27 @@ def gather_fleet(
                 host1:
                     param1: value1
                     param2: value2
+            # OPTIONAL
+            boats:
+                - provider: boat_provider_name
+                  config:
+                    param1: value1
+                    param2: value2
+            # OPTIONAL
+            restrictions:
+                black_list:
+                    host1:
+                        role1: true
+                        role2: true
+                    host2:
+                        role3: true
+
+                allow_list:
+                    host1:
+                        role3: true
+                    host3:
+                        role1: true
+                        role4: true
     """
 
     from typing import cast
@@ -667,20 +688,21 @@ def resolve_allowlist_blacklist(
         to determine if the role should be applied to the host or if there are any conflicts in the configuration.
 
         This dictionary should be inside of the chobolo file, and should have the following structure:
-            restrictions:
-                black_list:
-                    host1:
-                        role1: true
-                        role2: true
-                    host2:
-                        role3: true
+            fleet:
+                restrictions:
+                    black_list:
+                        host1:
+                            role1: true
+                            role2: true
+                        host2:
+                            role3: true
 
-                allow_list:
-                    host1:
-                        role3: true
-                    host3:
-                        role1: true
-                        role4: true
+                    allow_list:
+                        host1:
+                            role3: true
+                        host3:
+                            role1: true
+                            role4: true
 
     notes:
         - The function will check the restrictions in the following order:
@@ -949,13 +971,14 @@ def _get_configs(
     """
 
     import os
+    from pathlib import Path
     from typing import cast
 
     from omegaconf import OmegaConf
 
     from .utils import validate_path
 
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):

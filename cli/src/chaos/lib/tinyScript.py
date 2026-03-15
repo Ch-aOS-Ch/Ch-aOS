@@ -4,6 +4,7 @@ def runChoboloEdit(chobolo_path):
     """
     import os
     import subprocess
+    from pathlib import Path
     from typing import cast
 
     from chaos.lib.utils import validate_path
@@ -12,7 +13,7 @@ def runChoboloEdit(chobolo_path):
     if not chobolo_path:
         from omegaconf import DictConfig, OmegaConf
 
-        CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+        CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
         CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
         if not os.path.exists(CONFIG_FILE_PATH):
             raise FileNotFoundError(

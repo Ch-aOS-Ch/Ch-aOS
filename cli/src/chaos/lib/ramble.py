@@ -59,7 +59,10 @@ def _get_ramble_dir(team) -> Path:
             raise ValueError(f"Invalid team name '{team}'.")
 
         team_ramble_path = Path(
-            os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team}/")
+            os.getenv(
+                "CHAOS_RAMBLE_DIR",
+                Path.home() / ".local" / "share" / "chaos" / "teams" / company / team,
+            )
         )
 
         if not team_ramble_path.exists():
@@ -68,7 +71,11 @@ def _get_ramble_dir(team) -> Path:
             )
         team_ramble_path = team_ramble_path / "ramblings" / person
         return team_ramble_path
-    return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    return Path(
+        os.getenv(
+            "CHAOS_RAMBLE_DIR", Path.home() / ".local" / "share" / "chaos" / "ramble"
+        )
+    )
 
 
 def is_safe_path(target_path: Path, team) -> bool:
@@ -79,7 +86,7 @@ def is_safe_path(target_path: Path, team) -> bool:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
         resolved_target = target_path.resolve(strict=False)
 
-        if not str(resolved_target).startswith(str(base_dir)):
+        if not resolved_target.is_relative_to(base_dir):
             raise PermissionError("Path traversal detected. Aborting.")
         return True
     except FileNotFoundError as e:
@@ -338,6 +345,7 @@ def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]
     """
     Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
     """
+
     from omegaconf import DictConfig, OmegaConf
 
     ramble = payload.target
@@ -350,7 +358,9 @@ def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]
     except (ValueError, FileNotFoundError) as e:
         return ResultPayload(success=False, error=[str(e)])
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
@@ -407,9 +417,12 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
     If -k not passed, encrypts everything except base keys.
     The tags key is never encrypted, helping to optimize searching.
     """
+
     from omegaconf import DictConfig, OmegaConf
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
@@ -553,9 +566,13 @@ def handleReadRamble(payload: RambleReadPayload) -> ResultPayload[dict[str, Any]
     """
     Reads the content of specified rambles and returns them.
     """
+
     from omegaconf import DictConfig, OmegaConf
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
+
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
@@ -598,6 +615,7 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
 
     If nothing passed, lists all rambles.
     """
+
     from omegaconf import DictConfig, OmegaConf
 
     from chaos.lib.args.dataclasses import ResultPayload
@@ -614,7 +632,10 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
     results = []
     warnings = []
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
+
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
@@ -851,6 +872,7 @@ def handleUpdateEncryptRamble(
     payload: RambleUpdateEncryptPayload,
 ) -> ResultPayload[None]:
     "Updates encryption keys for all encrypted rambles in the ramble directory."
+
     from omegaconf import DictConfig, OmegaConf
 
     team = payload.context.team
@@ -860,7 +882,11 @@ def handleUpdateEncryptRamble(
 
     try:
         RAMBLE_DIR = _get_ramble_dir(team)
-        GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+
+        GLOBAL_CONFIG_DIR = Path(
+            os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+        )
+
         GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
         global_config = {}
 

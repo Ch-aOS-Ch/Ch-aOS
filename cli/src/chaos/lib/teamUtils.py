@@ -48,7 +48,12 @@ def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
     """
     try:
         src = base_path / f"{company}/{team}"
-        dest = Path(f"~/.local/share/chaos/teams/{company}/{team}").expanduser()
+        dest = Path(
+            os.getenv(
+                "CHAOS_TEAM_DIR",
+                Path.home() / ".local" / "share" / "chaos" / company / team,
+            )
+        ).expanduser()
 
         dest.parent.mkdir(parents=True, exist_ok=True)
 

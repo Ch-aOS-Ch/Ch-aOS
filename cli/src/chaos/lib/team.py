@@ -395,9 +395,19 @@ def listTeams(payload: TeamListPayload) -> ResultPayload[dict[str, list[str]]]:
     company = payload.company
 
     baseDir = (
-        Path(f"~/.local/share/chaos/teams/{company}").expanduser()
+        Path(
+            os.getenv(
+                "CHAOS_TEAMS_DIR",
+                Path.home() / ".local" / "share" / "chaos" / "teams",
+            )
+        ).expanduser()
+        / company
         if company
-        else Path("~/.local/share/chaos/teams").expanduser()
+        else Path(
+            os.getenv(
+                "CHAOS_TEAMS_DIR", Path.home() / ".local" / "share" / "chaos" / "teams"
+            )
+        ).expanduser()
     )
 
     if not baseDir.exists():

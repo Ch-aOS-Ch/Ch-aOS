@@ -100,7 +100,7 @@ def _resolve_limani(global_config: DictConfig, payload: ApplyPayload):
 
 
 def _get_configs(payload: ApplyPayload):
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):
@@ -599,7 +599,7 @@ def setMode(payload: SetPayload):
     """
     Just handles configuring the tool.
     """
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     print(f"Saving configuration to {CONFIG_FILE_PATH}...")

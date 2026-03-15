@@ -68,8 +68,8 @@ def get_plugins(update_cache=False):
                     file=sys.stderr,
                 )
 
-    CACHE_DIR = Path(os.path.expanduser("~/.cache/chaos"))
-    CACHE_FILE = CACHE_DIR / "plugins.json"
+    CACHE_DIR = os.getenv("CHAOS_CACHE_DIR", Path.home() / ".cache" / "chaos")
+    CACHE_FILE = Path(CACHE_DIR) / "plugins.json"
     cache_exists = CACHE_FILE.exists()
 
     if not update_cache and cache_exists:
@@ -141,7 +141,7 @@ def get_plugins(update_cache=False):
         discovered_limanis[ep.name] = ep.value
 
     try:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, "w") as f:
             json.dump(
                 {

@@ -136,14 +136,14 @@ def _render_delta(
             if details:
                 console.print(f"  ----- To add: {item} -----")
                 to_add_string = "".join(f"    + {detail}\n" for detail in details)
-                console.print(f"[green]{to_add_string})[/]")
+                console.print(f"[green]{to_add_string}[/]")
 
     if to_remove:
         for item, details in to_remove.items():
             if details:
                 console.print(f"  ----- To remove: {item} -----")
                 to_remove_string = "".join(f"    - {detail}\n" for detail in details)
-                console.print(f"[red]{to_remove_string})[/]")
+                console.print(f"[red]{to_remove_string}[/]")
 
 
 def handleApply(args):
@@ -307,9 +307,8 @@ def handleApply(args):
         payload.is_fleet_active = fleet_result.data.get("is_fleet", False)
         payload.parallelism = fleet_result.data.get("parallels", 0)
 
+    run_status = "success"
     try:
-        run_status = "success"
-
         setup_result = setup_pyinfra(payload)
         _check_and_exit_on_error(setup_result, console, "setup pyinfra")
 

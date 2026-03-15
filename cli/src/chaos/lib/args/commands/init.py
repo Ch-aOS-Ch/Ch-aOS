@@ -2,6 +2,8 @@ from chaos.lib.args.dataclasses import ResultPayload
 
 
 def handleInit(args):
+    from pathlib import Path
+
     from chaos.lib.args.dataclasses import InitPayload
     from chaos.lib.inits import handle_init
 
@@ -26,7 +28,10 @@ def handleInit(args):
         conf = result.data
 
         if not payload.template:
-            path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
+            path = os.getenv(
+                "CHAOS_CONFIG_DIR",
+                Path.home() / ".config" / "chaos" / "chobolo_template.yml",
+            )
             oc.save(conf, path)
 
         else:
