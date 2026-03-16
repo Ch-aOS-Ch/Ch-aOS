@@ -132,45 +132,50 @@ def gather_fleet(
     """
     Gather necessary data for fleet configuration, such as host information and parallelism settings.
 
-    parameters:
-        - payload: the ApplyPayload containing the initial data and flags for the apply operation.
-        - chobolo_config: the loaded chobolo configuration as a DictConfig object.
-        - chobolo_path: the file path to the chobolo configuration file, used
-            for error messages and prompts to the user when gathering data.
+    Args:
+        payload: the ApplyPayload containing the initial data and flags for the apply operation.
+        chobolo_config: the loaded chobolo configuration as a DictConfig object.
+        chobolo_path: the file path to the chobolo configuration file, used for error messages.
 
-    returns:
+    Returns:
         - A DataGatherRequest if additional data needs to be gathered from the user, or None
-        - A ResultPayload indicating the success or failure of the data gathering process, with relevant data about
-             the fleet configuration if successful.
+        - A ResultPayload indicating the success or failure of the data gathering process.
 
-    expected format in chobolo file:
-        fleet:
-            parallelism: int (optional, default 0 for no parallelism)
-            hosts:
+    Expected format in chobolo file:
+    ```yaml
+    fleet:
+        parallelism: int (optional, default 0 for no parallelism)
+        hosts:
+            host1:
+                param1: value1
+                param2: value2
+
+        # OPTIONAL
+        boats:
+            - provider: boat_provider_name
+              config:
+                  param1: value1
+                  param2: value2
+
+        # OPTIONAL
+        restrictions:
+            black_list:
                 host1:
-                    param1: value1
-                    param2: value2
-            # OPTIONAL
-            boats:
-                - provider: boat_provider_name
-                  config:
-                    param1: value1
-                    param2: value2
-            # OPTIONAL
-            restrictions:
-                black_list:
-                    host1:
-                        role1: true
-                        role2: true
-                    host2:
-                        role3: true
-
-                allow_list:
-                    host1:
-                        role3: true
-                    host3:
-                        role1: true
-                        role4: true
+                    role1: true
+                    role2: true
+                    # host1 wont be able to run role1 nor role2
+                host2:
+                    role3: true
+                    # host2 wont be able ot run role3
+            allow_list:
+                host1:
+                    role3: true
+                    # host1 will ONLY be able to run role3
+                host3:
+                    role1: true
+                    role4: true
+                    # host3 will ONLY be able to run role
+    ```
     """
 
     from typing import cast
@@ -875,12 +880,14 @@ def _handle_boats(
             global state that will be used for setting up the fleet and inventory.
 
     expected format for boats in chobolo file:
-        fleet:
-            boats:
-                - provider: boat_provider_name
-                  config:
-                    param1: value1
-                    param2: value2
+    ```yaml
+    fleet:
+        boats:
+            - provider: boat_provider_name
+              config:
+                param1: value1
+                param2: value2
+    ```
     """
 
     from omegaconf import OmegaConf
