@@ -339,8 +339,11 @@ def handleApply(args):
 
         restrictions = chobolo_config.get("restrictions", {})
 
-        for host in payload.pyinfra_state.inventory.iter_activated_hosts():
-            for role in loaded_roles.values():
+        roles = list(loaded_roles.values())
+        hosts = list(payload.pyinfra_state.inventory.iter_activated_hosts())
+
+        for host in hosts:
+            for role in roles:
                 allowlist_blacklist_result = resolve_allowlist_blacklist(
                     restrictions, role.name, host
                 )
@@ -358,7 +361,7 @@ def handleApply(args):
 
                 context = context_result.data
 
-                if not context:
+                if context is None:
                     console.print(
                         f"[bold red]ERROR:[/] No context returned for role {role.name} on host {host.name}."
                     )
