@@ -1,8 +1,8 @@
-from typing import Any, Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal
 
 from omegaconf import DictConfig, ListConfig
-from pyinfra.api.host import Host
-from pyinfra.api.state import State
 
 from chaos.lib.args.dataclasses import (
     ApplyPayload,
@@ -12,6 +12,10 @@ from chaos.lib.args.dataclasses import (
     ResultPayload,
 )
 from chaos.lib.roles.role import Role
+
+if TYPE_CHECKING:
+    from pyinfra.api.host import Host
+    from pyinfra.api.state import State
 
 
 def gather_apply(
@@ -543,7 +547,7 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[State | None]:
+def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
     """
     Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
@@ -777,7 +781,7 @@ def _collect_fleet_health(
     from .facts.facts import LoadAverage, RamUsage
     from .telemetry import ChaosTelemetry
 
-    def _fetch_and_record(host: Host):
+    def _fetch_and_record(host):
         ram_data = host.get_fact(RamUsage)
         load_data = host.get_fact(LoadAverage)
         ChaosTelemetry.record_snapshot(host, ram_data, load_data, stage=stage)

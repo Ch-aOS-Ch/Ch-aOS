@@ -1,4 +1,9 @@
-from typing import Any, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from chaos.lib.args.dataclasses import Delta
 
 
 def handle_verbose(payload) -> None:
@@ -167,7 +172,6 @@ def handleApply(args):
     )
     from chaos.lib.args.dataclasses import (
         ApplyPayload,
-        Delta,
         ProviderConfigPayload,
         SecretsContext,
     )
