@@ -1085,6 +1085,10 @@ def _handle_secrets_for_role(
 
         secrets_for_role = {}
         for key in role.necessary_secret_dict_keys:
+            if key == ".":
+                secrets_for_role["."] = decrypted_secrets
+                continue
+
             keys_path = key.split(".")
             value = decrypted_secrets
             try:
