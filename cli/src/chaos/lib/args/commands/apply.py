@@ -128,7 +128,7 @@ def _render_delta(
         return
 
     console.print(
-        f"[bold blue]INFO:[/] Role [bold]{role_name}[/] on host: {host_name} has the following delta:"
+        f"[bold blue]INFO:[/] Role [bold]'{role_name}'[/] on host: '{host_name}' has the following delta:"
     )
 
     if to_add:
