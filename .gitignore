@@ -51,3 +51,5 @@ cli/src/chaos/lib/boats/__pycache__
 cli/src/chaos/lib/facts/__pycache__
 cli/build/lib/chaos
 /cli/src/chaos/lib/args/commands/__pycache__
+/cli/src/chaos/lib/limani/__pycache__
+/cli/src/chaos/lib/roles/__pycache__
