@@ -16,6 +16,7 @@ class Boat(ABC):
     returning instances to the pool to list of fleets.
 
     A boat is configured in a Ch-obolo file like so:
+    ```yaml
     fleet:
       parallelism: x<=5
       boats:
@@ -30,6 +31,7 @@ class Boat(ABC):
 
     The 'provider' name is used to find the corresponding Boat class, and the
     'config' block is passed to its constructor.
+    ```
     """
 
     config: DictConfig

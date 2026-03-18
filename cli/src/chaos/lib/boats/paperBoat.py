@@ -2,7 +2,8 @@ from chaos.lib.boats.base import Boat
 
 
 class PaperBoat(Boat):
-    name = "mock"
+    def name(self) -> str:
+        return "mock"
 
     def check_connection(self) -> bool:
         """Mock check_connection method for the PaperBoat."""
