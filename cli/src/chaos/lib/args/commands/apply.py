@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from chaos.lib.args.dataclasses import Delta
@@ -162,6 +162,7 @@ def handleApply(args):
         execute_plans,
         gather_apply,
         gather_fleet,
+        get_configs,
         resolve_aliases,
         resolve_allowlist_blacklist,
         run_context,
@@ -219,6 +220,16 @@ def handleApply(args):
 
     handle_verbose(payload)
 
+    global_config, config_result = get_configs(payload)
+    _print_messages(config_result, console)
+
+    from typing import cast
+
+    from omegaconf import OmegaConf
+
+    container = OmegaConf.to_container(global_config, resolve=False)
+    payload.global_config = cast(dict[str, Any], container)
+
     alias_result = resolve_aliases(payload)
     _print_messages(alias_result, console)
     if alias_result.success:
@@ -273,8 +284,8 @@ def handleApply(args):
         console.print("[bold red]ERROR:[/] Global config is missing from apply result.")
         sys.exit(1)
 
-    if not apply_result.data.get("chobolo_path"):
-        console.print("[bold red]ERROR:[/] Chobolo path is missing from apply result.")
+    if not config_result.data or not config_result.data.get("chobolo_path"):
+        console.print("[bold red]ERROR:[/] Chobolo path is missing from config result.")
         sys.exit(1)
 
     if not apply_result.data.get("loaded_roles"):
@@ -282,15 +293,13 @@ def handleApply(args):
         sys.exit(1)
 
     payload.global_config = apply_result.data["global_config"]
-    payload.chobolo = apply_result.data["chobolo_path"]
-    payload.secrets_context.secrets_file_override = apply_result.data[
+    payload.chobolo = config_result.data["chobolo_path"]
+    payload.secrets_context.secrets_file_override = config_result.data[
         "secrets_file_override"
     ]
-    payload.secrets_context.sops_file_override = apply_result.data["sops_file_override"]
+    payload.secrets_context.sops_file_override = config_result.data["sops_file_override"]
 
     loaded_roles: dict[str, Role] = apply_result.data["loaded_roles"]
-
-    from omegaconf import OmegaConf
 
     chobolo_config_oc = (
         OmegaConf.load(payload.chobolo) if payload.chobolo else OmegaConf.create()

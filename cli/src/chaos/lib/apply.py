@@ -107,20 +107,10 @@ Do you want to provide them?""",
             )
         )
 
-    global_config, result = _get_configs(payload)
-
-    if not result.success:
-        return None, ResultPayload(
-            success=False,
-            message=[],
-            error=[f"Error loading global configuration: {result.error}"],
-            data={},
-        )
+    global_config = payload.global_config
 
     if not result.data:
-        return None, ResultPayload(
-            success=False, message=[], error=["No global configuration found."], data={}
-        )
+        result.data = {}
 
     result.data["loaded_roles"] = loaded_roles
     result.data["global_config"] = global_config
@@ -960,7 +950,7 @@ def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], in
     return inventory, payload.target_hosts, payload.parallelism
 
 
-def _get_configs(
+def get_configs(
     payload: ApplyPayload,
 ) -> tuple[DictConfig, ResultPayload[dict[str, Any]]]:
     """
