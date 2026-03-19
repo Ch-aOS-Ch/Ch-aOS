@@ -297,7 +297,9 @@ def handleApply(args):
     payload.secrets_context.secrets_file_override = config_result.data[
         "secrets_file_override"
     ]
-    payload.secrets_context.sops_file_override = config_result.data["sops_file_override"]
+    payload.secrets_context.sops_file_override = config_result.data[
+        "sops_file_override"
+    ]
 
     loaded_roles: dict[str, Role] = apply_result.data["loaded_roles"]
 
@@ -420,6 +422,10 @@ def handleApply(args):
                                 )
                                 sys.exit(1)
                             continue
+                else:
+                    console.print(
+                        f"[bold green]NOOP:[/] Role '{role.name}' on host '{host.name}' is already in the desired state."
+                    )
 
                 plan_result = run_plan(payload, delta, role, role.name, host)
                 _print_messages(plan_result, console)
