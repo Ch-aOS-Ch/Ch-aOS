@@ -196,7 +196,7 @@ def _is_valid_vault_key(key):
     try:
         url = f"{key.rstrip('/')}/v1/sys/seal-status"
         response = requests.get(url, timeout=5)
-        
+
         try:
             seal_status = response.json()
         except ValueError:
