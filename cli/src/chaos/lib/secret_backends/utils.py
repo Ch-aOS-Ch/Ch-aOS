@@ -190,18 +190,33 @@ def _is_valid_vault_key(key):
     """
     checks if vault key is valid
     """
-    import hvac  # type: ignore
+    import requests
     import requests.exceptions
 
     try:
-        client = hvac.Client(url=key)
-        seal_status = client.sys.read_seal_status()
+        url = f"{key.rstrip('/')}/v1/sys/seal-status"
+        response = requests.get(url, timeout=5)
+        
+        try:
+            seal_status = response.json()
+        except ValueError:
+            return (
+                False,
+                f"Vault URI '{key}' returned unexpected non-JSON data.",
+            )
+
         if not seal_status:
             return (
                 False,
                 f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable.",
             )
-        if "sealed" in seal_status["data"]:
+
+        if "sealed" in seal_status:
+            return (
+                True,
+                f"Valid vault URI. Server status: {seal_status['sealed']}.",
+            )
+        elif "data" in seal_status and "sealed" in seal_status["data"]:
             return (
                 True,
                 f"Valid vault URI. Server status: {seal_status['data']['sealed']}.",
