@@ -502,27 +502,40 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                 str(fullPath), sops_file_override, global_config, new_context
             )
 
-            with tempfile.NamedTemporaryFile(
-                mode="w", delete=False, dir="/dev/shm", suffix=".yml"
-            ) as tmp:
-                os.chmod(tmp.name, 0o600)
-                tmp.write(result)
-                tmpPath = tmp.name
+            import platform
+            from contextlib import ExitStack
 
-            subprocess.run(
-                [
-                    "sops",
-                    "--config",
-                    sops_file_override,
-                    "--encrypt",
-                    "--in-place",
-                    "--encrypted-regex",
-                    regex,
-                    str(tmpPath),
-                ],
-                check=True,
-            )
-            shutil.move(tmpPath, fullPath)
+            from chaos.lib.secret_backends.providers.ephemeral import mac_ram_disk
+
+            is_mac = platform.system() == "Darwin"
+
+            with ExitStack() as stack:
+                if is_mac:
+                    shm_dir = stack.enter_context(mac_ram_disk())
+                else:
+                    shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+
+                with tempfile.NamedTemporaryFile(
+                    mode="w", delete=False, dir=shm_dir, suffix=".yml"
+                ) as tmp:
+                    os.chmod(tmp.name, 0o600)
+                    tmp.write(result)
+                    tmpPath = tmp.name
+
+                subprocess.run(
+                    [
+                        "sops",
+                        "--config",
+                        sops_file_override,
+                        "--encrypt",
+                        "--in-place",
+                        "--encrypted-regex",
+                        regex,
+                        str(tmpPath),
+                    ],
+                    check=True,
+                )
+                shutil.move(tmpPath, fullPath)
         else:
             subprocess.run(
                 [
