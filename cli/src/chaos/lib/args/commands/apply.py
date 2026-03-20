@@ -182,6 +182,9 @@ def handleApply(args):
 
     sudo_pass = ""
     if not sys.stdin.isatty():
+        console.print(
+            "[bold yellow]WARNING:[/] No TTY detected. Reading sudo password from stdin. -y flag is implied."
+        )
         sudo_pass = sys.stdin.read().strip()
         ikwid = True
 
