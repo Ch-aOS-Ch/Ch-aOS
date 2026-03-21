@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -6,7 +8,6 @@ import requests
 from omegaconf import DictConfig, OmegaConf
 
 from chaos.lib.args.dataclasses import ResultPayload, StyxPayload
-from chaos.lib.utils import validate_path
 
 TIMEOUT = 10
 
@@ -194,11 +195,34 @@ def install_styx_entries(
                     )
                     continue
 
-                tmp_path.rename(local_path)
+                valid_whl_name = dir_name / wheel_remote_name
+                tmp_path.rename(valid_whl_name)
 
-            messages.append(
-                f"Successfully installed '{pkg_name}' version {tag_version}."
-            )
+                pip_cmd = [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-cache-dir",
+                    "--disable-pip-version-check",
+                    "--target",
+                    str(dir_name),
+                    str(valid_whl_name),
+                ]
+
+                try:
+                    subprocess.run(pip_cmd, capture_output=True, text=True, check=True)
+                    messages.append(
+                        f"Successfully installed '{pkg_name}' version {tag_version}."
+                    )
+                except subprocess.CalledProcessError as e:
+                    raw_stderr = e.stderr.strip() if e.stderr else str(e)
+                    errors.append(
+                        f"Error installing '{pkg_name}' with pip: {raw_stderr}"
+                    )
+                    continue
+                finally:
+                    valid_whl_name.unlink(missing_ok=True)
 
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
@@ -264,7 +288,7 @@ def list_styx_entries(entries: list[str] | None) -> ResultPayload[dict[str, Any]
 
 
 def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
-    """Uninstalls the given Styx registry entries.
+    """Uninstalls the given Styx registry entries using pip.
 
     Args:
         entries (list[str]): The list of registry entries to uninstall.
@@ -275,44 +299,71 @@ def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
     messages = []
     errors = []
 
-    for name in entries:
-        wheel_filename = f"{name}.whl"
-        try:
-            validate_path(wheel_filename)
-        except ValueError as e:
-            errors.append(f"Invalid path for '{name}': {e}")
-            continue
-
-        wheel_path = Path(
-            os.getenv(
-                "CHAOS_PLUGIN_DIR",
-                Path.home()
-                / ".local"
-                / "share"
-                / "chaos"
-                / "plugins"
-                / f"{wheel_filename}",
-            )
+    plugin_dir = Path(
+        os.getenv(
+            "CHAOS_PLUGIN_DIR", Path.home() / ".local" / "share" / "chaos" / "plugins"
         )
+    )
 
-        if not wheel_path.exists():
-            errors.append(f"Plugin '{name}' not found locally.")
-            continue
+    if not plugin_dir.exists():
+        return ResultPayload(success=False, error=["Plugin directory does not exist."])
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(plugin_dir) + os.pathsep + env.get("PYTHONPATH", "")
+
+    for name in entries:
+        pip_cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "uninstall",
+            "-y",
+            name,
+        ]
 
         try:
-            os.remove(wheel_path)
-            messages.append(f"Uninstalled '{name}'.")
+            result = subprocess.run(
+                pip_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            # Since Pip returns 0 even if the package is not found, we need to check
+            # the output ourselves.
+            output = result.stdout + result.stderr
+
+            if "Successfully uninstalled" in output:
+                messages.append(f"Successfully uninstalled '{name}'.")
+            elif "WARNING: Skipping" in output and "as it is not installed" in output:
+                errors.append(f"Plugin '{name}' not found or already uninstalled.")
+            elif result.returncode != 0:
+                errors.append(f"Error uninstalling '{name}': {output.strip()}")
+            else:
+                messages.append(
+                    f"Uninstallation of '{name}' completed with ambiguous output from pip."
+                )
+
+        except FileNotFoundError:
+            errors.append(
+                f"Error: Command '{sys.executable}' not found. Cannot run pip."
+            )
+            break
         except Exception as e:
-            errors.append(f"Error uninstalling '{name}': {e}")
+            errors.append(
+                f"An unexpected error occurred while uninstalling '{name}': {e}"
+            )
 
     try:
         from chaos.lib.plugDiscovery import get_plugins
 
         get_plugins(update_cache=True)
+        messages.append("Plugin cache updated.")
     except ImportError:
-        pass
+        errors.append("Warning: Could not reload plugins cache (module not found).")
 
-    success = len(messages) > 0 or len(errors) == 0
+    success = not any("Error" in e for e in errors)
     return ResultPayload(success=success, message=messages, error=errors)
 
 

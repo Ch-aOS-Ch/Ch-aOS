@@ -54,19 +54,10 @@ def get_plugins(update_cache=False):
         if not plugin_dir.exists():
             continue
 
-        wheel_files = list(plugin_dir.glob("*.whl"))
-        for whl in wheel_files:
-            try:
-                whl_path = str(whl.resolve())
+        dir_path = str(plugin_dir.resolve())
 
-                if whl_path not in sys.path:
-                    sys.path.insert(0, whl_path)
-
-            except Exception as e:
-                print(
-                    f"Warning: Could not load plugin wheel '{whl}': {e}",
-                    file=sys.stderr,
-                )
+        if dir_path not in sys.path:
+            sys.path.insert(0, dir_path)
 
     CACHE_DIR = os.getenv("CHAOS_CACHE_DIR", Path.home() / ".cache" / "chaos")
     CACHE_FILE = Path(CACHE_DIR) / "plugins.json"

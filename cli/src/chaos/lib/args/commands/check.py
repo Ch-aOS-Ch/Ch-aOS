@@ -49,10 +49,8 @@ def _printCheck(namespace, dispatcher, json_output=False):
     else:
         import json
 
-        if namespace == "secrets":
-            print(json.dumps(dispatcher, indent=2))
-            return
-        print(json.dumps(list(dispatcher.keys()), indent=2))
+        print(json.dumps(dispatcher, indent=2))
+        return
 
 
 def handleCheck(args):
