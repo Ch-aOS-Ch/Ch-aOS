@@ -1,3 +1,10 @@
+"""Module for managing ramble journals and pages.
+
+Yeah, it's like a personal wiki or knowledge base, weird for a DevOps tool right? LMAO
+Amazing for keeping track of random knowledge, scripts, concepts, and ideas related to chaos engineering and system administration.
+Also, great for documenting secrets management strategies, configurations, and best practices.
+"""
+
 import os
 import shutil
 import subprocess
@@ -26,18 +33,19 @@ from chaos.lib.secret_backends.utils import (
     decrypt_secrets,
 )
 
-"""
-Module for managing ramble journals and pages.
-
-Yeah, it's like a personal wiki or knowledge base, weird for a DevOps tool right? LMAO
-Amazing for keeping track of random knowledge, scripts, concepts, and ideas related to chaos engineering and system administration.
-Also, great for documenting secrets management strategies, configurations, and best practices.
-"""
-
 
 def _get_ramble_dir(team) -> Path:
-    """
-    Validates and returns the ramble directory with the support for teams.
+    """Validates and returns the ramble directory with the support for teams.
+
+    Args:
+        team (str | None): The team string formatted as 'company.team.person', or None for personal context.
+
+    Returns:
+        Path: The resolved directory path to the requested ramble context.
+
+    Raises:
+        ValueError: If the team string is formatted incorrectly or contains path traversal payloads.
+        FileNotFoundError: If the team directory cannot be found.
     """
     if team:
         if "." not in team:
@@ -79,8 +87,20 @@ def _get_ramble_dir(team) -> Path:
 
 
 def is_safe_path(target_path: Path, team) -> bool:
-    """
-    Validates that the target path is within the ramble directory to prevent path traversal.
+    """Validates that the target path is within the ramble directory to prevent path traversal.
+
+    Args:
+        target_path (Path): The path that is being accessed.
+        team (str | None): The current team context.
+
+    Returns:
+        bool: True if the path is secure and valid.
+
+    Raises:
+        PermissionError: If path traversal is detected.
+        FileNotFoundError: If the underlying ramble directory doesn't exist.
+        ValueError: On generic path issues.
+        RuntimeError: For other unexpected failures.
     """
     try:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
@@ -98,8 +118,22 @@ def is_safe_path(target_path: Path, team) -> bool:
 
 
 def _read_ramble_content(ramble_path, sops_config, context, global_config):
-    """
-    Reads the content of a ramble file, handling decryption if necessary.
+    """Reads the content of a ramble file, handling decryption if necessary.
+
+    Args:
+        ramble_path (Path): The path to the ramble page file.
+        sops_config (str | None): The sops file configuration path.
+        context (SecretsContext): The secrets context detailing override configs.
+        global_config (dict | DictConfig): The global chaos configuration.
+
+    Returns:
+        tuple[DictConfig, str]: A tuple containing the parsed configuration and the raw text representation.
+
+    Raises:
+        FileNotFoundError: If the ramble page or `sops` binary is missing.
+        ValueError: If the ramble is encrypted but no sops configuration was provided.
+        PermissionError: If vault authentication fails.
+        RuntimeError: If decryption fails or parsing issues occur.
     """
     is_safe_path(ramble_path, context.team)
 
@@ -159,8 +193,13 @@ def _read_ramble_content(ramble_path, sops_config, context, global_config):
 
 
 def gatherReadRamble(payload: RambleReadPayload) -> DataGatherRequest | None:
-    """
-    Analyzes the read targets and returns a DataGatherRequest if any journals need page selection.
+    """Analyzes the read targets and returns a DataGatherRequest if any journals need page selection.
+
+    Args:
+        payload (RambleReadPayload): Payload specifying the reading target context.
+
+    Returns:
+        DataGatherRequest | None: The user prompt to select a page, if applicable.
     """
     fields = []
     try:
@@ -204,8 +243,13 @@ def gatherReadRamble(payload: RambleReadPayload) -> DataGatherRequest | None:
 
 
 def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None:
-    """
-    Checks if the ramble already exists and asks for confirmation to edit.
+    """Checks if the ramble already exists and asks for confirmation to edit.
+
+    Args:
+        payload (RambleCreatePayload): The context and target payload for creating the ramble.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if the page already exists, otherwise None.
     """
     ramble = payload.target
     team = payload.context.team
@@ -242,8 +286,13 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
 
 
 def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[dict[str, Any]]:
-    """
-    Creates a new ramble journal or page, and returns the file path to open.
+    """Creates a new ramble journal or page, and returns the file path to open.
+
+    Args:
+        payload (RambleCreatePayload): The creation instructions including the target and confirmation status.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload containing the created file path or editing instructions on success.
     """
     ramble = payload.target
     team = payload.context.team
@@ -308,8 +357,13 @@ scripts:
 
 
 def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
-    """
-    If a journal is passed, returns a DataGatherRequest for page selection.
+    """If a journal is passed, returns a DataGatherRequest for page selection.
+
+    Args:
+        payload (RambleEditPayload): Context for editing a ramble.
+
+    Returns:
+        DataGatherRequest | None: Request prompting for the page to edit, or None if valid file format supplied.
     """
     ramble = payload.target
     if "." in ramble:
@@ -342,8 +396,13 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
 
 
 def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]]:
-    """
-    Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
+    """Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
+
+    Args:
+        payload (RambleEditPayload): Details on what to edit and encryption state context.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: The result holding the requested file's path and its encryptability state.
     """
 
     from omegaconf import DictConfig, OmegaConf
@@ -411,11 +470,17 @@ def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]
 
 
 def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
-    """
-    Encrypts specified keys in a ramble page using sops.
+    """Encrypts specified keys in a ramble page using sops.
 
-    If -k not passed, encrypts everything except base keys.
-    The tags key is never encrypted, helping to optimize searching.
+    Args:
+        payload (RambleEncryptPayload): The payload outlining the ramble to encrypt and which keys specifically.
+
+    Returns:
+        ResultPayload[None]: A payload summarizing encryption state messages or failure.
+
+    Notes:
+        If -k not passed, encrypts everything except base keys.
+        The tags key is never encrypted, helping to optimize searching.
     """
 
     from omegaconf import DictConfig, OmegaConf
@@ -576,8 +641,13 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
 
 
 def handleReadRamble(payload: RambleReadPayload) -> ResultPayload[dict[str, Any]]:
-    """
-    Reads the content of specified rambles and returns them.
+    """Reads the content of specified rambles and returns them.
+
+    Args:
+        payload (RambleReadPayload): Contains targets and state required to retrieve rambles.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload wrapping the read content for matching rambles.
     """
 
     from omegaconf import DictConfig, OmegaConf
@@ -623,10 +693,16 @@ def handleReadRamble(payload: RambleReadPayload) -> ResultPayload[dict[str, Any]
 
 
 def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
-    """
-    Searches for rambles containing a specific term, optionally filtered by tag.
+    """Searches for rambles containing a specific term, optionally filtered by tag.
 
-    If nothing passed, lists all rambles.
+    Args:
+        payload (RambleFindPayload): Definition of constraints to find target rambles.
+
+    Returns:
+        ResultPayload[list[str]]: The list of matches, or an appropriate error response.
+
+    Notes:
+        If nothing passed, lists all rambles.
     """
 
     from omegaconf import DictConfig, OmegaConf
@@ -711,7 +787,14 @@ def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
 
 
 def handleMoveRamble(payload: RambleMovePayload) -> ResultPayload[None]:
-    "Moves or renames a ramble journal or page."
+    """Moves or renames a ramble journal or page.
+
+    Args:
+        payload (RambleMovePayload): Context describing the origin point, and intended target point.
+
+    Returns:
+        ResultPayload[None]: Status payload of the operation.
+    """
     team = payload.context.team
     old = payload.old
     new = payload.new
@@ -816,8 +899,13 @@ def handleMoveRamble(payload: RambleMovePayload) -> ResultPayload[None]:
 
 
 def gatherDelRamble(payload: RambleDeletePayload) -> DataGatherRequest | None:
-    """
-    Returns a DataGatherRequest for confirming the deletion of a ramble or journal.
+    """Returns a DataGatherRequest for confirming the deletion of a ramble or journal.
+
+    Args:
+        payload (RambleDeletePayload): Represents context parameters necessary for deletion process.
+
+    Returns:
+        DataGatherRequest | None: Object representation defining prompt requirement or None.
     """
     ramble = payload.ramble
     return DataGatherRequest(
@@ -834,7 +922,14 @@ def gatherDelRamble(payload: RambleDeletePayload) -> DataGatherRequest | None:
 
 
 def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload[None]:
-    "Deletes a ramble journal or page."
+    """Deletes a ramble journal or page.
+
+    Args:
+        payload (RambleDeletePayload): The confirmed target payload state.
+
+    Returns:
+        ResultPayload[None]: The status payload regarding operation's termination status.
+    """
     if not payload.confirmed:
         return ResultPayload(success=False, error=["Deletion not confirmed by user."])
 
@@ -884,7 +979,14 @@ def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload[None]:
 def handleUpdateEncryptRamble(
     payload: RambleUpdateEncryptPayload,
 ) -> ResultPayload[None]:
-    "Updates encryption keys for all encrypted rambles in the ramble directory."
+    """Updates encryption keys for all encrypted rambles in the ramble directory.
+
+    Args:
+        payload (RambleUpdateEncryptPayload): Details regarding environment needed to update everything.
+
+    Returns:
+        ResultPayload[None]: Response mapping successes and errors of the operation.
+    """
 
     from omegaconf import DictConfig, OmegaConf
 
@@ -981,3 +1083,4 @@ def handleUpdateEncryptRamble(
         final_msg = "No encrypted ramble files found to update."
 
     return ResultPayload(success=True, message=messages + [final_msg], error=warnings)
+

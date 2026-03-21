@@ -1,3 +1,5 @@
+"""Orchestration/Explanation Handlers for Chaos CLI"""
+
 import os
 from pathlib import Path
 
@@ -5,14 +7,15 @@ from omegaconf import OmegaConf
 
 from .args.dataclasses import SetPayload
 
-"""
-Orchestration/Explanation Handlers for Chaos CLI
-"""
-
 
 def setMode(payload: SetPayload):
-    """
-    Just handles configuring the tool.
+    """Handles configuring the tool by writing default settings to the chaos configuration directory.
+
+    Args:
+        payload (SetPayload): The payload containing the file paths to set as defaults (chobolo, secrets, or sops files).
+
+    Raises:
+        FileNotFoundError: If any of the provided file paths do not exist.
     """
     CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")

@@ -29,9 +29,9 @@ op_hash_context: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 
 
 class ChaosTelemetry(BaseStateCallback):
-    """
-    A telemetry system for tracking operation execution details in pyinfra-based chaos engineering experiments.
-    This class captures detailed information about each operation and stores it in a local SQLite database.
+    """A telemetry system for tracking operation execution details in pyinfra-based chaos engineering experiments.
+
+    This class captures detailed information about each operation and stores it in a local database via the Limani plugin.
     """
 
     _run_id: str | None = None
@@ -45,7 +45,6 @@ class ChaosTelemetry(BaseStateCallback):
     @classmethod
     def _database_writer_worker(cls):
         """Worker thread to process database write operations asynchronously."""
-
         if not cls._limani_plugin:
             raise RuntimeError("Limani plugin is not loaded.")
 
@@ -69,9 +68,10 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def start_run(cls):
-        """
-        Initializes the database, creates a new run entry, and starts the async DB writer.
-        This should be called once at the beginning of a `chaos apply` execution.
+        """Initializes the database, creates a new run entry, and starts the async DB writer.
+
+        Notes:
+            This should be called once at the beginning of a `chaos apply` execution.
         """
         if not cls._limani_plugin:
             raise RuntimeError("Limani plugin is not loaded.")
@@ -111,9 +111,13 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def end_run(cls, status: str = "success"):
-        """
-        Finalizes the run, updating its status and summary in the database.
-        This should be called once at the end of a `chaos apply` execution.
+        """Finalizes the run, updating its status and summary in the database.
+
+        Args:
+            status (str, optional): The final status of the run. Defaults to "success".
+
+        Notes:
+            This should be called once at the end of a `chaos apply` execution.
         """
         if not cls._limani_plugin:
             raise RuntimeError("Limani plugin is not loaded.")
@@ -167,11 +171,27 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _strip_ansi_codes(text: str) -> str:
+        """Strips ANSI escape sequences from the provided string.
+
+        Args:
+            text (str): The text to be cleaned.
+
+        Returns:
+            str: The clean text.
+        """
         ansi_escape = re.compile(r"\x1b\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]")
         return ansi_escape.sub("", text)
 
     @staticmethod
     def _sanitize_diff_text(text):
+        """Redacts sensitive data from diff texts.
+
+        Args:
+            text (str): The raw diff text.
+
+        Returns:
+            str: Redacted diff text.
+        """
         sensitive_terms = ["password", "secret", "token", "key", "auth", "sudo_pass"]
         for term in sensitive_terms:
             if term in text.lower():
@@ -185,8 +205,11 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def record_setup_phase(cls, state: State, setup_duration: float):
-        """
-        Records the setup phase duration as a special operation in the database.
+        """Records the setup phase duration as a special operation in the database.
+
+        Args:
+            state (State): The pyinfra state object.
+            setup_duration (float): The duration taken for the setup phase.
         """
         if not cls._run_id or not cls._db_queue:
             return
@@ -242,8 +265,13 @@ class ChaosTelemetry(BaseStateCallback):
     def record_snapshot(
         cls, host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"
     ):
-        """
-        Records a snapshot of the host's resource usage into the database.
+        """Records a snapshot of the host's resource usage into the database.
+
+        Args:
+            host (Host): The pyinfra target host object.
+            ram_data (dict): The gathered dictionary containing RAM usage facts.
+            load_data (dict): The gathered dictionary containing CPU Load facts.
+            stage (str, optional): The identifier describing at what phase the snapshot was taken. Defaults to "checkpoint".
         """
         if not cls._run_id or not cls._db_queue:
             return
@@ -284,8 +312,13 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _get_safe_logs(meta: OperationMeta):
-        """
-        Safely retrieves stdout and stderr from the OperationMeta.
+        """Safely retrieves stdout and stderr from the OperationMeta.
+
+        Args:
+            meta (OperationMeta): The pyinfra operation meta object.
+
+        Returns:
+            tuple[str, str]: Returns a tuple mapping stdout and stderr representations of the outputs.
         """
         if meta.is_complete():
             return meta.stdout, meta.stderr
@@ -298,9 +331,7 @@ class ChaosTelemetry(BaseStateCallback):
         return "", ""
 
     class PyinfraFactLogHandler(logging.Handler):
-        """
-        Gets command logs from pyinfra's logger and logs them to the database.
-        """
+        """Gets command logs from pyinfra's logger and logs them to the database."""
 
         def emit(self, record):
             msg = record.getMessage()
@@ -376,13 +407,27 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def operation_host_start(state: State, host: Host, op_hash):
-        """Records the start time of an operation on a specific host."""
+        """Records the start time of an operation on a specific host.
+
+        Args:
+            state (State): The global state of the pyinfra run.
+            host (Host): The host machine starting the operation.
+            op_hash (str): The unique hash identifying the executing operation.
+        """
         op_hash_context.set(op_hash)
         key = f"{host.name}:{op_hash}"
         ChaosTelemetry._timers[key] = time.time()
 
     @staticmethod
     def _parse_meta(meta: str) -> dict:
+        """Parses operation metadata into a structured dictionary.
+
+        Args:
+            meta (str): String representation of the operation meta object.
+
+        Returns:
+            dict: The dictionary containing parsed attributes.
+        """
         vars = meta.split("(")[1].split(")")[0]
 
         executed = vars.split("executed=")[1].split(",")[0]
@@ -396,6 +441,14 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _clean_value(value: str):
+        """Cleans and evaluates string values safely.
+
+        Args:
+            value (str): Evaluated string data type.
+
+        Returns:
+            Any: The literal value interpretation or original string upon exception.
+        """
         import ast
 
         try:
@@ -405,8 +458,13 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _sanitize_op_data(raw_data) -> dict:
-        """
-        cleanse op data to remove sensitive information before logging
+        """Cleanse op data to remove sensitive information before logging.
+
+        Args:
+            raw_data (dict): The dictionary representation of raw host execution properties.
+
+        Returns:
+            dict: The scrubbed and structured operations object dictionary.
         """
 
         clean_data = {}
@@ -437,12 +495,23 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _stream_chaos_event(data: dict):
-        """Helper to print event data as a structured JSON string."""
+        """Helper to print event data as a structured JSON string.
+
+        Args:
+            data (dict): Dictionary context of the generated trace JSON.
+        """
         print(f"CHAOS_EVENT::{json.dumps(data)}", flush=True)
 
     @staticmethod
     def operation_host_success(state: State, host: Host, op_hash, retry_count: int = 0):
-        """Handles the successful completion of an operation by writing to the DB."""
+        """Handles the successful completion of an operation by writing to the DB.
+
+        Args:
+            state (State): Process state map.
+            host (Host): Success targeted instance.
+            op_hash (str): Operation map identity tracking the process context.
+            retry_count (int, optional): Represents re-runs completed resolving it successfully. Defaults to 0.
+        """
         end_time = time.time()
 
         if not ChaosTelemetry._run_id or not ChaosTelemetry._db_queue:
@@ -531,7 +600,15 @@ class ChaosTelemetry(BaseStateCallback):
     def operation_host_error(
         state: State, host: Host, op_hash, retry_count: int = 0, max_retries: int = 0
     ):
-        """Handles a failed operation by writing to the DB."""
+        """Handles a failed operation by writing to the DB.
+
+        Args:
+            state (State): Pyinfra target operation's parent runtime config state reference.
+            host (Host): Context Host identifier object marking what errored out.
+            op_hash (str): The failing ops operation sequence lookup trace.
+            retry_count (int, optional): Represents iteration amount tried. Defaults to 0.
+            max_retries (int, optional): Hard limit defined on re-runs. Defaults to 0.
+        """
         end_time = time.time()
 
         if not ChaosTelemetry._limani_plugin:
@@ -623,7 +700,15 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def percentile(data: list, percentile_val: float):
-        """Calculates the given percentile from a list of numbers."""
+        """Calculates the given percentile from a list of numbers.
+
+        Args:
+            data (list): The list of numerical values to extract percentiles against.
+            percentile_val (float): Percentile targeted between (0 - 100).
+
+        Returns:
+            float: Returns the identified threshold float.
+        """
         if not data:
             return 0.0
         size = len(data)
@@ -640,7 +725,14 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def add_operation_percentiles(op_durations: dict):
-        """Calculates and adds operation duration percentiles to the report data."""
+        """Calculates and adds operation duration percentiles to the report data.
+
+        Args:
+            op_durations (dict): A dictionary linking operations to execution logs' time spans arrays.
+
+        Returns:
+            dict: The dictionary wrapping summary map data representations and percentiles context.
+        """
         op_summary = {}
 
         for name, durations in op_durations.items():
@@ -663,12 +755,14 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def export_report(cls, filepath: str = "chaos_logbook.json"):
-        """
-        Fetches run data and generates a structured JSON report by streaming,
-        which avoids loading the entire dataset into memory.
+        """Fetches run data and generates a structured JSON report by streaming.
 
-        Yeah, i know it writes directly to a file first, but it's still better than
-        loading everything into memory before writing.
+        Args:
+            filepath (str, optional): The target local export file. Defaults to "chaos_logbook.json".
+
+        Notes:
+            Streaming avoids loading the entire dataset into memory.
+            Yeah, i know it writes directly to a file first, but it's still better than loading everything into memory before writing.
         """
         import shutil
 
@@ -864,6 +958,16 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def load_limani_plugin(cls, limani_name: str, global_config: dict):
+        """Loads a given limani plugin by its name.
+
+        Args:
+            limani_name (str): The name identifier for the specific limani data store extension.
+            global_config (dict): The global configuration dictionary.
+
+        Raises:
+            ImportError: Upon plugin loading error attributes failing.
+            ValueError: If specific limani definition name is unassigned in known namespace.
+        """
         from importlib.metadata import EntryPoint
 
         limanis = get_plugins()[6]

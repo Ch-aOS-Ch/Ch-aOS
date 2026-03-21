@@ -5,6 +5,15 @@ from .args.dataclasses import ExplainPayload, ResultPayload
 
 
 def _setup_method_explain(EXPLAIN_DISPATCHER, role):
+    """Sets up and initializes the explanation class for a given role.
+
+    Args:
+        EXPLAIN_DISPATCHER (dict): A dictionary mapping roles to their explanation module and class names (e.g. "module:class").
+        role (str): The name of the role for which to instantiate the explanation object.
+
+    Returns:
+        tuple[Any, str | None]: A tuple containing the initialized explanation object on success and an error message on failure.
+    """
     try:
         module_name, class_name = EXPLAIN_DISPATCHER[role].split(":")
         module = import_module(module_name)
@@ -16,6 +25,15 @@ def _setup_method_explain(EXPLAIN_DISPATCHER, role):
 
 
 def _get_explain_subtopics(ExplainObj, role):
+    """Retrieves the available subtopics for an initialized explanation object.
+
+    Args:
+        ExplainObj (Any): The instantiated explanation object for a role.
+        role (str): The role name, used to exclude the base role name from the subtopics list.
+
+    Returns:
+        list[str]: A sorted list of available subtopics, retrieved either from a manual `_order` attribute or by inspecting methods prefixed with `explain_`.
+    """
     manualOrder = getattr(ExplainObj, "_order", [])
     if manualOrder:
         return manualOrder
@@ -31,6 +49,18 @@ def _get_explain_subtopics(ExplainObj, role):
 def handleExplain(
     payload: ExplainPayload, EXPLAIN_DISPATCHER
 ) -> ResultPayload[dict[str, dict[str, Any]]]:
+    """Handles the resolution and fetching of explanations for provided topics.
+
+    Args:
+        payload (ExplainPayload): The payload containing the requested topics and desired complexity level.
+        EXPLAIN_DISPATCHER (dict): A mapping of available roles to their specific explanation modules.
+
+    Returns:
+        ResultPayload[dict[str, dict[str, Any]]]: The result payload containing a dictionary of fetched explanations or list of subtopics on success, and any errors encountered during resolution.
+
+    Notes:
+        Topics should be passed as either "role" or "role.sub_topic". If "role.list" is requested, it will list all available subtopics for that role.
+    """
     topics = payload.topics
     complexity = payload.complexity
     if not isinstance(topics, list):
@@ -88,3 +118,4 @@ def handleExplain(
 
     success = len(errors) == 0
     return ResultPayload(success=success, data=result_data, error=errors)
+

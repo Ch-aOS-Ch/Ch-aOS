@@ -1,3 +1,5 @@
+"""Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets."""
+
 from typing import Any, cast
 
 from chaos.lib.args.dataclasses import (
@@ -14,12 +16,16 @@ from chaos.lib.args.dataclasses import (
     SecretsSetShamirPayload,
 )
 
-"""
-Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets.
-"""
-
 
 def gatherRotateAdd(payload: SecretsRotatePayload) -> DataGatherRequest | None:
+    """Checks if confirmation is needed for rotating/adding keys.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation options and context.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if required, else None.
+    """
     if not payload.context.i_know_what_im_doing and not payload.update_confirmed:
         return DataGatherRequest(
             name="secrets_rotate_add",
@@ -37,6 +43,14 @@ def gatherRotateAdd(payload: SecretsRotatePayload) -> DataGatherRequest | None:
 
 
 def gatherRotateRemove(payload: SecretsRotatePayload) -> DataGatherRequest | None:
+    """Checks if confirmation is needed for rotating/removing keys.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation options and context.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if required, else None.
+    """
     if not payload.context.i_know_what_im_doing and not payload.update_confirmed:
         return DataGatherRequest(
             name="secrets_rotate_remove",
@@ -54,8 +68,13 @@ def gatherRotateRemove(payload: SecretsRotatePayload) -> DataGatherRequest | Non
 
 
 def gatherImportSec(payload: SecretsImportPayload) -> DataGatherRequest | None:
-    """
-    Checks if confirmation is needed for importing keys.
+    """Checks if confirmation is needed for importing keys.
+
+    Args:
+        payload (SecretsImportPayload): The payload containing import context.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if required, else None.
     """
     from pathlib import Path
 
@@ -93,6 +112,14 @@ def gatherImportSec(payload: SecretsImportPayload) -> DataGatherRequest | None:
 
 
 def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | None:
+    """Checks if confirmation is needed for setting/removing Shamir threshold.
+
+    Args:
+        payload (SecretsSetShamirPayload): The payload containing shamir settings context.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if required, else None.
+    """
     fields = []
 
     if (
@@ -127,10 +154,16 @@ def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | Non
 
 
 def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
-    """
-    Adds a new key to the sops config file and (if -u), updates all secrets.
+    """Adds a new key to the sops config file and (if -u), updates all secrets.
 
-    Check secret_backends/utils.py for shared functions + their docs.
+    Args:
+        payload (SecretsRotatePayload): The payload defining the rotation target and context.
+
+    Returns:
+        ResultPayload[None]: The result payload of the rotation add operation.
+
+    Notes:
+        Check `secret_backends/utils.py` for shared functions and their docs.
     """
     from chaos.lib.secret_backends.utils import get_sops_files
 
@@ -178,7 +211,14 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
 
 
 def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload[None]:
-    """Removes a key from the sops config file and (if -u), updates all secrets."""
+    """Removes a key from the sops config file and (if -u), updates all secrets.
+
+    Args:
+        payload (SecretsRotatePayload): The payload defining the rotation removal target and context.
+
+    Returns:
+        ResultPayload[None]: The result payload of the rotation remove operation.
+    """
     from chaos.lib.secret_backends.utils import get_sops_files
 
     context = payload.context
@@ -225,7 +265,17 @@ def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload[None]:
 
 
 def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
-    """Lists all keys of a certain type from the sops config file."""
+    """Lists all keys of a certain type from the sops config file.
+
+    Args:
+        payload (SecretsListPayload): The payload defining the target type and context.
+
+    Returns:
+        ResultPayload[set[str]]: The result payload containing a set of key fingerprints or names.
+
+    Raises:
+        FileNotFoundError: If no sops config file is found.
+    """
     from chaos.lib.secret_backends.utils import get_sops_files
 
     results = None
@@ -267,7 +317,14 @@ def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
 
 
 def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload[None]:
-    """Sets or removes the Shamir threshold for a given creation rule in the sops config file."""
+    """Sets or removes the Shamir threshold for a given creation rule in the sops config file.
+
+    Args:
+        payload (SecretsSetShamirPayload): The payload containing the shamir configuration details.
+
+    Returns:
+        ResultPayload[None]: The result payload indicating success or failure.
+    """
     import os
 
     from chaos.lib.secret_backends.utils import get_sops_files
@@ -394,8 +451,14 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload[None]:
 
 
 def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[dict[str, Any]]:
-    """Opens the secrets file in SOPS for editing."""
+    """Opens the secrets file in SOPS for editing.
 
+    Args:
+        payload (SecretsEditPayload): The payload containing context for editing secrets.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: The result payload containing related file paths and settings.
+    """
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _resolveProvider, get_sops_files
 
@@ -437,10 +500,14 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[dict[str, Any]]:
 
 
 def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload[dict[str, str]]:
-    """
-    Decrypts the secrets file and returns the decrypted content as a string.
-    """
+    """Decrypts the secrets file and returns the decrypted content as a string.
 
+    Args:
+        payload (SecretsPrintPayload): The payload indicating what to print.
+
+    Returns:
+        ResultPayload[dict[str, str]]: The result payload containing the decrypted content under 'dec'.
+    """
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _handle_provider_arg, get_sops_files
 
@@ -514,8 +581,13 @@ def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload[dict[str, str]
 
 
 def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
-    """
-    decrypts the secrets file and returns the values of the specified keys.
+    """Decrypts the secrets file and returns the values of the specified keys.
+
+    Args:
+        payload (SecretsCatPayload): The payload detailing the keys to extract.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: The result payload containing a list of values found for the keys.
     """
     import subprocess
     from io import StringIO
@@ -592,6 +664,15 @@ def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
 
 
 def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload[Any]:
+    """Exports secrets via a resolved provider.
+
+    Args:
+        payload (SecretsExportPayload): The payload details for the export.
+        global_config (dict | DictConfig): The global configuration.
+
+    Returns:
+        ResultPayload[Any]: The result payload of the export operation.
+    """
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)
@@ -599,6 +680,15 @@ def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPaylo
 
 
 def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload[Any]:
+    """Imports secrets via a resolved provider.
+
+    Args:
+        payload (SecretsImportPayload): The payload details for the import.
+        global_config (dict | DictConfig): The global configuration.
+
+    Returns:
+        ResultPayload[Any]: The result payload of the import operation.
+    """
     from chaos.lib.secret_backends.utils import _getProviderByName
 
     provider = _getProviderByName(payload, global_config)

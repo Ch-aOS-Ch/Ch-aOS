@@ -1,16 +1,24 @@
+"""Handles listing of roles/explanations/aliases with rich rendering.
+
+Notes:
+    + some validity checks for vault
+"""
+
 import os
 from typing import Any, cast
 
 from .args.dataclasses import CheckPayload, ResultPayload
 
-"""
-Handles listing of roles/explanations/aliases with rich rendering.
-
-+ some validity checks for vault
-"""
-
 
 def _handleAliases(dispatcher):
+    """Handles aliases by merging user aliases with the dispatcher.
+
+    Args:
+        dispatcher (dict): The dictionary of existing aliases.
+
+    Returns:
+        tuple[dict, list[str], list[str]]: A tuple containing the updated dispatcher, a list of warnings, and a list of messages.
+    """
     from pathlib import Path
 
     from omegaconf import DictConfig, OmegaConf
@@ -36,9 +44,18 @@ def _handleAliases(dispatcher):
 
 
 def _flatten_dict_keys(d, parent_key="", sep="."):
-    """
-    Flattens a nested dictionary and returns a list of keys in dot notation.
-    Skips the 'sops' key during the flattening process and appends it at the end if it exists.
+    """Flattens a nested dictionary and returns a list of keys in dot notation.
+
+    Args:
+        d (dict): The dictionary to flatten.
+        parent_key (str, optional): The base key to use for nested elements. Defaults to "".
+        sep (str, optional): The separator to use between keys. Defaults to ".".
+
+    Returns:
+        list[str]: A list of keys in dot notation.
+
+    Notes:
+        Skips the 'sops' key during the flattening process and appends it at the end if it exists.
     """
     items = []
     for k, v in d.items():
@@ -57,6 +74,14 @@ def _flatten_dict_keys(d, parent_key="", sep="."):
 
 
 def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
+    """Checks if the secrets in the specified file are valid.
+
+    Args:
+        secrets_file (str): The path to the secrets file.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of flattened secrets keys if successful.
+    """
     from omegaconf import OmegaConf
 
     secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
@@ -72,6 +97,14 @@ def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
 
 
 def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
+    """Checks if the provided roles are valid.
+
+    Args:
+        ROLES_DISPATCHER (dict): A dictionary of roles to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid roles.
+    """
     result = ResultPayload(
         success=True,
         message=["All roles are valid"],
@@ -83,6 +116,14 @@ def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
 
 
 def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
+    """Checks if the provided explanations are valid.
+
+    Args:
+        EXPLANATIONS (dict): A dictionary of explanations to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid explanations.
+    """
     result = ResultPayload(
         success=True,
         message=["All explanations are valid"],
@@ -94,6 +135,14 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
 
 
 def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, Any]]:
+    """Checks if the provided aliases are valid.
+
+    Args:
+        ROLE_ALIASES (dict): A dictionary of role aliases to check.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: The result payload containing the valid aliases, and any warnings/messages.
+    """
     payload, warnings, messages = _handleAliases(ROLE_ALIASES)
     result = ResultPayload(
         success=True,
@@ -106,6 +155,14 @@ def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, Any]]:
 
 
 def checkProviders(providers) -> ResultPayload[list[str]]:
+    """Checks if the provided providers are valid.
+
+    Args:
+        providers (dict): A dictionary of providers to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid providers.
+    """
     result = ResultPayload(
         success=True,
         message=["All providers are valid"],
@@ -117,6 +174,14 @@ def checkProviders(providers) -> ResultPayload[list[str]]:
 
 
 def checkBoats(boats) -> ResultPayload[list[str]]:
+    """Checks if the provided boats are valid.
+
+    Args:
+        boats (dict): A dictionary of boats to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid boats.
+    """
     result = ResultPayload(
         success=True,
         message=["All boats are valid"],
@@ -128,6 +193,14 @@ def checkBoats(boats) -> ResultPayload[list[str]]:
 
 
 def checkLimanis(limanis) -> ResultPayload[list[str]]:
+    """Checks if the provided limanis are valid.
+
+    Args:
+        limanis (dict): A dictionary of limanis to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid limanis.
+    """
     result = ResultPayload(
         success=True,
         message=["All limanis are valid"],
@@ -139,6 +212,14 @@ def checkLimanis(limanis) -> ResultPayload[list[str]]:
 
 
 def checkTemplates(keys) -> ResultPayload[list[str]]:
+    """Checks if the provided templates are valid.
+
+    Args:
+        keys (dict): A dictionary of templates to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid templates.
+    """
     result = ResultPayload(
         success=True,
         message=["All templates are valid"],
@@ -152,6 +233,14 @@ def checkTemplates(keys) -> ResultPayload[list[str]]:
 def handle_check(
     payload: CheckPayload,
 ) -> ResultPayload[list[str] | dict[str, Any] | None]:
+    """Handles various check commands based on the payload.
+
+    Args:
+        payload (CheckPayload): The payload containing the check command and related context.
+
+    Returns:
+        ResultPayload[list[str] | dict[str, Any] | None]: The result payload of the requested check.
+    """
     match payload.checks:
         case "explanations":
             from chaos.lib.plugDiscovery import get_plugins

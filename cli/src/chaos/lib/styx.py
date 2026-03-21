@@ -12,7 +12,11 @@ TIMEOUT = 10
 
 
 def get_styx_registry() -> tuple[str | None, str | None]:
-    """Fetches the Styx registry data from the specified URL. Returns (data, error_message)."""
+    """Fetches the Styx registry data from the specified URL.
+
+    Returns:
+        tuple[str | None, str | None]: A tuple containing the registry data (str) and an error message (str), if applicable.
+    """
     url = "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml"
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
@@ -25,7 +29,15 @@ def get_styx_registry() -> tuple[str | None, str | None]:
 def parse_styx_registry(
     registry_data: str, registry_names: list[str]
 ) -> tuple[list[dict], list[str]]:
-    """Parses the Styx registry data and returns a list of entries and a list of errors."""
+    """Parses the Styx registry data.
+
+    Args:
+        registry_data (str): The raw string data of the registry YAML.
+        registry_names (list[str]): The list of specific registry names to parse.
+
+    Returns:
+        tuple[list[dict], list[str]]: A tuple of matched entries and a list of parsing errors.
+    """
     if not registry_data:
         return [], ["No registry data provided."]
 
@@ -57,7 +69,15 @@ def parse_styx_registry(
 def _check_hash(
     file_path: Path, expected_hash: str
 ) -> tuple[bool, str | None, str | None]:
-    """Checks if the file at file_path matches the expected SHA-256 hash. Returns (is_match, calculated_hash, error)."""
+    """Checks if the file at file_path matches the expected SHA-256 hash.
+
+    Args:
+        file_path (Path): Path to the local file to check.
+        expected_hash (str): The expected SHA-256 hash.
+
+    Returns:
+        tuple[bool, str | None, str | None]: A tuple containing a boolean of the match result, the calculated hash, and an error string if applicable.
+    """
     from hashlib import sha256
 
     sha256_hash = sha256()
@@ -76,11 +96,14 @@ def _check_hash(
 def install_styx_entries(
     entries: list[str], force: bool = False
 ) -> ResultPayload[None]:
-    """
-    Installs the given Styx registry entries.
+    """Installs the given Styx registry entries.
+
     Args:
-        entries: List of plugin names
-        force: If True, overwrites existing plugins
+        entries (list[str]): List of plugin names to install.
+        force (bool, optional): If True, overwrites existing plugins. Defaults to False.
+
+    Returns:
+        ResultPayload[None]: The status payload regarding the operation's outcome.
     """
     messages = []
     errors = []
@@ -199,7 +222,14 @@ def install_styx_entries(
 
 
 def list_styx_entries(entries: list[str] | None) -> ResultPayload[dict[str, Any]]:
-    """Lists the available Styx registry entries."""
+    """Lists the available Styx registry entries.
+
+    Args:
+        entries (list[str] | None): Specific entries to list, or None for all available.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload containing matched registry details.
+    """
     raw_registry, error = get_styx_registry()
     if error:
         return ResultPayload(success=False, error=[error])
@@ -234,7 +264,14 @@ def list_styx_entries(entries: list[str] | None) -> ResultPayload[dict[str, Any]
 
 
 def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
-    """Uninstalls the given Styx registry entries."""
+    """Uninstalls the given Styx registry entries.
+
+    Args:
+        entries (list[str]): The list of registry entries to uninstall.
+
+    Returns:
+        ResultPayload[None]: A payload summarizing the deletion state.
+    """
     messages = []
     errors = []
 
@@ -280,6 +317,14 @@ def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
 
 
 def handle_styx(payload: StyxPayload) -> ResultPayload[dict[str, Any] | None]:
+    """Handles parsing and routing for the specified styx subcommands.
+
+    Args:
+        payload (StyxPayload): The structured payload containing the requested action and corresponding details.
+
+    Returns:
+        ResultPayload[dict[str, Any] | None]: The generic result of the styx operation.
+    """
     try:
         match payload.styx_commands:
             case "invoke":

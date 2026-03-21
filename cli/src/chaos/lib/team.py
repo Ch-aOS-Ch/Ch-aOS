@@ -1,3 +1,5 @@
+"""Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning."""
+
 import os
 import shutil
 import subprocess
@@ -27,12 +29,16 @@ from chaos.lib.teamUtils import (
 )
 from chaos.lib.utils import checkDep, validate_path
 
-"""
-Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning.
-"""
-
 
 def gatherInitTeam(payload: TeamInitPayload) -> DataGatherRequest | None:
+    """Gathers data needed to initialize a team structure.
+
+    Args:
+        payload (TeamInitPayload): The initial payload detailing the team configuration and requirements.
+
+    Returns:
+        DataGatherRequest | None: A request containing prompts to clarify options from the user, or None if no extra inputs are needed.
+    """
     try:
         hasAge, hasPgp = _validate_deps()
     except EnvironmentError:
@@ -136,6 +142,14 @@ def gatherInitTeam(payload: TeamInitPayload) -> DataGatherRequest | None:
 
 
 def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
+    """Handles the initialization of the directory structure and required configurations for a team.
+
+    Args:
+        payload (TeamInitPayload): The fully resolved payload (post-gathering) necessary for setup.
+
+    Returns:
+        ResultPayload[None]: Status payload indicating the result and reporting any issues.
+    """
     messages = []
 
     try:
@@ -238,8 +252,13 @@ def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
 
 
 def handleActivateTeam(payload: TeamActivatePayload) -> ResultPayload[None]:
-    """
-    Activates a team by reading the .chaos.yml file and creating necessary symlinks.
+    """Activates a team by reading the .chaos.yml file and creating necessary symlinks.
+
+    Args:
+        payload (TeamActivatePayload): Payload containing the target path context to read the configuration from.
+
+    Returns:
+        ResultPayload[None]: Status representation of symlink deployments and setup validations.
     """
     messages = []
     errors = []
@@ -318,9 +337,16 @@ def handleActivateTeam(payload: TeamActivatePayload) -> ResultPayload[None]:
 
 
 def handleCloneGitTeam(payload: TeamClonePayload) -> ResultPayload[None]:
-    """
-    Clones a git repository and activates the team if valid.
-    Validity = presence of .chaos.yml with required fields.
+    """Clones a git repository and activates the team if valid.
+
+    Args:
+        payload (TeamClonePayload): Payload supplying git repository details and target local path.
+
+    Returns:
+        ResultPayload[None]: Results containing operations metadata or rollback trace logs on failure.
+
+    Notes:
+        Validity relies on the presence of a properly configured `.chaos.yml`.
     """
     repo = payload.target
     path = payload.path
@@ -387,7 +413,14 @@ def handleCloneGitTeam(payload: TeamClonePayload) -> ResultPayload[None]:
 
 
 def listTeams(payload: TeamListPayload) -> ResultPayload[dict[str, list[str]]]:
-    """Lists all activated teams, optionally filtered by company."""
+    """Lists all activated teams, optionally filtered by company.
+
+    Args:
+        payload (TeamListPayload): Constraints mapping the query filters (e.g. company name).
+
+    Returns:
+        ResultPayload[dict[str, list[str]]]: Found directories matching specified target query.
+    """
     messages = []
 
     result = ResultPayload(message=messages, success=True, data=None, error=None)
@@ -427,6 +460,14 @@ def listTeams(payload: TeamListPayload) -> ResultPayload[dict[str, list[str]]]:
 
 
 def gatherDeactivateTeam(payload: TeamDeactivatePayload) -> DataGatherRequest | None:
+    """Gathers confirmation for a comprehensive deactivation.
+
+    Args:
+        payload (TeamDeactivatePayload): Instructions targeting a specific company setup to sever.
+
+    Returns:
+        DataGatherRequest | None: User confirmation request if required, or None.
+    """
     company = payload.company
     if not company:
         return None
@@ -449,7 +490,14 @@ def gatherDeactivateTeam(payload: TeamDeactivatePayload) -> DataGatherRequest | 
 
 
 def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload[None]:
-    """Deactivates specified teams or all teams for a company."""
+    """Deactivates specified teams or all teams for a company.
+
+    Args:
+        payload (TeamDeactivatePayload): Details specifying the subset of teams to purge or if a complete teardown is targeted.
+
+    Returns:
+        ResultPayload[None]: Feedback referencing all unlinked setups.
+    """
     company = payload.company
     if not company:
         return ResultPayload(
@@ -511,6 +559,14 @@ def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload[None]:
 
 
 def gatherPruneTeams(payload: TeamPrunePayload) -> DataGatherRequest | None:
+    """Prompts the user before pruning stale records.
+
+    Args:
+        payload (TeamPrunePayload): Context wrapping parameters and `i_know_what_im_doing` flag.
+
+    Returns:
+        DataGatherRequest | None: Confirmation requirement prompt, if lacking the automated override flag.
+    """
     if payload.i_know_what_im_doing:
         return None
 
@@ -529,7 +585,14 @@ def gatherPruneTeams(payload: TeamPrunePayload) -> DataGatherRequest | None:
 
 
 def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload[None]:
-    """Prunes stale team symlinks that point to non-existent directories."""
+    """Prunes stale team symlinks that point to non-existent directories.
+
+    Args:
+        payload (TeamPrunePayload): Defines the scope (all companies or specific targets) to run the pruning script against.
+
+    Returns:
+        ResultPayload[None]: Metrics encapsulating the total number of pruned paths.
+    """
     confirm = payload.confirmed if not payload.i_know_what_im_doing else True
     if not confirm:
         return ResultPayload(success=False, error=["Operation cancelled by user."])
@@ -575,3 +638,4 @@ def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload[None]:
         messages.append(f"Pruned {pruned_count} stale team symlink(s).")
 
     return ResultPayload(success=True, message=messages)
+

@@ -21,13 +21,12 @@ if TYPE_CHECKING:
 def gather_apply(
     payload: ApplyPayload,
 ) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any] | None]]:
-    """
-    Gather necessary data for applying roles, such as sudo password and secrets if needed.
+    """Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
-    parameters:
+    Args:
         payload: the ApplyPayload containing the initial data and flags for the apply operation.
 
-    returns:
+    Returns:
         - A DataGatherRequest if additional data needs to be gathered from the user, or None
         - A ResultPayload indicating the success or failure of the data gathering process, or None if a DataGatherRequest is returned.
             The ResultPayload.data["loaded_roles"] field will contain the loaded role classes based on the tags in the payload.
@@ -123,8 +122,7 @@ Do you want to provide them?""",
 def gather_fleet(
     payload: ApplyPayload, chobolo_config: DictConfig | ListConfig, chobolo_path: str
 ) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any]]]:
-    """
-    Gather necessary data for fleet configuration, such as host information and parallelism settings.
+    """Gather necessary data for fleet configuration, such as host information and parallelism settings.
 
     Args:
         payload: the ApplyPayload containing the initial data and flags for the apply operation.
@@ -135,41 +133,42 @@ def gather_fleet(
         - A DataGatherRequest if additional data needs to be gathered from the user, or None
         - A ResultPayload indicating the success or failure of the data gathering process.
 
-    Expected format in chobolo file:
-    ```yaml
-    fleet:
-        parallelism: int (optional, default 0 for no parallelism)
-        hosts:
-            host1:
-                param1: value1
-                param2: value2
-
-        # OPTIONAL
-        boats:
-            - provider: boat_provider_name
-              config:
-                  param1: value1
-                  param2: value2
-
-        # OPTIONAL
-        restrictions:
-            black_list:
+    Notes:
+        Expected format in chobolo file:
+        ```yaml
+        fleet:
+            parallelism: int (optional, default 0 for no parallelism)
+            hosts:
                 host1:
-                    role1: true
-                    role2: true
-                    # host1 wont be able to run role1 nor role2
-                host2:
-                    role3: true
-                    # host2 wont be able ot run role3
-            allow_list:
-                host1:
-                    role3: true
-                    # host1 will ONLY be able to run role3
-                host3:
-                    role1: true
-                    role4: true
-                    # host3 will ONLY be able to run role
-    ```
+                    param1: value1
+                    param2: value2
+
+            # OPTIONAL
+            boats:
+                - provider: boat_provider_name
+                  config:
+                      param1: value1
+                      param2: value2
+
+            # OPTIONAL
+            restrictions:
+                black_list:
+                    host1:
+                        role1: true
+                        role2: true
+                        # host1 wont be able to run role1 nor role2
+                    host2:
+                        role3: true
+                        # host2 wont be able ot run role3
+                allow_list:
+                    host1:
+                        role3: true
+                        # host1 will ONLY be able to run role3
+                    host3:
+                        role1: true
+                        role4: true
+                        # host3 will ONLY be able to run role
+        ```
     """
 
     from typing import cast
@@ -298,15 +297,14 @@ def run_context(
     host: Host,
     chobolo_data: dict[str, Any],
 ) -> ResultPayload[dict[str, Any]]:
-    """
-    Run the context method for a given role and host, gathering necessary configuration and secrets.
+    """Run the context method for a given role and host, gathering necessary configuration and secrets.
 
-    parameters:
-        - payload: the ApplyPayload containing the initial data and flags for the apply operation.
-        - role: the Role class for which to run the context method.
-        - host: the Host object representing the target host for which to gather context.
+    Args:
+        payload: the ApplyPayload containing the initial data and flags for the apply operation.
+        role: the Role class for which to run the context method.
+        host: the Host object representing the target host for which to gather context.
 
-    returns:
+    Returns:
         - A ResultPayload indicating the success or failure of the context gathering process, with the gathered context data if successful.
             The context data is inside of the ResultPayload.data field, and any error messages are in the error field.
     """
@@ -359,16 +357,15 @@ def run_context(
 def run_delta(
     context: dict[str, Any], role: Role, role_name: str
 ) -> ResultPayload[Delta]:
-    """
-    Run the delta method for a given role and context, computing the necessary changes to apply the role.
+    """Run the delta method for a given role and context, computing the necessary changes to apply the role.
 
-    parameters:
-        - context: the context data gathered for the role, which should contain all necessary information for computing the delta.
+    Args:
+        context: the context data gathered for the role, which should contain all necessary information for computing the delta.
             this should be the data returned in the ResultPayload.data field from the run_context function.
-        - role: the Role class for which to run the delta method.
-        - role_name: the name of the role, used for error messages.
+        role: the Role class for which to run the delta method.
+        role_name: the name of the role, used for error messages.
 
-    returns:
+    Returns:
         - A ResultPayload indicating the success or failure of the delta computation process, with any error
             messages in the error field.
 
@@ -395,19 +392,18 @@ def run_plan(
     role_name: str,
     host: Host,
 ) -> ResultPayload[dict[str, Any]]:
-    """
-    Runs the plan method for a given role and host, computing the necessary
+    """Runs the plan method for a given role and host, computing the necessary
         operations to apply the role, while also checking against any allowlist or blacklist restrictions for the role and host.
 
-    parameters:
-        - payload: the ApplyPayload containing the initial data and flags for the apply operation.
-        - delta: the Delta object representing the changes that need to be applied for the role, which should be the output from
+    Args:
+        payload: the ApplyPayload containing the initial data and flags for the apply operation.
+        delta: the Delta object representing the changes that need to be applied for the role, which should be the output from
             the run_delta function. this should be the data returned in the ResultPayload.data field from the run_delta function.
-        - role: the Role class for which to run the plan method.
-        - role_name: the name of the role, used for error messages and checking restrictions.
-        - host: the Host object representing the target host for which to compute the plan.
+        role: the Role class for which to run the plan method.
+        role_name: the name of the role, used for error messages and checking restrictions.
+        host: the Host object representing the target host for which to compute the plan.
 
-    returns:
+    Returns:
         - A ResultPayload indicating the success or failure of the plan computation process, with any error
             messages in the error field, and the computed plan in the data field if successful.
             The plan should be the data returned from the role.plan() method if all checks pass and the plan is computed successfully.
@@ -427,11 +423,10 @@ def run_plan(
 
 
 def execute_plans(payload: ApplyPayload) -> ResultPayload[dict[str, Any] | None]:
-    """
-    Executes all computed state operations for the roles on the target hosts using pyinfra, and gathers the results of the execution.
+    """Executes all computed state operations for the roles on the target hosts using pyinfra, and gathers the results of the execution.
 
-    parameters:
-        - payload: the ApplyPayload containing the pyinfra state with the computed plans for each role and host
+    Args:
+        payload: the ApplyPayload containing the pyinfra state with the computed plans for each role and host
             as well as any flags for telemetry.
     """
 
@@ -454,14 +449,13 @@ def execute_plans(payload: ApplyPayload) -> ResultPayload[dict[str, Any] | None]
 
 
 def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
-    """
-    Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
+    """Resolves any aliases in the payload tags based on the plugin aliases and user configuration aliases,
          while also checking for circular references and conflicts.
 
-    parameters:
-        - payload: the ApplyPayload containing the initial tags and global configuration for resolving aliases.
+    Args:
+        payload: the ApplyPayload containing the initial tags and global configuration for resolving aliases.
 
-    returns:
+    Returns:
         - A ResultPayload indicating the success or failure of the alias resolution process, with any error messages in the error field,
     """
 
@@ -538,13 +532,12 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
 
 
 def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
-    """
-    Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
+    """Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
-    parameters:
-        - payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration and sudo password.
+    Args:
+        payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration and sudo password.
 
-    returns:
+    Returns:
         - ResultPayload indicating the success or failure of the pyinfra setup process, with any error messages in the error field.
             Additionally, if successful, the ResultPayload.data field will contain the initialized pyinfra State object that is ready
             for executing plans.
@@ -630,15 +623,16 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
 def teardown_pyinfra(
     payload: ApplyPayload, run_status: Literal["success", "failure"]
 ) -> ResultPayload[dict[str, Any]]:
-    """
-    Teardown the pyinfra state and connections after the apply operation is complete.
+    """Teardown the pyinfra state and connections after the apply operation is complete.
 
-    Should be used inside of a finally block to ensure all connections will be properly closed.
-    parameters:
-        - payload: the ApplyPayload containing the pyinfra state to be torn down.
+    Args:
+        payload: the ApplyPayload containing the pyinfra state to be torn down.
 
-    returns:
+    Returns:
         - ResultPayload indicating the success or failure of the pyinfra teardown process, with any error messages in the error field.
+
+    Notes:
+        Should be used inside of a finally block to ensure all connections will be properly closed.
     """
 
     from pyinfra.api.connect import disconnect_all
@@ -670,18 +664,20 @@ def resolve_allowlist_blacklist(
     role_name: str,
     host: Host,
 ) -> ResultPayload[dict[str, Any]] | None:
-    """
-    This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
+    """This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
         in said host or if there are any conflicts in the configuration that should be reported as errors.
 
+    Args:
+        role_name: the name of the role for which to check restrictions, used for error messages.
+        host: the Host object representing the target host for which to check restrictions, used for error messages.
+        restrictions: a dictionary containing any allowlist or blacklist restrictions for roles and hosts, used
+            to determine if the role should be applied to the host or if there are any conflicts in the configuration.
+
+    Returns:
+        ResultPayload[dict[str, Any]] | None: A ResultPayload indicating the success or failure of the resolution process.
+
+    Notes:
         It should be called before running the get_context for a role on a host.
-
-
-    parameters:
-        - role_name: the name of the role for which to check restrictions, used for error messages.
-        - host: the Host object representing the target host for which to check restrictions, used for error messages.
-        - restrictions: a dictionary containing any allowlist or blacklist restrictions for roles and hosts, used
-        to determine if the role should be applied to the host or if there are any conflicts in the configuration.
 
         This dictionary should be inside of the chobolo file, and should have the following structure:
             fleet:
@@ -700,8 +696,7 @@ def resolve_allowlist_blacklist(
                             role1: true
                             role4: true
 
-    notes:
-        - The function will check the restrictions in the following order:
+        The function will check the restrictions in the following order:
             1. A conflict check to see if the role is both blacklisted and allowlisted for the host, which will result in an error.
             2. A check to see if the role is blacklisted for the host, which will skip the role for that host.
             3. A check to see if the host is completely blacklisted (if it is host: {} and not in an allow_list), which will skip all roles
@@ -756,212 +751,78 @@ def resolve_allowlist_blacklist(
         )
 
 
-def _collect_fleet_health(
-    state: State, stage: Literal["pre_operations", "post_operations"]
-) -> None:
+def run_filtered_context(
+    host: Host,
+    roles: list[Role],
+    payload: ApplyPayload,
+    chobolo_config: dict[str, Any],
+    restrictions: dict[str, dict[str, dict[str, bool]]],
+) -> ResultPayload[dict[str, Any]]:
     """
-    Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
+    run_context implementation integrated with resolve_allowlist_blacklist to filter out roles that should not be applied to the host
+        based on the restrictions specified in the chobolo configuration.
 
-    if state.pool is available, it uses it to parallelize fact collection across hosts.
-    Otherwise, it falls back to sequential collection.
     Args:
-        state (State): The current pyinfra state containing the inventory and connection pool.
-        stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
+        host (Host): The Host object representing the target host for which to gather context.
+        roles (list[Role]): A list of Role classes that are applicable to the host based on the fleet configuration.
+        payload (ApplyPayload): The ApplyPayload containing the initial data and flags for the apply operation.
+        chobolo_config (dict[str, Any]): The entire chobolo configuration data, used for passing to the context method of the roles.
+        restrictions (dict[str, dict[str, dict[str, bool]]]): A dictionary containing any allowlist or blacklist restrictions for
+            roles and hosts, used to determine if each role should be applied to the host or if there are any conflicts in the configuration.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A ResultPayload indicating the success or failure of the context gathering process for the host,
+            with the gathered context data for all applicable roles in the data field if successful, and any error messages in the
+            error field.
     """
-    from .facts.facts import LoadAverage, RamUsage
-    from .telemetry import ChaosTelemetry
 
-    def _fetch_and_record(host):
-        ram_data = host.get_fact(RamUsage)
-        load_data = host.get_fact(LoadAverage)
-        ChaosTelemetry.record_snapshot(host, ram_data, load_data, stage=stage)
-
-    if state.pool:
-        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
-    else:
-        for host in state.inventory.iter_activated_hosts():
-            _fetch_and_record(host)
-
-
-def _resolve_limani(
-    global_config: dict[str, Any], payload: ApplyPayload
-) -> ResultPayload[str]:
-    if payload.limani:
-        limani_name = payload.limani
-    else:
-        limani_name = global_config.get("limani", "")
-
-    if not limani_name:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=["No limani specified in payload or global config."],
-            data=None,
+    host_data = {"host": host, "roles": {}}
+    result = ResultPayload(success=True, message=[], error=[])
+    for role in roles:
+        allowlist_blacklist_result = resolve_allowlist_blacklist(
+            restrictions, role.name, host
         )
+        if allowlist_blacklist_result and not allowlist_blacklist_result.success:
+            result.error = allowlist_blacklist_result.error
+            result.success = False
+            break
+        elif (
+            allowlist_blacklist_result
+            and allowlist_blacklist_result.success
+            and allowlist_blacklist_result.message
+        ):
+            continue
 
-    return ResultPayload(success=True, message=[], error=[], data=limani_name)
+        context_result = run_context(payload, role, host, chobolo_config)
+        if not context_result.success:
+            result.error.extend(context_result.error)
+            continue
 
-
-def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[Any]]:
-    """
-    Loads boat plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.boats"
-        It attempts to load all boat plugins and returns a list of the loaded boat classes.
-
-    This function is lazy and only loads boats that are necessary.
-
-    parameters:
-        - necessary_boats: a set of boat provider names that are needed for the fleet configuration.
-             Only boats with providers in this set will be loaded.
-    returns:
-        - A ResultPayload indicating the success or failure of the boat loading process,
-            with any error messages in the error field, and a list of loaded boat classes in the data field if successful.
-    """
-
-    from importlib.metadata import EntryPoint
-    from typing import cast
-
-    from .plugDiscovery import get_plugins
-
-    all_boats = get_plugins()[5]
-    loaded_boat_classes = []
-    if not all_boats:
-        return ResultPayload(success=True, message=[], error=[], data=[])
-    for boat_name in necessary_boats:
-        if boat_name not in all_boats:
-            return ResultPayload(
-                success=False,
-                message=[],
-                error=[f"No plugin found for boat provider '{boat_name}'."],
-                data=[],
+        if context_result.data is None:
+            result.error.append(
+                f"Context for role '{role.name}' on host '{host.name}' returned None."
             )
+            continue
 
-        try:
-            ep = cast(EntryPoint, all_boats[boat_name])
-            loaded_boat_class = ep.load()
-            loaded_boat_classes.append(loaded_boat_class)
-        except ImportError as e:
-            return ResultPayload(
-                success=False,
-                message=[],
-                error=[
-                    f"Error loading plugin for boat provider '{boat_name}': {str(e)}"
-                ],
-                data=[],
-            )
-    return ResultPayload(success=True, message=[], error=[], data=loaded_boat_classes)
-
-
-def _handle_boats(
-    global_state: DictConfig, boats: ListConfig
-) -> tuple[DictConfig, ResultPayload[list[Any] | None]]:
-    """
-    Handles the processing of boats for fleet configuration, including loading necessary boat plugins and invoking their
-         get_fleet methods to gather host information.
-
-    parameters:
-        - global_state: the current global state as a DictConfig, which may be mutated by the boats' get_fleet methods to
-             include fleet information.
-             This state must be the chobolo file.
-        - boats: a ListConfig containing the boat configurations from the chobolo file, where each boat configuration should
-            include a "provider" key indicating the boat provider, and an optional "config" key with configuration for that boat.
-
-    returns:
-        - A DictConfig representing the potentially mutated global state after processing the boats.
-        - A ResultPayload indicating the success or failure of the boat processing, with any error messages in the error field.
-
-    mutates:
-        - global_state: this may be mutated by the boats' get_fleet methods to include new hosts and information to the
-            global state that will be used for setting up the fleet and inventory.
-
-    expected format for boats in chobolo file:
-    ```yaml
-    fleet:
-        boats:
-            - provider: boat_provider_name
-              config:
-                param1: value1
-                param2: value2
-    ```
-    """
-
-    from omegaconf import OmegaConf
-
-    necessary_boats = set()
-    for boat in boats:
-        provider = boat.get("provider", None)
-        if provider:
-            necessary_boats.add(provider)
-
-    result = _load_boats(necessary_boats)
-
-    loaded_boat_classes = result.data if result.success else []
-
-    if not result.success:
-        return global_state, result
-
-    if not loaded_boat_classes:
-        return global_state, ResultPayload(success=True, message=[], error=[])
-
-    if not boats:
-        return global_state, ResultPayload(success=True, message=[], error=[])
-
-    boat_map = {boat_class.name: boat_class for boat_class in loaded_boat_classes}
-
-    for boat_config in boats:
-        provider = boat_config.get("provider")
-        if provider and provider in boat_map:
-            boat_class = boat_map[provider]
-            instance_config = boat_config.get("config", OmegaConf.create())
-            boat_instance = boat_class(config=instance_config)
-            try:
-                global_state = boat_instance.get_fleet(global_state)
-            except Exception as e:
-                return global_state, ResultPayload(
-                    success=False,
-                    message=[],
-                    error=[f"Error processing boat '{boat_class.name}': {str(e)}"],
-                )
-
-    return global_state, ResultPayload(success=True, message=[], error=[])
-
-
-def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], int]:
-    """
-    Sets up the inventory of hosts for pyinfra based on the fleet configuration gathered from the chobolo file,
-         and determines the parallelism settings for executing plans on the fleet.
-
-    parameters:
-        - payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration
-            such as the list of target hosts and parallelism settings.
-
-    returns:
-        - An inventory object compatible with pyinfra, constructed based on the target hosts specified in the payload.
-        - A list of tuples representing the target hosts and their associated data, extracted from the payload
-        - An integer representing the parallelism settings for executing plans on the fleet, extracted from the payload.
-    """
-
-    from pyinfra.api.inventory import Inventory  # type: ignore
-
-    if not payload.is_fleet_active:
-        inventory = Inventory((payload.target_hosts, {}))
-    else:
-        inventory = Inventory(payload.target_hosts)
-
-    return inventory, payload.target_hosts, payload.parallelism
+        host_data["roles"][role.name] = {
+            "role": role,
+            "context": context_result.data,
+        }
+    result.data = host_data
+    return result
 
 
 def get_configs(
     payload: ApplyPayload,
 ) -> tuple[DictConfig, ResultPayload[dict[str, Any]]]:
-    """
-    Loads global configuration from a chobolo file and validates paths for chobolo,
+    """Loads global configuration from a chobolo file and validates paths for chobolo,
          secrets file, and sops file based on the payload and global configuration.
 
-    parameters:
-        - payload: the ApplyPayload containing any overrides for configuration paths,
+    Args:
+        payload: the ApplyPayload containing any overrides for configuration paths,
              such as chobolo file path, secrets file path, and sops file path.
 
-    returns:
+    Returns:
         - A DictConfig object representing the loaded global configuration, which may include overrides from the payload.
         - A ResultPayload indicating the success or failure of the configuration loading and validation process, with
             any error messages in the error field, and the relevant configuration data (such as validated paths) in
@@ -1045,22 +906,215 @@ def get_configs(
     )
 
 
+def _collect_fleet_health(
+    state: State, stage: Literal["pre_operations", "post_operations"]
+) -> None:
+    """
+    Asyncronously collects RAM and Load Average facts from all hosts in the fleet and records them in the telemetry system.
+
+    if state.pool is available, it uses it to parallelize fact collection across hosts.
+    Otherwise, it falls back to sequential collection.
+    Args:
+        state (State): The current pyinfra state containing the inventory and connection pool.
+        stage (str): The stage of the operation (e.g., "pre_operations", "post_operations") for telemetry recording.
+    """
+    from .facts.facts import LoadAverage, RamUsage
+    from .telemetry import ChaosTelemetry
+
+    def _fetch_and_record(host):
+        ram_data = host.get_fact(RamUsage)
+        load_data = host.get_fact(LoadAverage)
+        ChaosTelemetry.record_snapshot(host, ram_data, load_data, stage=stage)
+
+    if state.pool:
+        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
+    else:
+        for host in state.inventory.iter_activated_hosts():
+            _fetch_and_record(host)
+
+
+def _resolve_limani(
+    global_config: dict[str, Any], payload: ApplyPayload
+) -> ResultPayload[str]:
+    if payload.limani:
+        limani_name = payload.limani
+    else:
+        limani_name = global_config.get("limani", "")
+
+    if not limani_name:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=["No limani specified in payload or global config."],
+            data=None,
+        )
+
+    return ResultPayload(success=True, message=[], error=[], data=limani_name)
+
+
+def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[Any]]:
+    """Loads boat plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.boats"
+        It attempts to load all boat plugins and returns a list of the loaded boat classes.
+
+    Args:
+        necessary_boats: a set of boat provider names that are needed for the fleet configuration.
+             Only boats with providers in this set will be loaded.
+
+    Returns:
+        - A ResultPayload indicating the success or failure of the boat loading process,
+            with any error messages in the error field, and a list of loaded boat classes in the data field if successful.
+
+    Notes:
+        This function is lazy and only loads boats that are necessary.
+    """
+
+    from importlib.metadata import EntryPoint
+    from typing import cast
+
+    from .plugDiscovery import get_plugins
+
+    all_boats = get_plugins()[5]
+    loaded_boat_classes = []
+    if not all_boats:
+        return ResultPayload(success=True, message=[], error=[], data=[])
+    for boat_name in necessary_boats:
+        if boat_name not in all_boats:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"No plugin found for boat provider '{boat_name}'."],
+                data=[],
+            )
+
+        try:
+            ep = cast(EntryPoint, all_boats[boat_name])
+            loaded_boat_class = ep.load()
+            loaded_boat_classes.append(loaded_boat_class)
+        except ImportError as e:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Error loading plugin for boat provider '{boat_name}': {str(e)}"
+                ],
+                data=[],
+            )
+    return ResultPayload(success=True, message=[], error=[], data=loaded_boat_classes)
+
+
+def _handle_boats(
+    global_state: DictConfig, boats: ListConfig
+) -> tuple[DictConfig, ResultPayload[list[Any] | None]]:
+    """Handles the processing of boats for fleet configuration, including loading necessary boat plugins and invoking their
+         get_fleet methods to gather host information.
+
+    Args:
+        global_state: the current global state as a DictConfig, which may be mutated by the boats' get_fleet methods to
+             include fleet information.
+             This state must be the chobolo file.
+        boats: a ListConfig containing the boat configurations from the chobolo file, where each boat configuration should
+            include a "provider" key indicating the boat provider, and an optional "config" key with configuration for that boat.
+
+    Returns:
+        - A DictConfig representing the potentially mutated global state after processing the boats.
+        - A ResultPayload indicating the success or failure of the boat processing, with any error messages in the error field.
+
+    Notes:
+        mutates:
+            - global_state: this may be mutated by the boats' get_fleet methods to include new hosts and information to the
+                global state that will be used for setting up the fleet and inventory.
+
+        expected format for boats in chobolo file:
+        ```yaml
+        fleet:
+            boats:
+                - provider: boat_provider_name
+                  config:
+                    param1: value1
+                    param2: value2
+        ```
+    """
+
+    from omegaconf import OmegaConf
+
+    necessary_boats = set()
+    for boat in boats:
+        provider = boat.get("provider", None)
+        if provider:
+            necessary_boats.add(provider)
+
+    result = _load_boats(necessary_boats)
+
+    loaded_boat_classes = result.data if result.success else []
+
+    if not result.success:
+        return global_state, result
+
+    if not loaded_boat_classes:
+        return global_state, ResultPayload(success=True, message=[], error=[])
+
+    if not boats:
+        return global_state, ResultPayload(success=True, message=[], error=[])
+
+    boat_map = {boat_class.name: boat_class for boat_class in loaded_boat_classes}
+
+    for boat_config in boats:
+        provider = boat_config.get("provider")
+        if provider and provider in boat_map:
+            boat_class = boat_map[provider]
+            instance_config = boat_config.get("config", OmegaConf.create())
+            boat_instance = boat_class(config=instance_config)
+            try:
+                global_state = boat_instance.get_fleet(global_state)
+            except Exception as e:
+                return global_state, ResultPayload(
+                    success=False,
+                    message=[],
+                    error=[f"Error processing boat '{boat_class.name}': {str(e)}"],
+                )
+
+    return global_state, ResultPayload(success=True, message=[], error=[])
+
+
+def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], int]:
+    """Sets up the inventory of hosts for pyinfra based on the fleet configuration gathered from the chobolo file,
+         and determines the parallelism settings for executing plans on the fleet.
+
+    Args:
+        payload: the ApplyPayload containing the gathered data for the apply operation, including fleet configuration
+            such as the list of target hosts and parallelism settings.
+
+    Returns:
+        - An inventory object compatible with pyinfra, constructed based on the target hosts specified in the payload.
+        - A list of tuples representing the target hosts and their associated data, extracted from the payload
+        - An integer representing the parallelism settings for executing plans on the fleet, extracted from the payload.
+    """
+
+    from pyinfra.api.inventory import Inventory  # type: ignore
+
+    if not payload.is_fleet_active:
+        inventory = Inventory((payload.target_hosts, {}))
+    else:
+        inventory = Inventory(payload.target_hosts)
+
+    return inventory, payload.target_hosts, payload.parallelism
+
+
 def _handle_secrets_for_role(
     role: Role,
     payload: ApplyPayload,
     role_name: str = "",
 ) -> ResultPayload[dict[str, Any]]:
-    """
-    Handles the loading and decryption of secrets for a given role based on the payload and global configuration.
+    """Handles the loading and decryption of secrets for a given role based on the payload and global configuration.
 
-    parameters:
-        - role: the Role class for which to handle secrets, used to determine if secrets are needed and what keys are necessary.
-        - payload: the ApplyPayload containing any overrides for secrets file path and sops file path, as well as the secrets context.
+    Args:
+        role: the Role class for which to handle secrets, used to determine if secrets are needed and what keys are necessary.
+        payload: the ApplyPayload containing any overrides for secrets file path and sops file path, as well as the secrets context.
             This payload must contain the decrypted secrets in the payload.decrypted_secrets attribute, which should be a string
             representation of the decrypted secrets data.
-        - role_name: the name of the role, used for error messages.
+        role_name: the name of the role, used for error messages.
 
-    returns:
+    Returns:
         - A ResultPayload indicating the success or failure of the secrets handling process, with any error messages in the error field,
             and a dictionary of secrets for the role in the data field if successful. The secrets for the role will be filtered based on
             the necessary_secret_dict_keys specified by the role, and will only include those keys that are present in the loaded secrets.
@@ -1107,75 +1161,13 @@ def _handle_secrets_for_role(
     return ResultPayload(success=True, message=[], error=[], data={})
 
 
-def run_filtered_context(
-    host: Host,
-    roles: list[Role],
-    payload: ApplyPayload,
-    chobolo_config: dict[str, Any],
-    restrictions: dict[str, dict[str, dict[str, bool]]],
-) -> ResultPayload[dict[str, Any]]:
-    """
-    run_context implementation integrated with resolve_allowlist_blacklist to filter out roles that should not be applied to the host
-        based on the restrictions specified in the chobolo configuration.
+def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
+    """Handles the retrieval of the sudo password based on the payload, either from a specified file or directly from the payload.
 
     Args:
-        host (Host): The Host object representing the target host for which to gather context.
-        roles (list[Role]): A list of Role classes that are applicable to the host based on the fleet configuration.
-        payload (ApplyPayload): The ApplyPayload containing the initial data and flags for the apply operation.
-        chobolo_config (dict[str, Any]): The entire chobolo configuration data, used for passing to the context method of the roles.
-        restrictions (dict[str, dict[str, dict[str, bool]]]): A dictionary containing any allowlist or blacklist restrictions for
-            roles and hosts, used to determine if each role should be applied to the host or if there are any conflicts in the configuration.
+        payload: the ApplyPayload containing any overrides for the sudo password file path or the password itself.
 
     Returns:
-        ResultPayload[dict[str, Any]]: A ResultPayload indicating the success or failure of the context gathering process for the host,
-            with the gathered context data for all applicable roles in the data field if successful, and any error messages in the
-            error field.
-    """
-
-    host_data = {"host": host, "roles": {}}
-    result = ResultPayload(success=True, message=[], error=[])
-    for role in roles:
-        allowlist_blacklist_result = resolve_allowlist_blacklist(
-            restrictions, role.name, host
-        )
-        if allowlist_blacklist_result and not allowlist_blacklist_result.success:
-            result.error = allowlist_blacklist_result.error
-            result.success = False
-            break
-        elif (
-            allowlist_blacklist_result
-            and allowlist_blacklist_result.success
-            and allowlist_blacklist_result.message
-        ):
-            continue
-
-        context_result = run_context(payload, role, host, chobolo_config)
-        if not context_result.success:
-            result.error.extend(context_result.error)
-            continue
-
-        if context_result.data is None:
-            result.error.append(
-                f"Context for role '{role.name}' on host '{host.name}' returned None."
-            )
-            continue
-
-        host_data["roles"][role.name] = {
-            "role": role,
-            "context": context_result.data,
-        }
-    result.data = host_data
-    return result
-
-
-def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
-    """
-    Handles the retrieval of the sudo password based on the payload, either from a specified file or directly from the payload.
-
-    parameters:
-        - payload: the ApplyPayload containing any overrides for the sudo password file path or the password itself.
-
-    returns:
         - A ResultPayload indicating the success or failure of the password retrieval process, with any error messages in the error field,
             and the retrieved sudo password in the data field if successful. The function will first check if a sudo password file is
             specified and attempt to read the password from that file, validating the path and ensuring it is a file. If no file is specified,
@@ -1226,18 +1218,17 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
 
 
 def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Any]]:
-    """
-    Loads role plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.roles"
+    """Loads role plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.roles"
 
-    parameters:
-        - role_names: a list of role names that need to be loaded. The function will attempt to load plugins that match these names.
-    returns:
+    Args:
+        role_names: a list of role names that need to be loaded. The function will attempt to load plugins that match these names.
+
+    Returns:
         - A ResultPayload indicating the success or failure of the role loading process, with any error messages in the error field,
             and a dictionary of loaded Role classes keyed by their names in the data field if successful. The function will look for
             plugins that match the specified role names, and if found, will load them and include them in the returned dictionary.
             If any role name is not found or if there are multiple plugins with the same name, it will return an error message
             indicating the issue.
-
     """
 
     from chaos.lib.utils import get_roleEps
