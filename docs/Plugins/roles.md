@@ -87,6 +87,8 @@ class MySimpleRole(Role):
 
 There are, however, issues with skipping the lifecycle (for my CLI). First of all, you lose the ability to have accurate diffs in your interface, which means you can't have a clear "this is what will change" report before you run the plan. Second, it makes it harder to debug and test your roles, since you cannot easily isolate the data gathering, diffing and execution phases. Most importantly, Ch-aOS has a way of parallelising operations across hosts, particularly in the `get_context` phase, which means that if you run operations directly in `plan` without using `delta`, you might end up with a poorer performance.
 
+Then again, Ch-aOS is an SDK, everything the CLI does, you can do with your own code, you can do whatever you want! The lifecycle is there to help you, but all the tools are at your disposal if you want to learn how to use them effectively.
+
 ## Tips and Tricks
 
 So, best practices out of the way, let's get into some... hacky stuff.
