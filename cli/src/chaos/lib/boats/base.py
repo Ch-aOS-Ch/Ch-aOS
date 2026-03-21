@@ -1,3 +1,5 @@
+"""Base definitions and abstract classes for the Boat resource provisioner plugins."""
+
 from abc import ABC, abstractmethod
 
 from omegaconf import DictConfig, OmegaConf

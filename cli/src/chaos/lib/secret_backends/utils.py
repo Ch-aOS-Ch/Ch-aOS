@@ -1,3 +1,5 @@
+"""Utility functions for handling SOPS file operations, provider resolution, and decryption workflows."""
+
 import os
 import shutil
 from pathlib import Path

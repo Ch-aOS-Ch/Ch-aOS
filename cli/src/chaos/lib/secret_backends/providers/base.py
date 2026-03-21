@@ -1,3 +1,5 @@
+"""Abstract base class for external secret provider integrations (e.g., password managers)."""
+
 import argparse
 import os
 import shlex

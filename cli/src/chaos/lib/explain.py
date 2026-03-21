@@ -118,4 +118,3 @@ def handleExplain(
 
     success = len(errors) == 0
     return ResultPayload(success=success, data=result_data, error=errors)
-

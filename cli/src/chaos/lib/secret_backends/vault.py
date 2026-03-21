@@ -97,7 +97,9 @@ def handleVaultRem(payload, sops_file_override, keys):
                     f"Key: {key_to_check} not found in sops config. Skipping."
                 )
 
-        msgs, errs = _generic_handle_rem("vault", payload, sops_file_override, keys_to_remove)
+        msgs, errs = _generic_handle_rem(
+            "vault", payload, sops_file_override, keys_to_remove
+        )
         messages.extend(msgs)
         errors.extend(errs)
 

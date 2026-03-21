@@ -1,3 +1,5 @@
+"""General utility functions for path validation, dependency checking, and plugin entrypoint retrieval."""
+
 from functools import lru_cache
 
 

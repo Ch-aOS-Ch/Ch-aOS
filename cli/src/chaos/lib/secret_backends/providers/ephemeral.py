@@ -1,3 +1,5 @@
+"""Context managers for handling ephemeral cryptographic keys in secure memory environments."""
+
 import os
 import subprocess
 import tempfile

@@ -1,3 +1,5 @@
+"""Abstract base class for Limani logbook and telemetry database drivers."""
+
 from abc import ABC, abstractmethod
 
 

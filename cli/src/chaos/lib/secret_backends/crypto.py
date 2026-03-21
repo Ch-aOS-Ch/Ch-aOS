@@ -1,3 +1,5 @@
+"""Cryptographic utilities for key validation, extraction, and ephemeral environment setup."""
+
 import base64
 import re
 import subprocess

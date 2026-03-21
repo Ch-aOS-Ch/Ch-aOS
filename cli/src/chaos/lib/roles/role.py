@@ -1,3 +1,5 @@
+"""Abstract base class definition for Ch-aOS execution roles."""
+
 from abc import ABC, abstractmethod
 from typing import Any
 
