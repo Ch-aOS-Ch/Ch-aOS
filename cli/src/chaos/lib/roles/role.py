@@ -72,7 +72,7 @@ class Role(ABC):
             Delta: A Delta object containing the actions needed to achieve the desired state.
         """
 
-        return Delta(to_add={}, to_remove={}, metadata={})
+        return Delta(to_add={"force_run": "this"}, to_remove={}, metadata={})
 
     @abstractmethod
     def plan(self, state, host, delta: Delta = Delta()) -> ResultPayload:

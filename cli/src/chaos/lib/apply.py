@@ -1107,6 +1107,67 @@ def _handle_secrets_for_role(
     return ResultPayload(success=True, message=[], error=[], data={})
 
 
+def run_filtered_context(
+    host: Host,
+    roles: list[Role],
+    payload: ApplyPayload,
+    chobolo_config: dict[str, Any],
+    restrictions: dict[str, dict[str, dict[str, bool]]],
+) -> ResultPayload[dict[str, Any]]:
+    """
+    run_context implementation integrated with resolve_allowlist_blacklist to filter out roles that should not be applied to the host
+        based on the restrictions specified in the chobolo configuration.
+
+    Args:
+        host (Host): The Host object representing the target host for which to gather context.
+        roles (list[Role]): A list of Role classes that are applicable to the host based on the fleet configuration.
+        payload (ApplyPayload): The ApplyPayload containing the initial data and flags for the apply operation.
+        chobolo_config (dict[str, Any]): The entire chobolo configuration data, used for passing to the context method of the roles.
+        restrictions (dict[str, dict[str, dict[str, bool]]]): A dictionary containing any allowlist or blacklist restrictions for
+            roles and hosts, used to determine if each role should be applied to the host or if there are any conflicts in the configuration.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A ResultPayload indicating the success or failure of the context gathering process for the host,
+            with the gathered context data for all applicable roles in the data field if successful, and any error messages in the
+            error field.
+    """
+
+    host_data = {"host": host, "roles": {}}
+    result = ResultPayload(success=True, message=[], error=[])
+    for role in roles:
+        allowlist_blacklist_result = resolve_allowlist_blacklist(
+            restrictions, role.name, host
+        )
+        if allowlist_blacklist_result and not allowlist_blacklist_result.success:
+            result.error = allowlist_blacklist_result.error
+            result.success = False
+            break
+        elif (
+            allowlist_blacklist_result
+            and allowlist_blacklist_result.success
+            and allowlist_blacklist_result.message
+        ):
+            continue
+
+        context_result = run_context(payload, role, host, chobolo_config)
+        if not context_result.success:
+            result.error.extend(context_result.error)
+            continue
+
+        if context_result.data is None:
+            result.error.append(
+                f"Context for role '{role.name}' on host '{host.name}' returned None."
+            )
+            continue
+
+        host_data["roles"][role.name] = {
+            "role": role,
+            "context": context_result.data,
+        }
+    result.data = host_data
+    return result
+
+
 def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
     """
     Handles the retrieval of the sudo password based on the payload, either from a specified file or directly from the payload.

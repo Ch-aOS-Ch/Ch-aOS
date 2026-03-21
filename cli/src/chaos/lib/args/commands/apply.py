@@ -42,9 +42,8 @@ def handleApply(args):
         gather_fleet,
         get_configs,
         resolve_aliases,
-        resolve_allowlist_blacklist,
-        run_context,
         run_delta,
+        run_filtered_context,
         run_plan,
         setup_pyinfra,
         teardown_pyinfra,
@@ -238,76 +237,48 @@ def handleApply(args):
         roles = list(loaded_roles.values())
         hosts = list(payload.pyinfra_state.inventory.iter_activated_hosts())
 
-        def gather_host_contexts(host):
-            from chaos.lib.args.dataclasses import ResultPayload
-
-            host_data = {"host": host, "roles": {}, "errors": [], "aborted": False}
-            for role in roles:
-                allowlist_blacklist_result = resolve_allowlist_blacklist(
-                    restrictions, role.name, host
-                )
-                if (
-                    allowlist_blacklist_result
-                    and not allowlist_blacklist_result.success
-                ):
-                    host_data["errors"].append(allowlist_blacklist_result)
-                    host_data["aborted"] = True
-                    break
-                elif (
-                    allowlist_blacklist_result
-                    and allowlist_blacklist_result.success
-                    and allowlist_blacklist_result.message
-                ):
-                    continue
-
-                context_result = run_context(payload, role, host, chobolo_config)
-                if not context_result.success:
-                    host_data["errors"].append(context_result)
-                    continue
-
-                if context_result.data is None:
-                    err_payload = ResultPayload(
-                        success=False,
-                        message=[],
-                        error=[
-                            f"No context returned for role {role.name} on host {host.name}."
-                        ],
-                        data={},
-                    )
-                    host_data["errors"].append(err_payload)
-                    continue
-
-                host_data["roles"][role.name] = {
-                    "role": role,
-                    "context": context_result.data,
-                }
-            return host_data
-
         console.print("[bold blue]INFO:[/] Collecting host contexts...")
 
         if payload.pyinfra_state.pool:
+            from functools import partial
+
             gathered_results = payload.pyinfra_state.pool.map(
-                gather_host_contexts, hosts
+                partial(
+                    run_filtered_context,
+                    roles=roles,
+                    payload=payload,
+                    chobolo_config=chobolo_config,
+                    restrictions=restrictions,
+                ),
+                hosts,
             )
         else:
-            gathered_results = [gather_host_contexts(h) for h in hosts]
+            gathered_results = [
+                run_filtered_context(h, roles, payload, chobolo_config, restrictions)
+                for h in hosts
+            ]
 
         has_changes_to_apply = False
         prepared_plans = []
 
         for host_result in gathered_results:
-            host = host_result["host"]
-
-            if host_result["aborted"]:
-                for err in host_result["errors"]:
-                    _print_messages(err, console)
+            if not host_result.success:
+                for err in host_result.error:
+                    _print_messages(host_result, console)
                 sys.exit(1)
+            if not host_result.data:
+                console.print(
+                    "[bold red]ERROR:[/] No data returned from host context gathering."
+                )
+                run_status = "failure"
+                continue
+            host = host_result.data["host"]
 
-            for err in host_result["errors"]:
+            for err in host_result.error:
                 _print_messages(err, console)
                 run_status = "failure"
 
-            for role_name, data in host_result["roles"].items():
+            for role_name, data in host_result.data["roles"].items():
                 role = data["role"]
                 context = data["context"]
 
@@ -344,7 +315,7 @@ def handleApply(args):
                     confirm = Confirm()
 
                 if not confirm.ask(
-                    "\n[bold yellow]Deseja aplicar as mudanças acima em todos os hosts identificados?[/]",
+                    "\n[bold yellow]Do you wish to apply the above deltas?[/]",
                     default=True,
                 ):
                     console.print("[bold red]Aborting apply due to user response.[/]")
