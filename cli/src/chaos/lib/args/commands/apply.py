@@ -328,7 +328,7 @@ def handleApply(args):
                 run_status = "failure"
 
         if has_changes_to_apply or payload.i_know_what_im_doing:
-            console.print("[bold blue]INFO:[/] Executando planos de aplicação...")
+            console.print("[bold blue]INFO:[/] Executing apply plans...")
             execute_result = execute_plans(payload)
             _print_messages(execute_result, console)
             if not execute_result.success:
