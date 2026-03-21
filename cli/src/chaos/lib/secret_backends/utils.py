@@ -16,6 +16,15 @@ from .providers.base import Provider
 
 
 def _resolveProvider(context: SecretsContext, global_config):
+    """Resolves and returns the appropriate secret provider based on context and configuration.
+
+    Args:
+        context (SecretsContext): The contextual data governing the secret operations.
+        global_config (dict | DictConfig): The global chaos configuration data.
+
+    Returns:
+        Provider | None: The resolved provider object, or None if no matching provider is found.
+    """
     if context.provider_config and context.provider_config.provider is not None:
         context = _handle_provider_arg(context, global_config)
 
@@ -23,7 +32,18 @@ def _resolveProvider(context: SecretsContext, global_config):
 
 
 def _getProvider(context: SecretsContext, global_config):
-    """Returns the appropriate secret provider based on the command-line arguments."""
+    """Returns the appropriate secret provider based on the command-line arguments.
+
+    Searches through installed provider plugins and selects one matching the provided 
+    ephemeral provider arguments in the context.
+
+    Args:
+        context (SecretsContext): The secrets context containing ephemeral provider arguments.
+        global_config (dict | DictConfig): The global chaos configuration data.
+
+    Returns:
+        Provider | None: The matching provider instance, or None if no provider matches.
+    """
     from chaos.lib.utils import get_providerEps
 
     provider_eps = get_providerEps()
@@ -50,6 +70,19 @@ def _getProvider(context: SecretsContext, global_config):
 def _getProviderByName(
     payload: Union[SecretsExportPayload, SecretsImportPayload], global_config
 ) -> Provider:
+    """Retrieves a specific secret provider by its registered CLI name.
+
+    Args:
+        payload (Union[SecretsExportPayload, SecretsImportPayload]): The payload containing the requested provider_name.
+        global_config (dict | DictConfig): The global chaos configuration.
+
+    Returns:
+        Provider: The matching provider instance.
+
+    Raises:
+        ValueError: If no secret providers are available or if the requested provider is not found.
+        TypeError: If the found provider does not support the required operations.
+    """
     from chaos.lib.utils import get_providerEps
 
     provider = None
@@ -77,8 +110,13 @@ def _getProviderByName(
 
 
 def setup_gpg_keys(gnupghome) -> None:
-    """
-    Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
+    """Sets up a temporary GNUPGHOME directory to keep imported GPG keys ephemeral.
+
+    Copies existing private keys and trustdb from the user's main GNUPGHOME (if present)
+    to the temporary directory, and imports public keys so they are available in the ephemeral context.
+
+    Args:
+        gnupghome (Path | tempfile.TemporaryDirectory): The temporary directory path to configure.
     """
     import subprocess
 
@@ -133,8 +171,16 @@ def setup_gpg_keys(gnupghome) -> None:
 
 
 def conc_age_keys(secKey: str) -> str:
-    """
-    Concatenates existing age keys with imported ones
+    """Concatenates existing Age keys from the environment with a new secret key.
+
+    Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends 
+    the provided key, returning the combined string.
+
+    Args:
+        secKey (str): The new secret age key to append.
+
+    Returns:
+        str: The combined Age keys.
     """
     sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
     if not sops_file_env or not Path(sops_file_env).exists():
@@ -149,8 +195,20 @@ def conc_age_keys(secKey: str) -> str:
 
 
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
-    """
-    Sets up the vault keys for exporting, validating them on the way
+    """Reads and validates a Vault token for exporting.
+
+    Constructs a formatted string containing the Vault address and token for storing in an external provider.
+
+    Args:
+        vaultAddr (str): The HashiCorp Vault server address.
+        keyPath (Path): The file path containing the Vault token.
+
+    Returns:
+        str: The formatted key content string with address and token.
+
+    Raises:
+        EnvironmentError: If the 'vault' CLI tool is missing.
+        ValueError: If the key format is invalid.
     """
     from chaos.lib.utils import checkDep
 
@@ -174,8 +232,13 @@ Vault Key: {key}
 
 
 def setup_pipe(token: str) -> int:
-    """
-    Creates a pipe for passing inside a FD
+    """Creates a Unix pipe to pass a token securely via a File Descriptor (FD).
+
+    Args:
+        token (str): The secret token string to pass into the pipe.
+
+    Returns:
+        int: The file descriptor (FD) number for the read end of the pipe.
     """
     r, w = os.pipe()
     os.write(w, token.encode())
@@ -185,8 +248,15 @@ def setup_pipe(token: str) -> int:
 
 
 def _is_valid_vault_key(key):
-    """
-    checks if vault key is valid
+    """Checks if a Vault server URI is valid and reachable.
+
+    Attempts to fetch the seal-status of the Vault server.
+
+    Args:
+        key (str): The Vault server URI to check.
+
+    Returns:
+        tuple[bool, str]: A tuple containing a boolean indicating validity, and a status message.
     """
     import requests
     import requests.exceptions
@@ -242,8 +312,22 @@ def _is_valid_vault_key(key):
 
 
 def get_sops_files(sops_file_override, secrets_file_override, team):
-    """
-    Gets sops files, secrets files and config files
+    """Gets the appropriate SOPS and secrets files based on overrides, team context, and global configuration.
+
+    Args:
+        sops_file_override (str | None): A path overriding the default SOPS configuration file.
+        secrets_file_override (str | None): A path overriding the default secrets file.
+        team (str | None): The team context (e.g., 'company.team.group').
+
+    Returns:
+        tuple[str, str, dict | DictConfig]: A tuple containing:
+            - The path to the secrets file.
+            - The path to the SOPS configuration file.
+            - The global configuration mapping.
+
+    Raises:
+        ValueError: If the team string is malformed or if there are path traversal attempts.
+        FileNotFoundError: If the specified team directory or override files are not found.
     """
     from pathlib import Path
 
@@ -362,8 +446,13 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
 
 def flatten(items):
-    """
-    Turns a concatenated list into a singular list
+    """Turns a concatenated or nested list into a single flat generator.
+
+    Args:
+        items (Iterable): An iterable of items or nested lists.
+
+    Yields:
+        Any: Unpacked items from the nested iterables.
     """
     from omegaconf import ListConfig
 
@@ -375,8 +464,14 @@ def flatten(items):
 
 
 def _save_to_config(backend: str, data_to_save: dict) -> None:
-    """
-    Saves provider-specific data to the chaos config file.
+    """Saves provider-specific data to the chaos global configuration file.
+
+    Updates the '~/.config/chaos/config.yml' file with new settings under the 
+    specified backend key.
+
+    Args:
+        backend (str): The name of the provider backend (e.g., 'bw', 'bws').
+        data_to_save (dict): A dictionary of key-value pairs to store.
     """
     from omegaconf import OmegaConf
 
@@ -397,8 +492,17 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
 
 
 def handleUpdateAllSecrets(context: SecretsContext):
-    """
-    The rest of the functions should be auto explicative.
+    """Updates encryption keys for all related secret files and rambles.
+
+    Iterates over the main secrets file and any associated ramble files to apply 
+    `sops updatekeys`, ensuring all files reflect the current key configuration.
+
+    Args:
+        context (SecretsContext): The execution context defining file overrides and team structure.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages encountered during the update.
     """
     import subprocess
 
@@ -473,6 +577,22 @@ def handleUpdateAllSecrets(context: SecretsContext):
 
 
 def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
+    """Resolves dynamic provider arguments based on global configuration.
+
+    Processes the requested provider backend name, looks up its stored configuration 
+    (like item IDs or URLs), and constructs a new context with the resolved ephemeral arguments.
+
+    Args:
+        context (SecretsContext): The initial secrets context containing raw provider requests.
+        config (dict | DictConfig): The global configuration mapping containing stored provider data.
+
+    Returns:
+        SecretsContext: A new context object populated with the resolved provider arguments.
+
+    Raises:
+        FileNotFoundError: If the global config lacks the 'secret_providers' section.
+        ValueError: If the provider format is invalid, missing, or unsupported.
+    """
     from chaos.lib.utils import get_providerEps
 
     if not context.provider_config or context.provider_config.provider is None:
@@ -557,6 +677,20 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
 
 
 def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids: set):
+    """Generic handler for adding keys to a SOPS configuration file.
+
+    Updates specific creation rules within the SOPS configuration by appending 
+    new keys to the designated key groups. Optionally creates new key groups if requested.
+
+    Args:
+        key_type (str): The type of key being added (e.g., 'pgp', 'age', 'vault').
+        payload (SecretsRotatePayload): The rotation payload containing rule indices and creation flags.
+        sops_file_override (str): The path to the SOPS configuration file.
+        valids (set): A set of validated keys to add.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple with informational messages and error messages.
+    """
     from omegaconf import DictConfig, OmegaConf
 
     messages = []
@@ -638,6 +772,20 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
 def _generic_handle_rem(
     key_type: str, payload, sops_file_override: str, keys_to_remove: set
 ):
+    """Generic handler for removing keys from a SOPS configuration file.
+
+    Scans creation rules and filters out the specified keys from the relevant key groups. 
+    Empty key groups are removed entirely.
+
+    Args:
+        key_type (str): The type of key being removed (e.g., 'pgp', 'age', 'vault').
+        payload (SecretsRotatePayload): The rotation payload containing context and target rule index.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys_to_remove (set): A set of keys to strip out of the configuration.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple with informational messages and error messages.
+    """
     from omegaconf import DictConfig, OmegaConf
 
     messages = []
@@ -708,6 +856,26 @@ def _generic_handle_rem(
 def decrypt_secrets(
     secrets_file: str, sops_file: str, config, context: SecretsContext
 ) -> str:
+    """Decrypts a secrets file using SOPS and the active environment context.
+
+    Delegates decryption to a resolved secret provider plugin if available; 
+    otherwise, it falls back to directly invoking the SOPS CLI tool.
+
+    Args:
+        secrets_file (str): The path to the encrypted secrets file.
+        sops_file (str): The path to the SOPS configuration file.
+        config (dict | DictConfig): The global chaos configuration.
+        context (SecretsContext): The secrets context detailing ephemeral settings.
+
+    Returns:
+        str: The raw decrypted text content.
+
+    Raises:
+        EnvironmentError: If the 'sops' CLI tool is missing.
+        PermissionError: If Vault authentication fails.
+        RuntimeError: If the SOPS decryption process fails.
+        FileNotFoundError: If 'sops' cannot be found in the system PATH.
+    """
     import subprocess
 
     from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use

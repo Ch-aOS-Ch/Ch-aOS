@@ -682,6 +682,7 @@ def resolve_allowlist_blacklist(
         It should be called before running the get_context for a role on a host.
 
         This dictionary should be inside of the chobolo file, and should have the following structure:
+        ```yaml
             fleet:
                 restrictions:
                     black_list:
@@ -697,6 +698,7 @@ def resolve_allowlist_blacklist(
                         host3:
                             role1: true
                             role4: true
+        ```
 
         The function will check the restrictions in the following order:
             1. A conflict check to see if the role is both blacklisted and allowlisted for the host, which will result in an error.
@@ -776,6 +778,29 @@ def run_filtered_context(
         ResultPayload[dict[str, Any]]: A ResultPayload indicating the success or failure of the context gathering process for the host,
             with the gathered context data for all applicable roles in the data field if successful, and any error messages in the
             error field.
+
+
+    Notes:
+        It should be called before running the get_context for a role on a host.
+
+        This dictionary should be inside of the chobolo file, and should have the following structure:
+    ```yaml
+        fleet:
+            restrictions:
+                black_list:
+                    host1:
+                        role1: true
+                        role2: true
+                    host2:
+                        role3: true
+
+                allow_list:
+                    host1:
+                        role3: true
+                    host3:
+                        role1: true
+                        role4: true
+    ```
     """
 
     host_data = {"host": host, "roles": {}}

@@ -16,6 +16,18 @@ AGE specific handlers for add/rem/list
 
 
 def listAge(sops_file_override):
+    """Lists all Age public keys found in the given SOPS configuration file.
+
+    Args:
+        sops_file_override (str): The path to the SOPS configuration file.
+
+    Returns:
+        tuple[set[str], list[str], list[str], list[str]]: A tuple containing:
+            - A set of all found Age public keys.
+            - A list of warning messages.
+            - A list of error messages.
+            - A list of informational messages.
+    """
     warnings = []
     error = []
     messages = []
@@ -49,6 +61,19 @@ def listAge(sops_file_override):
 
 
 def handleAgeAdd(payload, sops_file_override, keys):
+    """Handles the addition of Age public keys to the SOPS configuration.
+
+    Validates Age keys and then updates the configuration with valid ones.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation options.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of Age public keys to add.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     valids = set()
     messages = []
     errors = []
@@ -73,6 +98,17 @@ def handleAgeAdd(payload, sops_file_override, keys):
 
 
 def handleAgeRem(payload, sops_file_override, keys):
+    """Handles the removal of Age public keys from the SOPS configuration.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation context.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of Age public keys to remove.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     messages = []
     errors = []
     try:

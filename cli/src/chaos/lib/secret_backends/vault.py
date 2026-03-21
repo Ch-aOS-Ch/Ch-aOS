@@ -15,6 +15,18 @@ Vault specific handlers for add/rem/list
 
 
 def listVault(sops_file_override):
+    """Lists all Vault instances/URIs found in the given SOPS configuration file.
+
+    Args:
+        sops_file_override (str): The path to the SOPS configuration file.
+
+    Returns:
+        tuple[set[str], list[str], list[str], list[str]]: A tuple containing:
+            - A set of all found Vault URIs.
+            - A list of warning messages.
+            - A list of error messages.
+            - A list of informational messages.
+    """
     warnings = []
     error = []
     messages = []
@@ -48,6 +60,19 @@ def listVault(sops_file_override):
 
 
 def handleVaultAdd(payload, sops_file_override, keys):
+    """Handles the addition of Vault URIs to the SOPS configuration.
+
+    Validates Vault URIs connectivity/format and updates the configuration.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation options.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of Vault URIs to add.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     messages = []
     errors = []
     valids = set()
@@ -68,6 +93,17 @@ def handleVaultAdd(payload, sops_file_override, keys):
 
 
 def handleVaultRem(payload, sops_file_override, keys):
+    """Handles the removal of Vault URIs from the SOPS configuration.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation context.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of Vault URIs to remove.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     messages = []
     errors = []
     try:

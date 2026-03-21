@@ -17,6 +17,18 @@ GPG specific handlers for add/rem/list
 
 
 def listPgp(sops_file_override):
+    """Lists all PGP key fingerprints found in the given SOPS configuration file.
+
+    Args:
+        sops_file_override (str): The path to the SOPS configuration file.
+
+    Returns:
+        tuple[set[str], list[str], list[str], list[str]]: A tuple containing:
+            - A set of all found PGP key fingerprints.
+            - A list of warning messages.
+            - A list of error messages.
+            - A list of informational messages.
+    """
     warnings = []
     error = []
     messages = []
@@ -50,6 +62,20 @@ def listPgp(sops_file_override):
 
 
 def handlePgpAdd(payload, sops_file_override, keys):
+    """Handles the addition of PGP key fingerprints to the SOPS configuration.
+
+    Validates fingerprints, ensures they exist locally (fetching from a keyserver if specified), 
+    and adds them to the configuration.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation options and pgp_server.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of PGP key fingerprints to add.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     server = payload.pgp_server
     valids = set()
     errors = []
@@ -102,6 +128,17 @@ def handlePgpAdd(payload, sops_file_override, keys):
 
 
 def handlePgpRem(payload, sops_file_override, keys):
+    """Handles the removal of PGP key fingerprints from the SOPS configuration.
+
+    Args:
+        payload (SecretsRotatePayload): The payload containing rotation context.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys (list[str]): The list of PGP key fingerprints to remove.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages.
+    """
     messages = []
     errors = []
     try:

@@ -10,8 +10,18 @@ from chaos.lib.args.dataclasses import ResultPayload
 
 
 def compress(data: bytes) -> str:
-    """
-    Compression/Decompression for gpg keys. This is the only way they can fit inside a bw notes
+    """Compresses data to base85-encoded zlib representation.
+
+    This is primarily used for GPG keys so they can fit inside a Bitwarden note.
+
+    Args:
+        data (bytes): The raw bytes data to compress.
+
+    Returns:
+        str: The base85-encoded, zlib-compressed string representation of the data.
+
+    Raises:
+        RuntimeError: If data compression or encoding fails.
     """
     try:
         compressed_data = zlib.compress(data, level=9)
@@ -22,6 +32,17 @@ def compress(data: bytes) -> str:
 
 
 def decompress(encoded_data: str) -> bytes:
+    """Decompresses base85-encoded zlib data back to bytes.
+
+    Args:
+        encoded_data (str): The base85-encoded, compressed string.
+
+    Returns:
+        bytes: The decompressed original raw bytes data.
+
+    Raises:
+        RuntimeError: If data decoding or decompression fails.
+    """
     import base64
     import zlib
 
@@ -34,8 +55,15 @@ def decompress(encoded_data: str) -> bytes:
 
 
 def is_valid_fp(fp):
-    """
-    Checks for gpg fingerprint validity
+    """Checks for GPG fingerprint validity.
+
+    Validates if the provided string is a valid 40-character hexadecimal GPG fingerprint.
+
+    Args:
+        fp (str): The fingerprint string to validate.
+
+    Returns:
+        bool: True if it is a valid GPG fingerprint, False otherwise.
     """
     import re
 
@@ -47,8 +75,13 @@ def is_valid_fp(fp):
 
 
 def pgp_exists(fp):
-    """
-    Checks for gpg fp existence
+    """Checks if a GPG fingerprint exists in the local keyring.
+
+    Args:
+        fp (str): The GPG fingerprint to check.
+
+    Returns:
+        bool: True if the key exists locally, False otherwise.
     """
     try:
         subprocess.run(
@@ -63,8 +96,13 @@ def pgp_exists(fp):
 
 
 def is_valid_age_key(pubKey: str) -> bool:
-    """
-    Validates public age keys
+    """Validates a public age key.
+
+    Args:
+        pubKey (str): The public age key string to validate.
+
+    Returns:
+        bool: True if the key matches the age public key format, False otherwise.
     """
     isValid = False
     testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey)
@@ -74,8 +112,13 @@ def is_valid_age_key(pubKey: str) -> bool:
 
 
 def is_valid_age_secret_key(secKey: str) -> bool:
-    """
-    Validates private age keys
+    """Validates a private (secret) age key.
+
+    Args:
+        secKey (str): The secret age key string to validate.
+
+    Returns:
+        bool: True if the key matches the age secret key format, False otherwise.
     """
     isValid = False
     testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey)
@@ -85,8 +128,13 @@ def is_valid_age_secret_key(secKey: str) -> bool:
 
 
 def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
-    """
-    extracts age private and public keys
+    """Extracts age public and private keys from a text block.
+
+    Args:
+        key_content (str): The multiline string content containing the age keys.
+
+    Returns:
+        tuple[str | None, str | None]: A tuple containing the public key and secret key, respectively.
     """
     pubKey, secKey = None, None
     for line in key_content.splitlines():
@@ -99,8 +147,19 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
 
 
 def extract_gpg_keys(fingerprints: list[str]) -> str:
-    """
-    Extracts gpg private and public keys (note that chaos exported gpg keys use the chaos compress and decompress methods.)
+    """Extracts and encodes GPG secret keys for export.
+
+    Exports the secret keys for the given fingerprints, compresses them using zlib, 
+    and encodes them into a custom ASCII-armored block.
+
+    Args:
+        fingerprints (list[str]): A list of GPG fingerprints to export.
+
+    Returns:
+        str: The compressed and encoded secret key block.
+
+    Raises:
+        RuntimeError: If the GPG export operation fails or no keys are found.
     """
 
     try:
@@ -200,9 +259,13 @@ def _import_vault_keys(key_content: str) -> ResultPayload[None]:
 
 
 def is_vault_in_use(sops_file_path: str) -> bool:
-    """
-    checks if vault is in use in the sops file
-    yeah, just that
+    """Checks if HashiCorp Vault is configured in the given SOPS file.
+
+    Args:
+        sops_file_path (str): The file path to the SOPS configuration file.
+
+    Returns:
+        bool: True if a Vault key group is found in the configuration, False otherwise.
     """
     import os
     from typing import cast
@@ -225,7 +288,14 @@ def is_vault_in_use(sops_file_path: str) -> bool:
 
 
 def check_vault_auth():
-    """checks if vault auth is valid"""
+    """Checks if the current HashiCorp Vault authentication is valid.
+
+    Verifies the presence and validity of the VAULT_ADDR and VAULT_TOKEN environment variables.
+
+    Returns:
+        tuple[bool, str]: A tuple where the first element is a boolean indicating whether 
+            authentication is valid, and the second element is an accompanying message.
+    """
     import os
 
     import requests

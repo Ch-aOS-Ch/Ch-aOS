@@ -6,29 +6,6 @@ if TYPE_CHECKING:
     from chaos.lib.args.dataclasses import Delta
 
 
-def handle_verbose(payload) -> None:
-    """Handle verbosity levels for logging"""
-    import logging
-
-    log_level = None
-    if payload.verbose:
-        if payload.verbose == 1:
-            log_level = logging.WARNING
-        elif payload.verbose == 2:
-            log_level = logging.INFO
-        elif payload.verbose == 3:
-            log_level = logging.DEBUG
-    elif payload.v == 1:
-        log_level = logging.WARNING
-    elif payload.v == 2:
-        log_level = logging.INFO
-    elif payload.v == 3:
-        log_level = logging.DEBUG
-
-    if log_level:
-        logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
-
-
 def handleApply(args):
     import sys
 
@@ -98,7 +75,7 @@ def handleApply(args):
         secrets_context=secrets_context,
     )
 
-    handle_verbose(payload)
+    _handle_verbose(payload)
 
     global_config, config_result = get_configs(payload)
     _print_messages(config_result, console)
@@ -343,6 +320,29 @@ def handleApply(args):
     finally:
         teardown_result = teardown_pyinfra(payload, run_status)
         _check_and_exit_on_error(teardown_result, console, "teardown pyinfra")
+
+
+def _handle_verbose(payload) -> None:
+    """Handle verbosity levels for logging"""
+    import logging
+
+    log_level = None
+    if payload.verbose:
+        if payload.verbose == 1:
+            log_level = logging.WARNING
+        elif payload.verbose == 2:
+            log_level = logging.INFO
+        elif payload.verbose == 3:
+            log_level = logging.DEBUG
+    elif payload.v == 1:
+        log_level = logging.WARNING
+    elif payload.v == 2:
+        log_level = logging.INFO
+    elif payload.v == 3:
+        log_level = logging.DEBUG
+
+    if log_level:
+        logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 
 def _print_messages(result, console):
