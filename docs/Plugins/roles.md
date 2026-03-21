@@ -57,7 +57,9 @@ class MyAwesomeRole(Role):
     def plan(self, state, host, delta: Delta) -> ResultPayload:
         # Execute pyinfra operations based on the delta
         for d in delta.to_add.get("dirs", []):
-            server.dir(
+            add_op(
+                state,
+                server.dir,
                 name=f"Ensure {d} exists",
                 path=d,
                 present=True,
@@ -77,19 +79,22 @@ class MySimpleRole(Role):
 
     def plan(self, state, host, delta):
         # Just do everything in the plan if you want!
-        # The delta and get_context are optional, HOWEVER
-        # I've made the CLI to be explicitly usable with the Delta approach, so if you want clear diffs and better dry-runs on this specific CLI (these are still possible without the delta, but much less informative), I highly recommend using the full lifecycle.
-        # The silver bullet is, however, that Ch-aOS is an SDK, so if you find a better CLI for Ch-aOS, go for it!
+        # The delta and get_context are optional*
         host.get_fact(...) # Get facts directly in the plan
-        server.shell(...) # Run operations directly in the plan
+        add_op(server.shell, ...) # Run operations directly in the plan
         return ResultPayload(success=True, message=["Done!"])
 ```
+
+There are, however, issues with skipping the lifecycle (for my CLI). First of all, you lose the ability to have accurate diffs in your interface, which means you can't have a clear "this is what will change" report before you run the plan. Second, it makes it harder to debug and test your roles, since you cannot easily isolate the data gathering, diffing and execution phases. Most importantly, Ch-aOS has a way of parallelising operations across hosts, particularly in the `get_context` phase, which means that if you run operations directly in `plan` without using `delta`, you might end up with a poorer performance.
 
 ## Tips and Tricks
 
 So, best practices out of the way, let's get into some... hacky stuff.
 
 Want to run a command *immediately* on the host, without waiting for the Pyinfra Topological Sorter to run operations? Use `host.get_fact(Command, 'your command here')` inside of your `get_context` method. This is useful for checking if a service is running before trying to start it, getting the current state of a configuration file, or cloning a git repo before trying to manage it.
+
+!!! warning
+    be careful when using this, as it may break idempotency.
 
 If you are making a truly declarative role, the `delta` method is your best friend. By calculating the exact differences (what to add, what to remove) before you ever reach `plan`, you enable true "declarative idempotency". Then, inside `plan`, you simply iterate over your `delta.to_add` and `delta.to_remove` dictionaries and map them to `server.shell` or `server.file` operations.
 

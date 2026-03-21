@@ -29,128 +29,6 @@ def handle_verbose(payload) -> None:
         logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
 
-def _print_messages(result, console):
-    """Helper to print warnings and errors from a ResultPayload."""
-    import sys
-
-    if result.success:
-        return
-    for message in result.message:
-        console.print(f"[bold yellow]WARNING:[/] {message}")
-
-    for error in result.error:
-        console.print(f"[bold red]ERROR:[/] {error}")
-    sys.exit(1)
-
-
-def _check_and_exit_on_error(result, console, stage_name="orchestration"):
-    """Checks a result, prints its messages, and exits if it failed."""
-    import sys
-
-    if not result:
-        console.print(f"[bold red]ERROR:[/] No valid result from {stage_name}.")
-        sys.exit(1)
-
-    _print_messages(result, console)
-
-    if not result.success:
-        sys.exit(1)
-
-
-def _handle_apply_prompts(
-    request, payload, console, prompt, confirm, any_role_needs_secrets
-):
-    """Handles the interactive data gathering for the apply phase."""
-    import sys
-
-    if not request:
-        return prompt, confirm
-
-    if not sys.stdin.isatty():
-        console.print(
-            "[bold yellow]WARNING:[/] No TTY detected. Skipping interactive prompts. If you need to provide secrets, please run the command in an interactive terminal."
-        )
-        return prompt, confirm
-
-    if not prompt or not confirm:
-        from rich.prompt import Confirm, Prompt
-
-        confirm = Confirm()
-        prompt = Prompt()
-
-    for field in request.fields:
-        if field.input_type == "secret":
-            if field.prompt:
-                value = prompt.ask(field.prompt, password=True)
-                payload.password = value
-
-        if field.input_type == "boolean":
-            if field.prompt:
-                confirmation = confirm.ask(field.prompt, default=field.default)
-                if not confirmation:
-                    console.print("[bold red]Aborting apply due to user response.[/]")
-                    sys.exit(1)
-                if any_role_needs_secrets:
-                    payload.secrets = True
-    return prompt, confirm
-
-
-def _handle_fleet_prompts(request, console, confirm):
-    """Handles the interactive data gathering for the fleet phase."""
-    import sys
-
-    if not request:
-        return confirm
-
-    if sys.stdin.isatty():
-        if not confirm:
-            from rich.prompt import Confirm
-
-            confirm = Confirm()
-
-        for field in request.fields:
-            if field.input_type == "boolean":
-                if field.prompt:
-                    confirmation = confirm.ask(field.prompt, default=field.default)
-                    if not confirmation:
-                        console.print(
-                            "[bold red]Aborting apply due to user response.[/]"
-                        )
-                        sys.exit(1)
-
-
-def _render_delta(
-    delta,
-    role_name,
-    host_name,
-    console,
-):
-    """Renders the proposed changes (delta) to the console."""
-    to_add = delta.to_add
-    to_remove = delta.to_remove
-
-    if not (to_add or to_remove):
-        return
-
-    console.print(
-        f"[bold blue]INFO:[/] Role [bold]'{role_name}'[/] on host: '{host_name}' has the following delta:"
-    )
-
-    if to_add:
-        for item, details in to_add.items():
-            if details:
-                console.print(f"  ----- To add: {item} -----")
-                to_add_string = "".join(f"    + {detail}\n" for detail in details)
-                console.print(f"[green]{to_add_string}[/]")
-
-    if to_remove:
-        for item, details in to_remove.items():
-            if details:
-                console.print(f"  ----- To remove: {item} -----")
-                to_remove_string = "".join(f"    - {detail}\n" for detail in details)
-                console.print(f"[red]{to_remove_string}[/]")
-
-
 def handleApply(args):
     import sys
 
@@ -360,33 +238,80 @@ def handleApply(args):
         roles = list(loaded_roles.values())
         hosts = list(payload.pyinfra_state.inventory.iter_activated_hosts())
 
-        for host in hosts:
+        def gather_host_contexts(host):
+            from chaos.lib.args.dataclasses import ResultPayload
+
+            host_data = {"host": host, "roles": {}, "errors": [], "aborted": False}
             for role in roles:
                 allowlist_blacklist_result = resolve_allowlist_blacklist(
                     restrictions, role.name, host
                 )
-                if allowlist_blacklist_result:
-                    _print_messages(allowlist_blacklist_result, console)
-                    if not allowlist_blacklist_result.success:
-                        sys.exit(1)
+                if (
+                    allowlist_blacklist_result
+                    and not allowlist_blacklist_result.success
+                ):
+                    host_data["errors"].append(allowlist_blacklist_result)
+                    host_data["aborted"] = True
+                    break
+                elif (
+                    allowlist_blacklist_result
+                    and allowlist_blacklist_result.success
+                    and allowlist_blacklist_result.message
+                ):
                     continue
 
                 context_result = run_context(payload, role, host, chobolo_config)
-                _print_messages(context_result, console)
                 if not context_result.success:
-                    run_status = "failure"
+                    host_data["errors"].append(context_result)
                     continue
 
-                context = context_result.data
-
-                if context is None:
-                    console.print(
-                        f"[bold red]ERROR:[/] No context returned for role {role.name} on host {host.name}."
+                if context_result.data is None:
+                    err_payload = ResultPayload(
+                        success=False,
+                        message=[],
+                        error=[
+                            f"No context returned for role {role.name} on host {host.name}."
+                        ],
+                        data={},
                     )
-                    run_status = "failure"
+                    host_data["errors"].append(err_payload)
                     continue
 
-                delta_result = run_delta(context, role, role.name)
+                host_data["roles"][role.name] = {
+                    "role": role,
+                    "context": context_result.data,
+                }
+            return host_data
+
+        console.print("[bold blue]INFO:[/] Collecting host contexts...")
+
+        if payload.pyinfra_state.pool:
+            gathered_results = payload.pyinfra_state.pool.map(
+                gather_host_contexts, hosts
+            )
+        else:
+            gathered_results = [gather_host_contexts(h) for h in hosts]
+
+        has_changes_to_apply = False
+        prepared_plans = []
+
+        for host_result in gathered_results:
+            host = host_result["host"]
+
+            if host_result["aborted"]:
+                for err in host_result["errors"]:
+                    _print_messages(err, console)
+                sys.exit(1)
+
+            for err in host_result["errors"]:
+                _print_messages(err, console)
+                run_status = "failure"
+
+            for role_name, data in host_result["roles"].items():
+                role = data["role"]
+                context = data["context"]
+
+                delta_result = run_delta(context, role, role_name)
                 _print_messages(delta_result, console)
                 if not delta_result.success:
                     run_status = "failure"
@@ -400,48 +325,45 @@ def handleApply(args):
                     continue
 
                 delta: Delta = delta_result.data
+                _render_delta(delta, role_name, host.name, console)
 
-                _render_delta(delta, role.name, host.name, console)
-
-                if (
-                    delta.to_add or delta.to_remove
-                ) and not payload.i_know_what_im_doing:
-                    if sys.stdin.isatty():
-                        if not prompt or not confirm:
-                            from rich.prompt import Confirm, Prompt
-
-                            prompt = Prompt()
-                            confirm = Confirm()
-
-                        if not confirm.ask(
-                            "Do you want to apply this change?", default=True
-                        ):
-                            if not confirm.ask(
-                                "Do you want to try and apply these changes to other hosts?",
-                                default=False,
-                            ):
-                                console.print(
-                                    "[bold red]Aborting apply due to user response.[/]"
-                                )
-                                sys.exit(1)
-                            continue
+                if delta.to_add or delta.to_remove:
+                    has_changes_to_apply = True
+                    prepared_plans.append((delta, role, role_name, host))
                 else:
                     console.print(
                         f"[bold green]NOOP:[/] Role '{role.name}' on host '{host.name}' is already in the desired state."
                     )
 
-                plan_result = run_plan(payload, delta, role, role.name, host)
-                _print_messages(plan_result, console)
-                if not plan_result.success:
-                    run_status = "failure"
-                    continue
+        if has_changes_to_apply and not payload.i_know_what_im_doing:
+            if sys.stdin.isatty():
+                if not prompt or not confirm:
+                    from rich.prompt import Confirm, Prompt
 
-        execute_result = execute_plans(payload)
-        _print_messages(execute_result, console)
-        if not execute_result.success:
-            run_status = "failure"
-            console.print("[bold red]Apply execution completed with errors.[/]")
-            sys.exit(1)
+                    prompt = Prompt()
+                    confirm = Confirm()
+
+                if not confirm.ask(
+                    "\n[bold yellow]Deseja aplicar as mudanças acima em todos os hosts identificados?[/]",
+                    default=True,
+                ):
+                    console.print("[bold red]Aborting apply due to user response.[/]")
+                    sys.exit(1)
+
+        for delta, role, role_name, host in prepared_plans:
+            plan_result = run_plan(payload, delta, role, role_name, host)
+            _print_messages(plan_result, console)
+            if not plan_result.success:
+                run_status = "failure"
+
+        if has_changes_to_apply or payload.i_know_what_im_doing:
+            console.print("[bold blue]INFO:[/] Executando planos de aplicação...")
+            execute_result = execute_plans(payload)
+            _print_messages(execute_result, console)
+            if not execute_result.success:
+                run_status = "failure"
+                console.print("[bold red]Apply execution completed with errors.[/]")
+                sys.exit(1)
 
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to import pyinfra: {e}")
@@ -450,3 +372,125 @@ def handleApply(args):
     finally:
         teardown_result = teardown_pyinfra(payload, run_status)
         _check_and_exit_on_error(teardown_result, console, "teardown pyinfra")
+
+
+def _print_messages(result, console):
+    """Helper to print warnings and errors from a ResultPayload."""
+    import sys
+
+    if result.success:
+        return
+    for message in result.message:
+        console.print(f"[bold yellow]WARNING:[/] {message}")
+
+    for error in result.error:
+        console.print(f"[bold red]ERROR:[/] {error}")
+    sys.exit(1)
+
+
+def _check_and_exit_on_error(result, console, stage_name="orchestration"):
+    """Checks a result, prints its messages, and exits if it failed."""
+    import sys
+
+    if not result:
+        console.print(f"[bold red]ERROR:[/] No valid result from {stage_name}.")
+        sys.exit(1)
+
+    _print_messages(result, console)
+
+    if not result.success:
+        sys.exit(1)
+
+
+def _handle_apply_prompts(
+    request, payload, console, prompt, confirm, any_role_needs_secrets
+):
+    """Handles the interactive data gathering for the apply phase."""
+    import sys
+
+    if not request:
+        return prompt, confirm
+
+    if not sys.stdin.isatty():
+        console.print(
+            "[bold yellow]WARNING:[/] No TTY detected. Skipping interactive prompts. If you need to provide secrets, please run the command in an interactive terminal."
+        )
+        return prompt, confirm
+
+    if not prompt or not confirm:
+        from rich.prompt import Confirm, Prompt
+
+        confirm = Confirm()
+        prompt = Prompt()
+
+    for field in request.fields:
+        if field.input_type == "secret":
+            if field.prompt:
+                value = prompt.ask(field.prompt, password=True)
+                payload.password = value
+
+        if field.input_type == "boolean":
+            if field.prompt:
+                confirmation = confirm.ask(field.prompt, default=field.default)
+                if not confirmation:
+                    console.print("[bold red]Aborting apply due to user response.[/]")
+                    sys.exit(1)
+                if any_role_needs_secrets:
+                    payload.secrets = True
+    return prompt, confirm
+
+
+def _handle_fleet_prompts(request, console, confirm):
+    """Handles the interactive data gathering for the fleet phase."""
+    import sys
+
+    if not request:
+        return confirm
+
+    if sys.stdin.isatty():
+        if not confirm:
+            from rich.prompt import Confirm
+
+            confirm = Confirm()
+
+        for field in request.fields:
+            if field.input_type == "boolean":
+                if field.prompt:
+                    confirmation = confirm.ask(field.prompt, default=field.default)
+                    if not confirmation:
+                        console.print(
+                            "[bold red]Aborting apply due to user response.[/]"
+                        )
+                        sys.exit(1)
+
+
+def _render_delta(
+    delta,
+    role_name,
+    host_name,
+    console,
+):
+    """Renders the proposed changes (delta) to the console."""
+    to_add = delta.to_add
+    to_remove = delta.to_remove
+
+    if not (to_add or to_remove):
+        return
+
+    console.print(
+        f"[bold blue]INFO:[/] Role [bold]'{role_name}'[/] on host: '{host_name}' has the following delta:"
+    )
+
+    if to_add:
+        for item, details in to_add.items():
+            if details:
+                console.print(f"  ----- To add: {item} -----")
+                to_add_string = "".join(f"    + {detail}\n" for detail in details)
+                console.print(f"[green]{to_add_string}[/]")
+
+    if to_remove:
+        for item, details in to_remove.items():
+            if details:
+                console.print(f"  ----- To remove: {item} -----")
+                to_remove_string = "".join(f"    - {detail}\n" for detail in details)
+                console.print(f"[red]{to_remove_string}[/]")
