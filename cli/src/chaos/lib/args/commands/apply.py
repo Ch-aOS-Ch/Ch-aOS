@@ -42,6 +42,17 @@ def handleApply(args):
         sudo_pass = sys.stdin.read().strip()
         ikwid = True
 
+    if args.password:
+        sudo_pass = args.password
+
+    if args.sudo_password_file:
+        try:
+            with open(args.sudo_password_file, "r") as f:
+                sudo_pass = f.read().strip()
+        except Exception as e:
+            console.print(f"[bold red]ERROR:[/] Failed to read sudo password file: {e}")
+            sys.exit(1)
+
     provider_config = ProviderConfigPayload(
         provider=getattr(args, "provider", None),
         ephemeral_provider_args=None,
