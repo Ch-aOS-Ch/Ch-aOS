@@ -12,10 +12,6 @@ from ..args.dataclasses import (
 from ..utils import validate_path
 from .providers.base import Provider
 
-"""
-Now now, I KNOW this is way too big of a file, but bear with me here
-"""
-
 
 def _resolveProvider(context: SecretsContext, global_config):
     if context.provider_config and context.provider_config.provider is not None:

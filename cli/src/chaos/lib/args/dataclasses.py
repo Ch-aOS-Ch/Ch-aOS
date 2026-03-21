@@ -8,12 +8,18 @@ if TYPE_CHECKING:
 T = TypeVar("T", covariant=True)
 
 """
-Yes, Yes, I know that dataclasses exist in Python, but they were making a 0.08s startup time into a
-    0.15s startup time, which is a significant increase, and that's just not acceptable for a CLI tool. So instead,
-    We use __slots__ and a custom __init__ to achieve the same thing, but with a much lower startup time. Plus,
-    this way we have more control over the initialization and can do things like validation or default values more easily.
+Custom made dataclasses implementation, optimized for CLI startup and import time performance.
 
-cool, right?
+All classes in this module inherit from BasePayload, which provides the following methods:
+
+Methods:
+    - __repr__: A string representation of the object, useful for debugging.
+
+    - __eq__: A method to compare two payload objects for equality.
+
+    - to_dict: A method to convert the object to a dictionary recursively, useful for serialization
+
+    - from_dict: A class method to create a payload object from a dictionary, useful for deserialization.
 """
 
 

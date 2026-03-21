@@ -160,13 +160,6 @@ def add_provider_import_subcommands(subparsers):
         )
 
 
-"""
-creates the argument parser for chaos
-
-KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO BE EASY.
-"""
-
-
 def argParsing():
     parser = ChaosParser(description="Ch-aOS system management CLI.", prog="chaos")
 
