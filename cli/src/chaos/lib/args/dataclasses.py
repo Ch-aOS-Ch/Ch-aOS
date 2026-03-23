@@ -212,12 +212,12 @@ class ResultPayload(BasePayload, Generic[T]):
 
 class TeamPrunePayload(BasePayload):
     """
-    Payload representing TeamPrunePayload.
+    Payload for pruning stale team configurations.
 
     Attributes:
-        companies (list[str]): The companies attribute.
-        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
-        confirmed (bool): The confirmed attribute.
+        companies (list[str]): Optional list of specific company names to prune. If empty, all companies are checked.
+        i_know_what_im_doing (bool): If True, bypasses interactive confirmation prompts.
+        confirmed (bool): Internal state tracking whether the user has confirmed the pruning action.
     """
 
     __slots__ = ("companies", "i_know_what_im_doing", "confirmed")
@@ -232,12 +232,12 @@ class TeamPrunePayload(BasePayload):
 
 class TeamListPayload(BasePayload):
     """
-    Payload representing TeamListPayload.
+    Payload for listing active team configurations.
 
     Attributes:
-        company (str | None): The company attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
+        company (str | None): Optional company name to filter the listed teams. If None, all teams from all companies are listed.
+        no_pretty (bool): If True, disables rich CLI formatting for the output.
+        json (bool): If True, forces the output to be in JSON format (usually combined with no_pretty).
     """
 
     __slots__ = ("company", "no_pretty", "json")
@@ -250,11 +250,11 @@ class TeamListPayload(BasePayload):
 
 class TeamClonePayload(BasePayload):
     """
-    Payload representing TeamClonePayload.
+    Payload for cloning a team's Git repository.
 
     Attributes:
-        target (str): The target attribute.
-        path (str | None): The path attribute.
+        target (str): The target repository URL or identifier to clone.
+        path (str | None): Optional local path where the repository should be cloned. If None, clones to the current directory or default structure.
     """
 
     __slots__ = ("target", "path")
@@ -266,18 +266,18 @@ class TeamClonePayload(BasePayload):
 
 class TeamInitPayload(BasePayload):
     """
-    Payload representing TeamInitPayload.
+    Payload for initializing a new team repository structure.
 
     Attributes:
-        target (str): The target attribute.
-        path (str | None): The path attribute.
-        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
-        confirmed (bool): The confirmed attribute.
-        init_git (bool): The init_git attribute.
-        overwrite_sops (bool): The overwrite_sops attribute.
-        engine (str | None): The engine attribute.
-        use_vault (bool): The use_vault attribute.
-        continue_no_vault (bool): The continue_no_vault attribute.
+        target (str): The target team identifier, usually in the format 'company.team.person'.
+        path (str | None): Optional directory path where the team should be initialized.
+        i_know_what_im_doing (bool): If True, bypasses interactive confirmation prompts.
+        confirmed (bool): Internal state tracking whether the user confirmed the initialization.
+        init_git (bool): Internal state tracking whether a new Git repository should be initialized.
+        overwrite_sops (bool): Internal state tracking whether to overwrite an existing SOPS config.
+        engine (str | None): The encryption engine to use (e.g., 'age', 'gpg', or 'both').
+        use_vault (bool): Internal state tracking whether HashiCorp Vault integration should be configured.
+        continue_no_vault (bool): Internal state tracking whether to continue if Vault is not present.
     """
 
     __slots__ = (
@@ -317,10 +317,10 @@ class TeamInitPayload(BasePayload):
 
 class TeamActivatePayload(BasePayload):
     """
-    Payload representing TeamActivatePayload.
+    Payload for activating a team configuration repository.
 
     Attributes:
-        path (str | None): The path attribute.
+        path (str | None): The path to the team repository that should be symlinked and activated.
     """
 
     __slots__ = ("path",)
@@ -331,12 +331,12 @@ class TeamActivatePayload(BasePayload):
 
 class TeamDeactivatePayload(BasePayload):
     """
-    Payload representing TeamDeactivatePayload.
+    Payload for deactivating active team configurations.
 
     Attributes:
-        company (str): The company attribute.
-        teams (list[str]): The teams attribute.
-        confirmed (bool): The confirmed attribute.
+        company (str): The company name under which the teams reside.
+        teams (list[str]): The specific teams to deactivate. If empty, all teams for the company are deactivated.
+        confirmed (bool): Internal state tracking whether the deactivation action was confirmed by the user.
     """
 
     __slots__ = ("company", "teams", "confirmed")
@@ -349,14 +349,14 @@ class TeamDeactivatePayload(BasePayload):
 
 class ExplainPayload(BasePayload):
     """
-    Payload representing ExplainPayload.
+    Payload for retrieving explanatory documentation about Ch-aOS concepts and roles.
 
     Attributes:
-        topics (list[str]): The topics attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
-        details (str): The details attribute.
-        complexity (str): The complexity attribute.
+        topics (list[str]): A list of topics or sub-topics to explain (e.g., 'apply', 'secrets.edit').
+        no_pretty (bool): If True, disables rich CLI formatting for the output.
+        json (bool): If True, formats the raw explanation output as JSON.
+        details (str): The level of detail requested ('basic', 'intermediate', or 'advanced').
+        complexity (str): The complexity level of the explanation.
     """
 
     __slots__ = ("topics", "no_pretty", "json", "details", "complexity")
@@ -378,12 +378,12 @@ class ExplainPayload(BasePayload):
 
 class SetPayload(BasePayload):
     """
-    Payload representing SetPayload.
+    Payload for setting default paths in the global chaos configuration.
 
     Attributes:
-        chobolo_file (str | None): The chobolo_file attribute.
-        sops_file (str | None): The sops_file attribute.
-        secrets_file (str | None): The secrets_file attribute.
+        chobolo_file (str | None): Path to the default Ch-obolo file.
+        sops_file (str | None): Path to the default .sops.yaml configuration file.
+        secrets_file (str | None): Path to the default secrets file.
     """
 
     __slots__ = ("chobolo_file", "sops_file", "secrets_file")
@@ -401,16 +401,16 @@ class SetPayload(BasePayload):
 
 class CheckPayload(BasePayload):
     """
-    Payload representing CheckPayload.
+    Payload for checking and listing available Ch-aOS components.
 
     Attributes:
-        checks (Literal[explanations, roles, aliases, providers, boats, secrets, limanis, templates]): The checks attribute.
-        chobolo (str | None): The chobolo attribute.
-        json (bool): The json attribute.
-        team (str | None): The team attribute.
-        sops_file_override (str | None): The sops_file_override attribute.
-        secrets_file_override (str | None): The secrets_file_override attribute.
-        update_plugins (bool): The update_plugins attribute.
+        checks (Literal): The specific type of component to check (e.g., 'roles', 'aliases', 'secrets').
+        chobolo (str | None): Optional override for the Ch-obolo file path to read from.
+        json (bool): If True, forces the output of the check to be in JSON format.
+        team (str | None): Optional team context string to resolve paths when checking team-specific components.
+        sops_file_override (str | None): Optional override for the .sops.yaml configuration file path.
+        secrets_file_override (str | None): Optional override for the secrets file path.
+        update_plugins (bool): If True, forces a refresh of the plugin cache before performing the check.
     """
 
     __slots__ = (
@@ -453,13 +453,13 @@ class CheckPayload(BasePayload):
 
 class StyxPayload(BasePayload):
     """
-    Payload representing StyxPayload.
+    Payload for interacting with the Styx plugin registry.
 
     Attributes:
-        styx_commands (Literal[invoke, list, destroy]): The styx_commands attribute.
-        entries (list[str]): The entries attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
+        styx_commands (Literal): The Styx action to perform ('invoke' for install, 'list', or 'destroy' for uninstall).
+        entries (list[str]): The names of the plugins to install, list, or uninstall.
+        no_pretty (bool): If True, disables rich CLI formatting for the output.
+        json (bool): If True, forces the output of the command to be in JSON format.
     """
 
     __slots__ = ("styx_commands", "entries", "no_pretty", "json")
@@ -479,14 +479,14 @@ class StyxPayload(BasePayload):
 
 class InitPayload(BasePayload):
     """
-    Payload representing InitPayload.
+    Payload for generating boilerplate configuration files via the initialization wizard.
 
     Attributes:
-        init_command (Literal[chobolo, secrets]): The init_command attribute.
-        update_plugins (bool): The update_plugins attribute.
-        targets (list[str]): The targets attribute.
-        template (bool): The template attribute.
-        human (bool): The human attribute.
+        init_command (Literal): The type of initialization to perform ('chobolo' or 'secrets').
+        update_plugins (bool): If True, forces a refresh of the plugin cache before initialization.
+        targets (list[str]): Optional list of target plugins to base the chobolo template on.
+        template (bool): If True, prints the generated template to stdout instead of saving it to a file.
+        human (bool): If True, formats the output of a templated chobolo as human-readable YAML instead of raw Python dict.
     """
 
     __slots__ = ("init_command", "update_plugins", "targets", "template", "human")
@@ -508,11 +508,11 @@ class InitPayload(BasePayload):
 
 class ProviderConfigPayload(BasePayload):
     """
-    Payload representing ProviderConfigPayload.
+    Payload containing configuration for secret providers, usually governing ephemeral decryption keys.
 
     Attributes:
-        provider (str | None): The provider attribute.
-        ephemeral_provider_args (dict[str, Any] | None): The ephemeral_provider_args attribute.
+        provider (str | None): The name of the provider backend mapped in the global config (e.g., 'bw.age').
+        ephemeral_provider_args (dict[str, Any] | None): A dictionary mapping specific provider CLI flags to their arguments (e.g., {'from_bw': ('item_id', 'age')}).
     """
 
     __slots__ = ("provider", "ephemeral_provider_args")
@@ -549,14 +549,14 @@ class ProviderConfigPayload(BasePayload):
 
 class SecretsContext(BasePayload):
     """
-    Payload representing SecretsContext.
+    Payload representing the environment context when interacting with secrets.
 
     Attributes:
-        team (str | None): The team attribute.
-        sops_file_override (str | None): The sops_file_override attribute.
-        secrets_file_override (str | None): The secrets_file_override attribute.
-        provider_config (ProviderConfigPayload | dict[str, Any] | None): The provider_config attribute.
-        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
+        team (str | None): The team string (e.g., 'company.team.person') used to resolve secrets and sops file paths.
+        sops_file_override (str | None): Optional explicit path overriding the default .sops.yaml location.
+        secrets_file_override (str | None): Optional explicit path overriding the default secrets.yml location.
+        provider_config (ProviderConfigPayload | dict[str, Any] | None): The ephemeral secret provider configuration to use for operations.
+        i_know_what_im_doing (bool): If True, suppresses interactive confirmation prompts.
     """
 
     __slots__ = (
@@ -606,9 +606,9 @@ class SecretsContext(BasePayload):
 
 class ProviderExportArgs(BasePayload):
     """
-    Payload representing ProviderExportArgs.
+    Base payload representing provider-specific export arguments.
 
-    Attributes:
+    This class is intended to be subclassed by specific providers (e.g., Bitwarden, 1Password) to define their unique export options.
     """
 
     __slots__ = ()
@@ -619,9 +619,9 @@ class ProviderExportArgs(BasePayload):
 
 class ProviderImportArgs(BasePayload):
     """
-    Payload representing ProviderImportArgs.
+    Base payload representing provider-specific import arguments.
 
-    Attributes:
+    This class is intended to be subclassed by specific providers to define their unique import options.
     """
 
     __slots__ = ()
@@ -632,18 +632,18 @@ class ProviderImportArgs(BasePayload):
 
 class SecretsExportPayload(BasePayload):
     """
-    Payload representing SecretsExportPayload.
+    Payload for exporting a master secret key (age, gpg, vault) to an external secret provider.
 
     Attributes:
-        provider_name (str): The provider_name attribute.
-        key_type (Literal[age, gpg, vault]): The key_type attribute.
-        no_import (bool): The no_import attribute.
-        save_to_config (bool): The save_to_config attribute.
-        item_name (str | None): The item_name attribute.
-        keys (str | None): The keys attribute.
-        vault_addr (str | None): The vault_addr attribute.
-        fingerprints (list[str] | None): The fingerprints attribute.
-        provider_specific_args (ProviderExportArgs | None): The provider_specific_args attribute.
+        provider_name (str): The CLI name of the provider to use for the export (e.g., 'bw').
+        key_type (Literal): The type of key being exported ('age', 'gpg', 'vault').
+        no_import (bool): If True, adds a `# NO-IMPORT` flag to the secret to prevent it from being re-imported later.
+        save_to_config (bool): If True, saves the resulting item ID/URL to the global chaos configuration.
+        item_name (str | None): The name or title of the item to be created in the provider's vault.
+        keys (str | None): The path to the local file containing the keys to export (e.g., age or vault key files).
+        vault_addr (str | None): The address of the HashiCorp Vault server, if exporting a vault token.
+        fingerprints (list[str] | None): A list of GPG fingerprints to export.
+        provider_specific_args (ProviderExportArgs | None): A subclass of ProviderExportArgs containing provider-specific options.
     """
 
     __slots__ = (
@@ -687,14 +687,14 @@ class SecretsExportPayload(BasePayload):
 
 class SecretsImportPayload(BasePayload):
     """
-    Payload representing SecretsImportPayload.
+    Payload for importing a master secret key (age, gpg, vault) from an external secret provider to the local machine.
 
     Attributes:
-        provider_name (str): The provider_name attribute.
-        key_type (Literal[age, gpg, vault]): The key_type attribute.
-        item_id (str | None): The item_id attribute.
-        provider_specific_args (ProviderImportArgs | None): The provider_specific_args attribute.
-        confirmed (bool): The confirmed attribute.
+        provider_name (str): The CLI name of the provider to use for the import (e.g., 'bw').
+        key_type (Literal): The type of key being imported ('age', 'gpg', 'vault').
+        item_id (str | None): The provider's unique identifier or URL for the item containing the key.
+        provider_specific_args (ProviderImportArgs | None): A subclass of ProviderImportArgs containing provider-specific options.
+        confirmed (bool): Internal state tracking whether the user confirmed overriding an existing local key.
     """
 
     __slots__ = (
@@ -726,16 +726,16 @@ class SecretsImportPayload(BasePayload):
 
 class SecretsRotatePayload(BasePayload):
     """
-    Payload representing SecretsRotatePayload.
+    Payload for adding or removing an encryption key from a `.sops.yaml` configuration file.
 
     Attributes:
-        type (Literal[age, pgp, vault]): The type attribute.
-        keys (list[str]): The keys attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        index (int | None): The index attribute.
-        pgp_server (str | None): The pgp_server attribute.
-        create (bool): The create attribute.
-        update_confirmed (bool): The update_confirmed attribute.
+        type (Literal): The type of key being rotated ('age', 'pgp', 'vault').
+        keys (list[str]): The list of keys (e.g., public age keys, GPG fingerprints, Vault URIs) to add or remove.
+        context (SecretsContext | dict[str, Any]): The context resolving the target `.sops.yaml` file and team.
+        index (int | None): The specific rule index in the `.sops.yaml` file to modify. If None, affects all applicable rules.
+        pgp_server (str | None): Optional PGP keyserver to download missing public keys from.
+        create (bool): If True, creates a new key group if it doesn't already exist.
+        update_confirmed (bool): Internal state tracking whether the user confirmed applying `sops updatekeys` after the rotation.
     """
 
     __slots__ = (
@@ -770,14 +770,14 @@ class SecretsRotatePayload(BasePayload):
 
 class SecretsListPayload(BasePayload):
     """
-    Payload representing SecretsListPayload.
+    Payload for listing all active encryption keys of a specific type within a `.sops.yaml` configuration file.
 
     Attributes:
-        type (Literal[age, pgp, vault]): The type attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
-        value (bool): The value attribute.
+        type (Literal): The type of key to search for and list ('age', 'pgp', 'vault').
+        context (SecretsContext | dict[str, Any]): The context resolving the target `.sops.yaml` file.
+        no_pretty (bool): If True, disables rich CLI formatting for the output.
+        json (bool): If True, formats the output as a JSON array.
+        value (bool): If True, prints only the raw key values, one per line (useful for shell piping).
     """
 
     __slots__ = ("type", "context", "no_pretty", "json", "value")
@@ -800,11 +800,11 @@ class SecretsListPayload(BasePayload):
 
 class SecretsEditPayload(BasePayload):
     """
-    Payload representing SecretsEditPayload.
+    Payload for securely editing a secrets file using `sops`.
 
     Attributes:
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        edit_sops_file (bool): The edit_sops_file attribute.
+        context (SecretsContext | dict[str, Any]): The context containing the paths to the secrets file, SOPS config, and the provider used for decryption.
+        edit_sops_file (bool): If True, opens the `.sops.yaml` configuration file for editing instead of the encrypted secrets file.
     """
 
     __slots__ = ("context", "edit_sops_file")
@@ -819,12 +819,12 @@ class SecretsEditPayload(BasePayload):
 
 class SecretsPrintPayload(BasePayload):
     """
-    Payload representing SecretsPrintPayload.
+    Payload for decrypting and printing an entire secrets file to standard output.
 
     Attributes:
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        print_sops_file (bool): The print_sops_file attribute.
-        as_json (bool): The as_json attribute.
+        context (SecretsContext | dict[str, Any]): The context containing the file paths and provider for decryption.
+        print_sops_file (bool): If True, prints the unencrypted `.sops.yaml` configuration file instead.
+        as_json (bool): If True, parses the decrypted secrets and outputs them as a JSON string.
     """
 
     __slots__ = ("context", "print_sops_file", "as_json")
@@ -843,14 +843,14 @@ class SecretsPrintPayload(BasePayload):
 
 class SecretsCatPayload(BasePayload):
     """
-    Payload representing SecretsCatPayload.
+    Payload for decrypting a secrets file and querying specific keys from it.
 
     Attributes:
-        keys (list[str]): The keys attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        cat_sops_file (bool): The cat_sops_file attribute.
-        as_json (bool): The as_json attribute.
-        value_only (bool): The value_only attribute.
+        keys (list[str]): A list of keys (using dot notation) to extract from the decrypted secrets file.
+        context (SecretsContext | dict[str, Any]): The context containing the file paths and provider for decryption.
+        cat_sops_file (bool): If True, queries the `.sops.yaml` configuration file instead.
+        as_json (bool): If True, formats the queried output as JSON.
+        value_only (bool): If True, prints only the raw value of the keys without keys names or formatting (useful for piping).
     """
 
     __slots__ = ("keys", "context", "cat_sops_file", "as_json", "value_only")
@@ -873,14 +873,14 @@ class SecretsCatPayload(BasePayload):
 
 class SecretsSetShamirPayload(BasePayload):
     """
-    Payload representing SecretsSetShamirPayload.
+    Payload for configuring Shamir's Secret Sharing threshold for a specific rule in a `.sops.yaml` configuration file.
 
     Attributes:
-        index (int): The index attribute.
-        share (int): The share attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        confirmed (bool): The confirmed attribute.
-        update_confirmed (bool): The update_confirmed attribute.
+        index (int): The index of the creation rule to modify in the `.sops.yaml` file.
+        share (int): The required number of key shares (threshold) to decrypt the secret. Setting this to 0 removes the threshold.
+        context (SecretsContext | dict[str, Any]): The context resolving the target `.sops.yaml` file.
+        confirmed (bool): Internal state tracking whether the user confirmed the removal of a threshold.
+        update_confirmed (bool): Internal state tracking whether the user confirmed updating existing secrets to apply the new threshold.
     """
 
     __slots__ = ("index", "share", "context", "confirmed", "update_confirmed")
@@ -902,14 +902,14 @@ class SecretsSetShamirPayload(BasePayload):
 
 class RambleCreatePayload(BasePayload):
     """
-    Payload representing RambleCreatePayload.
+    Payload for creating a new encrypted or unencrypted ramble (journal note).
 
     Attributes:
-        target (str): The target attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        encrypt (bool): The encrypt attribute.
-        keys (list[str] | None): The keys attribute.
-        confirmed (bool): The confirmed attribute.
+        target (str): The target journal and page name in dot notation (e.g., 'journal.page').
+        context (SecretsContext | dict[str, Any]): The context resolving the team directory and potential `.sops.yaml` configuration.
+        encrypt (bool): If True, encrypts the ramble immediately after creation using SOPS.
+        keys (list[str] | None): Optional list of specific YAML keys within the ramble to encrypt (instead of encrypting all values).
+        confirmed (bool): Internal state tracking whether the user confirmed overwriting or editing an existing ramble.
     """
 
     __slots__ = ("target", "context", "encrypt", "keys", "confirmed")
@@ -932,12 +932,12 @@ class RambleCreatePayload(BasePayload):
 
 class RambleEditPayload(BasePayload):
     """
-    Payload representing RambleEditPayload.
+    Payload for editing an existing ramble file.
 
     Attributes:
-        target (str): The target attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        edit_sops_file (bool): The edit_sops_file attribute.
+        target (str): The target journal and page name in dot notation (e.g., 'journal.page').
+        context (SecretsContext | dict[str, Any]): The context resolving the team directory and `.sops.yaml` location.
+        edit_sops_file (bool): If True, opens the `.sops.yaml` configuration file for the ramble namespace instead of the ramble itself.
     """
 
     __slots__ = ("target", "context", "edit_sops_file")
@@ -956,12 +956,12 @@ class RambleEditPayload(BasePayload):
 
 class RambleEncryptPayload(BasePayload):
     """
-    Payload representing RambleEncryptPayload.
+    Payload for encrypting an existing, unencrypted ramble file.
 
     Attributes:
-        target (str): The target attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        keys (list[str] | None): The keys attribute.
+        target (str): The target journal and page name to encrypt.
+        context (SecretsContext | dict[str, Any]): The context resolving the `.sops.yaml` configuration.
+        keys (list[str] | None): Optional list of specific YAML keys within the ramble to encrypt. If None, encrypts all values except base metadata.
     """
 
     __slots__ = ("target", "context", "keys")
@@ -980,14 +980,14 @@ class RambleEncryptPayload(BasePayload):
 
 class RambleReadPayload(BasePayload):
     """
-    Payload representing RambleReadPayload.
+    Payload for reading and displaying the content of one or more ramble files.
 
     Attributes:
-        targets (list[str]): The targets attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
-        values (list[str] | None): The values attribute.
+        targets (list[str]): A list of target rambles to read (e.g., 'journal.page' or 'journal.list').
+        context (SecretsContext | dict[str, Any]): The context containing decryption provider configurations if the rambles are encrypted.
+        no_pretty (bool): If True, disables rich CLI rendering for the output.
+        json (bool): If True, formats the raw read output as JSON.
+        values (list[str] | None): Optional list of specific YAML keys to extract and print from the read ramble (useful for piping).
     """
 
     __slots__ = ("targets", "context", "no_pretty", "json", "values")
@@ -1010,14 +1010,14 @@ class RambleReadPayload(BasePayload):
 
 class RambleFindPayload(BasePayload):
     """
-    Payload representing RambleFindPayload.
+    Payload for searching through all ramble files for specific terms or tags.
 
     Attributes:
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        find_term (str | None): The find_term attribute.
-        tag (str | None): The tag attribute.
-        no_pretty (bool): The no_pretty attribute.
-        json (bool): The json attribute.
+        context (SecretsContext | dict[str, Any]): The context containing decryption configurations for searching encrypted rambles.
+        find_term (str | None): The keyword or phrase to search for within the ramble content.
+        tag (str | None): Optional tag to filter the search results.
+        no_pretty (bool): If True, disables rich CLI formatting for the search results list.
+        json (bool): If True, formats the search results list as JSON.
     """
 
     __slots__ = ("context", "find_term", "tag", "no_pretty", "json")
@@ -1040,12 +1040,12 @@ class RambleFindPayload(BasePayload):
 
 class RambleMovePayload(BasePayload):
     """
-    Payload representing RambleMovePayload.
+    Payload for renaming or moving a ramble journal or page.
 
     Attributes:
-        old (str): The old attribute.
-        new (str): The new attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
+        old (str): The current target path of the journal or page.
+        new (str): The new target path for the journal or page.
+        context (SecretsContext | dict[str, Any]): The context used to resolve the team directories.
     """
 
     __slots__ = ("old", "new", "context")
@@ -1062,12 +1062,12 @@ class RambleMovePayload(BasePayload):
 
 class RambleDeletePayload(BasePayload):
     """
-    Payload representing RambleDeletePayload.
+    Payload for deleting a ramble journal or page.
 
     Attributes:
-        ramble (str): The ramble attribute.
-        context (SecretsContext | dict[str, Any]): The context attribute.
-        confirmed (bool): The confirmed attribute.
+        ramble (str): The target journal or page to delete.
+        context (SecretsContext | dict[str, Any]): The context used to resolve the team directories.
+        confirmed (bool): Internal state tracking whether the user confirmed the deletion.
     """
 
     __slots__ = ("ramble", "context", "confirmed")
@@ -1087,10 +1087,10 @@ class RambleDeletePayload(BasePayload):
 
 class RambleUpdateEncryptPayload(BasePayload):
     """
-    Payload representing RambleUpdateEncryptPayload.
+    Payload for triggering a re-encryption (`sops updatekeys`) on all encrypted ramble files.
 
     Attributes:
-        context (SecretsContext | dict[str, Any]): The context attribute.
+        context (SecretsContext | dict[str, Any]): The context containing the paths to the `.sops.yaml` configuration and the decryption providers.
     """
 
     __slots__ = ("context",)
@@ -1102,34 +1102,36 @@ class RambleUpdateEncryptPayload(BasePayload):
 
 class ApplyPayload(BasePayload):
     """
-    Payload representing ApplyPayload.
+    Payload for orchestrating the `apply` lifecycle of Ch-aOS.
+
+    This represents the core orchestration data structure required to resolve roles, configurations, secrets, and execute them on hosts.
 
     Attributes:
-        update_plugins (bool): The update_plugins attribute.
-        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
-        dry (bool): The dry attribute.
-        verbose (int): The verbose attribute.
-        v (int): The v attribute.
-        tags (list[str]): The tags attribute.
-        chobolo (str | None): The chobolo attribute.
-        limani (str | None): The limani attribute.
-        logbook (bool): The logbook attribute.
-        fleet (bool): The fleet attribute.
-        sudo_password_file (str | None): The sudo_password_file attribute.
-        password (str | None): The password attribute.
-        secrets (bool): The secrets attribute.
-        serial (bool): The serial attribute.
-        no_wait (bool): The no_wait attribute.
-        export_logs (bool): The export_logs attribute.
-        secrets_context (SecretsContext | dict[str, Any]): The secrets_context attribute.
-        confirmed_password (str): The confirmed_password attribute.
-        pyinfra_state (State | None): The pyinfra_state attribute.
-        target_hosts (list | None): The target_hosts attribute.
-        is_fleet_active (bool): The is_fleet_active attribute.
-        parallelism (int): The parallelism attribute.
-        fallback_to_local (bool): The fallback_to_local attribute.
-        decrypted_secrets (dict[str, Any] | None): The decrypted_secrets attribute.
-        global_config (dict[str, Any] | None): The global_config attribute.
+        update_plugins (bool): If True, forces a refresh of the plugin cache before starting orchestration.
+        i_know_what_im_doing (bool): If True, bypasses all interactive confirmation prompts before execution.
+        dry (bool): If True, runs pyinfra in dry-run mode, calculating but not executing operations.
+        verbose (int): The verbosity level for Pyinfra output (1=Warning, 2=Info, 3=Debug).
+        v (int): An alias for the verbosity level.
+        tags (list[str]): The list of role tags or aliases to apply to the target hosts.
+        chobolo (str | None): Optional path to explicitly override the Ch-obolo configuration file to use.
+        limani (str | None): Optional Limani plugin name to use for the Logbook database.
+        logbook (bool): If True, enables telemetry and execution recording into the Logbook.
+        fleet (bool): If True, parses the fleet configuration and orchestrates changes across all remote hosts defined.
+        sudo_password_file (str | None): Optional path to a file containing the sudo password.
+        password (str | None): Optional string containing the sudo password.
+        secrets (bool): If True, signals that the operations require secrets and that they must be decrypted.
+        serial (bool): If True, executes pyinfra operations serially across the fleet instead of in parallel.
+        no_wait (bool): If True, executes pyinfra operations concurrently without waiting for slow hosts.
+        export_logs (bool): If True, exports the telemetry logbook to a JSON file after the run finishes.
+        secrets_context (SecretsContext | dict[str, Any]): The context containing secret file paths and provider configurations.
+        confirmed_password (str): Internal state holding the verified sudo password if gathered interactively.
+        pyinfra_state (State | None): Internal state storing the initialized pyinfra State object after setup.
+        target_hosts (list | None): Internal state containing the parsed list of hosts to apply the roles to.
+        is_fleet_active (bool): Internal state tracking whether a remote fleet is actively being targeted.
+        parallelism (int): Internal state tracking the maximum number of concurrent hosts to apply changes to.
+        fallback_to_local (bool): Internal state tracking if fleet failed to resolve and fallback to local was permitted.
+        decrypted_secrets (dict[str, Any] | None): Internal state caching the decrypted YAML/JSON secrets dictionary for role consumption.
+        global_config (dict[str, Any] | None): Internal state caching the global `~/.config/chaos/config.yml` data.
     """
 
     __slots__ = (
