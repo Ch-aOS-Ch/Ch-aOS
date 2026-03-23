@@ -46,7 +46,12 @@ def get_plugins(update_cache=False):
     Explanations: Define explanations for existing roles, enhancing user understanding.
     """
     plugin_dirs = [
-        Path.home() / ".local/share/chaos/plugins",
+        Path(
+            os.getenv(
+                "CHAOS_PLUGIN_DIR",
+                Path.home() / ".local" / "share" / "chaos" / "plugins",
+            )
+        ),
         Path("/usr/share/chaos/plugins"),
     ]
 

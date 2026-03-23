@@ -34,7 +34,15 @@ class Chrima(Limani):
 
     def get_db_path(self) -> Path:
         """Returns the path to the SQLite database file."""
-        db_dir = Path(os.path.expanduser("~/.local/share/chaos/logbooks"))
+        db_dir = (
+            Path(
+                os.getenv(
+                    "CHAOS_LOGBOOK_DIR",
+                    Path.home() / ".local" / "share" / "chaos" / "logbook",
+                )
+            )
+            / "ch-rima.db"
+        )
         db_dir.mkdir(parents=True, exist_ok=True)
 
         if not self.werehouse:
