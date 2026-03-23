@@ -10,16 +10,8 @@ T = TypeVar("T", covariant=True)
 """
 Custom made dataclasses implementation, optimized for CLI startup and import time performance.
 
-All classes in this module inherit from BasePayload, which provides the following methods:
-
-Methods:
-    - __repr__: A string representation of the object, useful for debugging.
-
-    - __eq__: A method to compare two payload objects for equality.
-
-    - to_dict: A method to convert the object to a dictionary recursively, useful for serialization
-
-    - from_dict: A class method to create a payload object from a dictionary, useful for deserialization.
+Notes:
+    All classes in this module inherit from BasePayload, which provides the following methods:
 """
 
 
@@ -40,17 +32,18 @@ class BasePayload:
     """
     Base class for all payloads.
 
-    These are mutable DTOs optimized for CLI startup performance.
-    We use __slots__ instead of dataclasses to keep import time minimal.
+    Notes:
+        These are mutable DTOs optimized for CLI startup performance.
+        We use __slots__ instead of dataclasses to keep import time minimal.
 
-    This object has the following methods:
-        - __repr__: A string representation of the object, useful for debugging.
+    Methods:
+        __repr__: A string representation of the object, useful for debugging.
 
-        - __eq__: A method to compare two payload objects for equality.
+        __eq__: A method to compare two payload objects for equality.
 
-        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
+        to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
 
-        - from_dict: A class method to create a payload object from a dictionary, useful for deserialization.
+        from_dict(dict[str, Any]): A class method to create a payload object from a dictionary, useful for deserialization.
             Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
     """
 
@@ -84,19 +77,19 @@ class DataGatherRequest(BasePayload):
         logic, and it is meant to be used in the "pre" phase of the execution.
 
 
-    This object has the following attributes:
-        - name: The name of the data gathering request, e.g. "aws_credentials", "kubeconfig", etc.
-
-        - fields: A list of DataGatherPayload objects, each representing a piece of data that needs to be gathered for this request.
-
-
-    I KNOW its another layer of indirection. This is necessary for the interfaces to be able to group multiple data gathering fields
-        under the same request, and to be able to show them to the user in a more organized way.
+    Attributes:
+        name: The name of the data gathering request, e.g. "aws_credentials", "kubeconfig", etc.
+        fields: A list of DataGatherPayload objects, each representing a piece of data that needs to be gathered for this request.
 
 
-    Yes, I know I could just use return[DGP(), DGP(), DGP()] instead of return[DGR("aws_credentials", [DGP(), DGP()])], but this way
-        we can have a name for the group of data being gathered, which can be useful for the interfaces to show a more user-friendly message
-        to the user.
+    Notes:
+        I KNOW its another layer of indirection. This is necessary for the interfaces to be able to group multiple data gathering fields
+            under the same request, and to be able to show them to the user in a more organized way.
+
+
+        Yes, I know I could just use return[DGP(), DGP(), DGP()] instead of return[DGR("aws_credentials", [DGP(), DGP()])], but this way
+            we can have a name for the group of data being gathered, which can be useful for the interfaces to show a more user-friendly message
+            to the user.
     """
 
     __slots__ = ("name", "fields")
@@ -112,15 +105,18 @@ class DataGatherRequest(BasePayload):
 
 class Delta(BasePayload):
     """
-    This payload is only used by the Role.delta() method, it must return this DTO in order for Role.plan(delta) to work properly, and
-        for the interface to be able to show the users what changes are going to happen if they apply the plan.
+    Delta Payload, used as return by the Role.delta() method.
+
+    Attributes:
+        to_add(dict[str, Any]): prettified dict for showing what is being changed as an ADDITION in CLI
+        to_remove(dict[str, Any]): prettified dict for showing what is being changed as an REMOVAL in CLI
+        metadata(dict[str, Any]): Other data (will not be shown in CLI)
     """
 
-    __slots__ = ("to_add", "to_remove", "metadata", "is_changing")
+    __slots__ = ("to_add", "to_remove", "metadata")
 
     def __init__(
         self,
-        is_changing: str = "unknown",
         to_add: dict[str, Any] | None = None,
         to_remove: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
@@ -136,36 +132,18 @@ class DataGatherPayload(BasePayload):
         logic, and it is meant to be used in the "pre" phase of the execution.
 
 
-    This object has the following attributes:
-        - name: The name of the data being gathered, e.g. "aws_credentials", "kubeconfig", etc.
-
-        - prompt: The prompt to show to the user when asking for the data, e.g. "Please enter your AWS credentials".
-
-        - input_type: The type of input expected, should be used by the CLI to manage how to gather the data.
-            e.g. if input_type is "choice", the interface should show the choices to the user and let them select one, if it's "secret",
-            the interface should hide the input, etc.
-
-        - required: A boolean indicating whether the data is required or not, if it's required, the interface should keep asking for the
-            data until it is provided, if it's not required, the user should be able to skip it.
-
-        - default: The default value to use if the user decides to skip providing the data, should only be used if required is False.
-
-        - choices: A list of choices to show to the user if the input_type is "choice", should be None otherwise.
-
-        - metadata: A dictionary containing any additional information that might be useful for the interface when gathering the data,
+    Attributes:
+        name: The name of the data being gathered, e.g. "aws_credentials", "kubeconfig", etc.
+        prompt: The prompt to show to the user when asking for the data, e.g. "Please enter your AWS credentials".
+        input_type: The type of input expected, should be used by the CLI to manage how to gather the data.
+          e.g. if input_type is "choice", the interface should show the choices to the user and let them select one, if it's "secret",
+          the interface should hide the input, etc.
+        required: A boolean indicating whether the data is required or not, if it's required, the interface should keep asking for the
+          data until it is provided, if it's not required, the user should be able to skip it.
+        default: The default value to use if the user decides to skip providing the data, should only be used if required is False.
+        choices: A list of choices to show to the user if the input_type is "choice", should be None otherwise.
+        metadata: A dictionary containing any additional information that might be useful for the interface when gathering the data,
             e.g. if the input_type is "secret", the metadata might contain information about how to validate the secret, etc.
-
-
-    This object has the following methods:
-        - __repr__: A string representation of the object, useful for debugging.
-
-        - __eq__: A method to compare two ResultPayload objects for equality.
-
-        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
-
-        - from_dict: A class method to create a ResultPayload object from a dictionary, useful for deserialization.
-            Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
-
     """
 
     __slots__ = (
@@ -201,32 +179,15 @@ class DataGatherPayload(BasePayload):
 
 class ResultPayload(BasePayload, Generic[T]):
     """
-    With the implementation of this payload, we mark the start of the API refactoring de-facto for our CLI.
-
-
     This payload is meant to be used as a STANDARD RETURN TYPE for all API calls in the library, and it should
         be used as such in the future for all API calls.
 
 
-    This object has the following attributes:
-        - success: A boolean indicating whether the operation was successful or not.
-
-        - message: A list of strings containing any messages that should be returned to the user.
-
-        - data: Any data that should be returned to the user, can be of any type
-
-        - error: A list of strings containing any error messages that should be returned to the user.
-
-
-    This object has the following methods:
-        - __repr__: A string representation of the object, useful for debugging.
-
-        - __eq__: A method to compare two ResultPayload objects for equality.
-
-        - to_dict: A method to convert the object to a dictionary recursively, useful for serialization.
-
-        - from_dict: A class method to create a ResultPayload object from a dictionary, useful for deserialization.
-            Please note that from_dict is NOT recursive, and will not convert nested dicts to payloads.
+    Attributes:
+        success: A boolean indicating whether the operation was successful or not.
+        message: A list of strings containing any messages that should be returned to the user.
+        data: Any data that should be returned to the user, can be of any type
+        error: A list of strings containing any error messages that should be returned to the user.
     """
 
     __slots__ = (
@@ -250,6 +211,15 @@ class ResultPayload(BasePayload, Generic[T]):
 
 
 class TeamPrunePayload(BasePayload):
+    """
+    Payload representing TeamPrunePayload.
+
+    Attributes:
+        companies (list[str]): The companies attribute.
+        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
+        confirmed (bool): The confirmed attribute.
+    """
+
     __slots__ = ("companies", "i_know_what_im_doing", "confirmed")
 
     def __init__(
@@ -261,6 +231,15 @@ class TeamPrunePayload(BasePayload):
 
 
 class TeamListPayload(BasePayload):
+    """
+    Payload representing TeamListPayload.
+
+    Attributes:
+        company (str | None): The company attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+    """
+
     __slots__ = ("company", "no_pretty", "json")
 
     def __init__(self, company: str | None, no_pretty: bool, json: bool):
@@ -270,6 +249,14 @@ class TeamListPayload(BasePayload):
 
 
 class TeamClonePayload(BasePayload):
+    """
+    Payload representing TeamClonePayload.
+
+    Attributes:
+        target (str): The target attribute.
+        path (str | None): The path attribute.
+    """
+
     __slots__ = ("target", "path")
 
     def __init__(self, target: str, path: str | None):
@@ -278,6 +265,21 @@ class TeamClonePayload(BasePayload):
 
 
 class TeamInitPayload(BasePayload):
+    """
+    Payload representing TeamInitPayload.
+
+    Attributes:
+        target (str): The target attribute.
+        path (str | None): The path attribute.
+        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
+        confirmed (bool): The confirmed attribute.
+        init_git (bool): The init_git attribute.
+        overwrite_sops (bool): The overwrite_sops attribute.
+        engine (str | None): The engine attribute.
+        use_vault (bool): The use_vault attribute.
+        continue_no_vault (bool): The continue_no_vault attribute.
+    """
+
     __slots__ = (
         "target",
         "path",
@@ -314,6 +316,13 @@ class TeamInitPayload(BasePayload):
 
 
 class TeamActivatePayload(BasePayload):
+    """
+    Payload representing TeamActivatePayload.
+
+    Attributes:
+        path (str | None): The path attribute.
+    """
+
     __slots__ = ("path",)
 
     def __init__(self, path: str | None):
@@ -321,6 +330,15 @@ class TeamActivatePayload(BasePayload):
 
 
 class TeamDeactivatePayload(BasePayload):
+    """
+    Payload representing TeamDeactivatePayload.
+
+    Attributes:
+        company (str): The company attribute.
+        teams (list[str]): The teams attribute.
+        confirmed (bool): The confirmed attribute.
+    """
+
     __slots__ = ("company", "teams", "confirmed")
 
     def __init__(self, company: str, teams: list[str], confirmed: bool = False):
@@ -330,6 +348,17 @@ class TeamDeactivatePayload(BasePayload):
 
 
 class ExplainPayload(BasePayload):
+    """
+    Payload representing ExplainPayload.
+
+    Attributes:
+        topics (list[str]): The topics attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+        details (str): The details attribute.
+        complexity (str): The complexity attribute.
+    """
+
     __slots__ = ("topics", "no_pretty", "json", "details", "complexity")
 
     def __init__(
@@ -348,6 +377,15 @@ class ExplainPayload(BasePayload):
 
 
 class SetPayload(BasePayload):
+    """
+    Payload representing SetPayload.
+
+    Attributes:
+        chobolo_file (str | None): The chobolo_file attribute.
+        sops_file (str | None): The sops_file attribute.
+        secrets_file (str | None): The secrets_file attribute.
+    """
+
     __slots__ = ("chobolo_file", "sops_file", "secrets_file")
 
     def __init__(
@@ -362,6 +400,19 @@ class SetPayload(BasePayload):
 
 
 class CheckPayload(BasePayload):
+    """
+    Payload representing CheckPayload.
+
+    Attributes:
+        checks (Literal[explanations, roles, aliases, providers, boats, secrets, limanis, templates]): The checks attribute.
+        chobolo (str | None): The chobolo attribute.
+        json (bool): The json attribute.
+        team (str | None): The team attribute.
+        sops_file_override (str | None): The sops_file_override attribute.
+        secrets_file_override (str | None): The secrets_file_override attribute.
+        update_plugins (bool): The update_plugins attribute.
+    """
+
     __slots__ = (
         "checks",
         "chobolo",
@@ -401,6 +452,16 @@ class CheckPayload(BasePayload):
 
 
 class StyxPayload(BasePayload):
+    """
+    Payload representing StyxPayload.
+
+    Attributes:
+        styx_commands (Literal[invoke, list, destroy]): The styx_commands attribute.
+        entries (list[str]): The entries attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+    """
+
     __slots__ = ("styx_commands", "entries", "no_pretty", "json")
 
     def __init__(
@@ -417,6 +478,17 @@ class StyxPayload(BasePayload):
 
 
 class InitPayload(BasePayload):
+    """
+    Payload representing InitPayload.
+
+    Attributes:
+        init_command (Literal[chobolo, secrets]): The init_command attribute.
+        update_plugins (bool): The update_plugins attribute.
+        targets (list[str]): The targets attribute.
+        template (bool): The template attribute.
+        human (bool): The human attribute.
+    """
+
     __slots__ = ("init_command", "update_plugins", "targets", "template", "human")
 
     def __init__(
@@ -435,6 +507,14 @@ class InitPayload(BasePayload):
 
 
 class ProviderConfigPayload(BasePayload):
+    """
+    Payload representing ProviderConfigPayload.
+
+    Attributes:
+        provider (str | None): The provider attribute.
+        ephemeral_provider_args (dict[str, Any] | None): The ephemeral_provider_args attribute.
+    """
+
     __slots__ = ("provider", "ephemeral_provider_args")
 
     @classmethod
@@ -468,6 +548,17 @@ class ProviderConfigPayload(BasePayload):
 
 
 class SecretsContext(BasePayload):
+    """
+    Payload representing SecretsContext.
+
+    Attributes:
+        team (str | None): The team attribute.
+        sops_file_override (str | None): The sops_file_override attribute.
+        secrets_file_override (str | None): The secrets_file_override attribute.
+        provider_config (ProviderConfigPayload | dict[str, Any] | None): The provider_config attribute.
+        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
+    """
+
     __slots__ = (
         "team",
         "sops_file_override",
@@ -514,6 +605,12 @@ class SecretsContext(BasePayload):
 
 
 class ProviderExportArgs(BasePayload):
+    """
+    Payload representing ProviderExportArgs.
+
+    Attributes:
+    """
+
     __slots__ = ()
 
     def __init__(self):
@@ -521,6 +618,12 @@ class ProviderExportArgs(BasePayload):
 
 
 class ProviderImportArgs(BasePayload):
+    """
+    Payload representing ProviderImportArgs.
+
+    Attributes:
+    """
+
     __slots__ = ()
 
     def __init__(self):
@@ -528,6 +631,21 @@ class ProviderImportArgs(BasePayload):
 
 
 class SecretsExportPayload(BasePayload):
+    """
+    Payload representing SecretsExportPayload.
+
+    Attributes:
+        provider_name (str): The provider_name attribute.
+        key_type (Literal[age, gpg, vault]): The key_type attribute.
+        no_import (bool): The no_import attribute.
+        save_to_config (bool): The save_to_config attribute.
+        item_name (str | None): The item_name attribute.
+        keys (str | None): The keys attribute.
+        vault_addr (str | None): The vault_addr attribute.
+        fingerprints (list[str] | None): The fingerprints attribute.
+        provider_specific_args (ProviderExportArgs | None): The provider_specific_args attribute.
+    """
+
     __slots__ = (
         "provider_name",
         "key_type",
@@ -568,6 +686,17 @@ class SecretsExportPayload(BasePayload):
 
 
 class SecretsImportPayload(BasePayload):
+    """
+    Payload representing SecretsImportPayload.
+
+    Attributes:
+        provider_name (str): The provider_name attribute.
+        key_type (Literal[age, gpg, vault]): The key_type attribute.
+        item_id (str | None): The item_id attribute.
+        provider_specific_args (ProviderImportArgs | None): The provider_specific_args attribute.
+        confirmed (bool): The confirmed attribute.
+    """
+
     __slots__ = (
         "provider_name",
         "key_type",
@@ -596,6 +725,19 @@ class SecretsImportPayload(BasePayload):
 
 
 class SecretsRotatePayload(BasePayload):
+    """
+    Payload representing SecretsRotatePayload.
+
+    Attributes:
+        type (Literal[age, pgp, vault]): The type attribute.
+        keys (list[str]): The keys attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        index (int | None): The index attribute.
+        pgp_server (str | None): The pgp_server attribute.
+        create (bool): The create attribute.
+        update_confirmed (bool): The update_confirmed attribute.
+    """
+
     __slots__ = (
         "type",
         "keys",
@@ -627,6 +769,17 @@ class SecretsRotatePayload(BasePayload):
 
 
 class SecretsListPayload(BasePayload):
+    """
+    Payload representing SecretsListPayload.
+
+    Attributes:
+        type (Literal[age, pgp, vault]): The type attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+        value (bool): The value attribute.
+    """
+
     __slots__ = ("type", "context", "no_pretty", "json", "value")
 
     def __init__(
@@ -646,6 +799,14 @@ class SecretsListPayload(BasePayload):
 
 
 class SecretsEditPayload(BasePayload):
+    """
+    Payload representing SecretsEditPayload.
+
+    Attributes:
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        edit_sops_file (bool): The edit_sops_file attribute.
+    """
+
     __slots__ = ("context", "edit_sops_file")
 
     def __init__(
@@ -657,6 +818,15 @@ class SecretsEditPayload(BasePayload):
 
 
 class SecretsPrintPayload(BasePayload):
+    """
+    Payload representing SecretsPrintPayload.
+
+    Attributes:
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        print_sops_file (bool): The print_sops_file attribute.
+        as_json (bool): The as_json attribute.
+    """
+
     __slots__ = ("context", "print_sops_file", "as_json")
 
     def __init__(
@@ -672,6 +842,17 @@ class SecretsPrintPayload(BasePayload):
 
 
 class SecretsCatPayload(BasePayload):
+    """
+    Payload representing SecretsCatPayload.
+
+    Attributes:
+        keys (list[str]): The keys attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        cat_sops_file (bool): The cat_sops_file attribute.
+        as_json (bool): The as_json attribute.
+        value_only (bool): The value_only attribute.
+    """
+
     __slots__ = ("keys", "context", "cat_sops_file", "as_json", "value_only")
 
     def __init__(
@@ -691,6 +872,17 @@ class SecretsCatPayload(BasePayload):
 
 
 class SecretsSetShamirPayload(BasePayload):
+    """
+    Payload representing SecretsSetShamirPayload.
+
+    Attributes:
+        index (int): The index attribute.
+        share (int): The share attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        confirmed (bool): The confirmed attribute.
+        update_confirmed (bool): The update_confirmed attribute.
+    """
+
     __slots__ = ("index", "share", "context", "confirmed", "update_confirmed")
 
     def __init__(
@@ -709,6 +901,17 @@ class SecretsSetShamirPayload(BasePayload):
 
 
 class RambleCreatePayload(BasePayload):
+    """
+    Payload representing RambleCreatePayload.
+
+    Attributes:
+        target (str): The target attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        encrypt (bool): The encrypt attribute.
+        keys (list[str] | None): The keys attribute.
+        confirmed (bool): The confirmed attribute.
+    """
+
     __slots__ = ("target", "context", "encrypt", "keys", "confirmed")
 
     def __init__(
@@ -728,6 +931,15 @@ class RambleCreatePayload(BasePayload):
 
 
 class RambleEditPayload(BasePayload):
+    """
+    Payload representing RambleEditPayload.
+
+    Attributes:
+        target (str): The target attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        edit_sops_file (bool): The edit_sops_file attribute.
+    """
+
     __slots__ = ("target", "context", "edit_sops_file")
 
     def __init__(
@@ -743,6 +955,15 @@ class RambleEditPayload(BasePayload):
 
 
 class RambleEncryptPayload(BasePayload):
+    """
+    Payload representing RambleEncryptPayload.
+
+    Attributes:
+        target (str): The target attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        keys (list[str] | None): The keys attribute.
+    """
+
     __slots__ = ("target", "context", "keys")
 
     def __init__(
@@ -758,6 +979,17 @@ class RambleEncryptPayload(BasePayload):
 
 
 class RambleReadPayload(BasePayload):
+    """
+    Payload representing RambleReadPayload.
+
+    Attributes:
+        targets (list[str]): The targets attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+        values (list[str] | None): The values attribute.
+    """
+
     __slots__ = ("targets", "context", "no_pretty", "json", "values")
 
     def __init__(
@@ -777,6 +1009,17 @@ class RambleReadPayload(BasePayload):
 
 
 class RambleFindPayload(BasePayload):
+    """
+    Payload representing RambleFindPayload.
+
+    Attributes:
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        find_term (str | None): The find_term attribute.
+        tag (str | None): The tag attribute.
+        no_pretty (bool): The no_pretty attribute.
+        json (bool): The json attribute.
+    """
+
     __slots__ = ("context", "find_term", "tag", "no_pretty", "json")
 
     def __init__(
@@ -796,6 +1039,15 @@ class RambleFindPayload(BasePayload):
 
 
 class RambleMovePayload(BasePayload):
+    """
+    Payload representing RambleMovePayload.
+
+    Attributes:
+        old (str): The old attribute.
+        new (str): The new attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+    """
+
     __slots__ = ("old", "new", "context")
 
     # Since we use a singular "ramble_context" for all ramble operations,
@@ -809,6 +1061,15 @@ class RambleMovePayload(BasePayload):
 
 
 class RambleDeletePayload(BasePayload):
+    """
+    Payload representing RambleDeletePayload.
+
+    Attributes:
+        ramble (str): The ramble attribute.
+        context (SecretsContext | dict[str, Any]): The context attribute.
+        confirmed (bool): The confirmed attribute.
+    """
+
     __slots__ = ("ramble", "context", "confirmed")
 
     # Same as the above
@@ -825,6 +1086,13 @@ class RambleDeletePayload(BasePayload):
 
 
 class RambleUpdateEncryptPayload(BasePayload):
+    """
+    Payload representing RambleUpdateEncryptPayload.
+
+    Attributes:
+        context (SecretsContext | dict[str, Any]): The context attribute.
+    """
+
     __slots__ = ("context",)
 
     # ye, only context
@@ -833,6 +1101,37 @@ class RambleUpdateEncryptPayload(BasePayload):
 
 
 class ApplyPayload(BasePayload):
+    """
+    Payload representing ApplyPayload.
+
+    Attributes:
+        update_plugins (bool): The update_plugins attribute.
+        i_know_what_im_doing (bool): The i_know_what_im_doing attribute.
+        dry (bool): The dry attribute.
+        verbose (int): The verbose attribute.
+        v (int): The v attribute.
+        tags (list[str]): The tags attribute.
+        chobolo (str | None): The chobolo attribute.
+        limani (str | None): The limani attribute.
+        logbook (bool): The logbook attribute.
+        fleet (bool): The fleet attribute.
+        sudo_password_file (str | None): The sudo_password_file attribute.
+        password (str | None): The password attribute.
+        secrets (bool): The secrets attribute.
+        serial (bool): The serial attribute.
+        no_wait (bool): The no_wait attribute.
+        export_logs (bool): The export_logs attribute.
+        secrets_context (SecretsContext | dict[str, Any]): The secrets_context attribute.
+        confirmed_password (str): The confirmed_password attribute.
+        pyinfra_state (State | None): The pyinfra_state attribute.
+        target_hosts (list | None): The target_hosts attribute.
+        is_fleet_active (bool): The is_fleet_active attribute.
+        parallelism (int): The parallelism attribute.
+        fallback_to_local (bool): The fallback_to_local attribute.
+        decrypted_secrets (dict[str, Any] | None): The decrypted_secrets attribute.
+        global_config (dict[str, Any] | None): The global_config attribute.
+    """
+
     __slots__ = (
         "update_plugins",
         "i_know_what_im_doing",
