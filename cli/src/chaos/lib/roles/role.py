@@ -1,7 +1,13 @@
 """Abstract base class definition for Ch-aOS execution roles."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pyinfra.api.host import Host
+    from pyinfra.api.state import State
 
 from chaos.lib.args.dataclasses import Delta, ResultPayload
 
@@ -44,7 +50,7 @@ class Role(ABC):
         self.necessary_secret_dict_keys = necessary_secret_dict_keys
 
     def get_context(
-        self, state, host, chobolo: dict = {}, secrets: dict[str, Any] = {}
+        self, state: State, host: Host, chobolo: dict = {}, secrets: dict[str, Any] = {}
     ) -> dict[str, Any]:
         """Optional method to implement for roles that require context data from the system.
 
@@ -82,7 +88,7 @@ class Role(ABC):
         return Delta(to_add={"force_run": "this"}, to_remove={}, metadata={})
 
     @abstractmethod
-    def plan(self, state, host, delta: Delta = Delta()) -> ResultPayload:
+    def plan(self, state: State, host: Host, delta: Delta = Delta()) -> ResultPayload:
         """Plan the actions needed to achieve the desired state.
 
         Args:
