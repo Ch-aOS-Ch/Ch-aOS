@@ -102,5 +102,3 @@ if result.success:
 else:
     print("No matches found or an error occurred.")
 ```
-
-Using the SDK for rambles effectively gives you a headless API for a secure, Git-backed wiki!
