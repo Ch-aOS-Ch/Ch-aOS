@@ -349,6 +349,13 @@ def run_context(
 
         secrets_for_role = secrets_result.data
 
+    if not isinstance(payload.pyinfra_state, State):
+        return ResultPayload(
+            success=False,
+            message=[],
+            data={},
+            error=["payload.pyinfra_state is not a State instance."],
+        )
     context = role.get_context(
         payload.pyinfra_state, host, chobolo_for_role, secrets_for_role
     )
@@ -411,6 +418,14 @@ def run_plan(
             The plan should be the data returned from the role.plan() method if all checks pass and the plan is computed successfully.
             If there are any errors or if the role is skipped due to restrictions, the plan will not be included in the data field.
     """
+
+    if not isinstance(payload.pyinfra_state, State):
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=["payload.pyinfra_state is not a State instance."],
+            data={},
+        )
 
     try:
         plan = role.plan(payload.pyinfra_state, host, delta)
