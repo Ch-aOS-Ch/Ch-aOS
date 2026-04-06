@@ -18,7 +18,10 @@ def get_styx_registry() -> tuple[str | None, str | None]:
     Returns:
         tuple[str | None, str | None]: A tuple containing the registry data (str) and an error message (str), if applicable.
     """
-    url = "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml"
+    url = os.getenv(
+        "CHAOS_STYX_REGISTRY",
+        "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
+    )
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
         response.raise_for_status()
