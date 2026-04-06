@@ -252,6 +252,8 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
         DataGatherRequest | None: A request for user confirmation if the page already exists, otherwise None.
     """
     ramble = payload.target
+    if ".." in ramble or "/" in ramble:
+        return None
     team = payload.context.team
 
     try:
@@ -366,6 +368,8 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
         DataGatherRequest | None: Request prompting for the page to edit, or None if valid file format supplied.
     """
     ramble = payload.target
+    if ".." in ramble or "/" in ramble:
+        return None
     if "." in ramble:
         return None
 
