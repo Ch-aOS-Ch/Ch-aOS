@@ -587,22 +587,26 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                     tmp.write(result)
                     tmpPath = tmp.name
 
-                subprocess.run(
-                    [
-                        "sops",
-                        "--config",
-                        sops_file_override,
-                        "--filename-override",
-                        str(fullPath),
-                        "--encrypt",
-                        "--in-place",
-                        "--encrypted-regex",
-                        regex,
-                        str(tmpPath),
-                    ],
-                    check=True,
-                )
-                shutil.move(tmpPath, fullPath)
+                try:
+                    subprocess.run(
+                        [
+                            "sops",
+                            "--config",
+                            sops_file_override,
+                            "--filename-override",
+                            str(fullPath),
+                            "--encrypt",
+                            "--in-place",
+                            "--encrypted-regex",
+                            regex,
+                            str(tmpPath),
+                        ],
+                        check=True,
+                    )
+                    shutil.move(tmpPath, fullPath)
+                finally:
+                    if os.path.exists(tmpPath):
+                        os.remove(tmpPath)
         else:
             subprocess.run(
                 [
