@@ -592,6 +592,8 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                         "sops",
                         "--config",
                         sops_file_override,
+                        "--filename-override",
+                        str(fullPath),
                         "--encrypt",
                         "--in-place",
                         "--encrypted-regex",
