@@ -12,7 +12,7 @@ from chaos.lib.args.dataclasses import ResultPayload, StyxPayload
 TIMEOUT = 10
 
 
-def get_styx_registry() -> tuple[str | None, str | None]:
+def get_styx_registry(payload: StyxPayload) -> tuple[str | None, str | None]:
     """Fetches the Styx registry data from the specified URL.
 
     Returns:
@@ -20,7 +20,11 @@ def get_styx_registry() -> tuple[str | None, str | None]:
     """
     url = os.getenv(
         "CHAOS_STYX_REGISTRY",
-        "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
+        getattr(
+            payload,
+            "registry_url",
+            "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
+        ),
     )
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
@@ -97,22 +101,21 @@ def _check_hash(
         return False, None, f"Error checking hash for {file_path}: {e}"
 
 
-def install_styx_entries(
-    entries: list[str], force: bool = False
-) -> ResultPayload[None]:
+def install_styx_entries(payload: StyxPayload) -> ResultPayload[None]:
     """Installs the given Styx registry entries.
 
     Args:
-        entries (list[str]): List of plugin names to install.
-        force (bool, optional): If True, overwrites existing plugins. Defaults to False.
+        payload (StyxPayload): The structured payload containing the list of registry entries to install and the force flag.
 
     Returns:
         ResultPayload[None]: The status payload regarding the operation's outcome.
     """
+    entries = payload.entries
+    force = payload.force
     messages = []
     errors = []
 
-    raw_registry, error = get_styx_registry()
+    raw_registry, error = get_styx_registry(payload)
     if error:
         return ResultPayload(success=False, error=[error])
     if not raw_registry:
@@ -248,16 +251,17 @@ def install_styx_entries(
     return ResultPayload(success=success, message=messages, error=errors)
 
 
-def list_styx_entries(entries: list[str] | None) -> ResultPayload[dict[str, Any]]:
+def list_styx_entries(payload: StyxPayload) -> ResultPayload[dict[str, Any]]:
     """Lists the available Styx registry entries.
 
     Args:
-        entries (list[str] | None): Specific entries to list, or None for all available.
+        payload (StyxPayload): The structured payload containing the list of registry entries to display.
 
     Returns:
         ResultPayload[dict[str, Any]]: A payload containing matched registry details.
     """
-    raw_registry, error = get_styx_registry()
+    entries = payload.entries
+    raw_registry, error = get_styx_registry(payload)
     if error:
         return ResultPayload(success=False, error=[error])
     if not raw_registry:
@@ -382,10 +386,10 @@ def handle_styx(payload: StyxPayload) -> ResultPayload[dict[str, Any] | None]:
     try:
         match payload.styx_commands:
             case "invoke":
-                return install_styx_entries(payload.entries)
+                return install_styx_entries(payload)
 
             case "list":
-                return list_styx_entries(payload.entries)
+                return list_styx_entries(payload)
 
             case "destroy":
                 return uninstall_styx_entries(payload.entries)

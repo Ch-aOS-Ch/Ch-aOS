@@ -460,9 +460,18 @@ class StyxPayload(BasePayload):
         entries (list[str]): The names of the plugins to install, list, or uninstall.
         no_pretty (bool): If True, disables rich CLI formatting for the output.
         json (bool): If True, forces the output of the command to be in JSON format.
+        force (bool): If True, forces the action without confirmation (applicable for 'invoke' command).
+        registry_url (str | None): Optional custom URL for the Styx plugin registry, if not using the default registry.
     """
 
-    __slots__ = ("styx_commands", "entries", "no_pretty", "json")
+    __slots__ = (
+        "styx_commands",
+        "entries",
+        "no_pretty",
+        "json",
+        "force",
+        "registry_url",
+    )
 
     def __init__(
         self,
@@ -470,11 +479,15 @@ class StyxPayload(BasePayload):
         entries: list[str],
         no_pretty: bool,
         json: bool,
+        force: bool = False,
+        registry_url: str | None = None,
     ):
         self.styx_commands = styx_commands
         self.entries = entries
         self.no_pretty = no_pretty
         self.json = json
+        self.force = force
+        self.registry_url = registry_url
 
 
 class InitPayload(BasePayload):
