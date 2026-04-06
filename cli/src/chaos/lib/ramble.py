@@ -6,6 +6,7 @@ Also, great for documenting secrets management strategies, configurations, and b
 """
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -556,7 +557,8 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
         if not keys:
             return ResultPayload(success=True, message=["No new keys to encrypt."])
 
-        joinKeys = "|".join(keys)
+        escaped_keys = [re.escape(str(key)) for key in keys]
+        joinKeys = "|".join(escaped_keys)
         regex = f"^({joinKeys})$"
 
         if "sops" in data:
@@ -1093,4 +1095,3 @@ def handleUpdateEncryptRamble(
         final_msg = "No encrypted ramble files found to update."
 
     return ResultPayload(success=True, message=messages + [final_msg], error=warnings)
-
