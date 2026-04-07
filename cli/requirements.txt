@@ -21,8 +21,10 @@ charset-normalizer==3.4.4
     #   requests
 click==8.3.1
     # via pyinfra
-cryptography==46.0.3
-    # via paramiko
+cryptography==46.0.6
+    # via
+    #   chaos (pyproject.toml)
+    #   paramiko
 distro==1.9.0
     # via pyinfra
 gevent==25.9.1
@@ -53,6 +55,8 @@ paramiko==3.5.1
     # via pyinfra
 passlib==1.7.4
     # via chaos (pyproject.toml)
+pip==26.0.1
+    # via chaos (pyproject.toml)
 psutil==7.2.1
     # via chaos (pyproject.toml)
 pycparser==3.0
@@ -61,8 +65,10 @@ pydantic==2.12.5
     # via pyinfra
 pydantic-core==2.41.5
     # via pydantic
-pygments==2.19.2
-    # via rich
+pygments==2.20.0
+    # via
+    #   chaos (pyproject.toml)
+    #   rich
 pyinfra==3.7
     # via chaos (pyproject.toml)
 pynacl==1.6.2
@@ -75,7 +81,7 @@ pyyaml==6.0.3
     # via
     #   chaos (pyproject.toml)
     #   omegaconf
-requests==2.32.5
+requests==2.33.1
     # via chaos (pyproject.toml)
 rich==14.2.0
     # via chaos (pyproject.toml)
