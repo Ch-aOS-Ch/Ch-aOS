@@ -15,7 +15,17 @@ pluginDevPath = os.getenv("CHAOS_DEV_PATH", None)
 if pluginDevPath:
     absPath = os.path.abspath(pluginDevPath)
     if os.path.exists(absPath):
-        sys.path.insert(0, pluginDevPath)
+        wheel_files = list(Path(absPath).glob("*.whl"))
+        for whl in wheel_files:
+            try:
+                whl_path = str(whl.resolve())
+                if whl_path not in sys.path:
+                    sys.path.insert(0, whl_path)
+            except Exception as e:
+                print(
+                    f"Warning: Could not load plugin wheel '{whl}': {e}",
+                    file=sys.stderr,
+                )
     else:
         print(
             f"Warning: Ch-aos plugin path '{absPath}' does not exist.", file=sys.stderr
@@ -36,7 +46,12 @@ def get_plugins(update_cache=False):
     Explanations: Define explanations for existing roles, enhancing user understanding.
     """
     plugin_dirs = [
-        Path.home() / ".local/share/chaos/plugins",
+        Path(
+            os.getenv(
+                "CHAOS_PLUGIN_DIR",
+                Path.home() / ".local" / "share" / "chaos" / "plugins",
+            )
+        ),
         Path("/usr/share/chaos/plugins"),
     ]
 
@@ -44,22 +59,13 @@ def get_plugins(update_cache=False):
         if not plugin_dir.exists():
             continue
 
-        wheel_files = list(plugin_dir.glob("*.whl"))
-        for whl in wheel_files:
-            try:
-                whl_path = str(whl.resolve())
+        dir_path = str(plugin_dir.resolve())
 
-                if whl_path not in sys.path:
-                    sys.path.insert(0, whl_path)
+        if dir_path not in sys.path:
+            sys.path.insert(0, dir_path)
 
-            except Exception as e:
-                print(
-                    f"Warning: Could not load plugin wheel '{whl}': {e}",
-                    file=sys.stderr,
-                )
-
-    CACHE_DIR = Path(os.path.expanduser("~/.cache/chaos"))
-    CACHE_FILE = CACHE_DIR / "plugins.json"
+    CACHE_DIR = os.getenv("CHAOS_CACHE_DIR", Path.home() / ".cache" / "chaos")
+    CACHE_FILE = Path(CACHE_DIR) / "plugins.json"
     cache_exists = CACHE_FILE.exists()
 
     if not update_cache and cache_exists:
@@ -131,7 +137,7 @@ def get_plugins(update_cache=False):
         discovered_limanis[ep.name] = ep.value
 
     try:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, "w") as f:
             json.dump(
                 {
@@ -164,12 +170,15 @@ def get_plugins(update_cache=False):
     )
 
 
-def load_roles(roles_spec):
+def load_roles(roles_spec, requested_names=None):
     """
     Load role functions based on their specifications.
+    If requested_names is provided, only roles in that list will be loaded.
     """
     loaded_roles = {}
     for name, spec in roles_spec.items():
+        if requested_names is not None and name not in requested_names:
+            continue
         try:
             module_name, func_name = spec.split(":", 1)
             module = import_module(module_name)

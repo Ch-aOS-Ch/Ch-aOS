@@ -1,31 +1,52 @@
-import argparse
-import os
-import shutil
-import subprocess
-import tempfile
-from pathlib import Path
-from typing import cast
-
-from chaos.lib.checkers import check_vault_auth, is_vault_in_use
-from chaos.lib.secret_backends.utils import (
-    _getProvider,
-    _handle_provider_arg,
-    decrypt_secrets,
-)
-from chaos.lib.utils import render_list_as_table
-
-"""
-Module for managing ramble journals and pages.
+"""Module for managing ramble journals and pages.
 
 Yeah, it's like a personal wiki or knowledge base, weird for a DevOps tool right? LMAO
 Amazing for keeping track of random knowledge, scripts, concepts, and ideas related to chaos engineering and system administration.
 Also, great for documenting secrets management strategies, configurations, and best practices.
 """
 
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any, cast
+
+from chaos.lib.args.dataclasses import (
+    DataGatherPayload,
+    DataGatherRequest,
+    RambleCreatePayload,
+    RambleDeletePayload,
+    RambleEditPayload,
+    RambleEncryptPayload,
+    RambleFindPayload,
+    RambleMovePayload,
+    RambleReadPayload,
+    RambleUpdateEncryptPayload,
+    ResultPayload,
+    SecretsContext,
+)
+from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
+from chaos.lib.secret_backends.utils import (
+    _getProvider,
+    _handle_provider_arg,
+    decrypt_secrets,
+)
+
 
 def _get_ramble_dir(team) -> Path:
-    """
-    Validates and returns the ramble directory with the support for teams.
+    """Validates and returns the ramble directory with the support for teams.
+
+    Args:
+        team (str | None): The team string formatted as 'company.team.person', or None for personal context.
+
+    Returns:
+        Path: The resolved directory path to the requested ramble context.
+
+    Raises:
+        ValueError: If the team string is formatted incorrectly or contains path traversal payloads.
+        FileNotFoundError: If the team directory cannot be found.
     """
     if team:
         if "." not in team:
@@ -47,7 +68,10 @@ def _get_ramble_dir(team) -> Path:
             raise ValueError(f"Invalid team name '{team}'.")
 
         team_ramble_path = Path(
-            os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team}/")
+            os.getenv(
+                "CHAOS_RAMBLE_DIR",
+                Path.home() / ".local" / "share" / "chaos" / "teams" / company / team,
+            )
         )
 
         if not team_ramble_path.exists():
@@ -56,31 +80,63 @@ def _get_ramble_dir(team) -> Path:
             )
         team_ramble_path = team_ramble_path / "ramblings" / person
         return team_ramble_path
-    return Path(os.path.expanduser("~/.local/share/chaos/ramblings"))
+    return Path(
+        os.getenv(
+            "CHAOS_RAMBLE_DIR", Path.home() / ".local" / "share" / "chaos" / "ramble"
+        )
+    )
 
 
 def is_safe_path(target_path: Path, team) -> bool:
-    """
-    Validates that the target path is within the ramble directory to prevent path traversal.
+    """Validates that the target path is within the ramble directory to prevent path traversal.
+
+    Args:
+        target_path (Path): The path that is being accessed.
+        team (str | None): The current team context.
+
+    Returns:
+        bool: True if the path is secure and valid.
+
+    Raises:
+        PermissionError: If path traversal is detected.
+        FileNotFoundError: If the underlying ramble directory doesn't exist.
+        ValueError: On generic path issues.
+        RuntimeError: For other unexpected failures.
     """
     try:
         base_dir = _get_ramble_dir(team).resolve(strict=False)
         resolved_target = target_path.resolve(strict=False)
 
-        if not str(resolved_target).startswith(str(base_dir)):
+        if not resolved_target.is_relative_to(base_dir):
             raise PermissionError("Path traversal detected. Aborting.")
         return True
     except FileNotFoundError as e:
         raise FileNotFoundError("Ramble directory not found.") from e
+    except ValueError as e:
+        raise ValueError(f"Invalid path: {e}") from e
     except Exception as e:
         raise RuntimeError(f"Secure validation failed: {e}") from e
 
 
-def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
+def _read_ramble_content(ramble_path, sops_config, context, global_config):
+    """Reads the content of a ramble file, handling decryption if necessary.
+
+    Args:
+        ramble_path (Path): The path to the ramble page file.
+        sops_config (str | None): The sops file configuration path.
+        context (SecretsContext): The secrets context detailing override configs.
+        global_config (dict | DictConfig): The global chaos configuration.
+
+    Returns:
+        tuple[DictConfig, str]: A tuple containing the parsed configuration and the raw text representation.
+
+    Raises:
+        FileNotFoundError: If the ramble page or `sops` binary is missing.
+        ValueError: If the ramble is encrypted but no sops configuration was provided.
+        PermissionError: If vault authentication fails.
+        RuntimeError: If decryption fails or parsing issues occur.
     """
-    Reads the content of a ramble file, handling decryption if necessary.
-    """
-    is_safe_path(ramble_path, team)
+    is_safe_path(ramble_path, context.team)
 
     if not ramble_path.exists():
         raise FileNotFoundError(f"Ramble page not found: {ramble_path}")
@@ -95,7 +151,7 @@ def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
             if not sops_config:
                 raise ValueError(
                     "This ramble appears to be encrypted, but no sops configuration was found.\n"
-                    "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
+                    "   Provide one with '-ss /path/to/.sops.yml' or set a default with 'chaos set sops /path/to/.sops.yml'."
                 )
 
             if is_vault_in_use(sops_config):
@@ -105,13 +161,16 @@ def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
 
             decrypted_text = None
 
-            provider_args = argparse.Namespace()
-            provider_args.secrets_file_override = str(ramble_path)
-            provider_args.sops_file_override = sops_config
-            provider_args.team = team
+            new_context = SecretsContext(
+                team=context.team,
+                sops_file_override=context.sops_file_override,
+                secrets_file_override=str(ramble_path),
+                provider_config=context.provider_config,
+                i_know_what_im_doing=context.i_know_what_im_doing,
+            )
 
             decrypted_text = decrypt_secrets(
-                str(ramble_path), sops_config, global_config, args
+                str(ramble_path), sops_config, global_config, new_context
             )
 
             ramble_data = OmegaConf.create(decrypted_text)
@@ -130,603 +189,430 @@ def _read_ramble_content(ramble_path, sops_config, team, args, global_config):
         ) from e
     except Exception as e:
         raise RuntimeError(
-            f"Could not read or parse ramble file: {ramble_path}\n{e}"
+            f"Could not read or parse ramble file: {ramble_path}: {e}"
         ) from e
 
 
-def _print_ramble(ramble_path, sops_config, target_name, team, args, global_config):
+def gatherReadRamble(payload: RambleReadPayload) -> DataGatherRequest | None:
+    """Analyzes the read targets and returns a DataGatherRequest if any journals need page selection.
+
+    Args:
+        payload (RambleReadPayload): Payload specifying the reading target context.
+
+    Returns:
+        DataGatherRequest | None: The user prompt to select a page, if applicable.
     """
-    Prints the ramble content in a formatted manner.
+    fields = []
+    try:
+        CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    except (ValueError, FileNotFoundError):
+        return None
 
-    Utilizes rich with markdown and syntax highlighting. The Panel is intentionally not that wide, in order to promote pagination.
-    """
-    ramble_data, _ = _read_ramble_content(
-        ramble_path, sops_config, team, args, global_config
-    )
-    if args.no_pretty:
-        from omegaconf import DictConfig, OmegaConf
+    for target in payload.targets:
+        if ".." in target or "/" in target:
+            continue
 
-        values = args.values
-        if values:
-            for value in values:
-                p_value = OmegaConf.select(ramble_data, value)
-                if not p_value:
-                    continue
-                print(p_value)
-            return
-        if not args.json:
-            print(OmegaConf.to_yaml(ramble_data))
-            return
-        import json as js
+        parts = target.split(".", 1)
+        journal = parts[0]
+        is_list_request = (len(parts) > 1 and parts[1] == "list") or len(parts) == 1
 
-        print(js.dumps(OmegaConf.to_container(ramble_data, resolve=True), indent=2))
-        return
+        if not is_list_request:
+            continue
 
-    from rich.align import Align
-    from rich.console import Group
-    from rich.markdown import Markdown
-    from rich.padding import Padding
-    from rich.panel import Panel
-    from rich.syntax import Syntax
+        path = CONFIG_DIR / journal
 
-    renderables = []
-    standard_keys = {"title", "concept", "what", "why", "how", "scripts", "sops"}
-    from rich.text import Text
+        if not path.exists() and path.is_dir():
+            continue
 
-    if "concept" in ramble_data and ramble_data.concept:
-        renderables.append(Markdown(f"# Concept: {ramble_data.concept}"))
-        renderables.append(Text("\n"))
-    if "what" in ramble_data and ramble_data.what:
-        renderables.append(Markdown("**What is it?**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.what), 4))
-        renderables.append(Text("\n"))
-    if "why" in ramble_data and ramble_data.why:
-        renderables.append(Markdown("**Why use it?**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.why), 4))
-        renderables.append(Text("\n"))
-    if "how" in ramble_data and ramble_data.how:
-        renderables.append(Markdown("**How it works:**"))
-        renderables.append(Padding.indent(Markdown(ramble_data.how), 4))
-        renderables.append(Text("\n"))
+        entries = sorted([f.name for f in path.iterdir() if f.is_file()])
 
-    scripts = ramble_data.get("scripts")
-    if scripts:
-        renderables.append(Markdown("**Scripts:**"))
-        from omegaconf import DictConfig
-
-        if isinstance(scripts, DictConfig):
-            knownLangs = [
-                "python",
-                "c",
-                "java",
-                "javascript",
-                "rust",
-                "bash",
-                "go",
-                "c++",
-                "json",
-            ]
-            for lang, code in scripts.items():
-                if lang in knownLangs and code:
-                    renderables.append(
-                        Padding.indent(
-                            Syntax(code, lang, line_numbers=True, theme="ansi_dark"), 5
-                        )
-                    )
-        else:
-            renderables.append(
-                Padding.indent(
-                    Syntax(scripts, "bash", line_numbers=True, theme="monokai"), 5
-                )
-            )
-        renderables.append(Text("\n"))
-
-    other_keys = [k for k in ramble_data.keys() if k not in standard_keys]
-    if other_keys:
-        for key in other_keys:
-            renderables.append(Markdown(f"**{key.replace('_', ' ').title()}:**"))
-            content = ramble_data.get(key)
-
-            formatted_content = ""
-            if content is None:
-                formatted_content = "null"
-            elif isinstance(content, str):
-                formatted_content = content
-            elif isinstance(content, (dict, list)):
-                from omegaconf import DictConfig, OmegaConf
-
-                formatted_content = OmegaConf.to_yaml(content).strip()
-            else:
-                formatted_content = str(content)
-
-            renderables.append(Padding.indent(Markdown(formatted_content), 5))
-            renderables.append(Text("\n"))
-
-    title = ramble_data.get("title", target_name)
-    from rich.console import Console
-
-    console = Console()
-    console.print(
-        Align.center(
-            Panel(
-                Group(*renderables),
-                title=f"[bold green]Ramble for '{title}'[/]",
-                border_style="green",
-                expand=False,
-                width=120,
-            )
-        )
-    )
-
-
-def _process_ramble_target(target, sops_file_override, team, args, global_config):
-    """
-    Handles the ambiguity of ramble targets, allowing for listing pages or reading specific pages.
-    """
-    from rich.align import Align
-    from rich.panel import Panel
-    from rich.table import Table
-
-    if ".." in target or "/" in target:
-        raise ValueError("Invalid format for ramble.")
-
-    CONFIG_DIR = _get_ramble_dir(team)
-    parts = target.split(".", 1)
-    journal = parts[0]
-    path = CONFIG_DIR / journal
-
-    is_list_request = (len(parts) > 1 and parts[1] == "list") or len(parts) == 1
-
-    if is_list_request:
-        is_safe_path(path, team)
-        try:
-            from rich.console import Console
-
-            console = Console()
-            entries = sorted([f.name for f in path.iterdir() if f.is_file()])
-            if not entries:
-                console.print(f"[yellow]No pages found in the '{journal}' journal.[/]")
-                return
-
-            table = Table(show_lines=True)
-            table.add_column("Index", style="cyan")
-            table.add_column(f"Pages in {journal}", style="green")
-            for i, e in enumerate(entries, start=1):
-                table.add_row(str(i), Path(e).stem)
-            console.print(
-                Align.center(
-                    Panel(
-                        table,
-                        expand=False,
-                        border_style="green",
-                        title=f"Journal: [cyan]{journal}[/]",
-                    )
+        if entries:
+            choices = [Path(e).stem for e in entries]
+            fields.append(
+                DataGatherPayload(
+                    name=f"read_{target}",
+                    prompt=f"Which page do you want to read in journal '{journal}'?",
+                    input_type="choice",
+                    choices=choices,
+                    required=True,
                 )
             )
 
-            inp = console.input("Which page do you want to read? (index) ")
-            if not inp:
-                console.print("No page selected. Exiting.")
-                return
+    if fields:
+        return DataGatherRequest(name="ramble_read", fields=fields)
+    return None
 
-            try:
-                indx = int(inp)
-                if 1 <= indx <= len(entries):
-                    selected_file_name = entries[indx - 1]
-                    file_to_read = path / selected_file_name
-                    _print_ramble(
-                        file_to_read,
-                        sops_file_override,
-                        Path(selected_file_name).stem,
-                        team,
-                        args,
-                        global_config,
-                    )
-                else:
-                    raise IndexError
-            except (IndexError, ValueError):
-                raise ValueError(f"Invalid index: '{inp}'")
 
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Journal not found: {path}.")
+def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None:
+    """Checks if the ramble already exists and asks for confirmation to edit.
 
-    else:
+    Args:
+        payload (RambleCreatePayload): The context and target payload for creating the ramble.
+
+    Returns:
+        DataGatherRequest | None: A request for user confirmation if the page already exists, otherwise None.
+    """
+    ramble = payload.target
+    if ".." in ramble or "/" in ramble:
+        return None
+    team = payload.context.team
+
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError):
+        return None
+
+    if "." in ramble:
+        parts = ramble.split(".", 1)
+        directory = parts[0]
         page = parts[1]
-        if not page:
-            raise ValueError(f"No page passed for journal '{journal}'.")
-        full_path = path / f"{page}.yml"
-        _print_ramble(full_path, sops_file_override, target, team, args, global_config)
+        path = CONFIG_DIR / directory
+        CONFIG_FILE_PATH = path / f"{page}.yml"
+    else:
+        path = CONFIG_DIR / ramble
+        CONFIG_FILE_PATH = path / f"{ramble}.yml"
+
+    if CONFIG_FILE_PATH.exists():
+        return DataGatherRequest(
+            name="ramble_create_confirm",
+            fields=[
+                DataGatherPayload(
+                    name="confirmed",
+                    prompt=f"Page {ramble} already exists! Do you want to go write on it?",
+                    input_type="boolean",
+                    required=True,
+                    default=False,
+                )
+            ],
+        )
+    return None
 
 
-def handleCreateRamble(args):
+def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[dict[str, Any]]:
+    """Creates a new ramble journal or page, and returns the file path to open.
+
+    Args:
+        payload (RambleCreatePayload): The creation instructions including the target and confirmation status.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload containing the created file path or editing instructions on success.
     """
-    Creates a new ramble journal or page, and opens it in the user's editor.
+    ramble = payload.target
+    team = payload.context.team
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
 
-    If the ramble passed does not include a dot, the journal name is used for both the journal and page.
-    """
-    ramble = args.target
-    team = getattr(args, "team", None)
-    CONFIG_DIR = _get_ramble_dir(team)
-    shouldEncrypt = args.encrypt
+    should_encrypt = payload.encrypt
 
     if "." in ramble:
         parts = ramble.split(".", 1)
         directory = parts[0]
         page = parts[1]
         if not page or ".." in directory or "/" in directory:
-            raise ValueError("Invalid format for journal.page")
+            return ResultPayload(
+                success=False, error=["Invalid format for journal.page"]
+            )
         path = CONFIG_DIR / directory
         CONFIG_FILE_PATH = path / f"{page}.yml"
-
-        is_safe_path(CONFIG_FILE_PATH, team)
-
-        baseText = f"""title: {page}
-concept:
-what:
-why:
-how:
-scripts:
-"""
-        if not path.exists():
-            from rich.console import Console
-
-            console = Console()
-            path.mkdir(parents=True, exist_ok=True)
-            console.print(f"[yellow]Created new journal: {directory}![/]")
-
-        try:
-            from rich.console import Console
-
-            console = Console()
-            with open(CONFIG_FILE_PATH, "x") as f:
-                f.write(baseText)
-            console.print(
-                f"[bold green][italic]Page {page} created![/][/] [dim]{directory}.{page}[/]"
-            )
-        except FileExistsError:
-            from rich.console import Console
-
-            console = Console()
-            ask = console.input(
-                f"[bold yellow]WARNING:[/] page {page} already exists!\n Do you want to go write on it? (y/N) "
-            )
-            if not ask.lower() == "y":
-                return
-
-        editor = os.getenv("EDITOR", "nano")
-        try:
-            subprocess.run([editor, CONFIG_FILE_PATH], check=True)
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Ramble editing failed: {e}") from e
-
-        if shouldEncrypt:
-            encryptArgs = argparse.Namespace()
-            encryptArgs.target = ramble
-            encryptArgs.keys = args.keys
-            encryptArgs.sops_file_override = getattr(args, "sops_file_override", None)
-            encryptArgs.team = team
-            handleEncryptRamble(encryptArgs)
-
     else:
         if ".." in ramble or "/" in ramble:
-            raise ValueError("Invalid format for journal")
-
+            return ResultPayload(success=False, error=["Invalid format for journal"])
         path = CONFIG_DIR / ramble
-        fullPath = path / f"{ramble}.yml"
+        page = ramble
+        CONFIG_FILE_PATH = path / f"{ramble}.yml"
 
-        is_safe_path(fullPath, team)
+    try:
+        is_safe_path(CONFIG_FILE_PATH, team)
+    except (PermissionError, FileNotFoundError, RuntimeError) as e:
+        return ResultPayload(success=False, error=[str(e)])
 
-        baseText = f"""title: {ramble}
+    base_text = f"""title: {page}
 concept:
 what:
 why:
 how:
 scripts:
 """
-        try:
-            from rich.console import Console
+    messages = []
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+        messages.append(f"Created new journal: {path.name}!")
 
-            console = Console()
-            path.mkdir(parents=True, exist_ok=True)
-            console.print(f'[bold green]Journal "{ramble}" created![/]')
-            try:
-                with open(fullPath, "x") as f:
-                    f.write(baseText)
-                console.print(
-                    f"[bold green][italic]Page {ramble} created![/][/] [dim]{ramble}.{ramble}[/]"
-                )
-            except FileExistsError:
-                ask = console.input(
-                    f"[bold yellow]WARNING:[/] page {ramble} already exists!\n Do you want to go write on it? (y/N) "
-                )
-                if not ask.lower() == "y":
-                    return
+    if not CONFIG_FILE_PATH.exists():
+        with open(CONFIG_FILE_PATH, "x") as f:
+            f.write(base_text)
+        messages.append(f"Page {page} created!")
+    else:
+        if not payload.confirmed:
+            return ResultPayload(success=False, error=["Creation aborted by user."])
 
-        except FileExistsError:
-            from rich.console import Console
-
-            console = Console()
-            console.print(f"[yellow]Journal '{ramble}' already exists.[/]")
-
-            editor = os.getenv("EDITOR", "nano")
-            try:
-                subprocess.run([editor, fullPath], check=True)
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Ramble editing failed: {e}") from e
-        if shouldEncrypt:
-            encryptArgs = argparse.Namespace()
-            encryptArgs.target = ramble
-            encryptArgs.keys = args.keys
-            encryptArgs.sops_file_override = getattr(args, "sops_file_override", None)
-            encryptArgs.team = team
-            handleEncryptRamble(encryptArgs)
-    return
+    return ResultPayload(
+        success=True,
+        message=messages,
+        data={
+            "file_to_edit": str(CONFIG_FILE_PATH),
+            "should_encrypt": should_encrypt,
+            "target": ramble,
+        },
+    )
 
 
-def handleEditRamble(args):
-    """Edits an existing ramble journal or page, handling decryption if necessary."""
-    from omegaconf import DictConfig, OmegaConf
-    from rich.align import Align
-    from rich.panel import Panel
-    from rich.table import Table
+def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
+    """If a journal is passed, returns a DataGatherRequest for page selection.
 
-    ramble = args.target
+    Args:
+        payload (RambleEditPayload): Context for editing a ramble.
+
+    Returns:
+        DataGatherRequest | None: Request prompting for the page to edit, or None if valid file format supplied.
+    """
+    ramble = payload.target
     if ".." in ramble or "/" in ramble:
-        raise ValueError("Invalid format for ramble.")
+        return None
+    if "." in ramble:
+        return None
 
-    team = getattr(args, "team", None)
-    CONFIG_DIR = _get_ramble_dir(team)
+    team = payload.context.team
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError):
+        return None
+    path = CONFIG_DIR / ramble
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    if path.exists() and path.is_dir():
+        entries = sorted([f.name for f in path.iterdir() if f.is_file()])
+        if entries:
+            choices = [Path(e).stem for e in entries]
+            return DataGatherRequest(
+                name="ramble_edit_select",
+                fields=[
+                    DataGatherPayload(
+                        name="selected_page",
+                        prompt=f"Which page do you want to edit in journal '{ramble}'?",
+                        input_type="choice",
+                        choices=choices,
+                        required=True,
+                    )
+                ],
+            )
+    return None
+
+
+def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]]:
+    """Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
+
+    Args:
+        payload (RambleEditPayload): Details on what to edit and encryption state context.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: The result holding the requested file's path and its encryptability state.
+    """
+
+    from omegaconf import DictConfig, OmegaConf
+
+    ramble = payload.target
+    if ".." in ramble or "/" in ramble:
+        return ResultPayload(success=False, error=["Invalid format for ramble."])
+
+    team = payload.context.team
+    try:
+        CONFIG_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-
     global_config = cast(DictConfig, global_config)
 
-    args = _handle_provider_arg(args, global_config)
-
-    sops_file_override = None
-    if hasattr(args, "sops_file_override") and args.sops_file_override:
-        sops_file_override = args.sops_file_override
-    else:
-        sops_file_override = global_config.get("sops_file")
-
-    def edit_file(path, selected_file_name, args):
-        isSops = args.sops
-        file_path = None
-        if isSops:
-            if not sops_file_override:
-                raise ValueError(
-                    "The --sops flag was used, but no sops configuration file was found.\n"
-                    "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
-                )
-            file_path = Path(sops_file_override)
-        else:
-            file_path = path / selected_file_name
-
-        if not isSops:
-            is_safe_path(file_path, team)
-
-        is_encrypted = False
-        try:
-            data = OmegaConf.load(file_path)
-            if "sops" in data:
-                is_encrypted = True
-        except Exception:
-            pass
-
-        if is_encrypted:
-            if not sops_file_override:
-                raise ValueError(
-                    "This ramble appears to be encrypted, but no sops configuration was found.\n"
-                    "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
-                )
-
-            if is_vault_in_use(sops_file_override):
-                is_authed, message = check_vault_auth()
-                if not is_authed:
-                    raise PermissionError(message)
-
-            provider = _getProvider(args, global_config)
-
-            try:
-                if provider:
-                    provider.edit(str(file_path), sops_file_override)
-                else:
-                    subprocess.run(
-                        ["sops", "--config", sops_file_override, str(file_path)],
-                        check=True,
-                    )
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    "The `sops` command was not found. Please install sops to edit encrypted rambles."
-                )
-            except subprocess.CalledProcessError as e:
-                if e.returncode != 200:
-                    raise RuntimeError(f"Ramble editing with sops failed: {e}") from e
-        else:
-            editor = os.getenv("EDITOR", "nano")
-            try:
-                subprocess.run([editor, str(file_path)], check=True)
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"Editor `{editor}` not found. Please set your EDITOR environment variable."
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Ramble editing failed: {e}") from e
+    sops_file_override = payload.context.sops_file_override or global_config.get(
+        "sops_file"
+    )
 
     if "." in ramble:
         parts = ramble.split(".", 1)
         directory = parts[0]
         page = parts[1] if parts[1] else directory
-
-        path = CONFIG_DIR / directory
-        CONFIG_FILE_PATH = path / f"{page}.yml"
-
-        if not CONFIG_FILE_PATH.exists():
-            is_safe_path(path, team)
-            raise FileNotFoundError(f"Ramble page not found: {CONFIG_FILE_PATH}")
-
-        edit_file(path, f"{page}.yml", args)
-        return
-
-    path = CONFIG_DIR / ramble
-    is_safe_path(path, team)
+        file_path = CONFIG_DIR / directory / f"{page}.yml"
+    else:
+        return ResultPayload(
+            success=False, error=[f"Ambiguous ramble target: {ramble}"]
+        )
 
     try:
-        entries = sorted([f.name for f in path.iterdir() if f.is_file()])
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Journal not found: {path}.")
-
-    if not entries:
-        from rich.console import Console
-
-        console = Console()
-        console.print(f"[yellow]No pages found in the '{ramble}' journal.[/]")
-        return
-
-    table = Table(show_lines=True)
-    table.add_column("Index", style="cyan")
-    table.add_column(f"Pages in {ramble}", style="green")
-    for i, e in enumerate(entries, start=1):
-        table.add_row(str(i), Path(e).stem)
-
-    from rich.console import Console
-
-    console = Console()
-    console.print(
-        Align.center(
-            Panel(
-                table,
-                expand=False,
-                border_style="green",
-                title=f"Journal: [cyan]{ramble}[/]",
+        if not file_path.exists():
+            is_safe_path(file_path.parent, team)
+            return ResultPayload(
+                success=False, error=[f"Ramble page not found: {file_path}"]
             )
-        )
+        is_safe_path(file_path, team)
+    except (PermissionError, FileNotFoundError, RuntimeError) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    is_encrypted = False
+    try:
+        data = OmegaConf.load(file_path)
+        if "sops" in data:
+            is_encrypted = True
+    except Exception:
+        pass
+
+    return ResultPayload(
+        success=True,
+        data={
+            "file_path": str(file_path),
+            "is_encrypted": is_encrypted,
+            "sops_config": sops_file_override,
+            "edit_sops_file": payload.edit_sops_file,
+        },
     )
-    inp = console.input("Which page do you want to edit? (index) ")
-
-    if inp:
-        try:
-            indx = int(inp)
-            if 1 <= indx <= len(entries):
-                selected_file_name = entries[indx - 1]
-                edit_file(path, selected_file_name, args)
-            else:
-                raise IndexError
-        except (IndexError, ValueError):
-            raise ValueError(f"Invalid index: '{inp}'")
-    else:
-        console.print("No page selected. Exiting.")
 
 
-def handleEncryptRamble(args):
+def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
+    """Encrypts specified keys in a ramble page using sops.
+
+    Args:
+        payload (RambleEncryptPayload): The payload outlining the ramble to encrypt and which keys specifically.
+
+    Returns:
+        ResultPayload[None]: A payload summarizing encryption state messages or failure.
+
+    Notes:
+        If -k not passed, encrypts everything except base keys.
+        The tags key is never encrypted, helping to optimize searching.
     """
-    Encrypts specified keys in a ramble page using sops.
 
-    If -k not passed, encrypts everything except base keys.
-    The tags key is never encrypted, helping to optimize searching.
-    """
     from omegaconf import DictConfig, OmegaConf
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
     global_config = cast(DictConfig, global_config)
 
-    sops_file_override = getattr(args, "sops_file_override", None) or global_config.get(
+    sops_file_override = payload.context.sops_file_override or global_config.get(
         "sops_file"
     )
 
     if not sops_file_override:
-        raise ValueError(
-            "You need a sops configuration for encryption to work.\n"
-            "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
+        return ResultPayload(
+            success=False,
+            error=[
+                "You need a sops configuration for encryption to work.\n"
+                "   Provide one with '-ss /path/to/.sops.yml' or set a default with 'chaos set sops /path/to/.sops.yml'."
+            ],
         )
-
-    if is_vault_in_use(sops_file_override):
-        is_authed, message = check_vault_auth()
-        if not is_authed:
-            raise PermissionError(message)
-
-    ramble = args.target
-    if ".." in ramble or "/" in ramble:
-        raise ValueError("Invalid format for ramble.")
-
-    keys = args.keys or []
-    team = getattr(args, "team", None)
-    CONFIG_DIR = _get_ramble_dir(team)
-
-    if "." not in ramble:
-        raise ValueError(
-            "You must pass a specific page to be encrypted (e.g., diary.page)."
-        )
-
-    parts = ramble.split(".", 1)
-    directory = parts[0]
-    page = parts[1]
-    path = CONFIG_DIR / directory
-    fullPath = path / f"{page}.yml"
-
-    is_safe_path(fullPath, team)
-
-    if not fullPath.exists():
-        raise FileNotFoundError(f"Ramble page not found: {fullPath}")
-
     try:
-        data = OmegaConf.load(fullPath)
-    except Exception as e:
-        raise RuntimeError(f"Could not read ramble file: {e}") from e
+        if is_vault_in_use(sops_file_override):
+            is_authed, message = check_vault_auth()
+            if not is_authed:
+                return ResultPayload(success=False, error=[message])
 
-    keysInData = data.keys()
-    baseKeys = ["title", "concept", "sops", "tags"]
-    if not keys:
-        keys = [str(key) for key in keysInData if key not in baseKeys]
+        ramble = payload.target
+        if ".." in ramble or "/" in ramble:
+            return ResultPayload(success=False, error=["Invalid format for ramble."])
 
-    if not keys:
-        from rich.console import Console
+        keys = payload.keys or []
+        team = payload.context.team
 
-        console = Console()
-        console.print("[yellow]No new keys to encrypt. Exiting.[/]")
-        return
+        CONFIG_DIR = _get_ramble_dir(team)
 
-    joinKeys = "|".join(keys)
-    regex = f"^({joinKeys})$"
-    from rich.console import Console
-
-    console = Console()
-    console.print(f"[italic][yellow]Encrypting these keys:[/][cyan] {keys}[/][/]")
-
-    try:
-        if "sops" in data:
-            result = decrypt_secrets(
-                str(fullPath), sops_file_override, global_config, args
-            )
-            with tempfile.NamedTemporaryFile(
-                mode="w", delete=False, dir="/dev/shm", suffix=".yml"
-            ) as tmp:
-                os.chmod(tmp.name, 0o600)
-                tmp.write(result)
-                tmpPath = tmp.name
-
-            subprocess.run(
-                [
-                    "sops",
-                    "--config",
-                    sops_file_override,
-                    "--encrypt",
-                    "--in-place",
-                    "--encrypted-regex",
-                    regex,
-                    str(tmpPath),
+        if "." not in ramble:
+            return ResultPayload(
+                success=False,
+                error=[
+                    "You must pass a specific page to be encrypted (e.g., diary.page)."
                 ],
-                check=True,
             )
-            shutil.move(tmpPath, fullPath)
+
+        parts = ramble.split(".", 1)
+        directory = parts[0]
+        page = parts[1]
+        path = CONFIG_DIR / directory
+        fullPath = path / f"{page}.yml"
+
+        is_safe_path(fullPath, team)
+
+        if not fullPath.exists():
+            return ResultPayload(
+                success=False, error=[f"Ramble page not found: {fullPath}"]
+            )
+
+        data = OmegaConf.load(fullPath)
+
+        keysInData = data.keys()
+        baseKeys = ["title", "concept", "sops", "tags"]
+        if not keys:
+            keys = [str(key) for key in keysInData if key not in baseKeys]
+
+        if not keys:
+            return ResultPayload(success=True, message=["No new keys to encrypt."])
+
+        escaped_keys = [re.escape(str(key)) for key in keys]
+        joinKeys = "|".join(escaped_keys)
+        regex = f"^({joinKeys})$"
+
+        if "sops" in data:
+            new_context = SecretsContext(
+                team=payload.context.team,
+                sops_file_override=payload.context.sops_file_override,
+                secrets_file_override=str(fullPath),
+                provider_config=payload.context.provider_config,
+                i_know_what_im_doing=payload.context.i_know_what_im_doing,
+            )
+            result = decrypt_secrets(
+                str(fullPath), sops_file_override, global_config, new_context
+            )
+
+            import platform
+            from contextlib import ExitStack
+
+            from chaos.lib.secret_backends.providers.ephemeral import mac_ram_disk
+
+            is_mac = platform.system() == "Darwin"
+
+            with ExitStack() as stack:
+                if is_mac:
+                    shm_dir = stack.enter_context(mac_ram_disk())
+                else:
+                    shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+
+                with tempfile.NamedTemporaryFile(
+                    mode="w", delete=False, dir=shm_dir, suffix=".yml"
+                ) as tmp:
+                    os.chmod(tmp.name, 0o600)
+                    tmp.write(result)
+                    tmpPath = tmp.name
+
+                try:
+                    subprocess.run(
+                        [
+                            "sops",
+                            "--config",
+                            sops_file_override,
+                            "--filename-override",
+                            str(fullPath),
+                            "--encrypt",
+                            "--in-place",
+                            "--encrypted-regex",
+                            regex,
+                            str(tmpPath),
+                        ],
+                        check=True,
+                    )
+                    shutil.move(tmpPath, fullPath)
+                finally:
+                    if os.path.exists(tmpPath):
+                        os.remove(tmpPath)
         else:
             subprocess.run(
                 [
@@ -742,82 +628,145 @@ def handleEncryptRamble(args):
                 check=True,
             )
 
-        console.print(f"[bold green]Successfully encrypted keys in {ramble}[/]")
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            "The `sops` command was not found. Please install sops to encrypt rambles."
+        return ResultPayload(
+            success=True, message=[f"Successfully encrypted keys in {ramble}"]
         )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Ramble encryption/decryption failed: {e}") from e
+    except (
+        ValueError,
+        PermissionError,
+        FileNotFoundError,
+        RuntimeError,
+        Exception,
+    ) as e:
+        if isinstance(e, FileNotFoundError):
+            return ResultPayload(
+                success=False,
+                error=[
+                    "The `sops` command was not found. Please install sops to encrypt rambles."
+                ],
+            )
+        if isinstance(e, subprocess.CalledProcessError):
+            return ResultPayload(
+                success=False, error=[f"Ramble encryption/decryption failed: {e}"]
+            )
+        return ResultPayload(success=False, error=[str(e)])
 
 
-def handleReadRamble(args):
+def handleReadRamble(payload: RambleReadPayload) -> ResultPayload[dict[str, Any]]:
+    """Reads the content of specified rambles and returns them.
+
+    Args:
+        payload (RambleReadPayload): Contains targets and state required to retrieve rambles.
+
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload wrapping the read content for matching rambles.
     """
-    Handles the display of the ramble content.
-    """
+
     from omegaconf import DictConfig, OmegaConf
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
+
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
     global_config = cast(DictConfig, global_config)
 
-    args = _handle_provider_arg(args, global_config)
-
-    sops_file_override = getattr(args, "sops_file_override", None) or global_config.get(
+    sops_file_override = payload.context.sops_file_override or global_config.get(
         "sops_file"
     )
-    team = getattr(args, "team", None)
 
-    for target in args.targets:
-        _process_ramble_target(target, sops_file_override, team, args, global_config)
+    results = {}
+    try:
+        CONFIG_DIR = _get_ramble_dir(payload.context.team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    for target in payload.targets:
+        if "." not in target:
+            continue
+
+        parts = target.split(".", 1)
+        journal = parts[0]
+        page = parts[1]
+        full_path = CONFIG_DIR / journal / f"{page}.yml"
+
+        try:
+            ramble_data, _ = _read_ramble_content(
+                full_path, sops_file_override, payload.context, global_config
+            )
+            results[target] = OmegaConf.to_container(ramble_data, resolve=True)
+        except Exception as e:
+            return ResultPayload(success=False, error=[str(e)])
+
+    return ResultPayload(success=True, data=results)
 
 
-def handleFindRamble(args):
+def handleFindRamble(payload: RambleFindPayload) -> ResultPayload[list[str]]:
+    """Searches for rambles containing a specific term, optionally filtered by tag.
+
+    Args:
+        payload (RambleFindPayload): Definition of constraints to find target rambles.
+
+    Returns:
+        ResultPayload[list[str]]: The list of matches, or an appropriate error response.
+
+    Notes:
+        If nothing passed, lists all rambles.
     """
-    Searches for rambles containing a specific term, optionally filtered by tag.
 
-    If nothing passed, lists all rambles.
-    """
     from omegaconf import DictConfig, OmegaConf
 
-    team = getattr(args, "team", None)
-    RAMBLE_DIR = _get_ramble_dir(team)
-    search_term = getattr(args, "find_term", None)
-    required_tag = getattr(args, "tag", None)
-    results = []
+    from chaos.lib.args.dataclasses import ResultPayload
 
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    team = payload.context.team
+
+    try:
+        RAMBLE_DIR = _get_ramble_dir(team)
+    except (ValueError, FileNotFoundError) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    search_term = payload.find_term
+    required_tag = payload.tag
+    results = []
+    warnings = []
+
+    GLOBAL_CONFIG_DIR = Path(
+        os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
+    )
+
     GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
     global_config = {}
     if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
         global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+
     global_config = cast(DictConfig, global_config)
 
-    sops_file_override = getattr(args, "sops_file_override", None) or global_config.get(
+    sops_file_override = payload.context.sops_file_override or global_config.get(
         "sops_file"
     )
 
     for ramble_file in RAMBLE_DIR.rglob("*.yml"):
         try:
             if search_term and required_tag:
-                data, text = _read_ramble_content(
-                    ramble_file, sops_file_override, team, args, global_config
-                )
+                bare_data = OmegaConf.load(ramble_file)
+                bare_data = cast(DictConfig, bare_data)
+                tags = bare_data.get("tags", [])
+                if required_tag not in tags:
+                    continue
 
-                if required_tag:
-                    tags = data.get("tags", [])
-                    if required_tag not in tags:
-                        continue
+                data, text = _read_ramble_content(
+                    ramble_file, sops_file_override, payload.context, global_config
+                )
 
                 if search_term and search_term.lower() not in text.lower():
                     continue
 
             elif search_term:
                 data, text = _read_ramble_content(
-                    ramble_file, sops_file_override, team, args, global_config
+                    ramble_file, sops_file_override, payload.context, global_config
                 )
 
                 if search_term and search_term.lower() not in text.lower():
@@ -833,264 +782,316 @@ def handleFindRamble(args):
             page = ramble_file.stem
             results.append(f"{ramble}.{page}")
         except Exception as e:
-            from rich.console import Console
-
-            console = Console()
-            console.print(
-                f"[bold yellow]Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}[/]"
+            warnings.append(
+                f"Skipping {ramble_file.relative_to(RAMBLE_DIR)} due to error: {e}"
             )
             continue
 
     if not results:
-        from rich.console import Console
+        return ResultPayload(
+            success=True,
+            data=[],
+            message=["Could not find any rambles."],
+            error=warnings,
+        )
 
-        console = Console()
-        console.print("Could not find any rambles.")
-        return
-
-    if args.no_pretty:
-        if args.json:
-            import json as js
-
-            print(
-                js.dumps(
-                    OmegaConf.to_container(OmegaConf.create(results), resolve=True),
-                    indent=2,
-                )
-            )
-            return
-        print(OmegaConf.to_yaml(OmegaConf.create(results)))
-        return
-
-    title = "[italic][green]Found ramblings:[/][/]"
-    render_list_as_table(results, title)
+    return ResultPayload(success=True, data=results, message=warnings)
 
 
-def handleMoveRamble(args):
-    "Moves or renames a ramble journal or page."
-    team = getattr(args, "team", None)
-    RAMBLE_DIR = _get_ramble_dir(team)
-    old = args.old
-    new = args.new
+def handleMoveRamble(payload: RambleMovePayload) -> ResultPayload[None]:
+    """Moves or renames a ramble journal or page.
 
-    if ".." in old or "/" in old or ".." in new or "/" in new:
-        raise ValueError("Invalid format for ramble.")
+    Args:
+        payload (RambleMovePayload): Context describing the origin point, and intended target point.
 
-    old_is_dir = "." not in old
-    new_is_dir = "." not in new
+    Returns:
+        ResultPayload[None]: Status payload of the operation.
+    """
+    team = payload.context.team
+    old = payload.old
+    new = payload.new
 
     try:
-        source_path = (
-            RAMBLE_DIR / old
-            if old_is_dir
-            else RAMBLE_DIR / old.split(".", 1)[0] / f"{old.split('.', 1)[1]}.yml"
+        RAMBLE_DIR = _get_ramble_dir(team)
+
+        if ".." in old or "/" in old or ".." in new or "/" in new:
+            return ResultPayload(success=False, error=["Invalid format for ramble."])
+
+        old_is_dir = "." not in old
+        new_is_dir = "." not in new
+
+        try:
+            source_path = (
+                RAMBLE_DIR / old
+                if old_is_dir
+                else RAMBLE_DIR / old.split(".", 1)[0] / f"{old.split('.', 1)[1]}.yml"
+            )
+        except IndexError:
+            return ResultPayload(
+                success=False, error=[f"Invalid source format: '{old}'"]
+            )
+
+        is_safe_path(source_path, team)
+
+        dest_dir_path = (
+            RAMBLE_DIR / new if new_is_dir else RAMBLE_DIR / new.split(".", 1)[0]
         )
-    except IndexError:
-        raise ValueError(f"Invalid source format: '{old}'")
-
-    is_safe_path(source_path, team)
-
-    dest_dir_path = (
-        RAMBLE_DIR / new if new_is_dir else RAMBLE_DIR / new.split(".", 1)[0]
-    )
-    dest_file_path = (
-        None if new_is_dir else dest_dir_path / f"{new.split('.', 1)[1]}.yml"
-    )
-
-    is_safe_path(dest_dir_path, team)
-    if dest_file_path:
-        is_safe_path(dest_file_path, team)
-
-    if not source_path.exists():
-        raise FileNotFoundError(f"No such journal or page: {source_path}")
-
-    if dest_file_path is None or dest_dir_path is None:
-        raise ValueError("Destination path could not be determined.")
-
-    if old_is_dir and new_is_dir:
-        if dest_dir_path.exists():
-            raise FileExistsError(
-                f"Destination journal (directory) already exists: {dest_dir_path}"
-            )
-        from rich.console import Console
-
-        console = Console()
-        shutil.move(str(source_path), str(dest_dir_path))
-        console.print(f"[green]Successfully moved journal '{old}' to '{new}'[/]")
-
-    elif not old_is_dir and not new_is_dir:
-        if dest_file_path.exists():
-            raise FileExistsError(
-                f"Destination page (file) already exists: {dest_file_path}"
-            )
-
-        dest_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        shutil.move(str(source_path), str(dest_file_path))
-        from rich.console import Console
-
-        console = Console()
-        console.print(f"[green]Successfully moved page '{old}' to '{new}'[/]")
-
-    elif old_is_dir and not new_is_dir:
-        raise ValueError("Cannot move a directory to a singular file.")
-
-    elif not old_is_dir and new_is_dir:
-        final_dest_file = dest_dir_path / source_path.name
-        is_safe_path(final_dest_file, team)
-        if final_dest_file.exists():
-            raise FileExistsError(
-                f"Page (file) '{source_path.name}' already exists in journal '{new}'"
-            )
-        dest_dir_path.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(source_path), str(final_dest_file))
-        new_ramble_name = f"{new}.{source_path.stem}"
-        from rich.console import Console
-
-        console = Console()
-        console.print(
-            f"[green]Successfully moved page '{old}' to '{new_ramble_name}'[/]"
+        dest_file_path = (
+            None if new_is_dir else dest_dir_path / f"{new.split('.', 1)[1]}.yml"
         )
 
+        is_safe_path(dest_dir_path, team)
+        if dest_file_path:
+            is_safe_path(dest_file_path, team)
 
-def handleDelRamble(args):
-    "Deletes a ramble journal or page after confirmation."
-    team = getattr(args, "team", None)
-    RAMBLE_DIR = _get_ramble_dir(team)
-    ramble = args.ramble
+        if not source_path.exists():
+            return ResultPayload(
+                success=False, error=[f"No such journal or page: {source_path}"]
+            )
 
-    if ".." in ramble or "/" in ramble:
-        raise ValueError("Invalid format for ramble.")
+        if dest_file_path is None or dest_dir_path is None:
+            return ResultPayload(
+                success=False, error=["Destination path could not be determined."]
+            )
 
-    if "." in ramble:
-        parts = ramble.split(".", 1)
-        journal = parts[0]
-        page = parts[1]
-        rambleFile = RAMBLE_DIR / journal / f"{page}.yml"
-        is_safe_path(rambleFile, team)
-        if not rambleFile.exists():
-            raise FileNotFoundError(f"{rambleFile} does not exist.")
+        message = ""
+        if old_is_dir and new_is_dir:
+            if dest_dir_path.exists():
+                return ResultPayload(
+                    success=False,
+                    error=[
+                        f"Destination journal (directory) already exists: {dest_dir_path}"
+                    ],
+                )
+            shutil.move(str(source_path), str(dest_dir_path))
+            message = f"Successfully moved journal '{old}' to '{new}'"
 
-        from rich.console import Console
-        from rich.prompt import Confirm
+        elif not old_is_dir and not new_is_dir:
+            if dest_file_path.exists():
+                return ResultPayload(
+                    success=False,
+                    error=[f"Destination page (file) already exists: {dest_file_path}"],
+                )
 
-        console = Console()
-        if Confirm.ask(
-            f"Are you [red][italic]sure[/][/] you want to delete {ramble}?",
-            default=False,
-        ):
-            console.print(f"[bold red]Removing {ramble}.[/]")
+            dest_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            shutil.move(str(source_path), str(dest_file_path))
+            message = f"Successfully moved page '{old}' to '{new}'"
+
+        elif old_is_dir and not new_is_dir:
+            return ResultPayload(
+                success=False, error=["Cannot move a directory to a singular file."]
+            )
+
+        elif not old_is_dir and new_is_dir:
+            final_dest_file = dest_dir_path / source_path.name
+            is_safe_path(final_dest_file, team)
+            if final_dest_file.exists():
+                return ResultPayload(
+                    success=False,
+                    error=[
+                        f"Page (file) '{source_path.name}' already exists in journal '{new}'"
+                    ],
+                )
+            dest_dir_path.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(source_path), str(final_dest_file))
+            new_ramble_name = f"{new}.{source_path.stem}"
+            message = f"Successfully moved page '{old}' to '{new_ramble_name}'"
+
+    except (
+        ValueError,
+        FileNotFoundError,
+        FileExistsError,
+        PermissionError,
+        RuntimeError,
+    ) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    return ResultPayload(success=True, message=[message])
+
+
+def gatherDelRamble(payload: RambleDeletePayload) -> DataGatherRequest | None:
+    """Returns a DataGatherRequest for confirming the deletion of a ramble or journal.
+
+    Args:
+        payload (RambleDeletePayload): Represents context parameters necessary for deletion process.
+
+    Returns:
+        DataGatherRequest | None: Object representation defining prompt requirement or None.
+    """
+    ramble = payload.ramble
+    return DataGatherRequest(
+        name="ramble_delete",
+        fields=[
+            DataGatherPayload(
+                name="confirm_delete",
+                prompt=f"Are you sure you want to delete {ramble}?",
+                input_type="boolean",
+                required=True,
+            )
+        ],
+    )
+
+
+def handleDelRamble(payload: RambleDeletePayload) -> ResultPayload[None]:
+    """Deletes a ramble journal or page.
+
+    Args:
+        payload (RambleDeletePayload): The confirmed target payload state.
+
+    Returns:
+        ResultPayload[None]: The status payload regarding operation's termination status.
+    """
+    if not payload.confirmed:
+        return ResultPayload(success=False, error=["Deletion not confirmed by user."])
+
+    team = payload.context.team
+    ramble = payload.ramble
+
+    try:
+        RAMBLE_DIR = _get_ramble_dir(team)
+
+        if ".." in ramble or "/" in ramble:
+            return ResultPayload(success=False, error=["Invalid format for ramble."])
+
+        if "." in ramble:
+            parts = ramble.split(".", 1)
+            journal = parts[0]
+            page = parts[1]
+            rambleFile = RAMBLE_DIR / journal / f"{page}.yml"
+            is_safe_path(rambleFile, team)
+            if not rambleFile.exists():
+                return ResultPayload(
+                    success=False, error=[f"{rambleFile} does not exist."]
+                )
+
             os.remove(rambleFile)
+            return ResultPayload(success=True, message=[f"Removed page {ramble}."])
         else:
-            console.print("[green]Alright![/] Aborting.")
-    else:
-        ramblePath = RAMBLE_DIR / ramble
-        is_safe_path(ramblePath, team)
-        if not ramblePath.exists():
-            raise FileNotFoundError(f"{ramblePath} does not exist.")
+            ramblePath = RAMBLE_DIR / ramble
+            is_safe_path(ramblePath, team)
+            if not ramblePath.exists():
+                return ResultPayload(
+                    success=False, error=[f"{ramblePath} does not exist."]
+                )
 
-        from rich.console import Console
-        from rich.prompt import Confirm
-
-        console = Console()
-
-        if Confirm.ask(
-            f"Are you [red][italic]sure[/][/] you want to delete the entire journal '{ramble}'?",
-            default=False,
-        ):
-            console.print(f"[bold red]Removing {ramble}.[/]")
             shutil.rmtree(ramblePath)
-        else:
-            console.print("[green]Alright![/] Aborting.")
+            return ResultPayload(success=True, message=[f"Removed journal {ramble}."])
+
+    except (
+        ValueError,
+        FileNotFoundError,
+        FileExistsError,
+        PermissionError,
+        RuntimeError,
+    ) as e:
+        return ResultPayload(success=False, error=[str(e)])
 
 
-def handleUpdateEncryptRamble(args):
-    "Updates encryption keys for all encrypted rambles in the ramble directory."
+def handleUpdateEncryptRamble(
+    payload: RambleUpdateEncryptPayload,
+) -> ResultPayload[None]:
+    """Updates encryption keys for all encrypted rambles in the ramble directory.
+
+    Args:
+        payload (RambleUpdateEncryptPayload): Details regarding environment needed to update everything.
+
+    Returns:
+        ResultPayload[None]: Response mapping successes and errors of the operation.
+    """
+
     from omegaconf import DictConfig, OmegaConf
 
-    team = getattr(args, "team", None)
-    RAMBLE_DIR = _get_ramble_dir(team)
-    GLOBAL_CONFIG_DIR = os.path.expanduser("~/.config/chaos")
-    GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-    global_config = {}
+    team = payload.context.team
     updated_count = 0
+    messages = []
+    warnings = []
 
-    if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-        global_config = OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
-    global_config = cast(DictConfig, global_config)
+    try:
+        RAMBLE_DIR = _get_ramble_dir(team)
 
-    sops_file_override = getattr(args, "sops_file_override", None) or global_config.get(
-        "sops_file"
-    )
-
-    if sops_file_override and is_vault_in_use(sops_file_override):
-        is_authed, message = check_vault_auth()
-        if not is_authed:
-            raise PermissionError(message)
-
-    args = _handle_provider_arg(args, global_config)
-    provider = _getProvider(args, global_config)
-
-    for ramble_file in RAMBLE_DIR.rglob("*.yml"):
-        is_safe_path(ramble_file, team)
-        try:
-            data = OmegaConf.load(ramble_file)
-            if "sops" in data:
-                if not sops_file_override:
-                    raise ValueError(
-                        "An encrypted ramble was found, but no sops configuration was provided.\n"
-                        "   Provide one with '[cyan]-ss /path/to/.sops.yml[/cyan]' or set a default with '[cyan]chaos set sops /path/to/.sops.yml[/cyan]'."
-                    )
-
-                from rich.console import Console
-
-                console = Console()
-                console.print(
-                    f"Checking for key updates in [cyan]{ramble_file.relative_to(RAMBLE_DIR)}[/]..."
-                )
-                if provider:
-                    provider.updatekeys(str(ramble_file), sops_file_override)
-                else:
-                    subprocess.run(
-                        [
-                            "sops",
-                            "--config",
-                            sops_file_override,
-                            "updatekeys",
-                            "-y",
-                            str(ramble_file),
-                        ],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
-                updated_count += 1
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Ramble key update with sops failed for {ramble_file}.\n{e.stderr}"
-            ) from e
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                "`sops` command not found. Please ensure sops is installed and in your PATH."
-            )
-        except Exception:
-            from rich.console import Console
-
-            console = Console()
-            console.print(
-                f"[bold yellow]Warning:[/] Could not read or parse ramble file: {ramble_file}. Skipping."
-            )
-            continue
-
-    if updated_count > 0:
-        from rich.console import Console
-
-        console = Console()
-        console.print(
-            f"\n[bold green]Processed {updated_count} encrypted ramble(s).[/]"
+        GLOBAL_CONFIG_DIR = Path(
+            os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
         )
-    else:
-        from rich.console import Console
 
-        console = Console()
-        console.print("[yellow]No encrypted ramble files found to update.[/]")
+        GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
+        global_config = {}
+
+        if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
+            global_config = (
+                OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+            )
+        global_config = cast(DictConfig, global_config)
+
+        sops_file_override = payload.context.sops_file_override or global_config.get(
+            "sops_file"
+        )
+
+        if sops_file_override and is_vault_in_use(sops_file_override):
+            is_authed, message = check_vault_auth()
+            if not is_authed:
+                return ResultPayload(success=False, error=[message])
+
+        context = _handle_provider_arg(payload.context, global_config)
+        provider = _getProvider(context, global_config)
+
+        for ramble_file in RAMBLE_DIR.rglob("*.yml"):
+            is_safe_path(ramble_file, team)
+            try:
+                data = OmegaConf.load(ramble_file)
+                if "sops" in data:
+                    if not sops_file_override:
+                        raise ValueError(
+                            "An encrypted ramble was found, but no sops configuration was provided.\n"
+                            "   Provide one with '-ss /path/to/.sops.yml' or set a default with 'chaos set sops /path/to/.sops.yml'."
+                        )
+
+                    messages.append(
+                        f"Checking for key updates in {ramble_file.relative_to(RAMBLE_DIR)}..."
+                    )
+                    if provider:
+                        provider.updatekeys(str(ramble_file), sops_file_override)
+                    else:
+                        subprocess.run(
+                            [
+                                "sops",
+                                "--config",
+                                sops_file_override,
+                                "updatekeys",
+                                "-y",
+                                str(ramble_file),
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                        )
+                    updated_count += 1
+            except Exception as e:
+                if isinstance(e, subprocess.CalledProcessError):
+                    raise RuntimeError(
+                        f"Ramble key update with sops failed for {ramble_file}.\n{e.stderr}"
+                    ) from e
+                if isinstance(e, FileNotFoundError):
+                    raise FileNotFoundError(
+                        "`sops` command not found. Please ensure sops is installed and in your PATH."
+                    )
+                warnings.append(
+                    f"Could not read or parse ramble file: {ramble_file}. Skipping."
+                )
+                continue
+    except (
+        ValueError,
+        FileNotFoundError,
+        FileExistsError,
+        PermissionError,
+        RuntimeError,
+    ) as e:
+        return ResultPayload(success=False, error=[str(e)])
+
+    final_msg = ""
+    if updated_count > 0:
+        final_msg = f"Processed {updated_count} encrypted ramble(s)."
+    else:
+        final_msg = "No encrypted ramble files found to update."
+
+    return ResultPayload(success=True, message=messages + [final_msg], error=warnings)

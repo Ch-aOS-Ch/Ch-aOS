@@ -10,13 +10,11 @@ from chaos.lib.ramble import (
 )
 
 
-# Precisamos simular o diretório home para um diretório temporário
 @pytest.fixture
 def mock_ramble_home(tmp_path, monkeypatch):
     ramble_dir = tmp_path / ".local/share/chaos/ramblings"
     ramble_dir.mkdir(parents=True)
 
-    # Simula o `expanduser` para que `~` aponte para o nosso diretório temporário
     def mock_expanduser(path):
         if path.startswith("~"):
             # Substitui apenas o til no início do caminho
@@ -36,8 +34,7 @@ def test_create_ramble_journal_and_page(mock_ramble_home):
     args.sops_file_override = None
     args.team = None
 
-    # A função chama o editor, então simulamos o subprocesso
-    with patch("chaos.lib.ramble.subprocess.run") as mock_run:
+    with patch("chaos.lib.ramble.subprocess.run"):
         handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "diary"
@@ -57,7 +54,7 @@ def test_create_ramble_page_in_journal(mock_ramble_home):
     args.sops_file_override = None
     args.team = None
 
-    with patch("chaos.lib.ramble.subprocess.run") as mock_run:
+    with patch("chaos.lib.ramble.subprocess.run"):
         handleCreateRamble(args)
 
     journal_path = mock_ramble_home / "work"
@@ -70,18 +67,15 @@ def test_create_ramble_page_in_journal(mock_ramble_home):
 
 
 def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
-    # --- Criação ---
     journal_path = mock_ramble_home / "todo"
     page_path = journal_path / "shopping.yml"
     journal_path.mkdir()
     page_path.write_text("title: Shopping List\nwhat: a list of things to buy")
 
-    # --- Leitura ---
     read_args = Mock()
     read_args.targets = ["todo.shopping"]
     read_args.sops_file_override = None
     read_args.team = None
-    # Adiciona os atributos que seriam adicionados por _handle_provider_arg
     read_args.from_bw = None
     read_args.from_bws = None
     read_args.from_op = None
@@ -97,12 +91,10 @@ def test_read_and_delete_ramble(mock_ramble_home, monkeypatch):
     # Verifica se a função de impressão foi chamada corretamente
     mock_print_ramble.assert_called_once()
 
-    # --- Deleção ---
     del_args = Mock()
     del_args.ramble = "todo.shopping"
     del_args.team = None
 
-    # Simula a confirmação do usuário
     monkeypatch.setattr("rich.prompt.Confirm.ask", lambda *args, **kwargs: True)
 
     handleDelRamble(del_args)

@@ -1,8 +1,8 @@
 # Plugin Development
 
-The `chaos` CLI is designed to be minimal and modular. Most functionality is provided through external plugins. This guide covers the basics of creating your own plugin.
+Ch-aOS is designed to be a powerful SDK and an extensible CLI. Most functionality is provided through external plugins. This guide covers the basics of creating your own plugin.
 
-A plugin is a standard Python package that uses entry points to register its functionality with `chaos`.
+A plugin is a standard Python package that uses `entry_points` to register its classes and functionality with the Ch-aOS engine.
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ requires-python = ">=3.10"
 
 [project.entry-points]
 # Entry points are defined here
-"chaos.roles" = { my-role = "my_chaos_plugin.roles:my_role_function" }
+"chaos.roles" = { my-role = "my_chaos_plugin.roles:MyRoleClass" }
 "chaos.explain" = { my-role = "my_chaos_plugin.explain:MyRoleExplain" }
 "chaos.aliases" = { mr = "my-role" }
 "chaos.keys" = { my-role = "my_chaos_plugin.roles:my_role_keys" }
@@ -46,34 +46,39 @@ Ch-aOS uses several entry point groups to discover plugin functionality.
 
 ### `chaos.roles`
 
-This is the most important entry point. It registers a **role** that can be executed with `chaos apply`.
+This is the most important entry point. It registers a **Role** class that can be executed with `chaos apply`.
 
 -   **Key:** The name of the role tag (e.g., `my-role`).
--   **Value:** A string pointing to a Python function in the format `path.to.module:function_name`.
 
-This function will be called by `chaos` and should contain your `pyinfra` operations.
+-   **Value:** A string pointing to a Python class in the format `path.to.module:ClassName`.
+
+This class must inherit from `chaos.lib.roles.role.Role` and implement the SDK lifecycle methods.
 
 **Example `roles.py`:**
 ```python
+from chaos.lib.roles.role import Role
+from chaos.lib.args.dataclasses import Delta, ResultPayload
 from pyinfra.operations import server
 
-def my_role_function(state, host, chobolo_path, skip_confirm):
-    """
-    A simple role that ensures a directory exists.
-    """
-    # In a real role, you would load data from the chobolo_path
-    # from omegaconf import OmegaConf
-    # config = OmegaConf.load(chobolo_path)
-    # my_dirs = config.get('my_role_dirs', [])
+class MyRoleClass(Role):
+    def __init__(self):
+        super().__init__(name="my-role", necessary_chobolo_keys=["my_role_dirs"])
 
-    server.dir(
-        name="Ensure /tmp/my-role-dir exists",
-        path="/tmp/my-role-dir",
-        present=True,
-        user="root",
-        mode="755",
-    )
+    def plan(self, state, host, delta: Delta) -> ResultPayload:
+        """
+        A simple role that ensures directories exist based on delta.
+        """
+        for d in delta.to_add.get("dirs", []):
+            server.dir(
+                name=f"Ensure {d} exists",
+                path=d,
+                present=True,
+                user="root",
+                mode="755",
+            )
+        return ResultPayload(success=True)
 ```
+*(For a more detailed explanation of `get_context` and `delta`, see [Roles Plugin Documentation](./roles.md))*
 
 ### `chaos.explain`
 
@@ -94,8 +99,8 @@ class MyRoleExplain:
         return {
             'concept': 'My Custom Role',
             'what': 'This role ensures a specific directory exists.',
-            'why': 'To demonstrate how to create a Ch-aOS plugin.',
-            'how': 'It uses the `server.dir` operation from pyinfra.',
+            'why': 'To demonstrate how to create a Ch-aOS plugin using the SDK.',
+            'how': 'It utilizes the Role class lifecycle and pyinfra operations.',
         }
 
     def explain_usage(self, detail_level='basic'):
@@ -127,8 +132,6 @@ Registers the configuration keys that your role uses. This allows `chaos init ch
 
 **Example `roles.py`:**
 ```python
-# ... (imports and my_role_function)
-
 # This is the object that will be exposed to `chaos init chobolo`
 my_role_keys = [{
     'my_role_dirs': [
@@ -140,12 +143,12 @@ my_role_keys = [{
 
 ### `chaos.providers`
 
-Registers a new secret provider. This is a more advanced topic that requires implementing a class that inherits from the base `Provider` class. See **[Plugin Providers](./provider-plugins.md)** for examples.
+Registers a new secret provider class. See **[Plugin Providers](./provider-plugins.md)** for examples.
 
 ### `chaos.boats`
 
-Registers a new boat for use with `chaos apply --fleet`. This is an advanced topic for managing fleets of hosts. See **[Boat Plugins](../Advanced/boats.md)** for more details.
+Registers a new boat for use with `chaos apply --fleet`. See **[Boat Plugins](../Advanced/boats.md)** for more details.
 
-### chaos.limanis
+### `chaos.limanis`
 
-Enables a new database to use with `chaos apply --logbook --limani`. This is an advanced topic for logging operations. See **[Limani Plugins](./limani.md)** for more information.
+Enables a new database to use with `chaos apply --logbook --limani`. See **[Limani Plugins](./limani.md)** for more information.

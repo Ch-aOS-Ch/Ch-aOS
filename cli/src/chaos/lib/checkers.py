@@ -1,70 +1,31 @@
+"""Handles listing of roles/explanations/aliases with rich rendering.
+
+Notes:
+    + some validity checks for vault
+"""
+
 import os
-from typing import cast
+from typing import Any, cast
 
-from chaos.lib.utils import render_list_as_table
-
-"""
-Handles listing of roles/explanations/aliases with rich rendering.
-
-+ some validity checks for vault
-"""
-
-
-def printCheck(namespace, dispatcher, json_output=False):
-    """
-    Handles the printing of the lists.
-    """
-    if not json_output:
-        from rich.align import Align
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-
-        console = Console()
-        if not dispatcher:
-            console.print(f"[bold red][italic]No {namespace}s found.[/][/]")
-            return
-
-        if namespace == "alias":
-            dispatcher = _handleAliases(dispatcher)
-
-            table = Table(show_lines=True)
-            table.add_column("[green]Alias[/]", justify="center")
-            table.add_column("[green]Maps to[/]", justify="center")
-            for p, r in dispatcher.items():
-                table.add_row(f"[cyan][italic]{p}[/][/]", f"[italic][cyan]{r}[/][/]")
-            console.print(
-                Align.center(
-                    Panel(
-                        table,
-                        border_style="green",
-                        expand=False,
-                        title=f"[italic][green]Available [/][bold blue]{namespace}es[/][/]:",
-                    )
-                )
-            )
-            return
-
-        title = f"[italic][green]Available [/][bold blue]{namespace}s[/][/]"
-        if namespace == "secret":
-            render_list_as_table(dispatcher, title)
-            return
-        render_list_as_table(list(dispatcher.keys()), title)
-    else:
-        import json
-
-        if namespace == "secret":
-            print(json.dumps(dispatcher, indent=2))
-            return
-        print(json.dumps(list(dispatcher.keys()), indent=2))
+from .args.dataclasses import CheckPayload, ResultPayload
 
 
 def _handleAliases(dispatcher):
-    from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
+    """Handles aliases by merging user aliases with the dispatcher.
 
-    console = Console()
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    Args:
+        dispatcher (dict): The dictionary of existing aliases.
+
+    Returns:
+        tuple[dict, list[str], list[str]]: A tuple containing the updated dispatcher, a list of warnings, and a list of messages.
+    """
+    from pathlib import Path
+
+    from omegaconf import DictConfig, OmegaConf
+
+    warnings = []
+    messages = []
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
     global_config = OmegaConf.create()
     if os.path.exists(CONFIG_FILE_PATH):
@@ -72,21 +33,29 @@ def _handleAliases(dispatcher):
     global_config = cast(DictConfig, global_config)
 
     userAliases = global_config.get("aliases", {})
-    for a in userAliases.keys():
+    for a in list(userAliases.keys()):
         if a in dispatcher:
-            console.print(
-                f"[bold yellow]WARNING:[/] Alias {a} already exists in Aliases installed. Skipping."
-            )
+            warnings.append("conflicting alias")
+            messages.append(f"Alias {a} conflicts with an existing alias. Skipping.")
             del userAliases[a]
 
     dispatcher.update(userAliases)
-    return dispatcher
+    return dispatcher, warnings, messages
 
 
-def flatten_dict_keys(d, parent_key="", sep="."):
-    """
-    Flattens a nested dictionary and returns a list of keys in dot notation.
-    Skips the 'sops' key during the flattening process and appends it at the end if it exists.
+def _flatten_dict_keys(d, parent_key="", sep="."):
+    """Flattens a nested dictionary and returns a list of keys in dot notation.
+
+    Args:
+        d (dict): The dictionary to flatten.
+        parent_key (str, optional): The base key to use for nested elements. Defaults to "".
+        sep (str, optional): The separator to use between keys. Defaults to ".".
+
+    Returns:
+        list[str]: A list of keys in dot notation.
+
+    Notes:
+        Skips the 'sops' key during the flattening process and appends it at the end if it exists.
     """
     items = []
     for k, v in d.items():
@@ -97,101 +66,246 @@ def flatten_dict_keys(d, parent_key="", sep="."):
             continue
 
         if isinstance(v, dict) and v:
-            items.extend(flatten_dict_keys(v, new_key, sep=sep))
+            items.extend(_flatten_dict_keys(v, new_key, sep=sep))
         else:
             items.append(new_key)
 
     return items
 
 
-def checkSecrets(secrets_file, isJson=False):
+def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
+    """Checks if the secrets in the specified file are valid.
+
+    Args:
+        secrets_file (str): The path to the secrets file.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of flattened secrets keys if successful.
+    """
     from omegaconf import OmegaConf
 
     secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
-    flat_secrets = flatten_dict_keys(secrets_dict)
-    printCheck("secret", flat_secrets, json_output=isJson)
+    flat_secrets = _flatten_dict_keys(secrets_dict)
+    result = ResultPayload(
+        success=True,
+        message=["All secrets are valid"],
+        data=flat_secrets,
+        error=None,
+    )
+
+    return result
 
 
-def checkRoles(ROLES_DISPATCHER, isJson=False):
-    printCheck("role", ROLES_DISPATCHER, json_output=isJson)
+def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
+    """Checks if the provided roles are valid.
 
+    Args:
+        ROLES_DISPATCHER (dict): A dictionary of roles to check.
 
-def checkExplanations(EXPLANATIONS, isJson=False):
-    printCheck("explanation", EXPLANATIONS, json_output=isJson)
-
-
-def checkAliases(ROLE_ALIASES, isJson=False):
-    printCheck("alias", ROLE_ALIASES, json_output=isJson)
-
-
-def checkProviders(providers, isJson=False):
-    printCheck("provider", providers, json_output=isJson)
-
-
-def checkBoats(boats, isJson=False):
-    printCheck("boat", boats, json_output=isJson)
-
-
-def checkLimanis(limanis, isJson=False):
-    printCheck("limani", limanis, json_output=isJson)
-
-
-def is_vault_in_use(sops_file_path: str) -> bool:
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid roles.
     """
-    checks if vault is in use in the sops file
-    yeah, just that
+    result = ResultPayload(
+        success=True,
+        message=["All roles are valid"],
+        data=list(ROLES_DISPATCHER.keys()),
+        error=None,
+    )
+
+    return result
+
+
+def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
+    """Checks if the provided explanations are valid.
+
+    Args:
+        EXPLANATIONS (dict): A dictionary of explanations to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid explanations.
     """
-    from omegaconf import DictConfig, OmegaConf
+    result = ResultPayload(
+        success=True,
+        message=["All explanations are valid"],
+        data=list(EXPLANATIONS.keys()),
+        error=None,
+    )
 
-    if not sops_file_path or not os.path.exists(sops_file_path):
-        return False
-    try:
-        config = OmegaConf.load(sops_file_path)
-        config = cast(DictConfig, config)
-        creation_rules = config.get("creation_rules", [])
-        for rule in creation_rules:
-            for key_group in rule.get("key_groups", []):
-                if "vault" in key_group and key_group.get("vault"):
-                    return True
-    except Exception:
-        return False
-    return False
+    return result
 
 
-def check_vault_auth():
-    """checks if vault auth is valid"""
-    vault_addr = os.getenv("VAULT_ADDR")
-    if not vault_addr:
-        return (
-            False,
-            "[bold red]ERROR:[/] VAULT_ADDR environment variable is not set, which is required when using Vault keys.",
-        )
+def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, Any]]:
+    """Checks if the provided aliases are valid.
 
-    vault_token = os.getenv("VAULT_TOKEN")
-    if not vault_token:
-        return (
-            False,
-            "[bold red]ERROR:[/] VAULT_TOKEN environment variable is not set. Please log in to Vault.",
-        )
+    Args:
+        ROLE_ALIASES (dict): A dictionary of role aliases to check.
 
-    try:
-        import hvac  # type: ignore
+    Returns:
+        ResultPayload[dict[str, Any]]: The result payload containing the valid aliases, and any warnings/messages.
+    """
+    payload, warnings, messages = _handleAliases(ROLE_ALIASES)
+    result = ResultPayload(
+        success=True,
+        data=payload,
+        message=["All explanations are valid"] if not warnings else messages,
+        error=warnings if warnings else None,
+    )
 
-        client = hvac.Client(url=vault_addr, token=vault_token)
-        if client.is_authenticated():
-            return True, "[green]INFO:[/] Vault token is valid."
-        else:
-            return (
-                False,
-                "[bold red]ERROR:[/] Vault token is invalid or expired. Please log in to Vault.",
+    return result
+
+
+def checkProviders(providers) -> ResultPayload[list[str]]:
+    """Checks if the provided providers are valid.
+
+    Args:
+        providers (dict): A dictionary of providers to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid providers.
+    """
+    result = ResultPayload(
+        success=True,
+        message=["All providers are valid"],
+        data=list(providers.keys()),
+        error=None,
+    )
+
+    return result
+
+
+def checkBoats(boats) -> ResultPayload[list[str]]:
+    """Checks if the provided boats are valid.
+
+    Args:
+        boats (dict): A dictionary of boats to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid boats.
+    """
+    result = ResultPayload(
+        success=True,
+        message=["All boats are valid"],
+        data=list(boats.keys()),
+        error=None,
+    )
+
+    return result
+
+
+def checkLimanis(limanis) -> ResultPayload[list[str]]:
+    """Checks if the provided limanis are valid.
+
+    Args:
+        limanis (dict): A dictionary of limanis to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid limanis.
+    """
+    result = ResultPayload(
+        success=True,
+        message=["All limanis are valid"],
+        data=list(limanis.keys()),
+        error=None,
+    )
+
+    return result
+
+
+def checkTemplates(keys) -> ResultPayload[list[str]]:
+    """Checks if the provided templates are valid.
+
+    Args:
+        keys (dict): A dictionary of templates to check.
+
+    Returns:
+        ResultPayload[list[str]]: The result payload containing a list of valid templates.
+    """
+    result = ResultPayload(
+        success=True,
+        message=["All templates are valid"],
+        data=list(keys.keys()),
+        error=None,
+    )
+
+    return result
+
+
+def handle_check(
+    payload: CheckPayload,
+) -> ResultPayload[list[str] | dict[str, Any] | None]:
+    """Handles various check commands based on the payload.
+
+    Args:
+        payload (CheckPayload): The payload containing the check command and related context.
+
+    Returns:
+        ResultPayload[list[str] | dict[str, Any] | None]: The result payload of the requested check.
+    """
+    match payload.checks:
+        case "explanations":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            EXPLANATIONS = get_plugins(payload.update_plugins)[2]
+            result_explain: ResultPayload[list[str]] = checkExplanations(EXPLANATIONS)
+            return result_explain
+        case "aliases":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
+            result_aliases: ResultPayload[dict[str, Any]] = checkAliases(ROLE_ALIASES)
+            return result_aliases
+        case "roles":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            role_specs = get_plugins(payload.update_plugins)[0]
+            result_roles: ResultPayload[list[str]] = checkRoles(role_specs)
+            return result_roles
+        case "providers":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            providers = get_plugins(payload.update_plugins)[4]
+            result_providers: ResultPayload[list[str]] = checkProviders(providers)
+            return result_providers
+
+        case "boats":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            boats = get_plugins(payload.update_plugins)[5]
+            result_boats: ResultPayload[list[str]] = checkBoats(boats)
+            return result_boats
+
+        case "secrets":
+            from chaos.lib.checkers import checkSecrets
+            from chaos.lib.secret_backends.utils import get_sops_files
+
+            sec_file = get_sops_files(
+                payload.sops_file_override,
+                payload.secrets_file_override,
+                payload.team,
+            )[0]
+            result_secrets: ResultPayload[list[str]] = checkSecrets(sec_file)
+            return result_secrets
+
+        case "limanis":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            limanis = get_plugins(payload.update_plugins)[6]
+            result_limani: ResultPayload[list[str]] = checkLimanis(limanis)
+            return result_limani
+
+        case "templates":
+            from chaos.lib.plugDiscovery import get_plugins
+
+            keys = get_plugins(payload.update_plugins)[3]
+            result_templates: ResultPayload[list[str]] = checkTemplates(keys)
+            return result_templates
+
+        case _:
+            return ResultPayload(
+                success=False,
+                message=[
+                    "No valid checks passed. Please specify one of: explanations, aliases, roles, providers, boats, secrets, limanis, templates."
+                ],
+                data=None,
+                error=["Invalid checks"],
             )
-    except ImportError:
-        return (
-            False,
-            "[bold red]ERROR:[/] The 'hvac' library is not installed. Please install it to use Vault features (`pip install hvac`).",
-        )
-    except Exception as e:
-        return (
-            False,
-            f"[bold red]ERROR:[/] Failed to authenticate with Vault at {vault_addr}: {e}",
-        )

@@ -1,3 +1,5 @@
+"""Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management."""
+
 import os
 import subprocess
 import tempfile
@@ -5,74 +7,118 @@ import time
 from pathlib import Path
 
 import yaml
+from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as oc
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 
+from chaos.lib.args.dataclasses import InitPayload, ResultPayload
 from chaos.lib.plugDiscovery import loadList
 from chaos.lib.secret_backends.utils import setup_pipe
 from chaos.lib.utils import checkDep
 
-console = Console()
 
-"""
-Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management.
-"""
+def initChobolo(
+    keys: dict, targets: list
+) -> ResultPayload[DictConfig | ListConfig | None]:
+    """Script to initialize Chobolo configuration based on provided keys.
 
+    Args:
+        keys (dict): A dictionary of plugins.
+        targets (list): A list of target configurations to initialize.
 
-def initChobolo(keys, args):
-    "Script to initialize Chobolo configuration based on provided keys (check plugDiscovery.py)."
+    Returns:
+        ResultPayload[DictConfig | ListConfig | None]: The result payload containing the final configuration.
+
+    Notes:
+        See `plugDiscovery.py` for more details on the keys format.
+    """
+    messages = []
+
+    result = ResultPayload(success=True, message=messages, data=None)
+
+    if not targets:
+        finalConf = oc.create()
+        addedKeys = set()
+
+        for k in keys.values():
+            lis = loadList(k)
+
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            result.message.append(
+                                f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{k}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+
+                    finalConf = oc.merge(finalConf, newCfg)
+                    result.data = finalConf
+            elif lis is not None:
+                result.message.append(f"Spec '{k}' did not return a list. Skipped.")
+        return result
+
     finalConf = oc.create()
     addedKeys = set()
 
-    for k in keys.values():
-        lis = loadList(k)
+    for target in targets:
+        if target in keys:
+            lis = loadList(keys[target])
+            if isinstance(lis, list):
+                for v in lis:
+                    newCfg = oc.create(v)
+                    for rootKey in newCfg.keys():
+                        if rootKey in addedKeys:
+                            result.message.append(
+                                f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{target}'. Merging, but verify priority."
+                            )
+                        else:
+                            addedKeys.add(rootKey)
+                    finalConf = oc.merge(finalConf, newCfg)
 
-        if isinstance(lis, list):
-            for v in lis:
-                newCfg = oc.create(v)
-
-                for rootKey in newCfg.keys():
-                    if rootKey in addedKeys:
-                        console.print(
-                            f"[yellow]Warning:[/] Plugin conflict detected. The key '[bold]{rootKey}[/]' is being redefined via '{k}'. Merging, but verify priority."
-                        )
-                    else:
-                        addedKeys.add(rootKey)
-
-                finalConf = oc.merge(finalConf, newCfg)
-        elif lis is not None:
-            console.print(
-                f"[yellow]Warning:[/] Spec '{k}' did not return a list. Skipped."
-            )
-
-    if not args.template:
-        path = os.path.expanduser("~/.config/chaos/ch-obolo_template.yml")
-        oc.save(finalConf, path)
-    else:
-        if args.human:
-            print(oc.to_yaml(finalConf, resolve=True))
-        else:
-            print(finalConf)
+            elif lis is not None:
+                result.message.append(
+                    f"Spec '{target}' did not return a list. Skipped."
+                )
+    result.data = finalConf
+    return result
 
 
 # -------------- SECRET INITING -------------
 
 
 def checkForSsh():
-    """Checks for SSH public keys in ~/.ssh directory."""
+    """Checks for SSH public keys in ~/.ssh directory.
+
+    Returns:
+        list[Path]: A list of paths to public keys found.
+    """
     ssh_dir = Path(os.path.expanduser("~/.ssh"))
     public_keys = list(ssh_dir.glob("*.pub"))
     return public_keys
 
 
 def setupSshToAge():
-    """
-    Setup age keys using ssh-to-age conversion.
+    """Setup age keys using ssh-to-age conversion.
 
-    Deps: ssh-to-age
+    Returns:
+        tuple[str, str]: A tuple containing the encryption engine ("age") and the derived public key.
+
+    Raises:
+        EnvironmentError: If ssh-to-age is not installed.
+        FileNotFoundError: If no SSH public keys are found.
+        RuntimeError: If there's an error converting keys or saving to disk.
+
+    Notes:
+        Deps: ssh-to-age
     """
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     if not checkDep("ssh-to-age"):
         raise EnvironmentError(
             "ssh-to-age is not installed. Please install it to use this feature."
@@ -171,11 +217,23 @@ def setupSshToAge():
 
 
 def setupAge():
-    """
-    Setup Age keys for Sops encryption.
+    """Setup Age keys for Sops encryption.
 
-    deps: age-keygen
+    Returns:
+        tuple[str, str]: A tuple containing the encryption engine ("age") and the derived public key.
+
+    Raises:
+        EnvironmentError: If age-keygen is not installed.
+        RuntimeError: If key generation or saving fails.
+
+    Notes:
+        Deps: age-keygen
     """
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     ageDir = Path(os.path.expanduser("~/.config/chaos"))
     ageFile = ageDir / "keys.txt"
 
@@ -260,13 +318,25 @@ def setupAge():
 
 
 def genBatchGpg(name, email):
-    """
-    Generate GPG key in batch mode using provided name and email.
+    """Generate GPG key in batch mode using provided name and email.
 
-    Uses the best practices for key generation with EdDSA and Curve25519.
+    Args:
+        name (str): The full name to associate with the key.
+        email (str): The email address to associate with the key.
 
-    deps: gnupg
+    Returns:
+        str: The fingerprint of the newly generated key.
+
+    Raises:
+        RuntimeError: If key generation fails or is cancelled.
+
+    Notes:
+        Uses the best practices for key generation with EdDSA and Curve25519.
+        Deps: gnupg
     """
+    from rich.console import Console
+
+    console = Console()
     batch = f"""
 Key-Type: EdDSA
 Key-Curve: ed25519
@@ -316,9 +386,21 @@ Expire-Date: 0
 
 
 def genGpgManual():
+    """Lists all existing GPG secret keys and prompts user to select one by fingerprint.
+
+    Returns:
+        tuple[str, str]: A tuple containing the encryption engine ("pgp") and the chosen fingerprint.
+
+    Raises:
+        RuntimeError: If the keys could not be listed.
+        ValueError: If no secret keys are found or an invalid fingerprint is provided.
     """
-    Lists all existing GPG secret keys and prompts user to select one by fingerprint.
-    """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Prompt
+
+    console = Console()
+
     try:
         proc = subprocess.run(
             ["gpg", "--list-secret-keys", "--keyid-format", "LONG"],
@@ -349,7 +431,21 @@ def genGpgManual():
 
 
 def setupGpg():
-    "Setup GPG keys for Sops encryption."
+    """Setup GPG keys for Sops encryption.
+
+    Returns:
+        tuple[str, str]: A tuple containing the encryption engine ("pgp") and the generated or selected fingerprint.
+
+    Raises:
+        EnvironmentError: If gpg is not installed.
+        RuntimeError: If the operation is cancelled by the user.
+    """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     if not checkDep("gpg"):
         raise EnvironmentError(
             "Could not find gpg binary, please install gnupg and try again."
@@ -385,7 +481,18 @@ def setupGpg():
 
 
 def setupSsh():
-    """Setup SSH key for Sops encryption."""
+    """Setup SSH key for Sops encryption.
+
+    Returns:
+        tuple[str, str]: A tuple containing the encryption engine ("age") and the public key content.
+
+    Raises:
+        ValueError: If a selected key file is empty.
+    """
+    from rich.console import Console
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
     amount = None
     public_keys = checkForSsh()
     if public_keys:
@@ -445,7 +552,18 @@ def setupSsh():
 
 
 def initSecrets():
-    "Main Entry point for initializing secrets management with SOPS."
+    """Main Entry point for initializing secrets management with SOPS.
+
+    Raises:
+        EnvironmentError: If required dependencies (sops, gpg/age) are missing.
+        RuntimeError: If initialization steps or SOPS encryption fail.
+    """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Confirm, Prompt
+
+    console = Console()
+
     if not checkDep("sops"):
         raise EnvironmentError(
             "sops is not installed. It is required for this software."
@@ -553,3 +671,39 @@ def initSecrets():
         raise RuntimeError(
             f"Failed to write config file: {e}\nHint: Check if your GPG key is imported or if age keys are correct."
         ) from e
+
+
+def handle_init(payload: InitPayload) -> ResultPayload[DictConfig | ListConfig | None]:
+    """Handles various initialization commands based on the payload.
+
+    Args:
+        payload (InitPayload): The initialization configuration detailing the command and targets.
+
+    Returns:
+        ResultPayload[DictConfig | ListConfig | None]: The result payload of the requested init action.
+    """
+    try:
+        match payload.init_command:
+            case "chobolo":
+                from chaos.lib.plugDiscovery import get_plugins
+
+                keys = get_plugins(payload.update_plugins)[3]
+                result = initChobolo(keys, payload.targets)
+                return result
+
+            case "secrets":
+                initSecrets()
+                return ResultPayload(
+                    success=True,
+                    message=["Secrets initialization complete through the CLI."],
+                    data=None,
+                )
+            case _:
+                return ResultPayload(
+                    success=False,
+                    message=[f"Unknown init command: {payload.init_command}"],
+                    data=None,
+                )
+    except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
+        return ResultPayload(success=False, message=[str(e)], data=None)
+

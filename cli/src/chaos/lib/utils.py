@@ -1,30 +1,45 @@
-import functools
-import math
-import os
-import shutil
-from itertools import zip_longest
+"""General utility functions for path validation, dependency checking, and plugin entrypoint retrieval."""
+
+from functools import lru_cache
 
 
 def validate_path(path: str):
-    """Validates given file system path."""
-    if (
-        ".." in path
-        or "//" in path
-        or (path.startswith("/") and not path.startswith(os.path.expanduser("~")))
-    ):
+    """Validates given file system path.
+
+    Args:
+        path (str): The file system path to check.
+
+    Raises:
+        ValueError: If the path contains relative directory jumping commands or invalid multiple slashes.
+    """
+    if ".." in path or "//" in path:
         raise ValueError(f"Invalid file path {path}.")
 
 
-def checkDep(bin):
-    """This just checks if a SHELL COMMAND exists in the system PATH."""
+def checkDep(bin: str) -> bool:
+    """Checks if a shell command exists in the system PATH.
+
+    Args:
+        bin (str): The name of the binary/executable to look for.
+
+    Returns:
+        bool: True if the binary is accessible in the PATH, False otherwise.
+    """
+    import shutil
+
     path = shutil.which(bin)
     if path is None:
         return False
     return True
 
 
-@functools.lru_cache(maxsize=None)
+@lru_cache(maxsize=None)
 def get_providerEps():
+    """Retrieves and caches the provider EntryPoints registered under the 'chaos.providers' group.
+
+    Returns:
+        list[EntryPoint]: A list of entry point objects matching external provider plugins.
+    """
     from importlib.metadata import EntryPoint
 
     from chaos.lib.plugDiscovery import get_plugins
@@ -39,50 +54,20 @@ def get_providerEps():
     return provider_eps
 
 
-def render_list_as_table(items: list[str], panel_title: str):
-    """Renders a list of strings into a responsive multi-column table using rich."""
-    from rich.align import Align
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.table import Table
+@lru_cache(maxsize=None)
+def get_roleEps():
+    """Retrieves and caches the role EntryPoints registered under the 'chaos.roles' group.
 
-    console = Console()
-    if not items:
-        console.print("[bold yellow]No items found.[/]")
-        return
+    Returns:
+        list[EntryPoint]: A list of entry point objects matching external role plugins.
+    """
+    from importlib.metadata import EntryPoint
 
-    sorted_items = sorted(list(set(items)))
-    num_items = len(sorted_items)
-    max_rows = 4
+    from chaos.lib.plugDiscovery import get_plugins
 
-    if num_items < 5:
-        table = Table(show_lines=True, expand=False, show_header=False)
-        table.add_column(justify="center")
-        for item in sorted_items:
-            table.add_row(f"[italic][cyan]{item}[/][/]")
-    else:
-        num_columns = math.ceil(num_items / max_rows)
-        table = Table(show_lines=True, expand=False, show_header=False)
-        for _ in range(num_columns):
-            table.add_column(justify="center")
-
-        chunks = [sorted_items[i : i + max_rows] for i in range(0, num_items, max_rows)]
-        transposed_items = zip_longest(*chunks, fillvalue="")
-
-        for row_data in transposed_items:
-            styled_row = [
-                f"[cyan][italic]{item}[/][/]" if item else "" for item in row_data
-            ]
-            table.add_row(*styled_row)
-
-    console.print(
-        Align.center(
-            Panel(
-                Align.center(table),
-                border_style="green",
-                expand=False,
-                title=panel_title,
-            )
-        ),
-        justify="center",
-    )
+    roles = get_plugins()[0]
+    role_eps = []
+    if roles:
+        for name, value in roles.items():
+            role_eps.append(EntryPoint(name=name, value=value, group="chaos.roles"))
+    return role_eps

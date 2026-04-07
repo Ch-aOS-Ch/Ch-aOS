@@ -2,6 +2,7 @@ import argparse
 import functools
 import os
 import subprocess
+import sys
 
 if "_ARGCOMPLETE" in os.environ:
     try:
@@ -81,7 +82,8 @@ def add_provider_args(parser):
     if not providers:
         return
 
-    provider_group = parser.add_mutually_exclusive_group()
+    p_grp = parser.add_argument_group("Provider Options")
+    provider_group = p_grp.add_mutually_exclusive_group()
     provider_group.add_argument(
         "-p",
         "--provider",
@@ -158,33 +160,27 @@ def add_provider_import_subcommands(subparsers):
         )
 
 
-"""
-creates the argument parser for chaos
-
-KEEP THIS BIG, IT SHOULD BE LIKE THIS, SINCE DELETING A FUNCTIONALITY NEEDS TO BE EASY.
-"""
-
-
 def argParsing():
     parser = ChaosParser(description="Ch-aOS system management CLI.", prog="chaos")
 
-    parser.add_argument(
+    global_opts = parser.add_argument_group("Base Options")
+    global_opts.add_argument(
         "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
     ).completer = FilesCompleter()  # type: ignore
-    parser.add_argument(
+    global_opts.add_argument(
         "-u",
         "--update-plugins",
         action="store_true",
         help="Force update of the plugin cache.",
     )
-    parser.add_argument(
+    global_opts.add_argument(
         "-t",
         "--generate-tab",
         action="store_true",
         help="Generate shell tab-completion script.",
     )
-    parser.add_argument(
-        "-ec",
+    global_opts.add_argument(
+        "-e",
         "--edit-chobolo",
         action="store_true",
         help="Edit the Ch-obolo file using the default editor.",
@@ -192,24 +188,66 @@ def argParsing():
 
     subParser = parser.add_subparsers(dest="command", help="Available subcommands")
 
-    addStyxParsers(subParser)
-    addTeamParsers(subParser)
-    addExplainParsers(subParser)
-    addApplyParsers(subParser)
-    addSecParsers(subParser)
-    addCheckParsers(subParser)
-    addSetParsers(subParser)
-    addRambleParsers(subParser)
-    addInitParsers(subParser)
+    styxParser = subParser.add_parser("styx", help="Manage Styx registry entries.")
+    teamParser = subParser.add_parser("team", help="Manage your teams.")
+    expParser = subParser.add_parser(
+        "explain", help="Explain a role topic or subtopic."
+    )
+    secParser = subParser.add_parser(
+        "secrets",
+        help="Manage your secrets.",
+    )
+    applyParser = subParser.add_parser("apply", help="Apply an available role")
+    checkParser = subParser.add_parser(
+        "check", help="Check and list roles, aliases and explanations"
+    )
+    setParser = subParser.add_parser("set", help="Set configuration files")
+    rambleParser = subParser.add_parser("ramble", help="Annotate your rambles!")
+    initParser = subParser.add_parser(
+        "init", help="Let Ch-aOS handle the boiler plates!"
+    )
+
+    if "_ARGCOMPLETE" in os.environ:
+        import argcomplete
+
+        addStyxParsers(styxParser)
+        addTeamParsers(teamParser)
+        addExplainParsers(expParser)
+        addApplyParsers(applyParser)
+        addSecParsers(secParser)
+        addCheckParsers(checkParser)
+        addSetParsers(setParser)
+        addRambleParsers(rambleParser)
+        addInitParsers(initParser)
+
+        argcomplete.autocomplete(parser)
+
+    elif len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        match cmd:
+            case "styx":
+                addStyxParsers(styxParser)
+            case "team":
+                addTeamParsers(teamParser)
+            case "explain":
+                addExplainParsers(expParser)
+            case "apply":
+                addApplyParsers(applyParser)
+            case "secrets":
+                addSecParsers(secParser)
+            case "check":
+                addCheckParsers(checkParser)
+            case "set":
+                addSetParsers(setParser)
+            case "ramble":
+                addRambleParsers(rambleParser)
+            case "init":
+                addInitParsers(initParser)
 
     return parser
 
 
-def addSecParsers(parser):
-    secParser = parser.add_parser(
-        "secrets",
-        help="Manage your secrets.",
-    )
+def addSecParsers(secParser):
     secSubParser = secParser.add_subparsers(
         dest="secrets_commands", help="Secret subcommands", required=True
     )
@@ -238,30 +276,34 @@ def addSecParsers(parser):
         "type", choices=["age", "pgp", "vault"], help="The type of key you want to add"
     )
     secRotateAdd.add_argument("keys", nargs="+", help="Keys to be added.")
-    secRotateAdd.add_argument("-i", "--index", type=int, help="Rule index to be used.")
-    secRotateAdd.add_argument(
+
+    ra_opts = secRotateAdd.add_argument_group("Operation Options")
+    ra_opts.add_argument("-i", "--index", type=int, help="Rule index to be used.")
+    ra_opts.add_argument(
         "-cr",
         "--create",
         action="store_true",
         help="If you want to create a new key group or not.",
     )
-    secRotateAdd.add_argument(
+    ra_opts.add_argument(
         "-ikwid",
         "-u",
         "--i-know-what-im-doing",
         action="store_true",
         help="Update all shares directly.",
     )
-    secRotateAdd.add_argument(
+    ra_opts.add_argument(
         "-s", "--pgp-server", dest="pgp_server", help="Server to import GPG keys."
     )
-    secRotateAdd.add_argument(
+
+    ra_cfg = secRotateAdd.add_argument_group("Configuration Options")
+    ra_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secRotateAdd.add_argument(
+    ra_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -278,27 +320,29 @@ def addSecParsers(parser):
         help="The type of key you want to remove.",
     )
     secRotateRemove.add_argument("keys", nargs="+", help="Keys to be removed.")
-    secRotateRemove.add_argument(
-        "-i", "--index", type=int, help="Rule index to be used."
-    )
-    secRotateRemove.add_argument(
-        "-ss",
-        "--sops-file",
-        dest="sops_file_override",
-        help="Path to the .sops.yaml config file (overrides all calls).",
-    ).completer = FilesCompleter()  # type: ignore
-    secRotateRemove.add_argument(
-        "-t",
-        "--team",
-        type=str,
-        help="Team to be used, in the format company.team.group",
-    )
-    secRotateRemove.add_argument(
+
+    rr_opts = secRotateRemove.add_argument_group("Operation Options")
+    rr_opts.add_argument("-i", "--index", type=int, help="Rule index to be used.")
+    rr_opts.add_argument(
         "-ikwid",
         "-u",
         "--i-know-what-im-doing",
         action="store_true",
         help="Update all shares directly.",
+    )
+
+    rr_cfg = secRotateRemove.add_argument_group("Configuration Options")
+    rr_cfg.add_argument(
+        "-ss",
+        "--sops-file",
+        dest="sops_file_override",
+        help="Path to the .sops.yaml config file (overrides all calls).",
+    ).completer = FilesCompleter()  # type: ignore
+    rr_cfg.add_argument(
+        "-t",
+        "--team",
+        type=str,
+        help="Team to be used, in the format company.team.group",
     )
     add_provider_args(secRotateRemove)
 
@@ -310,32 +354,36 @@ def addSecParsers(parser):
         choices=["age", "pgp", "vault"],
         help="The type of key you want to list.",
     )
-    secList.add_argument(
+
+    list_cfg = secList.add_argument_group("Configuration Options")
+    list_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secList.add_argument(
+    list_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.group",
     )
-    secList.add_argument(
+
+    list_out = secList.add_argument_group("Output Options")
+    list_out.add_argument(
         "-n",
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the key output.",
     )
-    secList.add_argument(
+    list_out.add_argument(
         "-j",
         "--json",
         action="store_true",
         help="--no-pretty output in JSON format.",
         default=False,
     )
-    secList.add_argument(
+    list_out.add_argument(
         "-v",
         "--value",
         action="store_true",
@@ -343,25 +391,27 @@ def addSecParsers(parser):
     )
 
     secEdit = secSubParser.add_parser("edit", help="Edit your secrets file.")
-    secEdit.add_argument(
+
+    edit_cfg = secEdit.add_argument_group("Configuration Options")
+    edit_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.group",
     )
-    secEdit.add_argument(
+    edit_cfg.add_argument(
         "-s",
         "--sops",
         help="Edit the sops file instead of the secrets file.",
         action="store_true",
     )
-    secEdit.add_argument(
+    edit_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secEdit.add_argument(
+    edit_cfg.add_argument(
         "-sf",
         "--secrets-file",
         dest="secrets_file_override",
@@ -372,63 +422,71 @@ def addSecParsers(parser):
     secPrint = secSubParser.add_parser(
         "print", help="Print your secrets to the screen. Be careful where you use this."
     )
-    secPrint.add_argument(
+
+    print_cfg = secPrint.add_argument_group("Configuration Options")
+    print_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.",
     )
-    secPrint.add_argument(
-        "-j", "--json", action="store_true", help="Make the output be JSON"
-    )
-    secPrint.add_argument(
+    print_cfg.add_argument(
         "-s",
         "--sops",
         help="Print the sops file instead of the secrets file.",
         action="store_true",
     )
-    secPrint.add_argument(
+    print_cfg.add_argument(
         "-sf",
         dest="secrets_file_override",
         help="Path to the sops-encrypted secrets file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secPrint.add_argument(
+    print_cfg.add_argument(
         "-ss",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
+
+    print_out = secPrint.add_argument_group("Output Options")
+    print_out.add_argument(
+        "-j", "--json", action="store_true", help="Make the output be JSON"
+    )
     add_provider_args(secPrint)
 
     secCat = secSubParser.add_parser(
         "cat", help="Get the specified keys inside of your secrets file, nested or not."
     )
     secCat.add_argument("keys", nargs="+", help="The keys to be cat-ed.")
-    secCat.add_argument(
+
+    cat_cfg = secCat.add_argument_group("Configuration Options")
+    cat_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used (company.team.group). If you have a team repository, you may check your team secrets on it.",
     )
-    secCat.add_argument(
+    cat_cfg.add_argument(
         "-s",
         "--sops",
         help="Print the sops file instead of the secrets file.",
         action="store_true",
     )
-    secCat.add_argument(
+    cat_cfg.add_argument(
         "-sf",
         dest="secrets_file_override",
         help="Path to the sops-encrypted secrets file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secCat.add_argument(
+    cat_cfg.add_argument(
         "-ss",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    secCat.add_argument(
+
+    cat_out = secCat.add_argument_group("Output Options")
+    cat_out.add_argument(
         "-j", "--json", action="store_true", help="Make the output be JSON"
     )
-    secCat.add_argument(
+    cat_out.add_argument(
         "-v",
         "--value",
         action="store_true",
@@ -441,30 +499,33 @@ def addSecParsers(parser):
     )
     secShamir.add_argument("index", type=int, help="Rule index to be used.")
     secShamir.add_argument("share", type=int, help="Amount of Shares to be obligatory.")
-    secShamir.add_argument(
-        "-ss",
-        "--sops-file",
-        dest="sops_file_override",
-        help="Path to the .sops.yaml config file (overrides all calls).",
-    ).completer = FilesCompleter()  # type: ignore
-    secShamir.add_argument(
-        "-t",
-        "--team",
-        type=str,
-        help="Team to be used, in the format company.team.group",
-    )
-    secShamir.add_argument(
+
+    sham_opts = secShamir.add_argument_group("Operation Options")
+    sham_opts.add_argument(
         "-ikwid",
         "-u",
         "--i-know-what-im-doing",
         action="store_true",
         help="Update all shares directly.",
     )
+
+    sham_cfg = secShamir.add_argument_group("Configuration Options")
+    sham_cfg.add_argument(
+        "-ss",
+        "--sops-file",
+        dest="sops_file_override",
+        help="Path to the .sops.yaml config file (overrides all calls).",
+    ).completer = FilesCompleter()  # type: ignore
+    sham_cfg.add_argument(
+        "-t",
+        "--team",
+        type=str,
+        help="Team to be used, in the format company.team.group",
+    )
     add_provider_args(secShamir)
 
 
-def addRambleParsers(parser):
-    rambleParser = parser.add_parser("ramble", help="Annotate your rambles!")
+def addRambleParsers(rambleParser):
 
     rambSubParser = rambleParser.add_subparsers(
         dest="ramble_commands", help="Ramble subcommands", required=True
@@ -475,27 +536,31 @@ def addRambleParsers(parser):
     rambleCreate.add_argument(
         "target", help="The ramble/rambling to create (e.g., ramble.rambling)"
     )
-    rambleCreate.add_argument(
+
+    rc_cfg = rambleCreate.add_argument_group("Configuration Options")
+    rc_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.person",
     )
-    rambleCreate.add_argument(
-        "-e",
-        "--encrypt",
-        action="store_true",
-        help="Encrypt the rambling upon creation.",
-    )
-    rambleCreate.add_argument(
-        "-k", "--keys", nargs="+", help="Encrypt keys in a granular way"
-    )
-    rambleCreate.add_argument(
+    rc_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
+
+    rc_sec = rambleCreate.add_argument_group("Security Options")
+    rc_sec.add_argument(
+        "-e",
+        "--encrypt",
+        action="store_true",
+        help="Encrypt the rambling upon creation.",
+    )
+    rc_sec.add_argument(
+        "-k", "--keys", nargs="+", help="Encrypt keys in a granular way"
+    )
 
     rambleEdit = rambSubParser.add_parser(
         "edit", help="Edit a rambling directly, whether encrypted or not."
@@ -503,19 +568,21 @@ def addRambleParsers(parser):
     rambleEdit.add_argument(
         "target", help="The rambling you want to edit (e.g., ramble.rambling)"
     )
-    rambleEdit.add_argument(
+
+    re_cfg = rambleEdit.add_argument_group("Configuration Options")
+    re_cfg.add_argument(
         "-s",
         "--sops",
         help="Edit the sops file instead of the ramble file.",
         action="store_true",
     )
-    rambleEdit.add_argument(
+    re_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    rambleEdit.add_argument(
+    re_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -529,16 +596,20 @@ def addRambleParsers(parser):
     rambleEncrypt.add_argument(
         "target", help="The rambling you want to encrypt (e.g., ramble.rambling)"
     )
-    rambleEncrypt.add_argument(
+
+    ren_sec = rambleEncrypt.add_argument_group("Security Options")
+    ren_sec.add_argument(
         "-k", "--keys", nargs="+", help="Encrypt keys in a granular way"
     )
-    rambleEncrypt.add_argument(
+
+    ren_cfg = rambleEncrypt.add_argument_group("Configuration Options")
+    ren_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    rambleEncrypt.add_argument(
+    ren_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -552,27 +623,31 @@ def addRambleParsers(parser):
         nargs="+",
         help="The ramble(s)/rambling(s) to read. Use ramble.list to list ramblings inside a ramble and ramble.rambling to read a rambling.",
     )
-    rambleRead.add_argument(
+
+    rr_cfg = rambleRead.add_argument_group("Configuration Options")
+    rr_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    rambleRead.add_argument(
+    rr_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.person",
     )
-    rambleRead.add_argument(
+
+    rr_out = rambleRead.add_argument_group("Output Options")
+    rr_out.add_argument(
         "-j", "--json", action="store_true", help="Make --no-pretty the output be JSON"
     )
-    rambleRead.add_argument(
+    rr_out.add_argument(
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the ramble output.",
     )
-    rambleRead.add_argument(
+    rr_out.add_argument(
         "-v",
         "--values",
         nargs="+",
@@ -589,25 +664,29 @@ def addRambleParsers(parser):
         default=None,
         help="A keyword to search for in your rambles.",
     )
-    rambleFind.add_argument("--tag", help="Filter rambles by a specific tag.")
-    rambleFind.add_argument(
+
+    rf_cfg = rambleFind.add_argument_group("Configuration & Filter Options")
+    rf_cfg.add_argument("--tag", help="Filter rambles by a specific tag.")
+    rf_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.person",
     )
-    rambleFind.add_argument(
+    rf_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    rambleFind.add_argument(
+
+    rf_out = rambleFind.add_argument_group("Output Options")
+    rf_out.add_argument(
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the ramble output.",
     )
-    rambleFind.add_argument(
+    rf_out.add_argument(
         "-j", "--json", action="store_true", help="Make --no-pretty the output be JSON"
     )
 
@@ -616,7 +695,9 @@ def addRambleParsers(parser):
     )
     rambleMove.add_argument("old", help="Your old rambling")
     rambleMove.add_argument("new", help="Your new rambling")
-    rambleMove.add_argument(
+
+    rm_cfg = rambleMove.add_argument_group("Configuration Options")
+    rm_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -626,13 +707,15 @@ def addRambleParsers(parser):
     rambleUpdate = rambSubParser.add_parser(
         "update", help="Update your rambling encryption keys, great for rotation!"
     )
-    rambleUpdate.add_argument(
+
+    ru_cfg = rambleUpdate.add_argument_group("Configuration Options")
+    ru_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    rambleUpdate.add_argument(
+    ru_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -644,7 +727,9 @@ def addRambleParsers(parser):
         "delete", help="Delete a rambling or an entire ramble."
     )
     rambleDel.add_argument("ramble", help="Your ramble")
-    rambleDel.add_argument(
+
+    rd_cfg = rambleDel.add_argument_group("Configuration Options")
+    rd_cfg.add_argument(
         "-t",
         "--team",
         type=str,
@@ -652,22 +737,23 @@ def addRambleParsers(parser):
     )
 
 
-def addExplainParsers(parser):
-    expParser = parser.add_parser("explain", help="Explain a role topic or subtopic.")
+def addExplainParsers(expParser):
 
     topics = expParser.add_argument(
         "topics",
         nargs="+",
         help="Topic(s) to be explained. Use topic.list to list topics and topic.subtopic to read a subtopic",
     )
-    expParser.add_argument(
+
+    exp_out = expParser.add_argument_group("Output Options")
+    exp_out.add_argument(
         "-d",
         "--details",
         choices=["basic", "intermediate", "advanced"],
         default="basic",
         help="Level of detail for the explanation.",
     )
-    expParser.add_argument(
+    exp_out.add_argument(
         "-c",
         "--complexity",
         type=str,
@@ -675,13 +761,13 @@ def addExplainParsers(parser):
         default="basic",
         help="Level of complexity for the explanation.",
     )
-    expParser.add_argument(
+    exp_out.add_argument(
         "-n",
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the explanation output.",
     )
-    expParser.add_argument(
+    exp_out.add_argument(
         "-j",
         "--json",
         action="store_true",
@@ -691,10 +777,7 @@ def addExplainParsers(parser):
     topics.completer = ExplainCompleter()  # type: ignore
 
 
-def addCheckParsers(parser):
-    checkParser = parser.add_parser(
-        "check", help="Check and list roles, aliases and explanations"
-    )
+def addCheckParsers(checkParser):
 
     checkParser.add_argument(
         "checks",
@@ -706,41 +789,45 @@ def addCheckParsers(parser):
             "boats",
             "secrets",
             "limanis",
+            "templates",
         ],
         help="The operations you want to check.",
     )
-    checkParser.add_argument(
+
+    chk_cfg = checkParser.add_argument_group("Configuration Options")
+    chk_cfg.add_argument(
         "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
     ).completer = FilesCompleter()  # type: ignore
-    checkParser.add_argument(
-        "-j",
-        "--json",
-        action="store_true",
-        help="Output in JSON format.",
-        default=False,
-    )
-    checkParser.add_argument(
+    chk_cfg.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.group",
     )
-    checkParser.add_argument(
+    chk_cfg.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    checkParser.add_argument(
+    chk_cfg.add_argument(
         "-sf",
         "--secrets-file",
         dest="secrets_file_override",
         help="Path to the sops-encrypted secrets file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
 
+    chk_out = checkParser.add_argument_group("Output Options")
+    chk_out.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        help="Output in JSON format.",
+        default=False,
+    )
 
-def addSetParsers(parser):
-    setParser = parser.add_parser("set", help="Set configuration files")
+
+def addSetParsers(setParser):
     setSubParser = setParser.add_subparsers(dest="set_command")
 
     chParser = setSubParser.add_parser(
@@ -759,25 +846,49 @@ def addSetParsers(parser):
     sopsParser.add_argument("sops_file", help="Sops file path")
 
 
-def addApplyParsers(parser):
-    applyParser = parser.add_parser("apply", help="Apply an available role")
-
+def addApplyParsers(applyParser):
     tags = applyParser.add_argument(
         "tags", nargs="+", help="The tag(s) for the role(s) to be executed."
     )
-    applyParser.add_argument(
+
+    exec_opts = applyParser.add_argument_group("Execution Options")
+    exec_opts.add_argument(
         "-f",
         "--fleet",
         action="store_true",
         help="Apply to a fleet of hosts defined in the Ch-obolo file.",
     )
-    applyParser.add_argument(
+    exec_opts.add_argument(
+        "-d", "--dry", action="store_true", help="Execute roles in dry mode."
+    )
+    exec_opts.add_argument(
+        "-e",
+        "--serial",
+        action="store_true",
+        help="Run all ops in serial, each server at a time.",
+    )
+    exec_opts.add_argument(
+        "-nw",
+        "--no-wait",
+        action="store_true",
+        help="Run all ops in parallel all servers at once.",
+    )
+    exec_opts.add_argument(
+        "-ikwid",
+        "-y",
+        "--i-know-what-im-doing",
+        action="store_true",
+        help="Skips all confirmations for role execution.",
+    )
+
+    auth_sec_opts = applyParser.add_argument_group("Authentication & Secrets Options")
+    auth_sec_opts.add_argument(
         "-pf",
         "--sudo_password_file",
         dest="sudo_password_file",
         help="Path to a file containing the sudo password to be used.",
     ).completer = FilesCompleter()  # type: ignore
-    applyParser.add_argument(
+    auth_sec_opts.add_argument(
         "-ps",
         "--password",
         dest="password",
@@ -785,85 +896,67 @@ def addApplyParsers(parser):
         const=True,
         help="Password to be used for sudo operations (use this with pipes).",
     )
-    applyParser.add_argument(
-        "-i",
-        "--limani",
-        nargs="?",
-        help="Set the Limani (database plugin) to be used for logbook storage.",
-    )
-    applyParser.add_argument(
-        "-x",
-        "--export-logs",
-        action="store_true",
-        help="Export logs to a json file after logbook execution.",
-    )
-    applyParser.add_argument(
-        "-d", "--dry", action="store_true", help="Execute roles in dry mode."
-    )
-    applyParser.add_argument(
-        "-e",
-        "--serial",
-        action="store_true",
-        help="Run all ops in serial, each server at a time.",
-    )
-    applyParser.add_argument(
-        "-nw",
-        "--no-wait",
-        action="store_true",
-        help="Run all ops in parallel all servers at once.",
-    )
-    applyParser.add_argument(
-        "-l",
-        "--logbook",
-        action="store_true",
-        help="Get detailed logbook of run data after and during execution.",
-    )
-    applyParser.add_argument(
-        "-v", action="count", default=0, help="Increase verbosity level."
-    )
-    applyParser.add_argument(
-        "--verbose", type=int, choices=[1, 2, 3], help="Set log level directly."
-    )
-    applyParser.add_argument(
-        "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
-    ).completer = FilesCompleter()  # type: ignore
-    applyParser.add_argument(
+    auth_sec_opts.add_argument(
         "-s",
         "--secrets",
         action="store_true",
         help="Signal that a secret-having role is being used and decryption is needed.",
     )
-    applyParser.add_argument(
+    auth_sec_opts.add_argument(
         "-sf",
         "--secrets-file",
         dest="secrets_file_override",
         help="Path to the sops-encrypted secrets file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    applyParser.add_argument(
+    auth_sec_opts.add_argument(
         "-ss",
         "--sops-file",
         dest="sops_file_override",
         help="Path to the .sops.yaml config file (overrides all calls).",
     ).completer = FilesCompleter()  # type: ignore
-    applyParser.add_argument(
+
+    log_opts = applyParser.add_argument_group("Logging & Output Options")
+    log_opts.add_argument(
+        "-i",
+        "--limani",
+        nargs="?",
+        help="Set the Limani (database plugin) to be used for logbook storage.",
+    )
+    log_opts.add_argument(
+        "-x",
+        "--export-logs",
+        action="store_true",
+        help="Export logs to a json file after logbook execution.",
+    )
+    log_opts.add_argument(
+        "-l",
+        "--logbook",
+        action="store_true",
+        help="Get detailed logbook of run data after and during execution.",
+    )
+    log_opts.add_argument(
+        "-v", action="count", default=0, help="Increase verbosity level."
+    )
+    log_opts.add_argument(
+        "--verbose", type=int, choices=[1, 2, 3], help="Set log level directly."
+    )
+
+    cfg_opts = applyParser.add_argument_group("Configuration Options")
+    cfg_opts.add_argument(
+        "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
+    ).completer = FilesCompleter()  # type: ignore
+    cfg_opts.add_argument(
         "-t",
         "--team",
         type=str,
         help="Team to be used, in the format company.team.group",
     )
-    applyParser.add_argument(
-        "-ikwid",
-        "-y",
-        "--i-know-what-im-doing",
-        action="store_true",
-        help="Skips all confirmations for role execution.",
-    )
+
     tags.completer = RolesCompleter()  # type: ignore
     add_provider_args(applyParser)
 
 
-def addTeamParsers(parser):
-    teamParser = parser.add_parser("team", help="Manage your teams.")
+def addTeamParsers(teamParser):
     teamSubParser = teamParser.add_subparsers(
         dest="team_commands", help="Team management commands", required=True
     )
@@ -872,16 +965,18 @@ def addTeamParsers(parser):
         "prune", help="Prune unused teams from your configuration."
     )
     teamPrune.add_argument(
+        "companies",
+        help="Companies to prune teams from, if not passed, will prune all companies.",
+        nargs="*",
+    )
+
+    tp_opts = teamPrune.add_argument_group("Operation Options")
+    tp_opts.add_argument(
         "-ikwid",
         "-y",
         "--i-know-what-im-doing",
         action="store_true",
         help="Skips all confirmations.",
-    )
-    teamPrune.add_argument(
-        "companies",
-        help="Companies to prune teams from, if not passed, will prune all companies.",
-        nargs="*",
     )
 
     listTeams = teamSubParser.add_parser("list", help="List all available teams.")
@@ -890,13 +985,15 @@ def addTeamParsers(parser):
         nargs="?",
         help="Company to filter teams, if not passed, will list all companies.",
     )
-    listTeams.add_argument(
+
+    lt_out = listTeams.add_argument_group("Output Options")
+    lt_out.add_argument(
         "-n",
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the team output.",
     )
-    listTeams.add_argument(
+    lt_out.add_argument(
         "-j",
         "--json",
         action="store_true",
@@ -925,7 +1022,9 @@ def addTeamParsers(parser):
         help="Path where to initialize the team repository, if no path is given, current folder is used.",
         nargs="?",
     )
-    teamInit.add_argument(
+
+    ti_opts = teamInit.add_argument_group("Operation Options")
+    ti_opts.add_argument(
         "-ikwid",
         "-y",
         "--i-know-what-im-doing",
@@ -949,8 +1048,7 @@ def addTeamParsers(parser):
     )
 
 
-def addInitParsers(parser):
-    initParser = parser.add_parser("init", help="Let Ch-aOS handle the boiler plates!")
+def addInitParsers(initParser):
     initSubParser = initParser.add_subparsers(
         dest="init_command", help="What to initialize", required=True
     )
@@ -959,26 +1057,35 @@ def addInitParsers(parser):
         "chobolo",
         help="Initialize a boiler plate chobolo based on the plugins/core you have installed!",
     )
-    chobolo_parser.add_argument(
+
+    io_opts = chobolo_parser.add_argument_group("Output Options")
+
+    io_opts.add_argument(
         "-t",
         "--template",
         action="store_true",
         help="Don't save the Ch-obolo file, just print it to the screen.",
     )
-    chobolo_parser.add_argument(
+
+    io_opts.add_argument(
         "-u",
         "--human",
         action="store_true",
         help="In case of -t, makes the output more human-readable.",
     )
+
+    chobolo_parser.add_argument(
+        "targets",
+        nargs="*",
+        help="Optional target plugins to be included in the template.",
+    )
+
     initSubParser.add_parser(
         "secrets", help="Initialize both a secrets file and a sops file!"
     )
 
 
-def addStyxParsers(parser):
-    styxParser = parser.add_parser("styx", help="Manage Styx registry entries.")
-
+def addStyxParsers(styxParser):
     styxSubParser = styxParser.add_subparsers(
         dest="styx_commands", help="Styx subcommands", required=True
     )
@@ -993,18 +1100,21 @@ def addStyxParsers(parser):
     styxList = styxSubParser.add_parser(
         "list", help="List available Styx registry entries."
     )
+
+    sl_out = styxList.add_argument_group("Output Options")
+
     styxList.add_argument(
         "entries",
         nargs="*",
         help="Names of the Styx registry entries to list, if none given, lists all available entries.",
     )
-    styxList.add_argument(
+    sl_out.add_argument(
         "-n",
         "--no-pretty",
         action="store_true",
         help="Disable pretty printing of the Styx registry entries output.",
     )
-    styxList.add_argument(
+    sl_out.add_argument(
         "-j",
         "--json",
         action="store_true",
@@ -1018,9 +1128,6 @@ def addStyxParsers(parser):
     styxUninstall.add_argument(
         "entries", nargs="+", help="Names of the Styx registry entries to uninstall."
     )
-
-
-"""Handles the -t/--generate-tab argument, generating the tab-completion script"""
 
 
 def handleGenerateTab():

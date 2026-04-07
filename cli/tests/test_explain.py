@@ -8,10 +8,10 @@ from chaos.lib.explain import handleExplain
 class MockExplain:
     _order = ["sub"]
 
-    def explain_main(self):
+    def explain_main(self, complexity="basic"):
         return {"concept": "Main Concept", "what": "This is the main topic."}
 
-    def explain_sub(self):
+    def explain_sub(self, complexity="basic"):
         return {"concept": "Sub Concept", "what": "This is the sub topic."}
 
 
@@ -19,19 +19,19 @@ class MockExplain:
 def mock_args():
     args = Mock()
     args.details = "basic"
+    args.no_pretty = False
+    args.complexity = "basic"
+    args.json = False
     return args
 
 
 @pytest.fixture
 def mock_dispatcher():
-    # Isso simula o entrypoint descoberto, apontando para nossa classe de teste.
-    # O formato é 'nome_do_modulo:nome_da_classe'
-    return {"main": "chaos.lib.handlers:MockExplain"}
+    return {"main": "chaos.lib.explain:MockExplain"}
 
 
-@patch("chaos.lib.handlers.import_module")
+@patch("chaos.lib.explain.import_module")
 def test_handle_explain_main_topic(mock_import, capsys, mock_args, mock_dispatcher):
-    # Quando o import_module for chamado, ele retornará um objeto mock que tem a nossa classe.
     mock_import.return_value.MockExplain = MockExplain
     mock_args.topics = ["main"]
 
@@ -43,7 +43,7 @@ def test_handle_explain_main_topic(mock_import, capsys, mock_args, mock_dispatch
     assert "This is the main topic" in captured.out
 
 
-@patch("chaos.lib.handlers.import_module")
+@patch("chaos.lib.explain.import_module")
 def test_handle_explain_sub_topic(mock_import, capsys, mock_args, mock_dispatcher):
     mock_import.return_value.MockExplain = MockExplain
     mock_args.topics = ["main.sub"]
@@ -56,8 +56,9 @@ def test_handle_explain_sub_topic(mock_import, capsys, mock_args, mock_dispatche
     assert "This is the sub topic" in captured.out
 
 
-@patch("chaos.lib.handlers.import_module")
-def test_handle_explain_list_subtopics(mock_import, capsys, mock_args, mock_dispatcher):
+@patch("chaos.lib.explain.sys.exit")
+@patch("chaos.lib.explain.import_module")
+def test_handle_explain_list_subtopics(mock_import, mock_exit, capsys, mock_args, mock_dispatcher):
     mock_import.return_value.MockExplain = MockExplain
     mock_args.topics = ["main.list"]
 
@@ -68,9 +69,10 @@ def test_handle_explain_list_subtopics(mock_import, capsys, mock_args, mock_disp
     assert "Available subtopics for" in captured.out
     assert "main" in captured.out
     assert "sub" in captured.out
+    mock_exit.assert_called_once_with(0)
 
 
-@patch("chaos.lib.handlers.import_module")
+@patch("chaos.lib.explain.import_module")
 def test_handle_explain_invalid_topic(mock_import, capsys, mock_args, mock_dispatcher):
     mock_import.return_value.MockExplain = MockExplain
     mock_args.topics = ["invalid_topic"]

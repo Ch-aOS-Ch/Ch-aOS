@@ -51,7 +51,7 @@ This will remove the plugin's file from your local directory, effectively uninst
 
 If you have developed a plugin and wish to share it with the community, you can submit it to Styx.
 
-Styx is intentionally simple and does not resolve dependencies. Therefore, plugins should be as self-contained as possible.
+Styx is intentionally simple and does not manage versioning. This is not a bug, but a design choice to keep the system safe and straightforward. Each plugin declares exactly one version, and updates are only made by changing the version string directly in the registry. This means that if you do want to update your official plugin, you will have to go through the same process as submitting a new plugin, but with the same name and a different version. This allows for a clear and auditable history of changes.
 
 To submit, open a Pull Request in the [Styx repository](https://github.com/Ch-aOS-Ch/styx) by adding your plugin's entry to the `registry.yaml` file. The structure is as follows:
 
@@ -67,6 +67,8 @@ styx:
     about: "A plugin that does something amazing."
     # The specific release version (cannot be "latest")
     version: "v0.1.0"
+    # The sha256 checksum of the .whl file for integrity verification
+    hash: "abc123def456..."
 ```
 
 ## The Styx Security Model
@@ -82,5 +84,11 @@ Security is a priority in Styx. The following measures are in place to protect u
 4.  Controlled Origin: Plugins are downloaded from specific, well-defined "release" URLs in the plugins' official repositories, reducing the risk of downloads from untrusted sources.
 
 5.  Secure Installation: Installation occurs in a specific user directory, without the need for superuser permissions, and `chaos` performs basic checks to prevent *path traversal* attacks.
+
+6. As you've probably noticed, Styx calculates and verifies the SHA256 checksum of the downloaded plugin file against the value specified in the registry. This removes a lot of tampering issues, the attacker would need to make me put their normal code inside of my repo, then make a malicious release with the same version as mine, and then change the hash in the registry (with a review PR), which would be very sketchy, to make an attack.
+
+7. Styx does NOT resolve versioning.
+
+8. The Styx registry is read-only for users, and only maintainers can merge changes to it. This means that even if an attacker compromises a user's account, they cannot directly modify the registry to add malicious plugins.
 
 Although these layers create a secure environment, the good practice of only installing software from trusted sources is still encouraged.

@@ -1,22 +1,24 @@
 # Welcome to the Ch-aOS Project Suite
 
-**Ch-aOS** is a suite of tools designed to declaratively manage your Unix system, from initial installation to post-install configuration. It provides a modular, safe, and didactic way to handle your entire setup.
+**Ch-aOS** is a powerful Python SDK and CLI suite designed to declaratively manage your Unix system, from initial installation to post-install configuration. It provides a modular, safe, and didactic way to handle your entire infrastructure.
 
 ## Core Principles
 
-- **Declarative**: Define the desired state of your system using simple YAML files. The `chaos` CLI takes care of the rest, ensuring your system matches your declaration.
-- **Modular**: Extend the functionality of Ch-aOS by creating or adding plugins. Whether you need to manage a different distribution, handle dotfiles, or integrate with a new secret provider, the plugin system makes it possible.
+- **Declarative**: Define the desired state of your system using simple YAML files. The Ch-aOS SDK takes care of the rest, ensuring your system matches your declaration.
+
+- **Modular**: Extend the functionality of Ch-aOS by creating or adding plugins. Whether you need to manage a different distribution, handle dotfiles, or integrate with a new secret provider, the plugin architecture makes it possible.
+
 - **Safe**: Preview changes before they are applied with dry runs. Manage your secrets securely with integrated support for `sops` and various secret providers.
+
 - **Didactic**: Learn as you go with a built-in documentation system. The `chaos explain` command provides detailed information on every feature, command, and concept.
 
 ## How It Works
 
-The `chaos` CLI is the engine of the project, powered by Python, Pyinfra, and OmegaConf. It uses "Ch-obolos" (YAML files) to read data and executes "roles" (Python scripts) to apply the desired state to your system. This strict separation of data from logic makes your configurations readable, reusable, and version-controllable.
-
+At its heart, **Ch-aOS is a Software Development Kit (SDK)** powered by Python, Pyinfra, and OmegaConf. While it ships with a powerful CLI, the true magic lies in its API. It uses "Ch-obolos" (YAML files) to read data and executes "Roles" (Python classes inheriting from our base SDK) to apply the desired state to your system. This strict separation of data from logic makes your configurations readable, reusable, and version-controllable.
 
 ## Little example:
 
-So, you have some secrets you want to use in your operational system, you want to place them in some files or something, but you don't want to keep decrypting, copying and printing them.
+So, you have some secrets you want to use in your operating system, you want to place them in some files or something, but you don't want to keep decrypting, copying and printing them.
 
 So, I've made a little role that is a jinja2 secrets templater, you can see it in action as well!
 
@@ -29,6 +31,6 @@ Ready to get started? Head over to the **[Getting Started](getting-started.md)**
 
 Want to learn more about advanced features? Check some of the **[Advanced Topics](Advanced/providers.md)**!
 
-Want to create your own plugins? Dive into the **[Plugin Development](Plugins/development.md)** documentation!
+Want to create your own plugins or use the SDK? Dive into the **[Plugin Development](Plugins/development.md)** documentation!
 
 Or you just want to follow the code's planned features? Check out our **[Chopping Board](./chopping-board.md)**!

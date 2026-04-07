@@ -6,6 +6,7 @@ class ProviderArgs(Protocol):
     from_bw: Optional[Tuple[str, str]]
     from_bws: Optional[Tuple[str, str]]
     from_op: Optional[Tuple[str, str]]
+    from_rbw: Optional[Tuple[str, str]]
 
 
 class GlobalArgs(Protocol):

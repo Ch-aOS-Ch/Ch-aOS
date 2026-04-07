@@ -33,7 +33,7 @@ plugins:
   - mkdocstrings:
       handlers:
          python:
-           paths: ['cli/src/chaos']
+           paths: ['cli/src']
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -64,6 +64,49 @@ nav:
     - 'Secret Providers': 'Advanced/providers.md'
     - 'Logbook': 'Advanced/logbook.md'
     - 'Composability': 'Advanced/composability.md'
+    - 'SDK':
+      - 'Overview': 'Advanced/SDK/overview.md'
+      - 'Orchestration': 'Advanced/SDK/orchestration.md'
+      - 'Fleet Management': 'Advanced/SDK/fleet.md'
+      - 'Interfaces and Flags': 'Advanced/SDK/interfaces_and_flags.md'
+      - 'Secrets': 'Advanced/SDK/secrets.md'
+      - 'Ramble': 'Advanced/SDK/ramble.md'
+      - 'Reference':
+        - 'Apply':
+          - 'Core': 'Advanced/SDK/Reference/apply/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/apply/payloads.md'
+        - 'Check':
+          - 'Core': 'Advanced/SDK/Reference/check/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/check/payloads.md'
+        - 'Common':
+          - 'Payloads': 'Advanced/SDK/Reference/common/payloads.md'
+        - 'Explain':
+          - 'Core': 'Advanced/SDK/Reference/explain/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/explain/payloads.md'
+        - 'Init':
+          - 'Core': 'Advanced/SDK/Reference/init/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/init/payloads.md'
+        - 'Ramble':
+          - 'Core': 'Advanced/SDK/Reference/ramble/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/ramble/payloads.md'
+        - 'Secrets':
+          - 'Core': 'Advanced/SDK/Reference/secrets/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/secrets/payloads.md'
+        - 'Set':
+          - 'Core': 'Advanced/SDK/Reference/set/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/set/payloads.md'
+        - 'Styx':
+          - 'Core': 'Advanced/SDK/Reference/styx/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/styx/payloads.md'
+        - 'Team':
+          - 'Core': 'Advanced/SDK/Reference/team/core.md'
+          - 'Payloads': 'Advanced/SDK/Reference/team/payloads.md'
+        - 'Boats':
+          - 'Core': 'Advanced/SDK/Reference/boats/core.md'
+        - 'Limani':
+          - 'Core': 'Advanced/SDK/Reference/limani/core.md'
+        - 'Roles':
+          - 'Core': 'Advanced/SDK/Reference/roles/core.md'
   - 'Plugins':
     - 'Provider Plugins': 'Plugins/provider-plugins.md'
     - 'Registry': 'Plugins/styx.md'
