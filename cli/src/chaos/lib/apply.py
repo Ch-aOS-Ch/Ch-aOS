@@ -349,7 +349,7 @@ def run_context(
 
         secrets_for_role = secrets_result.data
 
-    if not isinstance(payload.pyinfra_state, State):
+    if payload.pyinfra_state is None:
         return ResultPayload(
             success=False,
             message=[],

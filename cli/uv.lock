@@ -177,7 +177,7 @@ wheels = [
 
 [[package]]
 name = "chaos"
-version = "0.6"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "argcomplete" },
