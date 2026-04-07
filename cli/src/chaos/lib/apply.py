@@ -419,7 +419,7 @@ def run_plan(
             If there are any errors or if the role is skipped due to restrictions, the plan will not be included in the data field.
     """
 
-    if not isinstance(payload.pyinfra_state, State):
+    if payload.pyinfra_state is None:
         return ResultPayload(
             success=False,
             message=[],
