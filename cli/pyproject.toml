@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chaos"
-version = "0.6"
+version = "0.7.0"
 description = "Declarative OS configuration manager"
 readme = "README.md"
 requires-python = ">=3.11,<=3.14.3"
