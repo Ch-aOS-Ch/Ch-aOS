@@ -5,7 +5,7 @@ def handleSet(args):
     from rich.console import Console
 
     console = Console()
-    from chaos.lib.handlers import setMode
+    from chaos.lib.set import setMode
 
     is_setter_mode = any(
         [

@@ -21,7 +21,6 @@ GPG_KEY=12FEDE6E939CA1DB84C222D55B8508C9C82A572E
 
 echo "Checking for uv and shiv..."
 check_command "uv"
-check_command "shiv"
 echo "Found."
 
 echo "building v$VERSION ---"
@@ -36,7 +35,7 @@ uv pip compile "$CLI_DIR/pyproject.toml" -o "$ARTIFACTS_DIR/requirements.txt"
 echo "Building the with shiv --no-deps..."
 (
     cd "$CLI_DIR" || exit
-    shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
+    uv run shiv . -c chaos --no-deps -o "$ARTIFACTS_DIR/chaos"
 )
 
 echo "Placing install script..."

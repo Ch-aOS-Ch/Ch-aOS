@@ -1,61 +1,91 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import requests
 from omegaconf import DictConfig, OmegaConf
 
-from chaos.lib.args.dataclasses import StyxPayload
-from chaos.lib.utils import validate_path
+from chaos.lib.args.dataclasses import ResultPayload, StyxPayload
 
 TIMEOUT = 10
 
 
-def get_styx_registry():
-    """Fetches the Styx registry data from the specified URL."""
-    url = "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml"
+def get_styx_registry(payload: StyxPayload) -> tuple[str | None, str | None]:
+    """Fetches the Styx registry data from the specified URL.
+
+    Returns:
+        tuple[str | None, str | None]: A tuple containing the registry data (str) and an error message (str), if applicable.
+    """
+    url = os.getenv(
+        "CHAOS_STYX_REGISTRY",
+        getattr(
+            payload,
+            "registry_url",
+            "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
+        ),
+    )
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
         response.raise_for_status()
-        return response.text
+        return response.text, None
     except requests.RequestException as e:
-        print(f"[bold red]Error fetching Styx registry:[/] {e}")
-        return None
+        return None, f"Error fetching Styx registry: {e}"
 
 
-def parse_styx_registry(registry_data, registry_names: list[str]) -> list[dict]:
-    """Parses the Styx registry data and returns a list of entries."""
+def parse_styx_registry(
+    registry_data: str, registry_names: list[str]
+) -> tuple[list[dict], list[str]]:
+    """Parses the Styx registry data.
+
+    Args:
+        registry_data (str): The raw string data of the registry YAML.
+        registry_names (list[str]): The list of specific registry names to parse.
+
+    Returns:
+        tuple[list[dict], list[str]]: A tuple of matched entries and a list of parsing errors.
+    """
     if not registry_data:
-        return []
+        return [], ["No registry data provided."]
 
+    errors = []
     try:
-        registry_data = OmegaConf.create(registry_data)
-        registry_data = cast(DictConfig, registry_data)
+        parsed_data = OmegaConf.create(registry_data)
+        parsed_data = cast(DictConfig, parsed_data)
     except Exception as e:
-        print(f"Error parsing YAML: {e}")
-        return []
+        return [], [f"Error parsing YAML: {e}"]
 
-    if "styx" not in registry_data:
-        print("Invalid registry format: 'styx' key not found.")
-        return []
+    if "styx" not in parsed_data:
+        return [], ["Invalid registry format: 'styx' key not found."]
 
-    styx_entries = registry_data.styx
+    styx_entries = parsed_data.styx
     entries = []
 
     for name in registry_names:
         if name not in styx_entries:
-            print(f"Registry name '{name}' not found in Styx registry.")
+            errors.append(f"Registry name '{name}' not found in Styx registry.")
             continue
 
         name_data = styx_entries.get(name)
         name_data["registry_name"] = name
         entries.append(name_data)
 
-    return entries
+    return entries, errors
 
 
-def _check_hash(file_path: Path, expected_hash: str) -> tuple[bool, str | None]:
-    """Checks if the file at file_path matches the expected SHA-256 hash."""
+def _check_hash(
+    file_path: Path, expected_hash: str
+) -> tuple[bool, str | None, str | None]:
+    """Checks if the file at file_path matches the expected SHA-256 hash.
+
+    Args:
+        file_path (Path): Path to the local file to check.
+        expected_hash (str): The expected SHA-256 hash.
+
+    Returns:
+        tuple[bool, str | None, str | None]: A tuple containing a boolean of the match result, the calculated hash, and an error string if applicable.
+    """
     from hashlib import sha256
 
     sha256_hash = sha256()
@@ -66,24 +96,33 @@ def _check_hash(file_path: Path, expected_hash: str) -> tuple[bool, str | None]:
 
         calculated_hash = sha256_hash.hexdigest()
 
-        return calculated_hash == expected_hash, calculated_hash
+        return calculated_hash == expected_hash, calculated_hash, None
     except Exception as e:
-        print(f"Error checking hash for {file_path}: {e}")
-        return False, None
+        return False, None, f"Error checking hash for {file_path}: {e}"
 
 
-def install_styx_entries(entries: list[str], force: bool = False):
-    """
-    Installs the given Styx registry entries.
+def install_styx_entries(payload: StyxPayload) -> ResultPayload[None]:
+    """Installs the given Styx registry entries.
+
     Args:
-        entries: List of plugin names
-        force: If True, overwrites existing plugins
-    """
-    raw_registry = get_styx_registry()
-    if not raw_registry:
-        return
+        payload (StyxPayload): The structured payload containing the list of registry entries to install and the force flag.
 
-    parsed_entries = parse_styx_registry(raw_registry, entries)
+    Returns:
+        ResultPayload[None]: The status payload regarding the operation's outcome.
+    """
+    entries = payload.entries
+    force = payload.force
+    messages = []
+    errors = []
+
+    raw_registry, error = get_styx_registry(payload)
+    if error:
+        return ResultPayload(success=False, error=[error])
+    if not raw_registry:
+        return ResultPayload(success=False, error=["Failed to retrieve Styx registry."])
+
+    parsed_entries, parse_errors = parse_styx_registry(raw_registry, entries)
+    errors.extend(parse_errors)
 
     for entry in parsed_entries:
         url = entry.get("repo")
@@ -92,21 +131,21 @@ def install_styx_entries(entries: list[str], force: bool = False):
         expected_hash = entry.get("hash", "")
 
         if not expected_hash or len(expected_hash) != 64:
-            print(
-                f"Warning: Invalid or missing hash for '{pkg_name}'. Skipping package."
+            errors.append(
+                f"Invalid or missing hash for '{pkg_name}'. Skipping package."
             )
             continue
 
         if not pkg_name:
-            print("Skipping entry with missing name.")
+            errors.append("Skipping entry with missing name.")
             continue
 
         if not tag_version:
-            print(f"Skipping '{pkg_name}': Missing version.")
+            errors.append(f"Skipping '{pkg_name}': Missing version.")
             continue
 
         if not url or not tag_version:
-            print(f"Skipping '{pkg_name}': Missing repo URL or version.")
+            errors.append(f"Skipping '{pkg_name}': Missing repo URL or version.")
             continue
 
         clean_version = tag_version.lstrip("v")
@@ -119,17 +158,22 @@ def install_styx_entries(entries: list[str], force: bool = False):
         wheel_local_filename = f"{pkg_name}.whl"
 
         try:
-            dir_name = Path(os.path.expanduser("~/.local/share/chaos/plugins"))
+            dir_name = Path(
+                os.getenv(
+                    "CHAOS_PLUGIN_DIR",
+                    Path.home() / ".local" / "share" / "chaos" / "plugins",
+                )
+            )
             dir_name.mkdir(parents=True, exist_ok=True)
 
             local_path = dir_name / wheel_local_filename
             tmp_path = dir_name / f"{wheel_local_filename}.tmp"
 
             if local_path.exists() and not force:
-                print(f"Plugin '{pkg_name}' is already installed.")
+                messages.append(f"Plugin '{pkg_name}' is already installed.")
                 continue
 
-            print(f"Downloading {pkg_name} ({tag_version})...")
+            messages.append(f"Downloading {pkg_name} ({tag_version})...")
 
             with requests.get(download_url, stream=True, timeout=30) as response:
                 response.raise_for_status()
@@ -141,155 +185,217 @@ def install_styx_entries(entries: list[str], force: bool = False):
                     for chunk in response.iter_content(chunk_size=8192):
                         wheel_file.write(chunk)
 
-                is_correct, calculated_hash = _check_hash(tmp_path, expected_hash)
+                is_correct, calculated_hash, hash_error = _check_hash(
+                    tmp_path, expected_hash
+                )
+
+                if hash_error:
+                    errors.append(hash_error)
+                    tmp_path.unlink(missing_ok=True)
+                    continue
 
                 if not is_correct:
                     tmp_path.unlink(missing_ok=True)  # Apaga o lixo
-                    print(
+                    errors.append(
                         f"Hash mismatch for '{pkg_name}'. Expected: {expected_hash}, Calculated: {calculated_hash}. Download may be corrupted or tampered with."
                     )
                     continue
 
-                tmp_path.rename(local_path)
+                valid_whl_name = dir_name / wheel_remote_name
+                tmp_path.rename(valid_whl_name)
 
-            print(f"Successfully installed '{pkg_name}' version {tag_version}.")
+                pip_cmd = [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-cache-dir",
+                    "--disable-pip-version-check",
+                    "--target",
+                    str(dir_name),
+                    str(valid_whl_name),
+                ]
+
+                try:
+                    subprocess.run(pip_cmd, capture_output=True, text=True, check=True)
+                    messages.append(
+                        f"Successfully installed '{pkg_name}' version {tag_version}."
+                    )
+                except subprocess.CalledProcessError as e:
+                    raw_stderr = e.stderr.strip() if e.stderr else str(e)
+                    errors.append(
+                        f"Error installing '{pkg_name}' with pip: {raw_stderr}"
+                    )
+                    continue
+                finally:
+                    valid_whl_name.unlink(missing_ok=True)
 
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                print(
+            if e.response is not None and e.response.status_code == 404:
+                errors.append(
                     f"Error: Release not found at {download_url}. Check if the wheel name matches format: {wheel_remote_name}"
                 )
             else:
-                print(f"HTTP Error installing {pkg_name}: {e}")
+                errors.append(f"HTTP Error installing {pkg_name}: {e}")
         except Exception as e:
-            print(f"Error installing {pkg_name}: {e}")
+            errors.append(f"Error installing {pkg_name}: {e}")
 
     try:
         from chaos.lib.plugDiscovery import get_plugins
 
         get_plugins(update_cache=True)
     except ImportError:
-        print("Warning: Could not reload plugins cache (module not found).")
+        errors.append("Warning: Could not reload plugins cache (module not found).")
+
+    success = len(errors) == 0 or len(messages) > 0
+    return ResultPayload(success=success, message=messages, error=errors)
 
 
-def list_styx_entries(
-    entries: list[str] | None, no_pretty: bool, json_flag: bool
-) -> str:
-    """Lists the available Styx registry entries."""
-    import json
+def list_styx_entries(payload: StyxPayload) -> ResultPayload[dict[str, Any]]:
+    """Lists the available Styx registry entries.
 
-    registry_text = get_styx_registry()
-    if registry_text is None:
-        return "Could not fetch Styx registry data."
+    Args:
+        payload (StyxPayload): The structured payload containing the list of registry entries to display.
 
-    registry_data = OmegaConf.create(registry_text)
-
-    if "styx" not in registry_data:
-        return "Invalid registry format."
-
-    styx_entries = registry_data.styx
-
-    keys_to_show = entries if entries else list(styx_entries.keys())
-
-    if no_pretty:
-        output_data = {}
-        for name in keys_to_show:
-            if name in styx_entries:
-                output_data[name] = styx_entries[name]
-
-        if not output_data:
-            return "{}" if json_flag else ""
-
-        if json_flag:
-            return json.dumps(
-                OmegaConf.to_container(OmegaConf.create(output_data), resolve=True),
-                indent=2,
-            )
-        else:
-            return OmegaConf.to_yaml(OmegaConf.create(output_data))
-    else:
-        output = []
-        for name in keys_to_show:
-            if name not in styx_entries:
-                continue
-
-            data = styx_entries[name]
-            desc = data.get("about", "No description")
-            ver = data.get("version", "unknown")
-            repo = data.get("repo", "")
-            hash = data.get("hash", "")
-
-            if not repo:
-                print(f"Warning: No repository URL for '{name}'.")
-                continue
-
-            output.append(
-                f"""{name} ({ver})
-┬"""
-                + "─" * (len(name) + 2 + len(ver))
-                + f"""
-├─ {desc}
-├─ 🔗 {repo}
-╰─ 🛡️ {hash[:8] + "..." + hash[-8:] if hash else "No hash provided"}
-"""
-            )
-
-        return "\n\n".join(output)
-
-
-def uninstall_styx_entries(entries: list[str]):
-    """Uninstalls the given Styx registry entries."""
-    for name in entries:
-        wheel_filename = f"{name}.whl"
-        validate_path(wheel_filename)
-
-        wheel_path = Path(
-            os.path.expanduser(f"~/.local/share/chaos/plugins/{wheel_filename}")
+    Returns:
+        ResultPayload[dict[str, Any]]: A payload containing matched registry details.
+    """
+    entries = payload.entries
+    raw_registry, error = get_styx_registry(payload)
+    if error:
+        return ResultPayload(success=False, error=[error])
+    if not raw_registry:
+        return ResultPayload(
+            success=False, error=["Could not fetch Styx registry data."]
         )
 
-        if not wheel_path.exists():
-            print(f"Plugin '{name}' not found locally.")
-            continue
+    try:
+        registry_data = OmegaConf.create(raw_registry)
+        registry_data = cast(DictConfig, registry_data)
+    except Exception as e:
+        return ResultPayload(success=False, error=[f"Error parsing YAML: {e}"])
+
+    if "styx" not in registry_data:
+        return ResultPayload(
+            success=False, error=["Invalid registry format: 'styx' key not found."]
+        )
+
+    styx_entries = registry_data.styx
+    keys_to_show = entries if entries else list(styx_entries.keys())
+
+    output_data = {}
+    errors = []
+    for name in keys_to_show:
+        if name in styx_entries:
+            output_data[name] = styx_entries[name]
+        else:
+            errors.append(f"Registry entry '{name}' not found.")
+
+    return ResultPayload(success=True, data=output_data, error=errors)
+
+
+def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
+    """Uninstalls the given Styx registry entries using pip.
+
+    Args:
+        entries (list[str]): The list of registry entries to uninstall.
+
+    Returns:
+        ResultPayload[None]: A payload summarizing the deletion state.
+    """
+    messages = []
+    errors = []
+
+    plugin_dir = Path(
+        os.getenv(
+            "CHAOS_PLUGIN_DIR", Path.home() / ".local" / "share" / "chaos" / "plugins"
+        )
+    )
+
+    if not plugin_dir.exists():
+        return ResultPayload(success=False, error=["Plugin directory does not exist."])
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(plugin_dir) + os.pathsep + env.get("PYTHONPATH", "")
+
+    for name in entries:
+        pip_cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "uninstall",
+            "-y",
+            name,
+        ]
 
         try:
-            os.remove(wheel_path)
-            print(f"Uninstalled '{name}'.")
+            result = subprocess.run(
+                pip_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            # Since Pip returns 0 even if the package is not found, we need to check
+            # the output ourselves.
+            output = result.stdout + result.stderr
+
+            if "Successfully uninstalled" in output:
+                messages.append(f"Successfully uninstalled '{name}'.")
+            elif "WARNING: Skipping" in output and "as it is not installed" in output:
+                errors.append(f"Plugin '{name}' not found or already uninstalled.")
+            elif result.returncode != 0:
+                errors.append(f"Error uninstalling '{name}': {output.strip()}")
+            else:
+                messages.append(
+                    f"Uninstallation of '{name}' completed with ambiguous output from pip."
+                )
+
+        except FileNotFoundError:
+            errors.append(
+                f"Error: Command '{sys.executable}' not found. Cannot run pip."
+            )
+            break
         except Exception as e:
-            print(f"Error uninstalling '{name}': {e}")
+            errors.append(
+                f"An unexpected error occurred while uninstalling '{name}': {e}"
+            )
 
     try:
         from chaos.lib.plugDiscovery import get_plugins
 
         get_plugins(update_cache=True)
+        messages.append("Plugin cache updated.")
     except ImportError:
-        pass
+        errors.append("Warning: Could not reload plugins cache (module not found).")
+
+    success = not any("Error" in e for e in errors)
+    return ResultPayload(success=success, message=messages, error=errors)
 
 
-def handle_styx(payload: StyxPayload):
-    import sys
+def handle_styx(payload: StyxPayload) -> ResultPayload[dict[str, Any] | None]:
+    """Handles parsing and routing for the specified styx subcommands.
 
-    from rich.console import Console
+    Args:
+        payload (StyxPayload): The structured payload containing the requested action and corresponding details.
 
-    console = Console()
+    Returns:
+        ResultPayload[dict[str, Any] | None]: The generic result of the styx operation.
+    """
     try:
         match payload.styx_commands:
             case "invoke":
-                install_styx_entries(payload.entries)
+                return install_styx_entries(payload)
 
             case "list":
-                listing: list[str] | str = list_styx_entries(
-                    payload.entries, payload.no_pretty, payload.json
-                )
-
-                if payload.no_pretty:
-                    print(listing)
-                else:
-                    console.print(listing)
+                return list_styx_entries(payload)
 
             case "destroy":
-                uninstall_styx_entries(payload.entries)
+                return uninstall_styx_entries(payload.entries)
             case _:
-                console.print("Unsupported styx subcommand.")
+                return ResultPayload(
+                    success=False, error=["Unsupported styx subcommand."]
+                )
     except (ValueError, FileNotFoundError, RuntimeError, EnvironmentError) as e:
-        console.print(f"[bold red]ERROR:[/] {e}")
-        sys.exit(1)
+        return ResultPayload(success=False, error=[str(e)])

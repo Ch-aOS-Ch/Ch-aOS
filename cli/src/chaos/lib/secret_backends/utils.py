@@ -1,7 +1,9 @@
+"""Utility functions for handling SOPS file operations, provider resolution, and decryption workflows."""
+
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, cast
+from typing import Union, cast
 
 from ..args.dataclasses import (
     ProviderConfigPayload,
@@ -12,15 +14,17 @@ from ..args.dataclasses import (
 from ..utils import validate_path
 from .providers.base import Provider
 
-if TYPE_CHECKING:
-    from .providers.base import Provider
-
-"""
-Now now, I KNOW this is way too big of a file, but bear with me here
-"""
-
 
 def _resolveProvider(context: SecretsContext, global_config):
+    """Resolves and returns the appropriate secret provider based on context and configuration.
+
+    Args:
+        context (SecretsContext): The contextual data governing the secret operations.
+        global_config (dict | DictConfig): The global chaos configuration data.
+
+    Returns:
+        Provider | None: The resolved provider object, or None if no matching provider is found.
+    """
     if context.provider_config and context.provider_config.provider is not None:
         context = _handle_provider_arg(context, global_config)
 
@@ -28,7 +32,18 @@ def _resolveProvider(context: SecretsContext, global_config):
 
 
 def _getProvider(context: SecretsContext, global_config):
-    """Returns the appropriate secret provider based on the command-line arguments."""
+    """Returns the appropriate secret provider based on the command-line arguments.
+
+    Searches through installed provider plugins and selects one matching the provided 
+    ephemeral provider arguments in the context.
+
+    Args:
+        context (SecretsContext): The secrets context containing ephemeral provider arguments.
+        global_config (dict | DictConfig): The global chaos configuration data.
+
+    Returns:
+        Provider | None: The matching provider instance, or None if no provider matches.
+    """
     from chaos.lib.utils import get_providerEps
 
     provider_eps = get_providerEps()
@@ -55,6 +70,19 @@ def _getProvider(context: SecretsContext, global_config):
 def _getProviderByName(
     payload: Union[SecretsExportPayload, SecretsImportPayload], global_config
 ) -> Provider:
+    """Retrieves a specific secret provider by its registered CLI name.
+
+    Args:
+        payload (Union[SecretsExportPayload, SecretsImportPayload]): The payload containing the requested provider_name.
+        global_config (dict | DictConfig): The global chaos configuration.
+
+    Returns:
+        Provider: The matching provider instance.
+
+    Raises:
+        ValueError: If no secret providers are available or if the requested provider is not found.
+        TypeError: If the found provider does not support the required operations.
+    """
     from chaos.lib.utils import get_providerEps
 
     provider = None
@@ -82,14 +110,16 @@ def _getProviderByName(
 
 
 def setup_gpg_keys(gnupghome) -> None:
-    """
-    Sets up a TEMPORARY gnupghome in order to keep imported gpg keys ephemeral
+    """Sets up a temporary GNUPGHOME directory to keep imported GPG keys ephemeral.
+
+    Copies existing private keys and trustdb from the user's main GNUPGHOME (if present)
+    to the temporary directory, and imports public keys so they are available in the ephemeral context.
+
+    Args:
+        gnupghome (Path | tempfile.TemporaryDirectory): The temporary directory path to configure.
     """
     import subprocess
 
-    from rich.console import Console
-
-    console = Console()
     actualGnupgHome_path = Path(os.getenv("GNUPGHOME", str(Path.home() / ".gnupg")))
     temp_gnupg_path = Path(gnupghome.name)
 
@@ -103,10 +133,8 @@ def setup_gpg_keys(gnupghome) -> None:
         shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
         os.chmod(detstPriv, 0o700)
 
-    except Exception as e:
-        console.print(
-            f"[bold yellow]Warning:[/] Could not fully prepare temporary GPG directory: {e}"
-        )
+    except Exception:
+        pass
 
     pubKeyDump = temp_gnupg_path / "host_pubkeys.gpg"
 
@@ -116,9 +144,10 @@ def setup_gpg_keys(gnupghome) -> None:
                 ["gpg", "--export"], stdout=f, check=True, stderr=subprocess.DEVNULL
             )
 
-    except subprocess.CalledProcessError as e:
-        console.print(f"[bold yellow]Warning:[/] Could not export public GPG keys: {e}")
-        return
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            "Failed to export GPG public keys from the existing GNUPGHOME."
+        )
 
     temp_env = os.environ.copy()
     temp_env["GNUPGHOME"] = str(temp_gnupg_path)
@@ -130,10 +159,7 @@ def setup_gpg_keys(gnupghome) -> None:
             stderr=subprocess.DEVNULL,
             env=temp_env,
         )
-    except subprocess.CalledProcessError as e:
-        console.print(
-            f"[bold yellow]Warning:[/] Could not import public GPG keys into temporary GNUPGHOME: {e}"
-        )
+    except subprocess.CalledProcessError:
         return
 
     src_trust = actualGnupgHome_path / "trustdb.gpg"
@@ -145,8 +171,16 @@ def setup_gpg_keys(gnupghome) -> None:
 
 
 def conc_age_keys(secKey: str) -> str:
-    """
-    Concatenates existing age keys with imported ones
+    """Concatenates existing Age keys from the environment with a new secret key.
+
+    Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends 
+    the provided key, returning the combined string.
+
+    Args:
+        secKey (str): The new secret age key to append.
+
+    Returns:
+        str: The combined Age keys.
     """
     sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
     if not sops_file_env or not Path(sops_file_env).exists():
@@ -161,8 +195,20 @@ def conc_age_keys(secKey: str) -> str:
 
 
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
-    """
-    Sets up the vault keys for exporting, validating them on the way
+    """Reads and validates a Vault token for exporting.
+
+    Constructs a formatted string containing the Vault address and token for storing in an external provider.
+
+    Args:
+        vaultAddr (str): The HashiCorp Vault server address.
+        keyPath (Path): The file path containing the Vault token.
+
+    Returns:
+        str: The formatted key content string with address and token.
+
+    Raises:
+        EnvironmentError: If the 'vault' CLI tool is missing.
+        ValueError: If the key format is invalid.
     """
     from chaos.lib.utils import checkDep
 
@@ -186,8 +232,13 @@ Vault Key: {key}
 
 
 def setup_pipe(token: str) -> int:
-    """
-    Creates a pipe for passing inside a FD
+    """Creates a Unix pipe to pass a token securely via a File Descriptor (FD).
+
+    Args:
+        token (str): The secret token string to pass into the pipe.
+
+    Returns:
+        int: The file descriptor (FD) number for the read end of the pipe.
     """
     r, w = os.pipe()
     os.write(w, token.encode())
@@ -197,21 +248,43 @@ def setup_pipe(token: str) -> int:
 
 
 def _is_valid_vault_key(key):
+    """Checks if a Vault server URI is valid and reachable.
+
+    Attempts to fetch the seal-status of the Vault server.
+
+    Args:
+        key (str): The Vault server URI to check.
+
+    Returns:
+        tuple[bool, str]: A tuple containing a boolean indicating validity, and a status message.
     """
-    checks if vault key is valid
-    """
-    import hvac  # type: ignore
+    import requests
     import requests.exceptions
 
     try:
-        client = hvac.Client(url=key)
-        seal_status = client.sys.read_seal_status()
+        url = f"{key.rstrip('/')}/v1/sys/seal-status"
+        response = requests.get(url, timeout=5)
+
+        try:
+            seal_status = response.json()
+        except ValueError:
+            return (
+                False,
+                f"Vault URI '{key}' returned unexpected non-JSON data.",
+            )
+
         if not seal_status:
             return (
                 False,
                 f"Vault URI '{key}' did not return a valid seal status or Vault server is unreachable.",
             )
-        if "sealed" in seal_status["data"]:
+
+        if "sealed" in seal_status:
+            return (
+                True,
+                f"Valid vault URI. Server status: {seal_status['sealed']}.",
+            )
+        elif "data" in seal_status and "sealed" in seal_status["data"]:
             return (
                 True,
                 f"Valid vault URI. Server status: {seal_status['data']['sealed']}.",
@@ -239,17 +312,31 @@ def _is_valid_vault_key(key):
 
 
 def get_sops_files(sops_file_override, secrets_file_override, team):
-    """
-    Gets sops files, secrets files and config files
-    """
-    from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
+    """Gets the appropriate SOPS and secrets files based on overrides, team context, and global configuration.
 
-    console = Console()
+    Args:
+        sops_file_override (str | None): A path overriding the default SOPS configuration file.
+        secrets_file_override (str | None): A path overriding the default secrets file.
+        team (str | None): The team context (e.g., 'company.team.group').
+
+    Returns:
+        tuple[str, str, dict | DictConfig]: A tuple containing:
+            - The path to the secrets file.
+            - The path to the SOPS configuration file.
+            - The global configuration mapping.
+
+    Raises:
+        ValueError: If the team string is malformed or if there are path traversal attempts.
+        FileNotFoundError: If the specified team directory or override files are not found.
+    """
+    from pathlib import Path
+
+    from omegaconf import DictConfig, OmegaConf
+
     secretsFile = secrets_file_override
     sopsFile = sops_file_override
 
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos")
+    CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
     global_config = {}
@@ -279,7 +366,16 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
             raise ValueError(f"Invalid team name '{team_name}'.")
 
         teamPath = Path(
-            os.path.expanduser(f"~/.local/share/chaos/teams/{company}/{team_name}")
+            os.getenv(
+                "CHAOS_TEAMS_DIR",
+                Path.home()
+                / ".local"
+                / "share"
+                / "chaos"
+                / "teams"
+                / company
+                / team_name,
+            )
         )
 
         if teamPath.exists():
@@ -301,10 +397,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     )
                 override_path = (teamPath / sops_file_override).resolve(strict=False)
                 if not str(override_path).startswith(str(teamPath)):
-                    import sys
-
-                    console.print("[bold red]ERROR:[/] Path traversal detected.")
-                    sys.exit(1)
+                    raise ValueError("Path traversal detected.")
                 sopsFile = teamPath / sops_file_override
 
             if secrets_file_override:
@@ -343,13 +436,8 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                         secretsFile = secrets_config.get("sec_file")
                     if not sopsFile:
                         sopsFile = secrets_config.get("sec_sops")
-            except Exception as e:
-                import sys
-
-                print(
-                    f"WARNING: Could not load Chobolo fallback '{ChOboloPath}': {e}",
-                    file=sys.stderr,
-                )
+            except Exception:
+                pass
 
     validate_path(secretsFile)
     validate_path(sopsFile)
@@ -358,8 +446,13 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
 
 
 def flatten(items):
-    """
-    Turns a concatenated list into a singular list
+    """Turns a concatenated or nested list into a single flat generator.
+
+    Args:
+        items (Iterable): An iterable of items or nested lists.
+
+    Yields:
+        Any: Unpacked items from the nested iterables.
     """
     from omegaconf import ListConfig
 
@@ -371,8 +464,14 @@ def flatten(items):
 
 
 def _save_to_config(backend: str, data_to_save: dict) -> None:
-    """
-    Saves provider-specific data to the chaos config file.
+    """Saves provider-specific data to the chaos global configuration file.
+
+    Updates the '~/.config/chaos/config.yml' file with new settings under the 
+    specified backend key.
+
+    Args:
+        backend (str): The name of the provider backend (e.g., 'bw', 'bws').
+        data_to_save (dict): A dictionary of key-value pairs to store.
     """
     from omegaconf import OmegaConf
 
@@ -393,19 +492,26 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
 
 
 def handleUpdateAllSecrets(context: SecretsContext):
-    """
-    The rest of the functions should be auto explicative.
+    """Updates encryption keys for all related secret files and rambles.
+
+    Iterates over the main secrets file and any associated ramble files to apply 
+    `sops updatekeys`, ensuring all files reflect the current key configuration.
+
+    Args:
+        context (SecretsContext): The execution context defining file overrides and team structure.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+            and a list of error messages encountered during the update.
     """
     import subprocess
-    from argparse import Namespace
 
     from omegaconf import OmegaConf
-    from rich.console import Console
 
-    from chaos.lib.checkers import check_vault_auth, is_vault_in_use
+    from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 
-    console = Console()
-    console.print("\n[bold cyan]Starting key update for all secret files...[/]")
+    messages = ["\nStarting key update for all secret files..."]
+    errors = []
 
     main_secrets_file, sops_file_path, global_config = get_sops_files(
         context.sops_file_override, context.secrets_file_override, context.team
@@ -414,18 +520,19 @@ def handleUpdateAllSecrets(context: SecretsContext):
     if is_vault_in_use(sops_file_path):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            errors.append(message)
+            return messages, errors
 
     if not sops_file_path:
-        console.print(
-            "[bold yellow]Warning:[/] No sops config file found for main secrets. Skipping main secrets file update."
+        messages.append(
+            "Warning: No sops config file found for main secrets. Skipping main secrets file update."
         )
     elif main_secrets_file and Path(main_secrets_file).exists():
         try:
             data = OmegaConf.load(main_secrets_file)
             if "sops" in data:
-                console.print(
-                    f"Updating keys for main secrets file: [cyan]{main_secrets_file}[/]"
+                messages.append(
+                    f"Updating keys for main secrets file: {main_secrets_file}"
                 )
 
                 provider = _resolveProvider(context, global_config)
@@ -446,39 +553,46 @@ def handleUpdateAllSecrets(context: SecretsContext):
                         text=True,
                         capture_output=True,
                     )
-                console.print("[green]Keys updated successfully.[/green]")
+                messages.append("Keys updated successfully.")
         except subprocess.CalledProcessError as e:
-            console.print(
-                f"[bold red]ERROR:[/] Failed to update keys for {main_secrets_file}: {e.stderr}"
-            )
+            errors.append(f"Failed to update keys for {main_secrets_file}: {e.stderr}")
         except Exception as e:
-            console.print(
-                f"[bold red]ERROR:[/] Could not process file {main_secrets_file}: {e}"
-            )
+            errors.append(f"Could not process file {main_secrets_file}: {e}")
     else:
-        console.print(
-            "[dim]Main secrets file not found or not configured. Skipping.[/dim]"
-        )
+        messages.append("Main secrets file not found or not configured. Skipping.")
 
-    console.print("\n[bold cyan]Updating ramble files...[/]")
+    messages.append("\nUpdating ramble files...")
+    from chaos.lib.args.dataclasses import RambleUpdateEncryptPayload
     from chaos.lib.ramble import handleUpdateEncryptRamble
 
-    mock_args = Namespace(
-        sops_file_override=context.sops_file_override,
-        team=context.team,
-        provider=context.provider_config.provider if context.provider_config else None,
-    )
-    if context.provider_config:
-        for (
-            key,
-            value,
-        ) in context.provider_config.ephemeral_provider_args.items():
-            setattr(mock_args, key, value)
+    payload = RambleUpdateEncryptPayload(context=context)
+    result = handleUpdateEncryptRamble(payload)
 
-    handleUpdateEncryptRamble(mock_args)
+    if result.message:
+        messages.extend(result.message)
+    if result.error:
+        errors.extend(result.error)
+
+    return messages, errors
 
 
 def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
+    """Resolves dynamic provider arguments based on global configuration.
+
+    Processes the requested provider backend name, looks up its stored configuration 
+    (like item IDs or URLs), and constructs a new context with the resolved ephemeral arguments.
+
+    Args:
+        context (SecretsContext): The initial secrets context containing raw provider requests.
+        config (dict | DictConfig): The global configuration mapping containing stored provider data.
+
+    Returns:
+        SecretsContext: A new context object populated with the resolved provider arguments.
+
+    Raises:
+        FileNotFoundError: If the global config lacks the 'secret_providers' section.
+        ValueError: If the provider format is invalid, missing, or unsupported.
+    """
     from chaos.lib.utils import get_providerEps
 
     if not context.provider_config or context.provider_config.provider is None:
@@ -563,13 +677,27 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
 
 
 def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids: set):
-    from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
+    """Generic handler for adding keys to a SOPS configuration file.
 
-    console = Console()
+    Updates specific creation rules within the SOPS configuration by appending 
+    new keys to the designated key groups. Optionally creates new key groups if requested.
+
+    Args:
+        key_type (str): The type of key being added (e.g., 'pgp', 'age', 'vault').
+        payload (SecretsRotatePayload): The rotation payload containing rule indices and creation flags.
+        sops_file_override (str): The path to the SOPS configuration file.
+        valids (set): A set of validated keys to add.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple with informational messages and error messages.
+    """
+    from omegaconf import DictConfig, OmegaConf
+
+    messages = []
+    errors = []
     if not valids:
-        console.print("No valid keys. Returning.")
-        return
+        messages.append("No valid keys. Returning.")
+        return messages, errors
 
     try:
         create = payload.create
@@ -577,17 +705,19 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            raise ValueError(
+            errors.append(
                 f"No 'creation_rules' found in {sops_file_override}. Cannot add keys."
             )
+            return messages, errors
 
         rule_index = payload.index
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                raise ValueError(
+                errors.append(
                     f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
                 )
+                return messages, errors
             rules_to_process = [creation_rules[rule_index]]
 
         if not create:
@@ -610,14 +740,14 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
                         setattr(key_group, key_type, keys_to_write)
 
             if not total_added_keys:
-                console.print(
-                    f"[yellow]All provided keys are already in the relevant sops config '{key_type}' sections, or no '{key_type}' sections were found. No changes made.[/]"
+                messages.append(
+                    f"All provided keys are already in the relevant sops config '{key_type}' sections, or no '{key_type}' sections were found. No changes made."
                 )
-                return
+                return messages, errors
 
             OmegaConf.save(config_data, sops_file_override)
-            console.print(
-                f"[bold green]Successfully updated sops config![/] New keys added: {list(total_added_keys)}"
+            messages.append(
+                f"Successfully updated sops config! New keys added: {list(total_added_keys)}"
             )
         else:
             for rule in rules_to_process:
@@ -628,51 +758,68 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
                     rule.key_groups = [new_group]
 
             OmegaConf.save(config_data, sops_file_override)
-            console.print(
-                f"[bold green]Successfully updated sops config![/] New {key_type.upper()} key group created with keys: {list(valids)}"
+            messages.append(
+                f"Successfully updated sops config! New {key_type.upper()} key group created with keys: {list(valids)}"
             )
 
     except Exception as e:
-        raise RuntimeError(
+        errors.append(
             f"Failed to load or save sops config file {sops_file_override}: {e}"
-        ) from e
+        )
+    return messages, errors
 
 
 def _generic_handle_rem(
     key_type: str, payload, sops_file_override: str, keys_to_remove: set
 ):
-    from omegaconf import DictConfig, OmegaConf
-    from rich.console import Console
+    """Generic handler for removing keys from a SOPS configuration file.
 
-    console = Console()
+    Scans creation rules and filters out the specified keys from the relevant key groups. 
+    Empty key groups are removed entirely.
+
+    Args:
+        key_type (str): The type of key being removed (e.g., 'pgp', 'age', 'vault').
+        payload (SecretsRotatePayload): The rotation payload containing context and target rule index.
+        sops_file_override (str): The path to the SOPS configuration file.
+        keys_to_remove (set): A set of keys to strip out of the configuration.
+
+    Returns:
+        tuple[list[str], list[str]]: A tuple with informational messages and error messages.
+    """
+    from omegaconf import DictConfig, OmegaConf
+
+    messages = []
+    errors = []
     rule_index = payload.index
     ikwid = payload.context.i_know_what_im_doing
 
     if not keys_to_remove:
-        console.print("No keys to remove. Exiting.")
-        return
+        messages.append("No keys to remove. Exiting.")
+        return messages, errors
 
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
         creation_rules = config_data.get("creation_rules", [])
         if not creation_rules:
-            console.print(
-                "[bold yellow]Warning:[/] No 'creation_rules' found in the sops config. Nothing to do."
+            errors.append(
+                "No 'creation_rules' found in the sops config. Nothing to do."
             )
-            return
+            return messages, errors
 
         if not ikwid:
-            console.print("Keys to remove:")
+            msgs = ["Keys to remove:"]
             for key in keys_to_remove:
-                console.print(f"  {key}")
+                msgs.append(f"  {key}")
+            messages.append("\n".join(msgs))
 
         rules_to_process = creation_rules
         if rule_index is not None:
             if not (0 <= rule_index < len(creation_rules)):
-                raise ValueError(
+                errors.append(
                     f"Invalid rule index {rule_index}. Must be between 0 and {len(creation_rules) - 1}."
                 )
+                return messages, errors
             rules_to_process = [creation_rules[rule_index]]
 
         for rule in rules_to_process:
@@ -697,20 +844,41 @@ def _generic_handle_rem(
                         del rule.key_groups[i]
 
         OmegaConf.save(config_data, sops_file_override)
-        console.print(
-            f"[bold green]Successfully updated sops config![/] Keys removed: {list(keys_to_remove)}"
+        messages.append(
+            f"Successfully updated sops config! Keys removed: {list(keys_to_remove)}"
         )
 
     except Exception as e:
-        raise RuntimeError(f"Failed to update sops config file: {e}") from e
+        errors.append(f"Failed to update sops config file: {e}")
+    return messages, errors
 
 
 def decrypt_secrets(
     secrets_file: str, sops_file: str, config, context: SecretsContext
 ) -> str:
+    """Decrypts a secrets file using SOPS and the active environment context.
+
+    Delegates decryption to a resolved secret provider plugin if available; 
+    otherwise, it falls back to directly invoking the SOPS CLI tool.
+
+    Args:
+        secrets_file (str): The path to the encrypted secrets file.
+        sops_file (str): The path to the SOPS configuration file.
+        config (dict | DictConfig): The global chaos configuration.
+        context (SecretsContext): The secrets context detailing ephemeral settings.
+
+    Returns:
+        str: The raw decrypted text content.
+
+    Raises:
+        EnvironmentError: If the 'sops' CLI tool is missing.
+        PermissionError: If Vault authentication fails.
+        RuntimeError: If the SOPS decryption process fails.
+        FileNotFoundError: If 'sops' cannot be found in the system PATH.
+    """
     import subprocess
 
-    from chaos.lib.checkers import check_vault_auth, is_vault_in_use
+    from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
     from chaos.lib.utils import checkDep
 
     if not checkDep("sops"):

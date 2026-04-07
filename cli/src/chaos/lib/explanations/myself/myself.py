@@ -1,5 +1,5 @@
 class ExplainMyself:
-    _order = ["fleet", "atomicity", "azure", "chimera", "chimerwtf"]
+    _order = ["fleet", "azure", "chimera", "chimerwtf"]
 
     def explain_yourself(self, detail_level="basic"):
         return {
@@ -45,18 +45,6 @@ fleet:
                 }
             ],
             "equivalent": "# Like I said before, AINT NO ONE GOT IT LIKE I DO BABYYY",
-        }
-
-    def explain_atomicity(self, detail_level="basic"):
-        return {
-            "concept": "Atomicity in Operations",
-            "what": "Damn, yall really are going for the throat huh? Atomicity means that an operation is indivisible and irreducible. In the context of Ch-aOS, it means that when you run a role, either all the changes are applied successfully, or none are. There are no half-done states.",
-            "why": "This is crucial for maintaining system integrity. Imagine if you were updating a bunch of packages, and halfway through, something failed. You'd be left with a system in an inconsistent state, which could lead to all sorts of problems.",
-            "how": "I DO NOT KNOW HOW, OKAY? Like, I wish pyinfra had built-in support for this, but it doesn't. So, for now, it's more of a 'you get what you get' situation. If an operation fails, pyinfra will stop executing further operations, but it won't roll back the changes that were already made. (If you have ideas on how to implement this, hit me up!)",
-            "equivalent": """# STILL AINT NO ONE GOT IT LIKE I DO BABYYY
-# (also, probably try using nix for THIS
-# while waiting for me to implement it)
-""",
         }
 
     def explain_azure(self, detail_level="basic"):

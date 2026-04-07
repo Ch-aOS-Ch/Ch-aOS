@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple, cast
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
     ProviderImportArgs,
+    ResultPayload,
     SecretsExportPayload,
 )
 from chaos.lib.utils import checkDep
@@ -93,127 +94,136 @@ class OnePasswordProvider(Provider):
         secOpImport = subparser.add_parser("op", help="1Password CLI import options")
         return secOpImport
 
-    def export_secrets(self, payload: SecretsExportPayload) -> None:
-        from rich.console import Console
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        messages = []
+        errors = []
 
-        console = Console()
+        try:
+            provider_args = cast(OnePasswordExportArgs, payload.provider_specific_args)
 
-        provider_args = cast(OnePasswordExportArgs, payload.provider_specific_args)
+            keyType = payload.key_type
+            keyPath = payload.keys
+            fingerprints = payload.fingerprints
+            tags = provider_args.op_tags
+            save_to_config = payload.save_to_config
+            no_import = payload.no_import
 
-        keyType = payload.key_type
-        keyPath = payload.keys
-        fingerprints = payload.fingerprints
-        tags = provider_args.op_tags
-        save_to_config = payload.save_to_config
-        no_import = payload.no_import
-
-        _, _, config = get_sops_files(None, None, None)
-        path = (
-            config.get("secret_providers", {}).get("op", {}).get(f"{keyType}_url", "")
-        )
-
-        if provider_args.op_export_item_id:
-            path = provider_args.op_export_item_id
-
-        loc = provider_args.op_location or "notesPlain"
-
-        if not path:
-            raise ValueError(
-                "No 1Password item URL provided. Please specify it with --item-id or in the config file."
+            _, _, config = get_sops_files(None, None, None)
+            path = (
+                config.get("secret_providers", {})
+                .get("op", {})
+                .get(f"{keyType}_url", "")
             )
 
-        vault, title, _ = self._reg_match_op_keypath(path)
-        if self._op_get_item(vault, title) is not None:
-            raise ValueError(f"The item '{title}' already exists in vault '{vault}'")
+            if provider_args.op_export_item_id:
+                path = provider_args.op_export_item_id
 
-        if keyType == "age":
-            if not keyPath:
-                raise ValueError("No age key path passed via --keys.")
+            loc = provider_args.op_location or "notesPlain"
 
-            keyPath = Path(keyPath).expanduser()
-            if not keyPath.exists():
-                raise FileNotFoundError(f"Path {keyPath} does not exist.")
-            if not keyPath.is_file():
-                raise ValueError(f"Path {keyPath} is not a file.")
-
-            with open(keyPath, "r") as f:
-                key = f.read()
-
-            if no_import:
-                key = f"# NO-IMPORT\n{key}"
-
-            if not all([key, path, loc]):
+            if not path:
                 raise ValueError(
-                    "Missing required parameters for exporting keys to 1Password."
+                    "No 1Password item URL provided. Please specify it with --item-id or in the config file."
                 )
 
-            self._op_create_item(vault, title, loc, tags, key)
-
-            pubkey = ""
-            for line in key.splitlines():
-                if line.strip().startswith("# public key:"):
-                    pubkey = line.split("# public key:", 1)[1].strip()
-                    break
-            if pubkey:
-                console.print(
-                    f"[green]INFO:[/] Successfully exported {keyType} public key to 1Password: {pubkey}"
-                )
-
-        elif keyType == "gpg":
-            if not fingerprints:
+            vault, title, _ = self._reg_match_op_keypath(path)
+            if self._op_get_item(vault, title) is not None:
                 raise ValueError(
-                    "At least one GPG fingerprint is required. Please provide it with --fingerprints."
+                    f"The item '{title}' already exists in vault '{vault}'"
                 )
 
-            if not checkDep("gpg"):
-                raise EnvironmentError(
-                    "The 'gpg' CLI tool is required but not found in PATH."
+            if keyType == "age":
+                if not keyPath:
+                    raise ValueError("No age key path passed via --keys.")
+
+                keyPath = Path(keyPath).expanduser()
+                if not keyPath.exists():
+                    raise FileNotFoundError(f"Path {keyPath} does not exist.")
+                if not keyPath.is_file():
+                    raise ValueError(f"Path {keyPath} is not a file.")
+
+                with open(keyPath, "r") as f:
+                    key = f.read()
+
+                if no_import:
+                    key = f"# NO-IMPORT\n{key}"
+
+                if not all([key, path, loc]):
+                    raise ValueError(
+                        "Missing required parameters for exporting keys to 1Password."
+                    )
+
+                _, msg = self._op_create_item(vault, title, loc, tags, key)
+                messages.extend(msg)
+
+                pubkey = ""
+                for line in key.splitlines():
+                    if line.strip().startswith("# public key:"):
+                        pubkey = line.split("# public key:", 1)[1].strip()
+                        break
+                if pubkey:
+                    messages.append(
+                        f"Successfully exported {keyType} public key to 1Password: {pubkey}"
+                    )
+
+            elif keyType == "gpg":
+                if not fingerprints:
+                    raise ValueError(
+                        "At least one GPG fingerprint is required. Please provide it with --fingerprints."
+                    )
+
+                if not checkDep("gpg"):
+                    raise EnvironmentError(
+                        "The 'gpg' CLI tool is required but not found in PATH."
+                    )
+
+                key_content = extract_gpg_keys(fingerprints)
+                if no_import:
+                    key_content = f"# NO-IMPORT\n{key_content}"
+
+                if not all([key_content, path, loc]):
+                    raise ValueError(
+                        "Missing required parameters for exporting keys to 1Password."
+                    )
+
+                self._op_create_item(vault, title, loc, tags, key_content)
+
+                messages.append(
+                    f"Successfully exported GPG keys for to 1Password: '{', '.join(fingerprints)}'"
                 )
 
-            key_content = extract_gpg_keys(fingerprints)
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
+            elif keyType == "vault":
+                vaultAddr = payload.vault_addr
+                if not keyPath:
+                    raise ValueError("No Vault key path passed via --keys.")
+                if not vaultAddr:
+                    raise ValueError("No Vault address passed via --vault-addr.")
+                keyPath = Path(keyPath).expanduser()
 
-            if not all([key_content, path, loc]):
-                raise ValueError(
-                    "Missing required parameters for exporting keys to 1Password."
-                )
+                key_content = setup_vault_keys(vaultAddr, keyPath)
+                if no_import:
+                    key_content = f"# NO-IMPORT\n{key_content}"
 
-            self._op_create_item(vault, title, loc, tags, key_content)
+                if not all([key_content, path, loc]):
+                    raise ValueError(
+                        "Missing required parameters for exporting keys to 1Password."
+                    )
 
-            console.print(
-                f"[green]INFO:[/] Successfully exported GPG keys for to 1Password: '{', '.join(fingerprints)}'"
-            )
+                self._op_create_item(vault, title, loc, tags, key_content)
+                messages.append("Successfully exported vault token to 1Password.")
+            else:
+                raise ValueError(f"Unsupported key type: {keyType}")
 
-        elif keyType == "vault":
-            vaultAddr = payload.vault_addr
-            if not keyPath:
-                raise ValueError("No Vault key path passed via --keys.")
-            if not vaultAddr:
-                raise ValueError("No Vault address passed via --vault-addr.")
-            keyPath = Path(keyPath).expanduser()
+            if save_to_config:
+                data_to_save = {f"{keyType}_url": path, "field": loc}
+                from ..utils import _save_to_config
 
-            key_content = setup_vault_keys(vaultAddr, keyPath)
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
+                _save_to_config(backend="op", data_to_save=data_to_save)
 
-            if not all([key_content, path, loc]):
-                raise ValueError(
-                    "Missing required parameters for exporting keys to 1Password."
-                )
+        except Exception as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
 
-            self._op_create_item(vault, title, loc, tags, key_content)
-            console.print(
-                "[green]INFO:[/] Successfully exported vault token to 1Password."
-            )
-        else:
-            raise ValueError(f"Unsupported key type: {keyType}")
-
-        if save_to_config:
-            data_to_save = {f"{keyType}_url": path, "field": loc}
-            from ..utils import _save_to_config
-
-            _save_to_config(backend="op", data_to_save=data_to_save)
+        return ResultPayload(success=True, message=messages)
 
     def readKeys(self, item_id: str) -> str:
         if not checkDep("op"):
@@ -309,10 +319,8 @@ class OnePasswordProvider(Provider):
 
     def _op_create_item(
         self, vault: str, title: str, field: str, tags: list[str], key: str
-    ) -> bool:
-        from rich.console import Console
-
-        console = Console()
+    ) -> tuple[bool, list]:
+        messages = []
         try:
             field_args = []
             for tag in tags:
@@ -335,10 +343,8 @@ class OnePasswordProvider(Provider):
                 text=True,
                 check=True,
             )
-            console.print(
-                f"[green]INFO:[/] Successfully created item '{title}' in vault '{vault}'."
-            )
-            return True
+            messages.append(f"Successfully created item '{title}' in vault '{vault}'.")
+            return True, messages
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
                 f"Error creating item in 1Password: {e.stderr.strip()}"

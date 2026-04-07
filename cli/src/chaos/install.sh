@@ -41,7 +41,7 @@ if [ ! -f "requirements.txt" ]; then
 fi
 
 echo "(3/5) Installing deps..."
-"$VENV_DIR/bin/pip" install -r "$SCRIPT_DIR/requirements.txt" 2>/dev/null
+"$VENV_DIR/bin/pip" install --quiet -r "$SCRIPT_DIR/requirements.txt"
 
 if [ ! -f "chaos" ]; then
     echo "error: 'chaos' not found in $SCRIPT_DIR."

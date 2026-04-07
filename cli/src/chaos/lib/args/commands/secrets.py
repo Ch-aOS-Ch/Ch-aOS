@@ -1,5 +1,7 @@
 import sys
 
+from chaos.lib.args.dataclasses import ResultPayload
+
 
 def handleSecrets(args):
     from rich.console import Console
@@ -91,10 +93,21 @@ def handleSecrets(args):
                     provider_specific_args=provider_specific_args,
                 )
 
-                handleExportSec(payload, global_config)
+                result = handleExportSec(payload, global_config)
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                if not result.success:
+                    sys.exit(1)
 
             case "import":
-                from ...secrets import handleImportSec
+                from ...secrets import gatherImportSec, handleImportSec
 
                 provider_name = args.import_commands
                 provider_class = None
@@ -125,10 +138,32 @@ def handleSecrets(args):
                     provider_specific_args=provider_specific_args,
                 )
 
-                handleImportSec(payload, global_config)
+                request = gatherImportSec(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    field = request.fields[0]
+                    if Confirm.ask(str(field.prompt), default=field.default):
+                        payload.confirmed = True
+                    else:
+                        console.print("[green]Alright![/] Aborting.")
+                        return
+
+                result = handleImportSec(payload, global_config)
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                if not result.success:
+                    sys.exit(1)
 
             case "rotate-add":
-                from ...secrets import handleRotateAdd
+                from ...secrets import gatherRotateAdd, handleRotateAdd
 
                 payload = SecretsRotatePayload(
                     type=args.type,
@@ -139,10 +174,34 @@ def handleSecrets(args):
                     create=getattr(args, "create", False),
                 )
 
-                handleRotateAdd(payload)
+                request = gatherRotateAdd(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
+
+                result = handleRotateAdd(payload)
+
+                if not result.success and result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                    for msg in result.message:
+                        console.print(msg)
+                    sys.exit(1)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
 
             case "rotate-rm":
-                from ...secrets import handleRotateRemove
+                from ...secrets import gatherRotateRemove, handleRotateRemove
 
                 payload = SecretsRotatePayload(
                     type=args.type,
@@ -151,7 +210,24 @@ def handleSecrets(args):
                     index=getattr(args, "index", None),
                 )
 
-                handleRotateRemove(payload)
+                request = gatherRotateRemove(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
+
+                result = handleRotateRemove(payload)
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                if not result.success:
+                    sys.exit(1)
 
             case "list":
                 from ...secrets import listFp
@@ -164,7 +240,38 @@ def handleSecrets(args):
                     value=getattr(args, "value", False),
                 )
 
-                listFp(payload)
+                result: ResultPayload = listFp(payload)
+                results = result.data
+
+                if result.error:
+                    for error in result.message:
+                        console.print(f"[bold red][italic]ERROR:[/] {error}")
+                        return
+
+                if results:
+                    if payload.no_pretty:
+                        if payload.value:
+                            print("\n".join(results))
+
+                        elif payload.json:
+                            import json
+
+                            print(json.dumps(list(results), indent=2))
+
+                        else:
+                            from omegaconf import OmegaConf
+
+                            print(OmegaConf.to_yaml(list(results)))
+
+                    from chaos.lib.display_utils import render_list_as_table
+
+                    title = f"[italic][green]Found {payload.type} Keys:[/][/]"
+                    render_list_as_table(list(results), title)
+                else:
+                    from rich.console import Console
+
+                    console = Console()
+                    console.print(f"[cyan]INFO:[/] No {payload.type} keys to be shown.")
 
             case "edit":
                 from ...secrets import handleSecEdit
@@ -173,16 +280,104 @@ def handleSecrets(args):
                     context=context, edit_sops_file=getattr(args, "sops", False)
                 )
 
-                handleSecEdit(payload)
+                result = handleSecEdit(payload)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+
+                    if result.message:
+                        for msg in result.message:
+                            console.print(msg)
+
+                    sys.exit(1)
+
+                import os
+                import subprocess
+
+                if result.data is None:
+                    raise ValueError("No data returned for sops file path.")
+
+                if not result.data.get("sops_file") or not result.data.get(
+                    "secrets_file"
+                ):
+                    raise ValueError("Missing required data for editing secrets.")
+
+                try:
+                    if payload.edit_sops_file:
+                        editor = os.getenv("EDITOR", "nano")
+
+                        subprocess.run([editor, result.data["sops_file"]], check=True)
+
+                    elif result.data["provider"]:
+                        with result.data["provider"].edit(
+                            result.data["secrets_file"], result.data["sops_file"]
+                        ) as (cmd, env, pass_fds):
+                            subprocess.run(
+                                cmd,
+                                check=True,
+                                env=env,
+                                pass_fds=pass_fds,
+                                shell=True,
+                            )
+
+                    else:
+                        subprocess.run(
+                            [
+                                "sops",
+                                "--config",
+                                result.data["sops_file"],
+                                result.data["secrets_file"],
+                            ],
+                            check=True,
+                        )
+
+                except subprocess.CalledProcessError as e:
+                    from rich.console import Console
+
+                    console = Console()
+                    if e.returncode == 200:  # sops exit code for no changes
+                        return
+                    else:
+                        raise RuntimeError(
+                            f"SOPS editing failed with exit code {e.returncode}."
+                        ) from e
+                except FileNotFoundError as e:
+                    raise FileNotFoundError(
+                        "'sops' command not found. Please ensure sops is installed and in your PATH."
+                    ) from e
 
             case "set-shamir":
-                from ...secrets import handleSetShamir
+                from ...secrets import gatherSetShamir, handleSetShamir
 
                 payload = SecretsSetShamirPayload(
                     index=args.index, share=args.share, context=context
                 )
 
-                handleSetShamir(payload)
+                request = gatherSetShamir(payload)
+                if request:
+                    from rich.prompt import Confirm
+
+                    for field in request.fields:
+                        if field.name == "confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.confirmed = True
+                            else:
+                                console.print("[green]Alright![/] Aborting.")
+                                sys.exit(0)
+                        elif field.name == "update_confirmed":
+                            if Confirm.ask(str(field.prompt), default=field.default):
+                                payload.update_confirmed = True
+
+                result = handleSetShamir(payload)
+                if result.message:
+                    for msg in result.message:
+                        console.print(msg)
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                if not result.success:
+                    sys.exit(1)
 
             case "print":
                 from ...secrets import handleSecPrint
@@ -193,7 +388,32 @@ def handleSecrets(args):
                     as_json=getattr(args, "json", False),
                 )
 
-                handleSecPrint(payload)
+                result = handleSecPrint(payload)
+
+                if result.error:
+                    for err in result.error:
+                        console.print(f"[bold red]ERROR:[/] {err}")
+                    sys.exit(1)
+
+                if not result.data or not result.data.get("dec"):
+                    console.print("[cyan]INFO:[/] No secrets found to print.")
+                    return
+                decrypted_output = result.data.get("dec", "")
+
+                if payload.as_json:
+                    import json
+
+                    from omegaconf import OmegaConf
+
+                    decrypted_output = json.dumps(
+                        OmegaConf.to_container(
+                            OmegaConf.create(decrypted_output), resolve=True
+                        ),
+                        indent=2,
+                    )
+                    return
+
+                print(decrypted_output)
 
             case "cat":
                 from ...secrets import handleSecCat
@@ -206,7 +426,45 @@ def handleSecrets(args):
                     value_only=getattr(args, "value", False),
                 )
 
-                handleSecCat(payload)
+                result = handleSecCat(payload)
+
+                if not result.success:
+                    if result.error:
+                        for err in result.error:
+                            console.print(f"[bold red]ERROR:[/] {err}")
+
+                for result_msg in result.message:
+                    console.print(result_msg)
+
+                for error in result.error:
+                    console.print(f"[bold red]ERROR:[/] {error}")
+
+                import json
+
+                from omegaconf import DictConfig, ListConfig, OmegaConf
+
+                if not result.data or not result.data.get("values"):
+                    console.print("[cyan]INFO:[/] No secrets found to show.")
+                    return
+                for key, value in result.data["values"]:
+                    if payload.value_only:
+                        print(value)
+                        continue
+
+                    if not payload.as_json:
+                        if isinstance(value, (DictConfig, ListConfig)):
+                            container = OmegaConf.create({key: value})
+                            print(f"{OmegaConf.to_yaml(container)}")
+                        else:
+                            output_value = str(value)
+                            print(f"{key}: {output_value}")
+                    else:
+                        print(
+                            json.dumps(
+                                OmegaConf.to_container(OmegaConf.create({key: value})),
+                                indent=2,
+                            )
+                        )
 
             case _:
                 console.print("Unsupported secrets subcommand.")
