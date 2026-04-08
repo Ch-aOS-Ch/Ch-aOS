@@ -30,19 +30,19 @@ fleet:
 
   hosts:
     # --- Host definition using a dictionary ---
-    - my-server-01:
-        ssh_user: root
-        ssh_port: 22
-        ssh_key: /path/to/private/key
+    my-server-01:
+      ssh_user: root
+      ssh_port: 22
+      ssh_key: /path/to/private/key
 
     # --- You can define multiple hosts ---
-    - "@dockerssh/my-server-02":
-        ssh_user: admin
-        ssh_port: 2222
-        ssh_key: /path/to/another/key
+    "@dockerssh/my-server-02":
+      ssh_user: admin
+      ssh_port: 2222
+      ssh_key: /path/to/another/key
 
     # --- Minimal definition, relying on defaults or ssh config ---
-    - "@chroot/mnt/my/root": {}
+    "@chroot/mnt/my/root": {}
 ```
 
 !!! note
@@ -66,3 +66,21 @@ chaos apply users services --fleet --dry
 
 !!! note Want to have dynamicicity in your fleet?
     Take a look at our [boats](boats.md) to learn how to use the built-in dynamic fleet management system!
+
+## Limiting Your Fleet Apply
+
+Sometimes, when managing our fleets, we might need to limit which roles get run where. To achieve this, Ch-aOS has a special key inside of  `.fleet.` called "restrictions"
+
+It works like so:
+```yaml
+fleet:
+  restrictions:
+    allow_list:
+      host1:
+        role_tag1: true # host1 will _only be allowed_ to run role "role_tag1"
+    black_list:
+      host2: {} # host2 will NOT be able to run anything
+      host3:
+        role_tag1: true # host3 will NOT run role_tag1
+        role_tag2: false # it will be allowed to run role_tag2
+```
