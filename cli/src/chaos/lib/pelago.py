@@ -62,7 +62,7 @@ def gather_provision(
     if not payload.secrets:
         request.fields.append(
             DataGatherPayload(
-                prompt=f"The following Pelago programs: {joined_secret_needing_programs} require the following secrets: {joined_needed_secrets}. Secrets bool is not True. Do you wish to provide them?",
+                prompt=f"The following Pelago programs: {joined_secret_needing_programs} require the following secrets: {joined_needed_secrets}. None were provided. Do you wish to use them?",
                 input_type="boolean",
                 name="provide_secrets",
                 default=False,
@@ -82,25 +82,21 @@ def setup_pulumi(payload: PelagoPayload) -> ResultPayload[Stack]:
     Returns:
         ResultPayload[Stack]: A result payload containing the created stack or error information.
     """
+    provided_secrets = payload.provided_secrets
     try:
         stack = auto.create_or_select_stack(
             stack_name=payload.stack_name,
             project_name=payload.project_name,
             program=payload.pulumi_program,
         )
+        if provided_secrets:
+            for key, value in provided_secrets.items():
+                stack.set_config(key, auto.ConfigValue(value=value, secret=True))
         return ResultPayload(
             success=True,
             message=[f"Stack {payload.stack_name} created or selected successfully."],
             error=[],
             data=stack,
-        )
-
-    except auto.StackAlreadyExistsError:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[f"Stack {payload.stack_name} already exists."],
-            data=None,
         )
 
     except auto.CommandError as e:
@@ -133,6 +129,7 @@ def teardown_pulumi(payload: PelagoPayload) -> ResultPayload[None]:
     """
     stack = payload.stack
     secrets_used = payload.secrets_used
+    errors = []
     if stack is None:
         return ResultPayload(
             success=False,
@@ -153,7 +150,18 @@ def teardown_pulumi(payload: PelagoPayload) -> ResultPayload[None]:
 
     try:
         for key in secrets_used:
-            stack.remove_config(key)
+            try:
+                stack.remove_config(key)
+            except Exception as e:
+                errors.append(f"Failed to remove secret '{key}': {str(e)}")
+
+        if errors:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=errors,
+                data=None,
+            )
         return ResultPayload(
             success=True,
             message=[f"Secrets removed from stack {stack.name}."],
