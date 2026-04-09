@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TypeVar
 
 if TYPE_CHECKING:
+    from pulumi.automation import Stack
+    from pulumi.automation._workspace import PulumiFn
     from pyinfra.api.state import State
 
 T = TypeVar("T", covariant=True)
@@ -208,6 +210,52 @@ class ResultPayload(BasePayload, Generic[T]):
         self.message = message or []
         self.data = data
         self.error = error or []
+
+
+class PelagoPayload(BasePayload):
+    """
+    Payload for executing a Pulumi program via the Pelago interface.
+    Attributes:
+        stack_name (str): The name of the Pulumi stack to create or select.
+        project_name (str): The name of the Pulumi project to use.
+        pulumi_program (PulumiFn): The Pulumi program function to execute, which should return a dictionary of outputs.
+        stack (Stack): The Pulumi Stack object that is created or selected based on the stack_name and project_name.
+        secrets_used (list[str]): A list of secrets that were used during the execution to be tear down later in the finally block.
+        pelago (list[dict[str, Any]]): A list of Pelago programs to be executed.
+        secrets (bool): A boolean indicating whether secrets are allowed to be used in this pelago run.
+        provided_secrets (dict[str, Any]): A dict of secrets that are needed by the pelago programs, which are provided by the user.
+    """
+
+    __slots__ = (
+        "stack_name",
+        "project_name",
+        "pulumi_program",
+        "stack",
+        "secrets_used",
+        "pelago",
+        "secrets",
+        "provided_secrets",
+    )
+
+    def __init__(
+        self,
+        stack_name: str,
+        project_name: str,
+        pulumi_program: PulumiFn,
+        stack: Stack | None = None,
+        secrets_used: list[str] = [],
+        pelago: list[dict[str, Any]] = [],
+        secrets: bool = False,
+        provided_secrets: dict[str, Any] = {},
+    ):
+        self.stack_name = stack_name
+        self.project_name = project_name
+        self.pulumi_program = pulumi_program
+        self.stack = stack
+        self.secrets_used = secrets_used
+        self.pelago = pelago
+        self.secrets = secrets
+        self.provided_secrets = provided_secrets
 
 
 class TeamPrunePayload(BasePayload):

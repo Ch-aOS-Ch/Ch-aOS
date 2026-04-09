@@ -80,6 +80,7 @@ def get_plugins(update_cache=False):
                     and "providers" in cache_data
                     and "boats" in cache_data
                     and "limanis" in cache_data
+                    and "isles" in cache_data
                 ):
                     return (
                         cache_data["roles"],
@@ -89,6 +90,7 @@ def get_plugins(update_cache=False):
                         cache_data["providers"],
                         cache_data["boats"],
                         cache_data["limanis"],
+                        cache_data["isles"],
                     )
                 else:
                     print(
@@ -108,6 +110,7 @@ def get_plugins(update_cache=False):
     discovered_providers = {}
     discovered_boats = {}
     discovered_limanis = {}
+    discovered_isles = {}
     eps = entry_points()
 
     role_eps = eps.select(group="chaos.roles")
@@ -136,6 +139,9 @@ def get_plugins(update_cache=False):
     for ep in eps.select(group="chaos.limanis"):
         discovered_limanis[ep.name] = ep.value
 
+    for ep in eps.select(group="chaos.isles"):
+        discovered_isles[ep.name] = ep.value
+
     try:
         Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, "w") as f:
@@ -148,6 +154,7 @@ def get_plugins(update_cache=False):
                     "providers": discovered_providers,
                     "boats": discovered_boats,
                     "limanis": discovered_limanis,
+                    "isles": discovered_isles,
                 },
                 f,
                 indent=4,
@@ -167,6 +174,7 @@ def get_plugins(update_cache=False):
         discovered_providers,
         discovered_boats,
         discovered_limanis,
+        discovered_isles,
     )
 
 
