@@ -207,7 +207,7 @@ def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload
 
     try:
         with currentPathAgeFile.open("w") as f:
-            sanitized_content = "".join(
+            sanitized_content = "\n".join(
                 line.lstrip() for line in key_content.splitlines()
             )
             f.write(sanitized_content)
