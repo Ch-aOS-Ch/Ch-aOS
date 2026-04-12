@@ -52,7 +52,7 @@ def decompress(encoded_data: str) -> bytes:
         raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
 
 
-def is_valid_fp(fp):
+def is_valid_fp(fingerprint):
     """Checks for GPG fingerprint validity.
 
     Validates if the provided string is a valid 40-character hexadecimal GPG fingerprint.
@@ -64,11 +64,11 @@ def is_valid_fp(fp):
         bool: True if it is a valid GPG fingerprint, False otherwise.
     """
 
-    clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    return re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint) is not None
+    clean_fingerprint = fingerprint.replace(" ", "").replace("\n", "")
+    return re.fullmatch(r"[0-9A-Fa-f]{40}$", clean_fingerprint) is not None
 
 
-def pgp_exists(fp):
+def pgp_exists(fingerprint: str) -> bool:
     """Checks if a GPG fingerprint exists in the local keyring.
 
     Args:
@@ -79,7 +79,7 @@ def pgp_exists(fp):
     """
     try:
         subprocess.run(
-            ["gpg", "--list-keys", fp],
+            ["gpg", "--list-keys", fingerprint],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -110,11 +110,7 @@ def is_valid_age_secret_key(secKey: str) -> bool:
     Returns:
         bool: True if the key matches the age secret key format, False otherwise.
     """
-    isValid = False
-    testSec = re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey)
-    if testSec:
-        isValid = True
-    return isValid
+    return re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) is not None
 
 
 def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
@@ -129,9 +125,9 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
     pubKey, secKey = None, None
     for line in key_content.splitlines():
         line = line.strip()
-        if line.strip().startswith("# public key:"):
+        if line.startswith("# public key:"):
             pubKey = line.split(":", 1)[1].strip()
-        if line.strip().startswith("AGE-SECRET-KEY-"):
+        if line.startswith("AGE-SECRET-KEY-"):
             secKey = line
     return pubKey, secKey
 
