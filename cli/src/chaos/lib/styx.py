@@ -18,11 +18,11 @@ def get_styx_registry(payload: StyxPayload) -> tuple[str | None, str | None]:
     Returns:
         tuple[str | None, str | None]: A tuple containing the registry data (str) and an error message (str), if applicable.
     """
-    url = os.getenv(
-        "CHAOS_STYX_REGISTRY",
-        getattr(
-            payload,
-            "registry_url",
+    url = getattr(
+        payload,
+        "registry_url",
+        os.getenv(
+            "CHAOS_STYX_REGISTRY",
             "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
         ),
     )
