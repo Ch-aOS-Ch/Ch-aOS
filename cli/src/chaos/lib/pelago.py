@@ -12,52 +12,55 @@ from chaos.lib.args.dataclasses import (
 )
 
 if TYPE_CHECKING:
-    from importlib.metadata import EntryPoint
+    from typing import Any
 
     from pulumi.automation import Stack
+
+    from chaos.lib.isles.isle import Isle
 
 
 def gather_provision(
     payload: PelagoPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload[set[EntryPoint]]]:
+) -> tuple[DataGatherRequest | None, ResultPayload[set[type[Isle]]]]:
     """
     Gathers necessary information for provisioning a Pulumi stack based on the provided payload.
+
     Args:
         payload (PelagoPayload): The initial payload containing stack configuration.
+
     Returns:
         DataGatherRequest: A request object containing the gathered information to be requested for provisioning.
     """
     request = DataGatherRequest("pelago_provision", [])
 
-    all_programs_result = _discover_pelago_programs(payload.pelago)
-    if not all_programs_result.success:
+    all_isles_result = _discover_pelago_programs(payload.pelago)
+    if not all_isles_result.success:
         return None, ResultPayload(
             success=False,
             message=[],
-            error=all_programs_result.error,
+            error=all_isles_result.error,
             data=None,
         )
 
-    if not all_programs_result.data:
+    if not all_isles_result.data:
         return None, ResultPayload(
             success=False,
             message=[],
-            error=["No Pelago programs discovered."],
+            error=["No Isles discovered."],
             data=None,
         )
 
     needed_secrets = set()
-    secret_needing_programs = set()
-    for program in all_programs_result.data:
-        PelagoClass = program.load()
-        secrets_needed = getattr(PelagoClass, "secrets_needed", [])
+    secret_needing_isles = set()
+    for Isle in all_isles_result.data:
+        secrets_needed = getattr(Isle, "secrets_needed", [])
         if secrets_needed:
             needed_secrets.update(secrets_needed)
-            secret_needing_programs.add(program)
+            secret_needing_isles.add(Isle)
 
     joined_needed_secrets = "\n  -".join(needed_secrets)
     joined_secret_needing_programs = "\n  -".join(
-        program.name for program in secret_needing_programs
+        getattr(isle, "isle_name") for isle in secret_needing_isles
     )
     if not payload.secrets:
         request.fields.append(
@@ -70,15 +73,17 @@ def gather_provision(
         )
 
     return request, ResultPayload(
-        success=True, message=[], error=[], data=all_programs_result.data
+        success=True, message=[], error=[], data=all_isles_result.data
     )
 
 
 def setup_pulumi(payload: PelagoPayload) -> ResultPayload[Stack]:
     """
     Sets up a Pulumi stack based on the provided payload.
+
     Args:
         payload (PelagoPayload): The payload containing stack configuration.
+
     Returns:
         ResultPayload[Stack]: A result payload containing the created stack or error information.
     """
@@ -119,8 +124,10 @@ def setup_pulumi(payload: PelagoPayload) -> ResultPayload[Stack]:
 def teardown_pulumi(payload: PelagoPayload) -> ResultPayload[None]:
     """
     Cleans up a Pulumi stack by removing any secrets that were used during the setup phase.
+
     Args:
         payload (PelagoPayload): The payload containing stack configuration.
+
     Returns:
         ResultPayload[None]: A result payload indicating success or failure of the teardown operation.
 
@@ -187,21 +194,33 @@ def teardown_pulumi(payload: PelagoPayload) -> ResultPayload[None]:
 
 
 def _discover_pelago_programs(
-    pelago: list[dict[str, str]],
-) -> ResultPayload[set[EntryPoint]]:
+    pelago: list[dict[str, Any]],
+) -> ResultPayload[set[type[Isle]]]:
     """
     Discovers Pelago programs lazily based on the provided configuration.
+
     Args:
-        pelago (list[dict[str, str]]): A list of dictionaries containing Pelago program configurations.
+        pelago (list[dict[str, Any]]): A list of dictionaries containing Pelago program configurations.
+
     Returns:
-        set[EntryPoint]: A list of discovered Pelago program entry points.
+        set[type[Isle]]: A list of discovered Isles.
     """
-    from chaos.lib.plugDiscovery import get_plugins
+    from chaos.lib.utils import get_isleEps
 
     pelago_isles = set()
     for entry in pelago:
         isle = entry.get("isle", "")
         pelago_isles.add(isle)
+
+    if "" in pelago_isles:
+        return ResultPayload(
+            success=False,
+            message=[],
+            error=[
+                "One or more entries in the Pelago configuration are missing the 'isle' key."
+            ],
+            data=None,
+        )
 
     if not pelago_isles:
         return ResultPayload(
@@ -211,41 +230,42 @@ def _discover_pelago_programs(
             data=None,
         )
 
-    isles_in_system = get_plugins()[7]
-    if not isles_in_system:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=["No isles found in the system."],
-            data=None,
-        )
+    isles_in_system = get_isleEps()
+    loaded_isles = set()
 
-    discovered_programs = set()
-    try:
-        for isle in pelago_isles:
-            if isle not in isles_in_system:
-                return ResultPayload(
-                    success=False,
-                    message=[],
-                    error=[
-                        f"Isle '{isle}' specified in the Ch-obolo is not found in the system."
-                    ],
-                    data=None,
-                )
+    ep_map = {}
+    for ep in isles_in_system:
+        if ep.name in ep_map:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Multiple Isle plugins found with the name '{ep.name}'. Please resolve this conflict."
+                ],
+                data=None,
+            )
 
-            discovered_programs.add(isles_in_system[isle])
+        ep_map[ep.name] = ep
 
-        return ResultPayload(
-            success=True,
-            message=[f"Discovered {len(discovered_programs)} Pelago programs."],
-            error=[],
-            data=discovered_programs,
-        )
+    for isle in pelago_isles:
+        if isle not in ep_map:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[
+                    f"Pelago program specified for isle '{isle}' but no matching plugin found."
+                ],
+                data=None,
+            )
 
-    except Exception as e:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[f"An error occurred while discovering Pelago programs: {str(e)}"],
-            data=None,
-        )
+        try:
+            loaded_isle = ep_map[isle].load()
+            loaded_isles.add(loaded_isle)
+        except ImportError as e:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error loading plugin for isle '{isle}': {str(e)}"],
+                data=None,
+            )
+    return ResultPayload(success=True, message=[], error=[], data=loaded_isles)

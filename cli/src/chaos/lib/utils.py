@@ -71,3 +71,21 @@ def get_roleEps():
         for name, value in roles.items():
             role_eps.append(EntryPoint(name=name, value=value, group="chaos.roles"))
     return role_eps
+
+
+@lru_cache(maxsize=None)
+def get_isleEps():
+    """Retrieves and caches the isle EntryPoints registered under the 'chaos.isles' group.
+    Returns:
+        list[EntryPoint]: A list of entry point objects matching external isle plugins.
+    """
+    from importlib.metadata import EntryPoint
+
+    from chaos.lib.plugDiscovery import get_plugins
+
+    isles = get_plugins()[7]
+    isle_eps = []
+    if isles:
+        for name, value in isles.items():
+            isle_eps.append(EntryPoint(name=name, value=value, group="chaos.isles"))
+    return isle_eps
