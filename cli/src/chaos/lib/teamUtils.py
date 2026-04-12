@@ -11,8 +11,6 @@ from chaos.lib.utils import checkDep
 
 from .utils import validate_path
 
-"""Team Utilities for Chaos CLI."""
-
 
 def _validate_deps():
     """
@@ -148,6 +146,7 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
 
             if "gpg" not in engines:
                 engines.append("gpg")
+            chaosContent["engine"] = engines
 
         elif engine not in engines:
             engines.append(engine)
@@ -177,7 +176,7 @@ def _get_chaos_file(path) -> DictConfig:
         or not chaosContent.get("engine")
     ):
         raise ValueError(
-            ".chaos.yml file is missing required fields (company, team, engine)."
+            ".chaos.yml file is missing required fields (company, teams, engine)."
         )
 
     return chaosContent
@@ -185,10 +184,7 @@ def _get_chaos_file(path) -> DictConfig:
 
 def _create_sops_config(
     teamDir,
-    hasAge: bool,
-    choices: list[str],
     person: str | None,
-    ikwid,
     engine: str,
     useVault: bool,
 ) -> Optional[str]:

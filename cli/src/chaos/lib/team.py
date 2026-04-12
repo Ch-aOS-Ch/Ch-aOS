@@ -231,9 +231,7 @@ def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
             )
 
     try:
-        engine = _create_sops_config(
-            teamDir, hasAge, choices, person, ikwid, engine_choice, useVault
-        )
+        engine = _create_sops_config(teamDir, person, engine_choice, useVault)
     except Exception as e:
         return ResultPayload(success=False, error=[str(e)])
 
