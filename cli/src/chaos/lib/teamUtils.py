@@ -81,13 +81,13 @@ def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
 def _validate_paths(batch: str):
     """Protection against path traversal and invalid names."""
 
+    if "." not in batch:
+        raise ValueError("Must set a company for your team. (company.team.person)")
     parts = batch.split(".")
     company = parts[0]
     team = parts[1]
     person = parts[2] if len(parts) == 3 else None
 
-    if "." not in batch:
-        raise ValueError("Must set a company for your team. (company.team.person)")
     if not team or not company:
         raise ValueError("Must pass both team and company.")
 
@@ -125,18 +125,21 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
 
     else:
         with open(chaos_file, "r") as f:
-            chaosContent = yaml.load(f, Loader=yaml.FullLoader)
+            chaosContent = yaml.safe_load(f) or {}
+        found_team = False
         for t in chaosContent.get("teams", []):
             if t.get("name") == team:
+                found_team = True
                 people = t.get("people", [])
                 if person and person not in people:
                     people.append(person)
                     t["people"] = people
                 break
-            else:
-                chaosContent["teams"].append(
-                    {"name": team, "people": [person] if person else []}
-                )
+
+        if not found_team:
+            chaosContent["teams"].append(
+                {"name": team, "people": [person] if person else []}
+            )
 
         engines = chaosContent.get("engine", [])
         if engine == "both":
@@ -215,13 +218,13 @@ def _create_sops_config(
     if hasVault and useVault:
         dev_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
             ]
         )
         prod_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-SECURITY-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPLIANCE-TEAM-URI-INSTANCE"]},
@@ -229,7 +232,7 @@ def _create_sops_config(
         )
         ramblings_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
             ]
         )
