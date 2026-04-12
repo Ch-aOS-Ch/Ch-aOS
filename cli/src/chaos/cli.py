@@ -148,12 +148,12 @@ About AI usage:
 
 
 Current Works:
-    We are currently decoupling the codebase from the CLI interface, and moving all the logic to a more API-friendly structure,
-        so that we can easily use it in different contexts, not just the CLI, and also, this will help with typing of shtuff,
-        since we can have clear data contracts.
+    We are curently working on the Pelago system, a way to declaratively provision your infrastructure with YAML _and_ Python.
+        We are using Pulumi as the provisioning engine, and already have am "Isle" ABC class for plugin creation, and a "pelago" module
+        for all the core logic. This is still in early stages, but we are making good progress, and will be releasing along the v0.8
+        milestone, so stay tuned for that!
 
-
-    After this, we will be working on a webhooks API interface so that we can create a web-ui akin to Ansible-tower, but for Ch-aOS
+    BTW: API-ifying the whole system was already made! Hooray for the merge, hooray!
 """
 
 
