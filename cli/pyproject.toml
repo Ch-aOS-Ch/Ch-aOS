@@ -13,7 +13,7 @@ dependencies = [
     "pynacl>=1.6.2",
     "omegaconf",
     "urllib3>=2.6.3",
-    "cryptography>=46.0.6",
+    "cryptography>=46.0.7",
     "passlib",
     "argcomplete",
     "rich",

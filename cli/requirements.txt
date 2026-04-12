@@ -21,7 +21,7 @@ charset-normalizer==3.4.4
     #   requests
 click==8.3.1
     # via pyinfra
-cryptography==46.0.6
+cryptography==46.0.7
     # via
     #   chaos (pyproject.toml)
     #   paramiko
