@@ -43,8 +43,6 @@ def decompress(encoded_data: str) -> bytes:
     Raises:
         RuntimeError: If data decoding or decompression fails.
     """
-    import base64
-    import zlib
 
     try:
         compressed_data = base64.b85decode(encoded_data.encode("utf-8"))
@@ -67,10 +65,7 @@ def is_valid_fp(fp):
     """
 
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
-    if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
-        return True
-    else:
-        return False
+    return re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint) is not None
 
 
 def pgp_exists(fp):
@@ -103,11 +98,11 @@ def is_valid_age_key(pubKey: str) -> bool:
     Returns:
         bool: True if the key matches the age public key format, False otherwise.
     """
-    isValid = False
-    testPub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey)
-    if testPub:
-        isValid = True
-    return isValid
+    is_valid = False
+    test_pub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey)
+    if test_pub:
+        is_valid = True
+    return is_valid
 
 
 def is_valid_age_secret_key(secKey: str) -> bool:
