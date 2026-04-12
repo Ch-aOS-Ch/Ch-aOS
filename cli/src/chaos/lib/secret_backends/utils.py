@@ -129,12 +129,8 @@ def setup_gpg_keys(gnupghome) -> None:
     srcPriv = actualGnupgHome_path / "private-keys-v1.d"
     detstPriv = temp_gnupg_path / "private-keys-v1.d"
 
-    try:
-        shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
-        os.chmod(detstPriv, 0o700)
-
-    except Exception:
-        pass
+    shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
+    os.chmod(detstPriv, 0o700)
 
     pubKeyDump = temp_gnupg_path / "host_pubkeys.gpg"
 
@@ -164,10 +160,7 @@ def setup_gpg_keys(gnupghome) -> None:
 
     src_trust = actualGnupgHome_path / "trustdb.gpg"
     if src_trust.exists():
-        try:
-            shutil.copy2(src_trust, temp_gnupg_path / "trustdb.gpg")
-        except Exception:
-            pass
+        shutil.copy2(src_trust, temp_gnupg_path / "trustdb.gpg")
 
 
 def conc_age_keys(secKey: str) -> str:
@@ -437,7 +430,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     if not sopsFile:
                         sopsFile = secrets_config.get("sec_sops")
             except Exception:
-                pass
+                pass  # If the chobolo file is malformed or missing, we can ignore it and rely on other config sources or defaults.
 
     validate_path(secretsFile)
     validate_path(sopsFile)

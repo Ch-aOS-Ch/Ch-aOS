@@ -11,8 +11,6 @@ from chaos.lib.utils import checkDep
 
 from .utils import validate_path
 
-"""Team Utilities for Chaos CLI."""
-
 
 def _validate_deps():
     """
@@ -81,13 +79,13 @@ def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
 def _validate_paths(batch: str):
     """Protection against path traversal and invalid names."""
 
+    if "." not in batch:
+        raise ValueError("Must set a company for your team. (company.team.person)")
     parts = batch.split(".")
     company = parts[0]
     team = parts[1]
     person = parts[2] if len(parts) == 3 else None
 
-    if "." not in batch:
-        raise ValueError("Must set a company for your team. (company.team.person)")
     if not team or not company:
         raise ValueError("Must pass both team and company.")
 
@@ -120,21 +118,26 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
             "engine": [engine] if engine != "both" else ["age", "gpg"],
         }
 
-        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+        with open(chaos_file, "w") as f:
+            yaml.dump(chaosContent, f, default_flow_style=False)
 
     else:
-        chaosContent = yaml.load(open(chaos_file, "r"), Loader=yaml.FullLoader)
+        with open(chaos_file, "r") as f:
+            chaosContent = yaml.safe_load(f) or {}
+        found_team = False
         for t in chaosContent.get("teams", []):
             if t.get("name") == team:
+                found_team = True
                 people = t.get("people", [])
                 if person and person not in people:
                     people.append(person)
                     t["people"] = people
                 break
-            else:
-                chaosContent["teams"].append(
-                    {"name": team, "people": [person] if person else []}
-                )
+
+        if not found_team:
+            chaosContent["teams"].append(
+                {"name": team, "people": [person] if person else []}
+            )
 
         engines = chaosContent.get("engine", [])
         if engine == "both":
@@ -143,12 +146,14 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
 
             if "gpg" not in engines:
                 engines.append("gpg")
+            chaosContent["engine"] = engines
 
         elif engine not in engines:
             engines.append(engine)
             chaosContent["engine"] = engines
 
-        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+        with open(chaos_file, "w") as f:
+            yaml.dump(chaosContent, f, default_flow_style=False)
 
 
 def _get_chaos_file(path) -> DictConfig:
@@ -171,7 +176,7 @@ def _get_chaos_file(path) -> DictConfig:
         or not chaosContent.get("engine")
     ):
         raise ValueError(
-            ".chaos.yml file is missing required fields (company, team, engine)."
+            ".chaos.yml file is missing required fields (company, teams, engine)."
         )
 
     return chaosContent
@@ -179,10 +184,7 @@ def _get_chaos_file(path) -> DictConfig:
 
 def _create_sops_config(
     teamDir,
-    hasAge: bool,
-    choices: list[str],
     person: str | None,
-    ikwid,
     engine: str,
     useVault: bool,
 ) -> Optional[str]:
@@ -212,13 +214,13 @@ def _create_sops_config(
     if hasVault and useVault:
         dev_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
             ]
         )
         prod_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-SECURITY-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPLIANCE-TEAM-URI-INSTANCE"]},
@@ -226,7 +228,7 @@ def _create_sops_config(
         )
         ramblings_key_groups.extend(
             [
-                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE."]},
+                {"hc_vault": ["VAULT-TEAM-URI-INSTANCE"]},
                 {"hc_vault": ["VAULT-COMPANY-URI-INSTANCE"]},
             ]
         )

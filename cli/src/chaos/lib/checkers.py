@@ -275,7 +275,6 @@ def handle_check(
             return result_boats
 
         case "secrets":
-            from chaos.lib.checkers import checkSecrets
             from chaos.lib.secret_backends.utils import get_sops_files
 
             sec_file = get_sops_files(

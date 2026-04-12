@@ -231,9 +231,7 @@ def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
             )
 
     try:
-        engine = _create_sops_config(
-            teamDir, hasAge, choices, person, ikwid, engine_choice, useVault
-        )
+        engine = _create_sops_config(teamDir, person, engine_choice, useVault)
     except Exception as e:
         return ResultPayload(success=False, error=[str(e)])
 
@@ -534,7 +532,7 @@ def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload[None]:
         try:
             company_dir.rmdir()
         except OSError:
-            pass
+            pass  # Directory might not be empty, fail silently.
         return ResultPayload(success=True, message=messages)
 
     for team_name in teams_to_deactivate:
@@ -553,7 +551,7 @@ def handleDeactivateTeam(payload: TeamDeactivatePayload) -> ResultPayload[None]:
         if not any(company_dir.iterdir()):
             company_dir.rmdir()
     except OSError:
-        pass
+        pass  # Directory might not be empty, fail silently.
 
     return ResultPayload(success=True, message=messages, error=errors)
 
@@ -630,7 +628,7 @@ def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload[None]:
                 company_dir.rmdir()
                 messages.append(f"Removed empty company directory: {company_dir}")
         except OSError:
-            pass
+            pass  # Directory might not be empty, fail silently.
 
     if pruned_count == 0:
         messages.append("No stale team symlinks found to prune.")
@@ -638,4 +636,3 @@ def handlePruneTeams(payload: TeamPrunePayload) -> ResultPayload[None]:
         messages.append(f"Pruned {pruned_count} stale team symlink(s).")
 
     return ResultPayload(success=True, message=messages)
-
