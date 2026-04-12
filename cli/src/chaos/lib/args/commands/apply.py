@@ -251,9 +251,9 @@ def handleApply(args):
 
         for host_result in gathered_results:
             if not host_result.success:
-                for err in host_result.error:
-                    _print_messages(host_result, console)
-                sys.exit(1)
+                _print_messages(host_result, console)
+                run_status = "failure"
+                continue
             if not host_result.data:
                 console.print(
                     "[bold red]ERROR:[/] No data returned from host context gathering."
@@ -261,10 +261,6 @@ def handleApply(args):
                 run_status = "failure"
                 continue
             host = host_result.data["host"]
-
-            for err in host_result.error:
-                _print_messages(err, console)
-                run_status = "failure"
 
             for role_name, data in host_result.data["roles"].items():
                 role = data["role"]

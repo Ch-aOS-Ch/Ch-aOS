@@ -65,7 +65,6 @@ def is_valid_fp(fp):
     Returns:
         bool: True if it is a valid GPG fingerprint, False otherwise.
     """
-    import re
 
     clean_fingerprint = fp.replace(" ", "").replace("\n", "")
     if re.fullmatch(r"^[0-9A-Fa-f]{40}$", clean_fingerprint):
@@ -149,7 +148,7 @@ def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
 def extract_gpg_keys(fingerprints: list[str]) -> str:
     """Extracts and encodes GPG secret keys for export.
 
-    Exports the secret keys for the given fingerprints, compresses them using zlib, 
+    Exports the secret keys for the given fingerprints, compresses them using zlib,
     and encodes them into a custom ASCII-armored block.
 
     Args:
@@ -293,7 +292,7 @@ def check_vault_auth():
     Verifies the presence and validity of the VAULT_ADDR and VAULT_TOKEN environment variables.
 
     Returns:
-        tuple[bool, str]: A tuple where the first element is a boolean indicating whether 
+        tuple[bool, str]: A tuple where the first element is a boolean indicating whether
             authentication is valid, and the second element is an accompanying message.
     """
     import os

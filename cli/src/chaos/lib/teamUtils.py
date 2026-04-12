@@ -120,10 +120,12 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
             "engine": [engine] if engine != "both" else ["age", "gpg"],
         }
 
-        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+        with open(chaos_file, "w") as f:
+            yaml.dump(chaosContent, f, default_flow_style=False)
 
     else:
-        chaosContent = yaml.load(open(chaos_file, "r"), Loader=yaml.FullLoader)
+        with open(chaos_file, "r") as f:
+            chaosContent = yaml.load(f, Loader=yaml.FullLoader)
         for t in chaosContent.get("teams", []):
             if t.get("name") == team:
                 people = t.get("people", [])
@@ -148,7 +150,8 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
             engines.append(engine)
             chaosContent["engine"] = engines
 
-        yaml.dump(chaosContent, open(chaos_file, "w"), default_flow_style=False)
+        with open(chaos_file, "w") as f:
+            yaml.dump(chaosContent, f, default_flow_style=False)
 
 
 def _get_chaos_file(path) -> DictConfig:
