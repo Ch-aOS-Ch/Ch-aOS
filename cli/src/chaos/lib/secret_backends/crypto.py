@@ -98,11 +98,7 @@ def is_valid_age_key(pubKey: str) -> bool:
     Returns:
         bool: True if the key matches the age public key format, False otherwise.
     """
-    is_valid = False
-    test_pub = re.fullmatch(r"age1[a-z0-9]{58}", pubKey)
-    if test_pub:
-        is_valid = True
-    return is_valid
+    return re.fullmatch(r"age1[a-z0-9]{58}", pubKey) is not None
 
 
 def is_valid_age_secret_key(secKey: str) -> bool:
