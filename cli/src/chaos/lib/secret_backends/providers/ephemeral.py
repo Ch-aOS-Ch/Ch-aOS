@@ -11,15 +11,14 @@ from pathlib import Path
 def ephemeralAgeKey(key_content: str):
     from ..utils import conc_age_keys, setup_pipe
 
-    """
-    Create a temporary file containing the provided Age key content.
+    """Create a temporary file containing the provided Age key content.
     Args:
         key_content (str): The content of the Age key.
 
     Returns:
         tuple: A context manager that yields a tuple containing:
-            - A string to be used as a prefix in shell commands to set the SOPS_AGE_KEY environment variable.
-            - A list of file descriptors that need to be passed to subprocesses.
+            A string to be used as a prefix in shell commands to set the SOPS_AGE_KEY environment variable.
+            A list of file descriptors that need to be passed to subprocesses.
     """
 
     if not key_content:
@@ -40,7 +39,10 @@ def ephemeralAgeKey(key_content: str):
 
 @contextmanager
 def mac_ram_disk():
-    """Creates an ephemeral RAM Disk on macOS"""
+    """Creates an ephemeral RAM Disk on macOS
+    Yields:
+        The mount point of the RAM Disk
+    """
 
     # 4096 sectors of 512 bytes = 2MB in RAM
     attach_cmd = subprocess.run(
@@ -71,8 +73,7 @@ def ephemeralGpgKey(key_bytes: bytes):
 
     from ..utils import setup_gpg_keys
 
-    """
-    Creates a temporary GNUPGHOME in memory (/dev/shm on Linux, RAM Disk on macOS)
+    """Creates a temporary GNUPGHOME in memory (/dev/shm on Linux, RAM Disk on macOS)
     Imports the gotten key to this GNUPGHOME and returns the env path
 
     Args:
@@ -146,8 +147,14 @@ def ephemeralGpgKey(key_bytes: bytes):
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
     from ..utils import setup_pipe
 
-    """
-    Creates pipes for setting up the address and token for vault.
+    """Creates pipes for setting up the address and token for vault.
+    Args:
+        vault_token: The token to authenticate with vault
+        vault_addr: The address of the vault server
+    Yields:
+        A tuple containing:
+            A string to be used as a prefix in shell commands to set the VAULT_ADDR and VAULT_TOKEN environment variables.
+            A list of file descriptors that need to be passed to subprocesses.
     """
     if not vault_addr or not vault_token:
         yield "", []
