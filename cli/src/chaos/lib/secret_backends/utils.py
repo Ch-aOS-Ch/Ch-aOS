@@ -34,7 +34,7 @@ def _resolveProvider(context: SecretsContext, global_config):
 def _getProvider(context: SecretsContext, global_config):
     """Returns the appropriate secret provider based on the command-line arguments.
 
-    Searches through installed provider plugins and selects one matching the provided 
+    Searches through installed provider plugins and selects one matching the provided
     ephemeral provider arguments in the context.
 
     Args:
@@ -166,7 +166,7 @@ def setup_gpg_keys(gnupghome) -> None:
 def conc_age_keys(secKey: str) -> str:
     """Concatenates existing Age keys from the environment with a new secret key.
 
-    Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends 
+    Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends
     the provided key, returning the combined string.
 
     Args:
@@ -430,7 +430,7 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
                     if not sopsFile:
                         sopsFile = secrets_config.get("sec_sops")
             except Exception:
-                pass
+                pass  # If the chobolo file is malformed or missing, we can ignore it and rely on other config sources or defaults.
 
     validate_path(secretsFile)
     validate_path(sopsFile)
@@ -459,7 +459,7 @@ def flatten(items):
 def _save_to_config(backend: str, data_to_save: dict) -> None:
     """Saves provider-specific data to the chaos global configuration file.
 
-    Updates the '~/.config/chaos/config.yml' file with new settings under the 
+    Updates the '~/.config/chaos/config.yml' file with new settings under the
     specified backend key.
 
     Args:
@@ -487,14 +487,14 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
 def handleUpdateAllSecrets(context: SecretsContext):
     """Updates encryption keys for all related secret files and rambles.
 
-    Iterates over the main secrets file and any associated ramble files to apply 
+    Iterates over the main secrets file and any associated ramble files to apply
     `sops updatekeys`, ensuring all files reflect the current key configuration.
 
     Args:
         context (SecretsContext): The execution context defining file overrides and team structure.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages encountered during the update.
     """
     import subprocess
@@ -572,7 +572,7 @@ def handleUpdateAllSecrets(context: SecretsContext):
 def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
     """Resolves dynamic provider arguments based on global configuration.
 
-    Processes the requested provider backend name, looks up its stored configuration 
+    Processes the requested provider backend name, looks up its stored configuration
     (like item IDs or URLs), and constructs a new context with the resolved ephemeral arguments.
 
     Args:
@@ -672,7 +672,7 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
 def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids: set):
     """Generic handler for adding keys to a SOPS configuration file.
 
-    Updates specific creation rules within the SOPS configuration by appending 
+    Updates specific creation rules within the SOPS configuration by appending
     new keys to the designated key groups. Optionally creates new key groups if requested.
 
     Args:
@@ -767,7 +767,7 @@ def _generic_handle_rem(
 ):
     """Generic handler for removing keys from a SOPS configuration file.
 
-    Scans creation rules and filters out the specified keys from the relevant key groups. 
+    Scans creation rules and filters out the specified keys from the relevant key groups.
     Empty key groups are removed entirely.
 
     Args:
@@ -851,7 +851,7 @@ def decrypt_secrets(
 ) -> str:
     """Decrypts a secrets file using SOPS and the active environment context.
 
-    Delegates decryption to a resolved secret provider plugin if available; 
+    Delegates decryption to a resolved secret provider plugin if available;
     otherwise, it falls back to directly invoking the SOPS CLI tool.
 
     Args:
