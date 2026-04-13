@@ -51,7 +51,7 @@ def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
         dest = Path(
             os.getenv(
                 "CHAOS_TEAM_DIR",
-                Path.home() / ".local" / "share" / "chaos" / company / team,
+                Path.home() / ".local" / "share" / "chaos" / "teams" / company / team,
             )
         ).expanduser()
 
