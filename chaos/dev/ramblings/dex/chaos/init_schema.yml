@@ -1,0 +1,25 @@
+title: init_schema
+concept: gerador de Schema
+what: ENC[AES256_GCM,data:q8jN9HpFgHh6OeXiNSAKxPq0I8ZN/Ysbw+KEDxU/3WYhcirFbMTSce08iEKsTXTHUf2JwRYGzNBXB/bFLsFlWZNUE5M9lDk=,iv:7odaCd6+ZPfDyKiNgktprNJ/phJxM9+U6Ebg3OTfo/E=,tag:PJIe/imZfA/XgtksYzIz3Q==,type:str]
+why: ENC[AES256_GCM,data:pj5kGY+04WC9NsfLBIWDeMRQ8D0d2sdVxq96HSJbcBdSlybT,iv:q2FXGzeaN34zEMFDMH0d/A/hh3tQEzQIjoNR7PIZnOg=,tag:0SgKUsHGSwGQsZ2XWarD8w==,type:str]
+how: ENC[AES256_GCM,data:jyYmT59KSwUfoQ5KeRQaGsBGPKo4ACBsc1G/xPhVokThqr0mpeDW3OJhWhaqnw==,iv:NyfJmqapcoOV0xGNyeHFl8Fy4FRq0AjurIOeXnPPXh8=,tag:QY8dT/EAjn/3oSmBRBE3MA==,type:str]
+scripts:
+    python: ENC[AES256_GCM,data:0EYlCoIHboRgRgrV/wX5dlWLiBgnvYopYp3T2IEFK/RpwlUefvSyC1OaZbu7jSHF0K48steYxY7DPI46NayzCbVSSELIyoYWf+FspEpvEr09cGLDfLzcv4mKlekp856xrP76AFtTwbzLK0Kdanro5abDEPs0cpPvg6swM+BvCSQ43+xmR2QAJBIYfpB9tuDwTGoNL0DP3N/Z7mAbh42+tcXLnBMH98Faku2P1HjR2Fjjm9918qGGha6v4oi6qYLL7qkyTRlhJfRb6/VSgOpLAr2g4yCUnc0KU1KA7RSwsIy28zfJFSFdt/UdP8t6hwe8G7tedMklkGTYALehPewI4LNUWe05I4/1EQ6MCBYLalX1rUkTBTHmKOiZcuIHKwhUE9UhQ1ZCmoGKmj2nMKCkvAXBLo6BP9B16q/teqyLtotF4wS0ArahW6jVSwxe9hz1zrV7BHcivmFBiKn/PRCuBD7m2BF5oY8RemzHugkgCpvCN0AcnaLxPx7pAnmroLONgMzO2M+FaMJBmfkWkkqRIte7LKUdjaayLifcAB2obhXc+2sbfxv3vhFhBKWy+gqje6QBFYtvP1iuLCJTKb6aKGP3OVSyvCRr9RhXJqXfyyzh21uAy4ErAt3OigkrbjCH5/1Bj+WNnroCdvZqE/g4y//kATcDvszsLNGAsrzjIt3yfKf83sSU+xxXpLnl9Qj0YmLQTJ4cYmBQ0dtlQYjxHJfe8x8zTbYS/IThJes3azs5Z3P0LvBVGrHX2yNUmDG2PV1ptu/d5Ot86nap2qaxeyJNpJRxui8WVX7nWQxkuKg03yz7JiubXKv7cUzL5pF75XCIl+AC39cNLtZExljfZ7Gaymhd2XF66gbtoDp9fcnLwee0HFhnMHqj6BhcedQy9W9hWQGE6N/o6coR3k6PmmrD6FYEMjokht8bSQ6efO+24xbpLBBtUsUxNmZInGOSz+1phX+pyogPEm6ZjQcZ9/DZ68AOLUbv47W/wVHRQI06yITjlJweYtZs2lSBTwl4HSBi1Z3LUZnIZSafi4JwsTU/V1qtOdsmwOJZpBmdiyHW88CHAHlkhe5s1x8e6BiCeXvHA8pXjT4e4lvAXrJcyIQ/kvdwk9wqYEMi7sr18ZDVgRb1Z02pE43JsjnWTPcaLAiJ5tZL0KcKXOqSO+FJPszFt0ESO7ZwWlLS+vpMDrxtEYmL68hBQ+/nugZjP0ucRrZG49ryo3m53DyIDlWiTHNyf7BAHL0x5BrsoS7KB0ivfmfJ0bnGqYJBisq69RSvkP922/eJL8GeVPIs3ebjrHhf0jcoJwsoMlvYy2+GNHwjzFKdoNCidj1Qxb7dn018cn1EnWQVD1wTEPVETtO98//ORGivF7sM09ECvPn3i1f8MyscDpq4TJVih2sHnS8SQAGp0T25ly/IA7yUkoEOA2p48a76P16uhUi1bwCA1wdA7PEzhEyEoe/2+b/+q+Ph0ree4vVPUoUZJmQuOIL6cypDz9eGJjXMAXNVqqngIzqMiGMChOczTw==,iv:i0Ww86IAvBUReQzQA7+CdFVD1CRaR4wR5nCVNLF3mvU=,tag:mnfS9ddKV3YJyPJT8121TQ==,type:str]
+sops:
+    shamir_threshold: 1
+    lastmodified: "2026-04-13T00:33:54Z"
+    mac: ENC[AES256_GCM,data:WjCOo5cpn/bIpIPUgAH4E0b5SYYQYDeE3alyfmXkt1afeoq6eAxI2EKl9lOpc/0MuXF3SkAngdid82d5UX63Q0KNnwMzFNOj4r5oR1O6vc7RG1gU/Ibjk56ICf/I3kNs0qLdV63a8MiO6VjqlzQEEE2ifWpwVqq5NqI0wFfkk2Q=,iv:ljV3SBKDW9GibK6F6woolNBel5XPd39NVWrqGdRdRDQ=,tag:t0sZkzKhYh7LihGoZifGHg==,type:str]
+    pgp:
+        - created_at: "2026-04-13T00:33:54Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DydTG8E33JcgSAQdAA5aFWu19GFO3//gtrSk/0EmyDErYGwvqZp8tTomZczsw
+            4KmSR0bYKHn51IAAgfAQwHnwbI/YcHcQlLMDom4fMYrtNFC+ISZ+9C7vywase9uU
+            0lwBVjPsP3kFHjiyfk5erBaFJSox9ccCL2t7khsbVKTnTxg748TLlUrClZVexMgL
+            yApcN/ybtj/a1AqXaELzjJq6wtnC7fH+iwGvav/2pXl2vMqE02Xv079hHRvUAQ==
+            =mTPR
+            -----END PGP MESSAGE-----
+          fp: 0DEE1E3B758249FCFC573913529E8F90A6D61355
+    encrypted_regex: ^(what|why|how|scripts)$
+    version: 3.12.2
