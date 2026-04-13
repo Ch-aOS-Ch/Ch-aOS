@@ -1,0 +1,22 @@
+title: pulumi
+concept: Ch-aOS no modo terraform
+what: ENC[AES256_GCM,data:v+cgu8KRTX7haltJHciHGyO/Q7YNaJcpal2B1Sv6dWM3CE5Ts/q24d8Iana8Y9vFitwXV4JhnZw+cLewCS30R6o8JTOmED+OmP2kZEPQeSr8l1zT/BJDHFGfz++AgMTRs6wGgHi7WEdxrBeQoVXsTPesfg3EGrE5/C0fDJMR+s4wj7t66HBa6g==,iv:+wJPwFVbJwOxECZxIsokkU4T0cLcHekCsUjeUShe/h4=,tag:eduPu/OwgZX9ROGqiKPn1Q==,type:str]
+how: ENC[AES256_GCM,data:gd2YdmAGbF0dAHqLUaCezK4imz5plG3Ez3M2gh9NINVN8+Ct8wZBM7dCNwCfhsExLpB20D5/MrnfiAH6U1imjmc+O04hR/LZCYQsghV8inAt07/7FKRNBkkha5ZpkdIKlLZ5Tf1rgRniFchBsBJS7p6kJKB6xDihn9U=,iv:5UnBnH38iN+e3QiMyWCbAhp3mvn00Dje7HEG7NwCjj4=,tag:elozRl9AQwlnEm5VWh2j+w==,type:str]
+sops:
+    shamir_threshold: 1
+    lastmodified: "2026-04-13T01:09:09Z"
+    mac: ENC[AES256_GCM,data:k+1MJG5BEtZUz256OGxwsDtRtEHtCJDzTVCYaoU93g9cdtEmNAnVWIteL3TdzCEjpJhasE+YN4uamisyGbmFi5HdoKS9RMGQa4mzIWY1yv3zlNwUVPSqhhS+3vccagdZ4z7oKthwRDp304o72d5Z4ES952TgkUudSl8M/6V9Cg0=,iv:+lQNVFEAb2+r0CufGDR1Ct9E9FKUrOcC9rzKeaPja1k=,tag:/z0lx39aH27sYDuB1BMiUA==,type:str]
+    pgp:
+        - created_at: "2026-04-13T01:09:09Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hF4DydTG8E33JcgSAQdAe3aqKPLOTKZfe9uIV1RJF55oamt5GMLRxP7Un4uHKwMw
+            Ztw/JwDU0kqJvFlpCIlAKvZUSwyqVpUHzS07CwnmSDwSXrWRFdeI7sGSiNGUonrk
+            0lwBwE/at3rOteWoqW5Q4ZTRtMugmfDc1O2KOBxtCcSR0zeYRb2LGgj5h3VXM4ky
+            B5XHWvs2te+/3D+H8dnPu0xxHELQAxU4ufiR+AfSYKr15TgF3gq7bW3ggrIGGw==
+            =23ds
+            -----END PGP MESSAGE-----
+          fp: 0DEE1E3B758249FCFC573913529E8F90A6D61355
+    encrypted_regex: ^(what|how)$
+    version: 3.12.2
