@@ -1,0 +1,7 @@
+company: chaos
+engine:
+- gpg
+teams:
+- name: dev
+  people:
+  - dex

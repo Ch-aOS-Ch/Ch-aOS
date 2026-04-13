@@ -1,0 +1,16 @@
+creation_rules:
+- key_groups:
+  - pgp:
+    - 0DEE1E3B758249FCFC573913529E8F90A6D61355
+  path_regex: (.*)?secrets/dev/.*\.(ya?ml|json|env)
+  shamir_threshold: 1
+- key_groups:
+  - pgp:
+    - 0DEE1E3B758249FCFC573913529E8F90A6D61355
+  path_regex: (.*)?secrets/prod/.*\.(ya?ml|json|env)
+  shamir_threshold: 1
+- key_groups:
+  - pgp:
+    - 0DEE1E3B758249FCFC573913529E8F90A6D61355
+  path_regex: .*ramblings/dex/.*\.(ya?ml|json|env)
+  shamir_threshold: 1

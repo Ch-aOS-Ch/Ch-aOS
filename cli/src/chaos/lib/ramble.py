@@ -525,6 +525,8 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
         team = payload.context.team
 
         CONFIG_DIR = _get_ramble_dir(team)
+        if team:
+            sops_file_override = CONFIG_DIR / "../.." / "sops-config.yml"
 
         if "." not in ramble:
             return ResultPayload(
@@ -570,7 +572,7 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                 i_know_what_im_doing=payload.context.i_know_what_im_doing,
             )
             result = decrypt_secrets(
-                str(fullPath), sops_file_override, global_config, new_context
+                str(fullPath), str(sops_file_override), global_config, new_context
             )
 
             import platform
@@ -647,7 +649,8 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
             )
         if isinstance(e, subprocess.CalledProcessError):
             return ResultPayload(
-                success=False, error=[f"Ramble encryption/decryption failed: {e}"]
+                success=False,
+                error=[f"Ramble encryption/decryption failed: {e.stderr}"],
             )
         return ResultPayload(success=False, error=[str(e)])
 
