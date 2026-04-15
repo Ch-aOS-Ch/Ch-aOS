@@ -43,8 +43,9 @@ def mac_ram_disk():
     """Creates an ephemeral RAM Disk on macOS"""
 
     # 4096 sectors of 512 bytes = 2MB in RAM
+    mb = os.getenv("CHAOS_RAM_DISK_SIZE_MB", "2")
     attach_cmd = subprocess.run(
-        ["hdiutil", "attach", "-nomount", "ram://4096"],
+        ["hdiutil", "attach", "-nomount", f"ram://{mb * 2048}"],
         capture_output=True,
         text=True,
         check=True,
@@ -57,6 +58,7 @@ def mac_ram_disk():
             capture_output=True,
             check=True,
         )
+        os.chmod("/Volumes/ChaosGPG", 0o700)
         mount_point = "/Volumes/ChaosGPG"
         yield mount_point
     finally:
