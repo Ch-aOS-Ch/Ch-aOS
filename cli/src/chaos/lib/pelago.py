@@ -33,7 +33,7 @@ def gather_provision(
     """
     request = DataGatherRequest("pelago_provision", [])
 
-    all_isles_result = _discover_pelago_programs(payload.pelago)
+    all_isles_result = _discover_pelago_isles(payload.pelago)
     if not all_isles_result.success:
         return None, ResultPayload(
             success=False,
@@ -193,7 +193,7 @@ def teardown_pulumi(payload: PelagoPayload) -> ResultPayload[None]:
         )
 
 
-def _discover_pelago_programs(
+def _discover_pelago_isles(
     pelago: list[dict[str, Any]],
 ) -> ResultPayload[set[type[Isle]]]:
     """
