@@ -27,7 +27,9 @@ def checkDep(bin: str) -> bool:
     """
     import shutil
 
-    path = shutil.which(bin)
+    safe_path = "/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:/opt/homebrew/bin"
+
+    path = shutil.which(bin, path=safe_path)
     if path is None:
         return False
     return True
