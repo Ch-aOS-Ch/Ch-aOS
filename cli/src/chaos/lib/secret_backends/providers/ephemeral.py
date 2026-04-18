@@ -156,11 +156,7 @@ def ephemeralVaultKeys(vault_token: str, vault_addr: str):
         return
     r_addr = setup_pipe(vault_addr)
     r_token = setup_pipe(vault_token)
-    prefix = (
-        f"read VAULT_ADDR </dev/fd/{r_addr};"
-        f"read VAULT_TOKEN </dev/fd/{r_token};"
-        "export VAULT_ADDR VAULT_TOKEN;"
-    )
+    prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) VAULT_TOKEN=$(cat /dev/fd/{r_token}) "
     fds_to_pass = [r_addr, r_token]
     try:
         yield prefix, fds_to_pass
