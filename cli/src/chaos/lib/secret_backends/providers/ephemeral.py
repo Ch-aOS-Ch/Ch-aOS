@@ -29,7 +29,7 @@ def ephemeralAgeKey(key_content: str):
     final_content = conc_age_keys(sanitized_content)
 
     r_age = setup_pipe(final_content)
-    prefix = f'export SOPS_AGE_KEY="$(cat /dev/fd/{r_age})";'
+    prefix = f'SOPS_AGE_KEY="$(cat /dev/fd/{r_age})" '
     fds_to_pass = [r_age]
 
     try:
