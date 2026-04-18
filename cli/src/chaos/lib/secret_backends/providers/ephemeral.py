@@ -9,8 +9,6 @@ from pathlib import Path
 
 @contextmanager
 def ephemeralAgeKey(key_content: str):
-    from ..utils import conc_age_keys, setup_pipe
-
     """
     Create a temporary file containing the provided Age key content.
     Args:
@@ -21,6 +19,7 @@ def ephemeralAgeKey(key_content: str):
             - A string to be used as a prefix in shell commands to set the SOPS_AGE_KEY environment variable.
             - A list of file descriptors that need to be passed to subprocesses.
     """
+    from ..utils import conc_age_keys, setup_pipe
 
     if not key_content:
         yield {}
@@ -69,10 +68,6 @@ def mac_ram_disk():
 
 @contextmanager
 def ephemeralGpgKey(key_bytes: bytes):
-    import platform
-
-    from ..utils import setup_gpg_keys
-
     """
     Creates a temporary GNUPGHOME in memory (/dev/shm on Linux, RAM Disk on macOS)
     Imports the gotten key to this GNUPGHOME and returns the env path
@@ -83,6 +78,10 @@ def ephemeralGpgKey(key_bytes: bytes):
     Yields:
         A dict containing the GNUPGHOME directory as the shm path. This is yielded as a dict to be used directly with os.env
     """
+    import platform
+
+    from ..utils import setup_gpg_keys
+
     if not key_bytes:
         yield {}
         return
@@ -146,11 +145,11 @@ def ephemeralGpgKey(key_bytes: bytes):
 
 @contextmanager
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
-    from ..utils import setup_pipe
-
     """
     Creates pipes for setting up the address and token for vault.
     """
+    from ..utils import setup_pipe
+
     if not vault_addr or not vault_token:
         yield "", []
         return
