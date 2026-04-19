@@ -195,7 +195,7 @@ def install_styx_entries(payload: StyxPayload) -> ResultPayload[None]:
                     continue
 
                 if not is_correct:
-                    tmp_path.unlink(missing_ok=True)  # Apaga o lixo
+                    tmp_path.unlink(missing_ok=True)
                     errors.append(
                         f"Hash mismatch for '{pkg_name}'. Expected: {expected_hash}, Calculated: {calculated_hash}. Download may be corrupted or tampered with."
                     )
