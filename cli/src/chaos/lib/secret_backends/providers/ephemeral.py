@@ -9,9 +9,8 @@ from pathlib import Path
 
 @contextmanager
 def ephemeralAgeKey(key_content: str):
-    from ..utils import conc_age_keys, setup_pipe
-
-    """Create a temporary file containing the provided Age key content.
+    """
+    Create a temporary file containing the provided Age key content.
     Args:
         key_content (str): The content of the Age key.
 
@@ -20,6 +19,7 @@ def ephemeralAgeKey(key_content: str):
             A string to be used as a prefix in shell commands to set the SOPS_AGE_KEY environment variable.
             A list of file descriptors that need to be passed to subprocesses.
     """
+    from ..utils import conc_age_keys, setup_pipe
 
     if not key_content:
         yield {}
@@ -28,7 +28,7 @@ def ephemeralAgeKey(key_content: str):
     final_content = conc_age_keys(sanitized_content)
 
     r_age = setup_pipe(final_content)
-    prefix = f'export SOPS_AGE_KEY="$(cat /dev/fd/{r_age})";'
+    prefix = f'SOPS_AGE_KEY="$(cat /dev/fd/{r_age})" '
     fds_to_pass = [r_age]
 
     try:
@@ -71,11 +71,8 @@ def mac_ram_disk():
 
 @contextmanager
 def ephemeralGpgKey(key_bytes: bytes):
-    import platform
-
-    from ..utils import setup_gpg_keys
-
-    """Creates a temporary GNUPGHOME in memory (/dev/shm on Linux, RAM Disk on macOS)
+    """
+    Creates a temporary GNUPGHOME in memory (/dev/shm on Linux, RAM Disk on macOS)
     Imports the gotten key to this GNUPGHOME and returns the env path
 
     Args:
@@ -84,6 +81,10 @@ def ephemeralGpgKey(key_bytes: bytes):
     Yields:
         A dict containing the GNUPGHOME directory as the shm path. This is yielded as a dict to be used directly with os.env
     """
+    import platform
+
+    from ..utils import setup_gpg_keys
+
     if not key_bytes:
         yield {}
         return
@@ -147,27 +148,17 @@ def ephemeralGpgKey(key_bytes: bytes):
 
 @contextmanager
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
+    """
+    Creates pipes for setting up the address and token for vault.
+    """
     from ..utils import setup_pipe
 
-    """Creates pipes for setting up the address and token for vault.
-    Args:
-        vault_token: The token to authenticate with vault
-        vault_addr: The address of the vault server
-    Yields:
-        A tuple containing:
-            A string to be used as a prefix in shell commands to set the VAULT_ADDR and VAULT_TOKEN environment variables.
-            A list of file descriptors that need to be passed to subprocesses.
-    """
     if not vault_addr or not vault_token:
         yield "", []
         return
     r_addr = setup_pipe(vault_addr)
     r_token = setup_pipe(vault_token)
-    prefix = (
-        f"read VAULT_ADDR </dev/fd/{r_addr};"
-        f"read VAULT_TOKEN </dev/fd/{r_token};"
-        "export VAULT_ADDR VAULT_TOKEN;"
-    )
+    prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) VAULT_TOKEN=$(cat /dev/fd/{r_token}) "
     fds_to_pass = [r_addr, r_token]
     try:
         yield prefix, fds_to_pass
