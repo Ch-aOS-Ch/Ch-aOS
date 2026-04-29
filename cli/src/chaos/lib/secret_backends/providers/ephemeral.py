@@ -28,7 +28,7 @@ def ephemeralAgeKey(key_content: str):
     final_content = conc_age_keys(sanitized_content)
 
     r_age = setup_pipe(final_content)
-    prefix = f'SOPS_AGE_KEY="$(cat /dev/fd/{r_age})" '
+    prefix = f"SOPS_AGE_KEY_FILE=/dev/fd/{r_age} "
     fds_to_pass = [r_age]
 
     try:
@@ -146,19 +146,64 @@ def ephemeralGpgKey(key_bytes: bytes):
 @contextmanager
 def ephemeralVaultKeys(vault_token: str, vault_addr: str):
     """
-    Creates pipes for setting up the address and token for vault.
+    Creates a secure temporary environment for Vault credentials.
     """
+    import platform
+
     from ..utils import setup_pipe
 
     if not vault_addr or not vault_token:
         yield "", []
         return
+
     r_addr = setup_pipe(vault_addr)
-    r_token = setup_pipe(vault_token)
-    prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) VAULT_TOKEN=$(cat /dev/fd/{r_token}) "
-    fds_to_pass = [r_addr, r_token]
-    try:
-        yield prefix, fds_to_pass
-    finally:
-        os.close(r_addr)
-        os.close(r_token)
+    fds_to_pass = [r_addr]
+    is_mac = platform.system() == "Darwin"
+
+    if is_mac:
+        from contextlib import ExitStack
+
+        with ExitStack() as stack:
+            try:
+                ram_dir = stack.enter_context(mac_ram_disk())
+                temp_dir_name = stack.enter_context(
+                    tempfile.TemporaryDirectory(dir=ram_dir, prefix="chaos-vault-")
+                )
+                temp_path = Path(temp_dir_name)
+
+                token_file = temp_path / ".vault-token"
+                with os.fdopen(
+                    os.open(token_file, os.O_WRONLY | os.O_CREAT, 0o600), "w"
+                ) as f:
+                    f.write(vault_token)
+            except Exception as e:
+                os.close(r_addr)
+                raise RuntimeError(f"Failed to generate Vault home: {e}")
+
+            prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} "
+            try:
+                yield prefix, fds_to_pass
+            finally:
+                os.close(r_addr)
+    else:
+        shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+        with tempfile.TemporaryDirectory(
+            dir=shm_dir, prefix="chaos-vault-"
+        ) as temp_dir_name:
+            try:
+                temp_path = Path(temp_dir_name)
+
+                token_file = temp_path / ".vault-token"
+                with os.fdopen(
+                    os.open(token_file, os.O_WRONLY | os.O_CREAT, 0o600), "w"
+                ) as f:
+                    f.write(vault_token)
+            except Exception as e:
+                os.close(r_addr)
+                raise RuntimeError(f"Failed to generate Vault home: {e}")
+
+            prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} "
+            try:
+                yield prefix, fds_to_pass
+            finally:
+                os.close(r_addr)
