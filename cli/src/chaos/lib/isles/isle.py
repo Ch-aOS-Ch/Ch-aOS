@@ -13,7 +13,7 @@ class Isle(ComponentResource, ABC):
     """
 
     secrets_needed: list[str] = []
-    isle_name: str = "unnamed_isle"
+    isle_name: str
 
     def __init__(
         self,

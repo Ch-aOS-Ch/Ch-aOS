@@ -202,6 +202,11 @@ def main():
 
                 handleApply(args)
 
+            case "provision":
+                from .lib.args.commands.provision import handleProvision
+
+                handleProvision(args)
+
             case "secrets":
                 from .lib.args.commands.secrets import handleSecrets
 

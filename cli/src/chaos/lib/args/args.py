@@ -198,6 +198,9 @@ def argParsing():
         help="Manage your secrets.",
     )
     applyParser = subParser.add_parser("apply", help="Apply an available role")
+    provisionParser = subParser.add_parser(
+        "provision", help="Provision infrastructure using Pelago"
+    )
     checkParser = subParser.add_parser(
         "check", help="Check and list roles, aliases and explanations"
     )
@@ -214,6 +217,7 @@ def argParsing():
         addTeamParsers(teamParser)
         addExplainParsers(expParser)
         addApplyParsers(applyParser)
+        addProvisionParsers(provisionParser)
         addSecParsers(secParser)
         addCheckParsers(checkParser)
         addSetParsers(setParser)
@@ -233,6 +237,8 @@ def argParsing():
                 addExplainParsers(expParser)
             case "apply":
                 addApplyParsers(applyParser)
+            case "provision":
+                addProvisionParsers(provisionParser)
             case "secrets":
                 addSecParsers(secParser)
             case "check":
@@ -1132,3 +1138,67 @@ def addStyxParsers(styxParser):
 
 def handleGenerateTab():
     subprocess.run(["register-python-argcomplete", "chaos"])
+
+
+def addProvisionParsers(provisionParser):
+    provisionParser.add_argument(
+        "stack_name", help="The name of the Pelago stack to create/update."
+    )
+    provisionParser.add_argument("project_name", help="The name of the Pelago project.")
+
+    exec_opts = provisionParser.add_argument_group("Execution Options")
+    exec_opts.add_argument(
+        "-d",
+        "--dry",
+        action="store_true",
+        help="Execute provision in dry mode (preview).",
+    )
+    exec_opts.add_argument(
+        "-ikwid",
+        "-y",
+        "--i-know-what-im-doing",
+        action="store_true",
+        help="Skips all confirmations for provision execution.",
+    )
+
+    auth_sec_opts = provisionParser.add_argument_group(
+        "Authentication & Secrets Options"
+    )
+    auth_sec_opts.add_argument(
+        "-s",
+        "--secrets",
+        action="store_true",
+        help="Signal that secret decryption is needed for provisioning.",
+    )
+    auth_sec_opts.add_argument(
+        "-sf",
+        "--secrets-file",
+        dest="secrets_file_override",
+        help="Path to the sops-encrypted secrets file (overrides all calls).",
+    ).completer = FilesCompleter()  # type: ignore
+    auth_sec_opts.add_argument(
+        "-ss",
+        "--sops-file",
+        dest="sops_file_override",
+        help="Path to the .sops.yaml config file (overrides all calls).",
+    ).completer = FilesCompleter()  # type: ignore
+
+    log_opts = provisionParser.add_argument_group("Logging & Output Options")
+    log_opts.add_argument(
+        "-v", action="count", default=0, help="Increase verbosity level."
+    )
+    log_opts.add_argument(
+        "--verbose", type=int, choices=[1, 2, 3], help="Set log level directly."
+    )
+
+    cfg_opts = provisionParser.add_argument_group("Configuration Options")
+    cfg_opts.add_argument(
+        "-c", dest="chobolo", help="Path to Ch-obolo to be used (overrides all calls)."
+    ).completer = FilesCompleter()  # type: ignore
+    cfg_opts.add_argument(
+        "-t",
+        "--team",
+        type=str,
+        help="Team to be used, in the format company.team.group",
+    )
+    add_provider_args(provisionParser)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, Self, TypeVar
 
 if TYPE_CHECKING:
     from pulumi.automation import Stack
@@ -224,6 +224,14 @@ class PelagoPayload(BasePayload):
         pelago (list[dict[str, Any]]): A list of Pelago programs to be executed.
         secrets (bool): A boolean indicating whether secrets are allowed to be used in this pelago run.
         provided_secrets (dict[str, Any]): A dict of secrets that are needed by the pelago programs, which are provided by the user.
+        update_plugins (bool): If True, forces a refresh of the plugin cache.
+        i_know_what_im_doing (bool): If True, bypasses all interactive confirmation prompts.
+        dry (bool): If True, runs in dry-run mode (Pulumi preview).
+        verbose (int): The verbosity level for output.
+        v (int): An alias for the verbosity level.
+        chobolo (str | None): Optional path to explicitly override the Ch-obolo configuration file to use.
+        secrets_context (SecretsContext | dict[str, Any]): The context containing secret file paths and provider configurations.
+        global_config (dict[str, Any] | None): Internal state caching the global `~/.config/chaos/config.yml` data.
     """
 
     __slots__ = (
@@ -235,27 +243,58 @@ class PelagoPayload(BasePayload):
         "pelago",
         "secrets",
         "provided_secrets",
+        "update_plugins",
+        "i_know_what_im_doing",
+        "dry",
+        "verbose",
+        "v",
+        "chobolo",
+        "secrets_context",
+        "global_config",
+        "needed_secrets",
     )
 
     def __init__(
         self,
         stack_name: str,
         project_name: str,
-        pulumi_program: PulumiFn,
+        pulumi_program: PulumiFn | Callable,
         stack: Stack | None = None,
-        secrets_used: list[str] = [],
-        pelago: list[dict[str, Any]] = [],
+        secrets_used: list[str] | None = None,
+        pelago: list[dict[str, Any]] | None = None,
         secrets: bool = False,
-        provided_secrets: dict[str, Any] = {},
+        provided_secrets: dict[str, Any] | None = None,
+        update_plugins: bool = False,
+        i_know_what_im_doing: bool = False,
+        dry: bool = False,
+        verbose: int = 0,
+        v: int = 0,
+        chobolo: str | None = None,
+        secrets_context: SecretsContext | dict[str, Any] | None = None,
+        global_config: dict[str, Any] | None = None,
+        needed_secrets: set[str] = set(),
     ):
         self.stack_name = stack_name
         self.project_name = project_name
         self.pulumi_program = pulumi_program
         self.stack = stack
-        self.secrets_used = secrets_used
-        self.pelago = pelago
+        self.secrets_used = secrets_used or []
+        self.pelago = pelago or []
         self.secrets = secrets
-        self.provided_secrets = provided_secrets
+        self.provided_secrets = provided_secrets or {}
+        self.update_plugins = update_plugins
+        self.i_know_what_im_doing = i_know_what_im_doing
+        self.dry = dry
+        self.verbose = verbose
+        self.v = v
+        self.chobolo = chobolo
+        self.secrets_context = (
+            SecretsContext.from_dict_or_self(secrets_context)
+            if secrets_context is not None
+            else SecretsContext()
+        )
+        self.global_config = global_config or {}
+        self.needed_secrets = needed_secrets or set()
 
 
 class TeamPrunePayload(BasePayload):

@@ -40,6 +40,11 @@ class ApplyArgs(Protocol):
     secrets: bool
 
 
+class ProvisionArgs(Protocol):
+    stack_name: str
+    project_name: str
+
+
 class SecArgs(Protocol):
     pgp_server: Optional[str]
     key_type: Optional[Literal["age", "gpg", "vault"]]
@@ -89,6 +94,7 @@ class ChaosArguments(
     GlobalArgs,
     ProviderArgs,
     ApplyArgs,
+    ProvisionArgs,
     SecArgs,
     RambleArgs,
     CheckArgs,

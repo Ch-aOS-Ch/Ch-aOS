@@ -153,8 +153,7 @@ def handleInitTeam(payload: TeamInitPayload) -> ResultPayload[None]:
     messages = []
 
     try:
-        hasAge, hasPgp = _validate_deps()
-        choices = _get_choices(hasAge, hasPgp)
+        hasAge, _ = _validate_deps()
         company, team, person = _validate_paths(payload.target)
     except (EnvironmentError, ValueError) as e:
         return ResultPayload(success=False, error=[str(e)])

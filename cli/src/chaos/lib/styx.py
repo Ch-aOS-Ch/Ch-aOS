@@ -21,11 +21,13 @@ def get_styx_registry(payload: StyxPayload) -> tuple[str | None, str | None]:
     url = getattr(
         payload,
         "registry_url",
-        os.getenv(
+    )
+    if not url:
+        url = os.getenv(
             "CHAOS_STYX_REGISTRY",
             "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
-        ),
-    )
+        )
+
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
         response.raise_for_status()
