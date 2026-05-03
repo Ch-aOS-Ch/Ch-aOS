@@ -138,7 +138,12 @@ class Limani(ABC):
 
     @abstractmethod
     def create_run(
-        self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict
+        self,
+        run_id: str,
+        run_id_human: str,
+        start_time: float,
+        hailer_info: dict,
+        needed_secrets: set,
     ) -> str:
         """Creates a new run entry in the database.
 

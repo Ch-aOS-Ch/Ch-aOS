@@ -116,6 +116,12 @@ Do you want to provide them?""",
     result.data["loaded_roles"] = loaded_roles
     result.data["global_config"] = global_config
     result.data["any_role_needs_secrets"] = bool(roles_that_need_secrets)
+
+    if payload.logbook:
+        from .telemetry import ChaosTelemetry
+
+        ChaosTelemetry._needed_secret_keys = set(secrets_needed)
+
     if not request.fields:
         return None, result
     return request, result

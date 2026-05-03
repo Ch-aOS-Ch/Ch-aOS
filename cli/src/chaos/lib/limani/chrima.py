@@ -77,7 +77,8 @@ class Chrima(Limani):
             end_time REAL,
             status TEXT NOT NULL CHECK(status IN ('in_progress', 'success', 'failure')),
             summary_json TEXT,
-            hailer_json TEXT
+            hailer_json TEXT,
+            required_secrets TEXT
         )
         """)
 
@@ -218,13 +219,25 @@ class Chrima(Limani):
         conn.commit()
 
     def create_run(
-        self, run_id: str, run_id_human: str, start_time: float, hailer_info: dict
+        self,
+        run_id: str,
+        run_id_human: str,
+        start_time: float,
+        hailer_info: dict,
+        needed_secrets: set,
     ) -> str:
         """Creates a new run entry in the database."""
         conn = self.connect()
         conn.execute(
-            "INSERT INTO runs (id, run_id_human, start_time, status, hailer_json) VALUES (?, ?, ?, ?, ?)",
-            (run_id, run_id_human, start_time, "in_progress", json.dumps(hailer_info)),
+            "INSERT INTO runs (id, run_id_human, start_time, status, hailer_json, required_secrets) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                run_id_human,
+                start_time,
+                "in_progress",
+                json.dumps(hailer_info),
+                json.dumps(list(needed_secrets)),
+            ),
         )
         conn.commit()
         return run_id
