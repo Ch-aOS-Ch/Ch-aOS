@@ -45,6 +45,7 @@ class ChaosTelemetry(BaseStateCallback):
     _poison_pill = object()
     _limani_plugin: Limani | None = None
     _secret_strings: set[str] = set()
+    _needed_secret_keys: set[str] = set()
 
     @classmethod
     def _database_writer_worker(cls):
@@ -98,11 +99,14 @@ class ChaosTelemetry(BaseStateCallback):
             "hostname": socket.gethostname(),
         }
 
+        needed_secrets = cls._needed_secret_keys
+
         start_time = time.time()
         cls._run_id = cls._limani_plugin.create_run(
-            uggly_run_id, run_id_human, start_time, hailer_info
+            uggly_run_id, run_id_human, start_time, hailer_info, needed_secrets
         )
         print(f"CHAOS_RUN_ID::{cls._run_id}", flush=True)
+
         cls._stream_chaos_event(
             {
                 "type": "run_start",
@@ -110,6 +114,7 @@ class ChaosTelemetry(BaseStateCallback):
                 "uggly_run_id": cls._run_id,
                 "timestamp": start_time,
                 "hailer": hailer_info,
+                "secrets_required": list(needed_secrets),
             }
         )
 
@@ -863,6 +868,9 @@ class ChaosTelemetry(BaseStateCallback):
                 f.write(f'    "uggly_run_id": {json.dumps(run_info["id"])},\n')
                 f.write(
                     f'    "hailer": {json.dumps(json.loads(run_info["hailer_json"]) if run_info["hailer_json"] else {})},\n'
+                )
+                f.write(
+                    f'    "secrets_required": {json.dumps(list(cls._needed_secret_keys))},\n'
                 )
 
                 f.write('    "hosts": {\n')
