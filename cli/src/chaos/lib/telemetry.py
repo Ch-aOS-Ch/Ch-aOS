@@ -11,6 +11,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+from urllib import parse as urllib_parse
 
 from pyinfra.api.host import Host
 from pyinfra.api.operation import OperationMeta
@@ -187,7 +188,7 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def _sanitize_diff_text(text):
-        """Redacts sensitive data from diff texts.
+        """Redacts sensitive data and their common escaped variations from diff texts.
 
         Args:
             text (str): The raw diff text.
@@ -195,10 +196,34 @@ class ChaosTelemetry(BaseStateCallback):
         Returns:
             str: Redacted diff text.
         """
+        if not text:
+            return text
+
         sensitive_strings = ChaosTelemetry._secret_strings
-        for term in sensitive_strings:
-            if term in text:
-                text = text.replace(term, "[REDACTED]")
+
+        valid_secrets = [
+            str(s)
+            for s in sensitive_strings
+            if len(str(s)) >= 4
+            and str(s).lower() not in ("true", "false", "null", "none")
+        ]
+        valid_secrets.sort(key=len, reverse=True)
+
+        for term in valid_secrets:
+            escaped_term = re.escape(term)
+            text = re.sub(escaped_term, "[REDACTED]", text, flags=re.IGNORECASE)
+
+            url_encoded = urllib_parse.quote(term)
+            if url_encoded != term:
+                escaped_url = re.escape(url_encoded)
+                text = re.sub(escaped_url, "[REDACTED_URL]", text, flags=re.IGNORECASE)
+
+            json_escaped = json.dumps(term)[1:-1]
+            if json_escaped != term:
+                escaped_json = re.escape(json_escaped)
+                text = re.sub(
+                    escaped_json, "[REDACTED_JSON]", text, flags=re.IGNORECASE
+                )
 
         return text
 
@@ -501,7 +526,10 @@ class ChaosTelemetry(BaseStateCallback):
                 clean_data[key] = "<function>"
 
             elif isinstance(value, str) and any(
-                term in value.lower() for term in ChaosTelemetry._secret_strings
+                str(term).lower() in value
+                for term in ChaosTelemetry._secret_strings
+                if len(str(term)) >= 4
+                and str(term).lower() not in ("true", "false", "null", "none")
             ):
                 clean_data[key] = "********"
 
