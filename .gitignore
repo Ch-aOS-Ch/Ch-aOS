@@ -8,6 +8,12 @@ __pycache__/
 *$py.class
 *.so
 
+# Conference Related shtuff
+icse/
+csbc/
+cbsoft/
+*.pdf
+
 # Distribution / packaging
 build/
 develop-eggs/
