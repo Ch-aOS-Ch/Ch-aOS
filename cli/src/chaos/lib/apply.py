@@ -1142,6 +1142,30 @@ def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], in
     return inventory, payload.target_hosts, payload.parallelism
 
 
+def _get_secret_strings(decrypted_secrets: dict[str, Any]) -> set[str]:
+    """Recursively traverses the decrypted secrets dictionary to extract all string secrets.
+    Args:
+        decrypted_secrets: a dictionary representing the decrypted secrets data, which may contain nested dictionaries and values.
+    Returns:
+        - A set of secret strings in the decrypted secrets that lead to actual secret values.
+    """
+    secret_strings = set()
+
+    def _traverse(secrets: dict[str, Any], path: str = "") -> None:
+        for key, value in secrets.items():
+            current_path = f"{path}.{key}" if path else key
+            if isinstance(value, dict):
+                _traverse(value, current_path)
+
+            elif isinstance(value, str) and len(value) > 4:
+                secret_strings.add(value)
+
+    if decrypted_secrets:
+        _traverse(decrypted_secrets)
+
+    return secret_strings
+
+
 def _handle_secrets_for_role(
     role: Role,
     payload: ApplyPayload,
@@ -1163,6 +1187,15 @@ def _handle_secrets_for_role(
     """
 
     decrypted_secrets = payload.decrypted_secrets
+
+    if payload.logbook:
+        from .telemetry import ChaosTelemetry
+
+        secret_strings = (
+            _get_secret_strings(decrypted_secrets) if decrypted_secrets else set()
+        )
+
+        ChaosTelemetry._secret_strings = secret_strings
 
     if role.needs_secrets and payload.secrets:
         if not decrypted_secrets:

@@ -43,6 +43,7 @@ class ChaosTelemetry(BaseStateCallback):
     _db_writer_thread = None
     _poison_pill = object()
     _limani_plugin: Limani | None = None
+    _secret_strings: set[str] = set()
 
     @classmethod
     def _database_writer_worker(cls):
@@ -194,15 +195,11 @@ class ChaosTelemetry(BaseStateCallback):
         Returns:
             str: Redacted diff text.
         """
-        sensitive_terms = ["password", "secret", "token", "key", "auth", "sudo_pass"]
-        for term in sensitive_terms:
-            if term in text.lower():
-                lines = text.split("\n")
-                sanitized_lines = [
-                    "[SENSITIVE DATA FILTERED]" if term in line.lower() else line
-                    for line in lines
-                ]
-                text = "\n".join(sanitized_lines)
+        sensitive_strings = ChaosTelemetry._secret_strings
+        for term in sensitive_strings:
+            if term in text:
+                text = text.replace(term, "[REDACTED]")
+
         return text
 
     @classmethod
@@ -348,16 +345,22 @@ class ChaosTelemetry(BaseStateCallback):
                 if is_diff_start:
                     ChaosTelemetry._active_diffs.add(op_hash)
                     is_part_of_active_diff = True
+
                 if is_part_of_active_diff:
                     if op_hash not in ChaosTelemetry._diff_log_buffer:
                         ChaosTelemetry._diff_log_buffer[op_hash] = []
+
                     cleaned_msg = ChaosTelemetry._strip_ansi_codes(msg)
+
                     if "]" in cleaned_msg:
                         cleaned_msg = cleaned_msg.split("]", 1)[-1].strip()
+
                     cleaned_msg = ChaosTelemetry._sanitize_diff_text(cleaned_msg)
+
                     ChaosTelemetry._diff_log_buffer[op_hash].append(cleaned_msg)
                     if "Success" in msg or "No changes" in msg:
                         ChaosTelemetry._active_diffs.discard(op_hash)
+
                     return
 
             is_fact_gathering = "Getting fact:" in msg and record.levelname == "DEBUG"
@@ -490,6 +493,10 @@ class ChaosTelemetry(BaseStateCallback):
 
             elif hasattr(value, "__call__"):
                 clean_data[key] = "<function>"
+
+            elif value in ChaosTelemetry._secret_strings:
+                clean_data[key] = "********"
+
             else:
                 clean_data[key] = ChaosTelemetry._clean_value(value)
 
