@@ -320,11 +320,15 @@ class ChaosTelemetry(BaseStateCallback):
             tuple[str, str]: Returns a tuple mapping stdout and stderr representations of the outputs.
         """
         if meta.is_complete():
-            return meta.stdout, meta.stderr
+            return ChaosTelemetry._sanitize_diff_text(
+                meta.stdout
+            ), ChaosTelemetry._sanitize_diff_text(meta.stderr)
 
         if hasattr(meta, "_combined_output") and meta._combined_output:
-            return "\n".join(meta._combined_output.stdout_lines), "\n".join(
-                meta._combined_output.stderr_lines
+            return ChaosTelemetry._sanitize_diff_text(
+                "\n".join(meta._combined_output.stdout_lines)
+            ), ChaosTelemetry._sanitize_diff_text(
+                "\n".join(meta._combined_output.stderr_lines)
             )
 
         return "", ""
@@ -386,6 +390,8 @@ class ChaosTelemetry(BaseStateCallback):
                 except (ValueError, IndexError):
                     context = "running_command"
                     command = msg
+
+            command = ChaosTelemetry._sanitize_diff_text(command)
 
             if context and command:
                 ChaosTelemetry._stream_chaos_event(
@@ -494,7 +500,9 @@ class ChaosTelemetry(BaseStateCallback):
             elif hasattr(value, "__call__"):
                 clean_data[key] = "<function>"
 
-            elif value in ChaosTelemetry._secret_strings:
+            elif isinstance(value, str) and any(
+                term in value.lower() for term in ChaosTelemetry._secret_strings
+            ):
                 clean_data[key] = "********"
 
             else:
@@ -647,6 +655,7 @@ class ChaosTelemetry(BaseStateCallback):
                 stdout, stderr = s_out, s_err
 
         runtime_meta: OperationMeta = op_data.operation_meta
+
         logs = {"stdout": stdout, "stderr": stderr}
         retry_stats = {
             "retry_attempts": runtime_meta.retry_attempts,

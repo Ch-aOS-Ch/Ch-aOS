@@ -1157,8 +1157,23 @@ def _get_secret_strings(decrypted_secrets: dict[str, Any]) -> set[str]:
             if isinstance(value, dict):
                 _traverse(value, current_path)
 
-            elif isinstance(value, str) and len(value) > 4:
+            elif isinstance(value, str):
                 secret_strings.add(value)
+
+            elif isinstance(value, int | float | bool):
+                secret_strings.add(str(value))
+
+            elif isinstance(value, list):
+                for idx, item in enumerate(value):
+                    item_path = f"{current_path}[{idx}]"
+                    if isinstance(item, dict):
+                        _traverse(item, item_path)
+
+                    elif isinstance(item, str):
+                        secret_strings.add(item)
+
+                    elif isinstance(item, int | float | bool):
+                        secret_strings.add(str(item))
 
     if decrypted_secrets:
         _traverse(decrypted_secrets)
