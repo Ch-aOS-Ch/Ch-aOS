@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chaos-proxmox"
+version = "0.1.0"
+description = "Ch-aOS Isle for proxmox provisioning"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pulumi",
+    "pulumi-proxmoxve",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[project.entry-points."chaos.isles"]
+chaosmox = "isles.proxmox:Chmox"
+
