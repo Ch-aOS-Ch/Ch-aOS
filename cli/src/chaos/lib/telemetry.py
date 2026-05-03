@@ -201,12 +201,27 @@ class ChaosTelemetry(BaseStateCallback):
 
         sensitive_strings = ChaosTelemetry._secret_strings
 
-        valid_secrets = [
-            str(s)
-            for s in sensitive_strings
-            if len(str(s)) >= 4
-            and str(s).lower() not in ("true", "false", "null", "none")
-        ]
+        valid_secrets_set = set()
+        for s in sensitive_strings:
+            s_str = str(s)
+            if len(s_str) >= 4 and s_str.lower() not in (
+                "true",
+                "false",
+                "null",
+                "none",
+            ):
+                valid_secrets_set.add(s_str)
+            for line in s_str.splitlines():
+                clean_line = line.strip()
+                if len(clean_line) >= 4 and clean_line.lower() not in (
+                    "true",
+                    "false",
+                    "null",
+                    "none",
+                ):
+                    valid_secrets_set.add(clean_line)
+
+        valid_secrets = list(valid_secrets_set)
         valid_secrets.sort(key=len, reverse=True)
 
         for term in valid_secrets:
@@ -224,6 +239,15 @@ class ChaosTelemetry(BaseStateCallback):
                 text = re.sub(
                     escaped_json, "[REDACTED_JSON]", text, flags=re.IGNORECASE
                 )
+
+        for line in text.splitlines():
+            if len(line.strip()) >= 4 and any(
+                line in str(term)
+                for term in sensitive_strings
+                if len(str(term)) >= 4
+                and str(term).lower() not in ("true", "false", "null", "none")
+            ):
+                text = text.replace(line, "[REDACTED_LINE]")
 
         return text
 
