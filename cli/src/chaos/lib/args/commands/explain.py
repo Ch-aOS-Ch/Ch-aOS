@@ -18,7 +18,7 @@ def render_explanation(payload, result_data):
     from rich.tree import Tree
 
     class ChaosPager(Pager):
-        def __init__(self, command=["less", "-RXL"]):
+        def __init__(self, command=["less", "-RXF"]):
             self.command = command
 
         def show(self, renderables):
@@ -29,7 +29,7 @@ def render_explanation(payload, result_data):
             ) as proc:
                 proc.communicate(input=renderables)
 
-    pager = ChaosPager(command=["less", "-RXL"])
+    pager = ChaosPager(command=["less", "-RXF"])
 
     console = Console()
 

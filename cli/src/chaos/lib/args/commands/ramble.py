@@ -18,7 +18,7 @@ def render_ramble(ramble_data, target_name, no_pretty, json, values):
     from rich.text import Text
 
     class ChaosPager(Pager):
-        def __init__(self, command=["less", "-RXL"]):
+        def __init__(self, command=["less", "-RXF"]):
             self.command = command
 
         def show(self, renderables):
