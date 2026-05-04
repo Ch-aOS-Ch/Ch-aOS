@@ -182,11 +182,19 @@ def render_explanation(payload, result_data):
                 if isinstance(equivalent, list):
                     for cmd in equivalent:
                         explanation_renderables.append(
-                            Padding.indent(Syntax(cmd, "bash", line_numbers=True), 5)
+                            Padding.indent(
+                                Syntax(cmd, "bash", line_numbers=True, word_wrap=True),
+                                5,
+                            )
                         )
                 else:
                     explanation_renderables.append(
-                        Padding.indent(Syntax(equivalent, "bash", line_numbers=True), 5)
+                        Padding.indent(
+                            Syntax(
+                                equivalent, "bash", line_numbers=True, word_wrap=True
+                            ),
+                            5,
+                        )
                     )
                 explanation_renderables.append(Text("\n"))
 

@@ -94,7 +94,14 @@ def render_ramble(ramble_data, target_name, no_pretty, json, values):
         else:
             renderables.append(
                 Padding.indent(
-                    Syntax(scripts, "bash", line_numbers=True, theme="monokai"), 5
+                    Syntax(
+                        scripts,
+                        "bash",
+                        line_numbers=True,
+                        theme="monokai",
+                        word_wrap=True,
+                    ),
+                    5,
                 )
             )
         renderables.append(Text("\n"))
