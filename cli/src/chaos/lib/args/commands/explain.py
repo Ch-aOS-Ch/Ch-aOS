@@ -3,17 +3,33 @@ import sys
 
 def render_explanation(payload, result_data):
     import json
+    import subprocess
 
     from omegaconf import OmegaConf
     from rich.align import Align
     from rich.console import Console, Group
     from rich.markdown import Markdown
     from rich.padding import Padding
+    from rich.pager import Pager
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.table import Table
     from rich.text import Text
     from rich.tree import Tree
+
+    class ChaosPager(Pager):
+        def __init__(self, command=["less", "-RXL"]):
+            self.command = command
+
+        def show(self, renderables):
+            with subprocess.Popen(
+                self.command,
+                stdin=subprocess.PIPE,
+                text=True,
+            ) as proc:
+                proc.communicate(input=renderables)
+
+    pager = ChaosPager(command=["less", "-RXL"])
 
     console = Console()
 
@@ -213,17 +229,18 @@ def render_explanation(payload, result_data):
                 )
                 explanation_renderables.append(Text("\n"))
 
-            console.print(
-                Align.center(
-                    Panel(
-                        Group(*explanation_renderables),
-                        title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{payload.details}-{payload.complexity}[/])",
-                        border_style="green",
-                        expand=False,
-                        width=80 if len(explanation_renderables) > 1 else None,
+            with console.pager(pager=pager, styles=True):
+                console.print(
+                    Align.center(
+                        Panel(
+                            Group(*explanation_renderables),
+                            title=f"[bold green]Explanation for topic '{topic}'[/] ([italic]{payload.details}-{payload.complexity}[/])",
+                            border_style="green",
+                            expand=False,
+                            width=80 if len(explanation_renderables) > 1 else None,
+                        )
                     )
                 )
-            )
 
 
 def handleExplain(args):  # noqa: C901

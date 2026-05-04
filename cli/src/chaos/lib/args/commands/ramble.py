@@ -5,15 +5,29 @@ from typing import cast
 
 def render_ramble(ramble_data, target_name, no_pretty, json, values):
     import json as js
+    import subprocess
 
     from omegaconf import OmegaConf
     from rich.align import Align
     from rich.console import Console, Group
     from rich.markdown import Markdown
     from rich.padding import Padding
+    from rich.pager import Pager
     from rich.panel import Panel
     from rich.syntax import Syntax
     from rich.text import Text
+
+    class ChaosPager(Pager):
+        def __init__(self, command=["less", "-RXL"]):
+            self.command = command
+
+        def show(self, renderables):
+            with subprocess.Popen(
+                self.command,
+                stdin=subprocess.PIPE,
+                text=True,
+            ) as proc:
+                proc.communicate(input=renderables)
 
     if no_pretty:
         if values:
@@ -104,17 +118,18 @@ def render_ramble(ramble_data, target_name, no_pretty, json, values):
 
     title = ramble_data.get("title", target_name)
     console = Console()
-    console.print(
-        Align.center(
-            Panel(
-                Group(*renderables),
-                title=f"[bold green]Ramble for '{title}'[/]",
-                border_style="green",
-                expand=False,
-                width=120,
+    with console.pager(pager=ChaosPager(), styles=True):
+        console.print(
+            Align.center(
+                Panel(
+                    Group(*renderables),
+                    title=f"[bold green]Ramble for '{title}'[/]",
+                    border_style="green",
+                    expand=False,
+                    width=120,
+                )
             )
         )
-    )
 
 
 def handleRamble(args):  # noqa: C901
