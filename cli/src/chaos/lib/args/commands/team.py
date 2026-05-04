@@ -1,9 +1,10 @@
+# noqa: C901
 import sys
 
 from chaos.lib.args.dataclasses import ResultPayload
 
 
-def handleTeam(args):
+def handleTeam(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()

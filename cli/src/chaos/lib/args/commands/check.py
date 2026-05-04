@@ -53,7 +53,7 @@ def _printCheck(namespace, dispatcher, json_output=False):
         return
 
 
-def handleCheck(args):
+def handleCheck(args):  # noqa: C901
     from chaos.lib.args.dataclasses import CheckPayload
     from chaos.lib.checkers import handle_check
 

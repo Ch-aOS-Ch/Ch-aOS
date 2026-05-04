@@ -3,7 +3,7 @@ import sys
 from chaos.lib.args.dataclasses import ResultPayload
 
 
-def handleSecrets(args):
+def handleSecrets(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()

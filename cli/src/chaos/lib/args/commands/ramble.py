@@ -117,7 +117,7 @@ def render_ramble(ramble_data, target_name, no_pretty, json, values):
     )
 
 
-def handleRamble(args):
+def handleRamble(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()

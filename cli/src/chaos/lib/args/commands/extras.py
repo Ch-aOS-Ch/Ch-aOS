@@ -3,7 +3,7 @@ import sys
 from ..args import handleGenerateTab
 
 
-def handle_(args):
+def handle_(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()

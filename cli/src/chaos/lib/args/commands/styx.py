@@ -1,7 +1,7 @@
 import sys
 
 
-def handleStyx(args):
+def handleStyx(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()

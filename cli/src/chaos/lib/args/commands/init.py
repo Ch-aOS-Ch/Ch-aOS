@@ -1,7 +1,7 @@
 from chaos.lib.args.dataclasses import ResultPayload
 
 
-def handleInit(args):
+def handleInit(args):  # noqa: C901
     from pathlib import Path
 
     from chaos.lib.args.dataclasses import InitPayload

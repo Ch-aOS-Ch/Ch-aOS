@@ -226,7 +226,7 @@ def render_explanation(payload, result_data):
             )
 
 
-def handleExplain(args):
+def handleExplain(args):  # noqa: C901
     if args.topics:
         from rich.console import Console
 

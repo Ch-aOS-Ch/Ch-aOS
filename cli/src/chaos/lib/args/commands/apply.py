@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from chaos.lib.args.dataclasses import Delta
 
 
-def handleApply(args):
+def handleApply(args):  # noqa: C901
     import sys
 
     from rich.console import Console

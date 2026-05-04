@@ -1,7 +1,7 @@
 import sys
 
 
-def handleSet(args):
+def handleSet(args):  # noqa: C901
     from rich.console import Console
 
     console = Console()
