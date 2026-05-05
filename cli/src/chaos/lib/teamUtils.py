@@ -159,7 +159,7 @@ def _create_chaos_file(
             yaml.dump(chaosContent, f, default_flow_style=False)
 
 
-def _get_chaos_file(path) -> DictConfig:
+def _get_chaos_file(path: str) -> DictConfig:
     """
     Loads and validates the .chaos.yml file in the specified path.
     """
@@ -186,7 +186,7 @@ def _get_chaos_file(path) -> DictConfig:
 
 
 def _create_sops_config(
-    teamDir,
+    teamDir: Path,
     person: str | None,
     engine: str,
     useVault: bool,

@@ -1,9 +1,11 @@
 """Utility functions for handling SOPS file operations, provider resolution, and decryption workflows."""
 
+from __future__ import annotations
+
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from ..args.dataclasses import (
     ProviderConfigPayload,
@@ -77,13 +79,13 @@ def _getProvider(context: SecretsContext, global_config) -> Provider | None:
 
 
 def _getProviderByName(
-    payload: Union[SecretsExportPayload, SecretsImportPayload], global_config
+    payload: SecretsExportPayload | SecretsImportPayload, global_config: DictConfig
 ) -> Provider:
     """Retrieves a specific secret provider by its registered CLI name.
 
     Args:
-        payload (Union[SecretsExportPayload, SecretsImportPayload]): The payload containing the requested provider_name.
-        global_config (dict | DictConfig): The global chaos configuration.
+        payload (SecretsExportPayload | SecretsImportPayload): The payload containing the requested provider_name.
+        global_config (DictConfig): The global chaos configuration.
 
     Returns:
         Provider: The matching provider instance.

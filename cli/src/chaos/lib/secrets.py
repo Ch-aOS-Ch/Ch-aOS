@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
@@ -20,6 +20,8 @@ from chaos.lib.args.dataclasses import (
 
 if TYPE_CHECKING:
     from typing import Literal, TypedDict
+
+    from omegaconf import DictConfig
 
     from chaos.lib.secret_backends.providers.base import Provider
 
@@ -677,7 +679,9 @@ def handleSecCat(
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload:
+def handleExportSec(
+    payload: SecretsExportPayload, global_config: DictConfig
+) -> ResultPayload[Any]:
     """Exports secrets via a resolved provider.
 
     Args:

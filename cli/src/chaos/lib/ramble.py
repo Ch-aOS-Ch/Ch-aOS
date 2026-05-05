@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from omegaconf import DictConfig
+
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
     DataGatherRequest,
@@ -132,7 +134,12 @@ def is_safe_path(target_path: Path, team) -> bool:
         raise RuntimeError(f"Secure validation failed: {e}") from e
 
 
-def _read_ramble_content(ramble_path, sops_config, context, global_config):
+def _read_ramble_content(
+    ramble_path: Path,
+    sops_config: str | None,
+    context: SecretsContext,
+    global_config: DictConfig,
+) -> tuple[DictConfig, str]:
     """Reads the content of a ramble file, handling decryption if necessary.
 
     Args:
@@ -187,10 +194,10 @@ def _read_ramble_content(ramble_path, sops_config, context, global_config):
                 str(ramble_path), sops_config, global_config, new_context
             )
 
-            ramble_data = OmegaConf.create(decrypted_text)
+            ramble_data = cast(DictConfig, OmegaConf.create(decrypted_text))
             return ramble_data, decrypted_text
         else:
-            ramble_data = data
+            ramble_data = cast(DictConfig, data)
             with open(ramble_path, "r") as f:
                 text = f.read()
             return ramble_data, text

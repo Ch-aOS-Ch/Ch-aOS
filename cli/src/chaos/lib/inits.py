@@ -17,7 +17,7 @@ from chaos.lib.utils import checkDep
 
 
 def initChobolo(
-    keys: dict, targets: list
+    keys: dict[str, str], targets: list[str]
 ) -> ResultPayload[DictConfig | ListConfig | None]:
     """Script to initialize Chobolo configuration based on provided keys.
 

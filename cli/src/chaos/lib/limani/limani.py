@@ -1,6 +1,7 @@
 """Abstract base class for Limani logbook and telemetry database drivers."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class Limani(ABC):
@@ -20,7 +21,7 @@ class Limani(ABC):
         The only abstract methods required are connect, disconnect, set, get, export, init_db.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         """Initializes the Limani with the given configuration.
 
         Args:

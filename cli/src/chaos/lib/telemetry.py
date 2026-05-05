@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib import parse as urllib_parse
 
 from pyinfra.api.host import Host
@@ -52,11 +52,11 @@ class ChaosTelemetry(BaseStateCallback):
     """
 
     _run_id: str | None = None
-    _timers = {}
-    _diff_log_buffer = {}
-    _active_diffs = set()
-    _db_writer_thread = None
-    _poison_pill = object()
+    _timers: dict[str, float] = {}
+    _diff_log_buffer: dict[str, list[str]] = {}
+    _active_diffs: set[str] = set()
+    _db_writer_thread: threading.Thread | None = None
+    _poison_pill: object = object()
     _limani_plugin: Limani | None = None
     _secret_strings: set[str] = set()
     _needed_secret_keys: set[str] = set()
@@ -404,7 +404,7 @@ class ChaosTelemetry(BaseStateCallback):
     class PyinfraFactLogHandler(logging.Handler):
         """Gets command logs from pyinfra's logger and logs them to the database."""
 
-        def emit(self, record):
+        def emit(self, record) -> None:
             msg = record.getMessage()
             op_hash = op_hash_context.get()
             if not ChaosTelemetry._limani_plugin:
@@ -520,7 +520,7 @@ class ChaosTelemetry(BaseStateCallback):
         return {"executed": clean_executed, "maybe_change": clean_maybe, "hash": hash}
 
     @staticmethod
-    def _clean_value(value: str) -> str:
+    def _clean_value(value: str) -> Any:
         """Cleans and evaluates string values safely.
 
         Args:
@@ -594,7 +594,7 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def operation_host_success(
-        state: State, host: Host, op_hash, retry_count: int = 0
+        state: State, host: Host, op_hash: str, retry_count: int = 0
     ) -> None:
         """Handles the successful completion of an operation by writing to the DB.
 
@@ -690,7 +690,11 @@ class ChaosTelemetry(BaseStateCallback):
 
     @staticmethod
     def operation_host_error(
-        state: State, host: Host, op_hash, retry_count: int = 0, max_retries: int = 0
+        state: State,
+        host: Host,
+        op_hash: str,
+        retry_count: int = 0,
+        max_retries: int = 0,
     ) -> None:
         """Handles a failed operation by writing to the DB.
 

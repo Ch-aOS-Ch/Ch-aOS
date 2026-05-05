@@ -1141,7 +1141,7 @@ def _handle_boats(
 
 def _setup_hosts(
     payload: ApplyPayload,
-) -> tuple[Inventory, list[tuple[str, dict]], int]:
+) -> tuple[Inventory, list[tuple[str, dict[str, Any]]], int]:
     """Sets up the inventory of hosts for pyinfra based on the fleet configuration gathered from the chobolo file,
          and determines the parallelism settings for executing plans on the fleet.
 
