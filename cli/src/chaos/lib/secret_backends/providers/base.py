@@ -7,7 +7,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import List, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
@@ -26,6 +26,14 @@ from ..crypto import (
     extract_age_keys,
 )
 from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
+
+if TYPE_CHECKING:
+    from typing import TypedDict
+
+    class EphemeralEnvReturn(TypedDict):
+        env: dict[str, str]
+        prefix: str
+        pass_fds: List[int]
 
 
 class Provider(ABC):
@@ -165,7 +173,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @contextmanager
-    def setupEphemeralEnv(self) -> Iterator[dict]:
+    def setupEphemeralEnv(self) -> Iterator[EphemeralEnvReturn]:
         """Context manager to set up an ephemeral environment for SOPS.
 
         Yields:
@@ -186,21 +194,21 @@ class Provider(ABC):
                 with ephemeralAgeKey(key_content) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
-                    yield context
+                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
 
             case "gpg":
                 _, secKey, _ = self.getGpgKeys(item_id)
                 actualKey = decompress(secKey)
                 with ephemeralGpgKey(actualKey) as gpg_env:
                     context["env"].update(gpg_env)
-                    yield context
+                    yield {"env": context["env"], "prefix": "", "pass_fds": []}
 
             case "vault":
                 vault_addr, vault_token, _ = self.getVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
-                    yield context
+                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
             case _:
                 raise ValueError(f"Unsupported key type '{key_type}'.")
 

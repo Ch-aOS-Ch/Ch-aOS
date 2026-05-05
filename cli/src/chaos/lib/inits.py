@@ -89,7 +89,7 @@ def initChobolo(
 # -------------- SECRET INITING -------------
 
 
-def checkForSsh():
+def checkForSsh() -> list[Path]:
     """Checks for SSH public keys in ~/.ssh directory.
 
     Returns:
@@ -100,7 +100,7 @@ def checkForSsh():
     return public_keys
 
 
-def setupSshToAge():
+def setupSshToAge() -> tuple[str, str]:
     """Setup age keys using ssh-to-age conversion.
 
     Returns:
@@ -216,7 +216,7 @@ def setupSshToAge():
     return "age", pubkey
 
 
-def setupAge():
+def setupAge() -> tuple[str, str]:
     """Setup Age keys for Sops encryption.
 
     Returns:
@@ -317,7 +317,7 @@ def setupAge():
     return "age", pubkey
 
 
-def genBatchGpg(name, email):
+def genBatchGpg(name: str, email: str) -> str:
     """Generate GPG key in batch mode using provided name and email.
 
     Args:
@@ -385,7 +385,7 @@ Expire-Date: 0
             os.unlink(tmpPath)
 
 
-def genGpgManual():
+def genGpgManual() -> tuple[str, str]:
     """Lists all existing GPG secret keys and prompts user to select one by fingerprint.
 
     Returns:
@@ -430,7 +430,7 @@ def genGpgManual():
     return "pgp", fingerprint
 
 
-def setupGpg():
+def setupGpg() -> tuple[str, str]:
     """Setup GPG keys for Sops encryption.
 
     Returns:
@@ -480,7 +480,7 @@ def setupGpg():
         raise RuntimeError("Operation cancelled by user.")
 
 
-def setupSsh():
+def setupSsh() -> tuple[str, str]:
     """Setup SSH key for Sops encryption.
 
     Returns:
@@ -551,7 +551,7 @@ def setupSsh():
     return "age", pub_key
 
 
-def initSecrets():
+def initSecrets() -> None:
     """Main Entry point for initializing secrets management with SOPS.
 
     Raises:
@@ -706,4 +706,3 @@ def handle_init(payload: InitPayload) -> ResultPayload[DictConfig | ListConfig |
                 )
     except (EnvironmentError, FileNotFoundError, ValueError, RuntimeError) as e:
         return ResultPayload(success=False, message=[str(e)], data=None)
-

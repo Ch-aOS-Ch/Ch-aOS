@@ -15,7 +15,11 @@ from ..utils import validate_path
 from .providers.base import Provider
 
 if TYPE_CHECKING:
-    from omegaconf import DictConfig
+    from typing import Any
+
+    from omegaconf import DictConfig, ListConfig
+
+    from chaos.lib.args.dataclasses import SecretsRotatePayload
 
 
 def _resolveProvider(
@@ -36,7 +40,7 @@ def _resolveProvider(
     return _getProvider(context, global_config)
 
 
-def _getProvider(context: SecretsContext, global_config):
+def _getProvider(context: SecretsContext, global_config) -> Provider | None:
     """Returns the appropriate secret provider based on the command-line arguments.
 
     Searches through installed provider plugins and selects one matching the provided
@@ -245,7 +249,7 @@ def setup_pipe(token: str) -> int:
     return r
 
 
-def _is_valid_vault_key(key):
+def _is_valid_vault_key(key: str) -> tuple[bool, str]:
     """Checks if a Vault server URI is valid and reachable.
 
     Attempts to fetch the seal-status of the Vault server.
@@ -449,7 +453,7 @@ def get_sops_files(
     return secretsFile, sopsFile, global_config
 
 
-def flatten(items):
+def flatten(items: list | ListConfig) -> Any:
     """Turns a concatenated or nested list into a single flat generator.
 
     Args:
@@ -495,7 +499,7 @@ def _save_to_config(backend: str, data_to_save: dict) -> None:
     OmegaConf.save(config, config_path)
 
 
-def handleUpdateAllSecrets(context: SecretsContext):
+def handleUpdateAllSecrets(context: SecretsContext) -> tuple[list[str], list[str]]:
     """Updates encryption keys for all related secret files and rambles.
 
     Iterates over the main secrets file and any associated ramble files to apply
@@ -515,7 +519,7 @@ def handleUpdateAllSecrets(context: SecretsContext):
     from chaos.lib.secret_backends.crypto import check_vault_auth, is_vault_in_use
 
     messages = ["\nStarting key update for all secret files..."]
-    errors = []
+    errors: list[str] = []
 
     main_secrets_file, sops_file_path, global_config = get_sops_files(
         context.sops_file_override, context.secrets_file_override, context.team
@@ -680,7 +684,12 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
     )
 
 
-def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids: set):
+def _generic_handle_add(
+    key_type: str,
+    payload: SecretsRotatePayload,
+    sops_file_override: str,
+    valids: set[str],
+) -> tuple[list[str], list[str]]:
     """Generic handler for adding keys to a SOPS configuration file.
 
     Updates specific creation rules within the SOPS configuration by appending
@@ -697,8 +706,8 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
     """
     from omegaconf import DictConfig, OmegaConf
 
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
     if not valids:
         messages.append("No valid keys. Returning.")
         return messages, errors
@@ -774,8 +783,11 @@ def _generic_handle_add(key_type: str, payload, sops_file_override: str, valids:
 
 
 def _generic_handle_rem(
-    key_type: str, payload, sops_file_override: str, keys_to_remove: set
-):
+    key_type: str,
+    payload: SecretsRotatePayload,
+    sops_file_override: str,
+    keys_to_remove: set[str],
+) -> tuple[list[str], list[str]]:
     """Generic handler for removing keys from a SOPS configuration file.
 
     Scans creation rules and filters out the specified keys from the relevant key groups.
@@ -792,8 +804,8 @@ def _generic_handle_rem(
     """
     from omegaconf import DictConfig, OmegaConf
 
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
     rule_index = payload.index
     ikwid = payload.context.i_know_what_im_doing
 

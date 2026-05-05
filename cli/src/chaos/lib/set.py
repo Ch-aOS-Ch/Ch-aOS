@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from .args.dataclasses import SetPayload
 
 
-def setMode(payload: SetPayload):
+def setMode(payload: SetPayload) -> None:
     """Handles configuring the tool by writing default settings to the chaos configuration directory.
 
     Args:

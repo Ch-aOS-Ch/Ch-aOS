@@ -389,6 +389,7 @@ def handle_styx(
     Returns:
         ResultPayload[dict[str, dict[str, str]] | None]: The generic result of the styx operation.
     """
+
     try:
         match payload.styx_commands:
             case "invoke":

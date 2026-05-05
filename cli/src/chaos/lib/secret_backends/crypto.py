@@ -52,7 +52,7 @@ def decompress(encoded_data: str) -> bytes:
         raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
 
 
-def is_valid_fp(fingerprint):
+def is_valid_fp(fingerprint: str) -> bool:
     """Checks for GPG fingerprint validity.
 
     Validates if the provided string is a valid 40-character hexadecimal GPG fingerprint.
@@ -273,7 +273,7 @@ def is_vault_in_use(sops_file_path: str) -> bool:
     return False
 
 
-def check_vault_auth():
+def check_vault_auth() -> tuple[bool, str]:
     """Checks if the current HashiCorp Vault authentication is valid.
 
     Verifies the presence and validity of the VAULT_ADDR and VAULT_TOKEN environment variables.

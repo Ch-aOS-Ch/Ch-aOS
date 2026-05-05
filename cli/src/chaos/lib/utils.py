@@ -1,9 +1,10 @@
 """General utility functions for path validation, dependency checking, and plugin entrypoint retrieval."""
 
 from functools import lru_cache
+from importlib.metadata import EntryPoint
 
 
-def validate_path(path: str):
+def validate_path(path: str) -> None:
     """Validates given file system path.
 
     Args:
@@ -36,13 +37,12 @@ def checkDep(bin: str) -> bool:
 
 
 @lru_cache(maxsize=None)
-def get_providerEps():
+def get_providerEps() -> list[EntryPoint]:
     """Retrieves and caches the provider EntryPoints registered under the 'chaos.providers' group.
 
     Returns:
         list[EntryPoint]: A list of entry point objects matching external provider plugins.
     """
-    from importlib.metadata import EntryPoint
 
     from chaos.lib.plugDiscovery import get_plugins
 
@@ -57,7 +57,7 @@ def get_providerEps():
 
 
 @lru_cache(maxsize=None)
-def get_roleEps():
+def get_roleEps() -> list[EntryPoint]:
     """Retrieves and caches the role EntryPoints registered under the 'chaos.roles' group.
 
     Returns:
@@ -73,3 +73,21 @@ def get_roleEps():
         for name, value in roles.items():
             role_eps.append(EntryPoint(name=name, value=value, group="chaos.roles"))
     return role_eps
+
+
+@lru_cache(maxsize=None)
+def get_isleEps() -> list[EntryPoint]:
+    """Retrieves and caches the isle EntryPoints registered under the 'chaos.isles' group.
+    Returns:
+        list[EntryPoint]: A list of entry point objects matching external isle plugins.
+    """
+    from importlib.metadata import EntryPoint
+
+    from chaos.lib.plugDiscovery import get_plugins
+
+    isles = get_plugins()[7]
+    isle_eps = []
+    if isles:
+        for name, value in isles.items():
+            isle_eps.append(EntryPoint(name=name, value=value, group="chaos.isles"))
+    return isle_eps
