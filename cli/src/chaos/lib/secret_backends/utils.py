@@ -3,7 +3,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Union, cast
+from typing import TYPE_CHECKING, Union, cast
 
 from ..args.dataclasses import (
     ProviderConfigPayload,
@@ -14,8 +14,13 @@ from ..args.dataclasses import (
 from ..utils import validate_path
 from .providers.base import Provider
 
+if TYPE_CHECKING:
+    from omegaconf import DictConfig
 
-def _resolveProvider(context: SecretsContext, global_config):
+
+def _resolveProvider(
+    context: SecretsContext, global_config: DictConfig
+) -> Provider | None:
     """Resolves and returns the appropriate secret provider based on context and configuration.
 
     Args:
@@ -304,7 +309,9 @@ def _is_valid_vault_key(key):
         )
 
 
-def get_sops_files(sops_file_override, secrets_file_override, team):
+def get_sops_files(
+    sops_file_override, secrets_file_override, team
+) -> tuple[str, str, DictConfig]:
     """Gets the appropriate SOPS and secrets files based on overrides, team context, and global configuration.
 
     Args:
@@ -332,9 +339,13 @@ def get_sops_files(sops_file_override, secrets_file_override, team):
     CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
 
-    global_config = {}
+    global_config = None
     if os.path.exists(CONFIG_FILE_PATH):
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
+
+    global_config = (
+        cast(DictConfig, global_config) if global_config else OmegaConf.create()
+    )
 
     if team:
         if "." not in team:

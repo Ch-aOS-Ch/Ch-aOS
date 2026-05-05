@@ -1,10 +1,28 @@
+from __future__ import annotations
+
 from importlib import import_module
-from typing import Any
+from typing import TYPE_CHECKING
 
 from .args.dataclasses import ExplainPayload, ResultPayload
 
+if TYPE_CHECKING:
+    from typing import Any, TypedDict
 
-def _setup_method_explain(EXPLAIN_DISPATCHER, role):
+    class ExplainContentResult(TypedDict):
+        type: str
+        role: str
+        sub_topic: str | None
+        content: str | list[str]
+
+    class ExplainListResult(TypedDict):
+        type: str
+        role: str
+        sub_topics: list[str]
+
+    ExplainResult = ExplainContentResult | ExplainListResult
+
+
+def _setup_method_explain(EXPLAIN_DISPATCHER, role) -> tuple[Any, str | None]:
     """Sets up and initializes the explanation class for a given role.
 
     Args:
@@ -24,7 +42,7 @@ def _setup_method_explain(EXPLAIN_DISPATCHER, role):
         return None, f"Could not load explanation class for role '{role}': {e}"
 
 
-def _get_explain_subtopics(ExplainObj, role):
+def _get_explain_subtopics(ExplainObj, role) -> list[str]:
     """Retrieves the available subtopics for an initialized explanation object.
 
     Args:
@@ -47,8 +65,8 @@ def _get_explain_subtopics(ExplainObj, role):
 
 
 def handleExplain(
-    payload: ExplainPayload, EXPLAIN_DISPATCHER
-) -> ResultPayload[dict[str, dict[str, Any]]]:
+    payload: ExplainPayload, EXPLAIN_DISPATCHER: dict[str, str]
+) -> ResultPayload[dict[str, ExplainResult]]:
     """Handles the resolution and fetching of explanations for provided topics.
 
     Args:
@@ -56,7 +74,7 @@ def handleExplain(
         EXPLAIN_DISPATCHER (dict): A mapping of available roles to their specific explanation modules.
 
     Returns:
-        ResultPayload[dict[str, dict[str, Any]]]: The result payload containing a dictionary of fetched explanations or list of subtopics on success, and any errors encountered during resolution.
+        ResultPayload[]: The result payload containing a dictionary of fetched explanations or list of subtopics on success, and any errors encountered during resolution.
 
     Notes:
         Topics should be passed as either "role" or "role.sub_topic". If "role.list" is requested, it will list all available subtopics for that role.
@@ -66,8 +84,8 @@ def handleExplain(
     if not isinstance(topics, list):
         topics = [topics]
 
-    result_data = {}
-    errors = []
+    result_data: dict[str, ExplainResult] = {}
+    errors: list[str] = []
 
     for topic in topics:
         parts = topic.split(".")

@@ -89,6 +89,11 @@ def handleApply(args):
     _handle_verbose(payload)
 
     global_config, config_result = get_configs(payload)
+    if not global_config:
+        console.print(
+            "[bold red]Warning:[/] Failed to load global configuration, using overrides and defaults where possible."
+        )
+
     _print_messages(config_result, console)
 
     from typing import cast
@@ -149,8 +154,7 @@ def handleApply(args):
         sys.exit(1)
 
     if not apply_result.data.get("global_config"):
-        console.print("[bold red]ERROR:[/] Global config is missing from apply result.")
-        sys.exit(1)
+        console.print("Warning: Global config is missing from apply results.")
 
     if not config_result.data or not config_result.data.get("chobolo_path"):
         console.print("[bold red]ERROR:[/] Chobolo path is missing from config result.")
@@ -160,8 +164,11 @@ def handleApply(args):
         console.print("[bold red]ERROR:[/] Loaded roles are missing from apply result.")
         sys.exit(1)
 
-    payload.global_config = apply_result.data["global_config"]
     payload.chobolo = config_result.data["chobolo_path"]
+    if not payload.chobolo:
+        console.print("[bold red]ERROR:[/] Chobolo path is missing from config result.")
+        sys.exit(1)
+
     payload.secrets_context.secrets_file_override = config_result.data[
         "secrets_file_override"
     ]
@@ -199,6 +206,15 @@ def handleApply(args):
             sys.exit(1)
 
         if payload.secrets:
+            if (
+                not payload.secrets_context.secrets_file_override
+                or not payload.secrets_context.sops_file_override
+            ):
+                console.print(
+                    "[bold red]ERROR:[/] Secrets are enabled but secrets file or sops file override is missing from config."
+                )
+                sys.exit(1)
+
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
             try:

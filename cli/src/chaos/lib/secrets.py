@@ -1,6 +1,8 @@
 """Module for handling secret management operations such as adding/removing keys, editing secrets, and printing secrets."""
 
-from typing import Any, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
@@ -15,6 +17,16 @@ from chaos.lib.args.dataclasses import (
     SecretsRotatePayload,
     SecretsSetShamirPayload,
 )
+
+if TYPE_CHECKING:
+    from typing import Literal, TypedDict
+
+    from chaos.lib.secret_backends.providers.base import Provider
+
+    class SecEditData(TypedDict):
+        provider: Provider | None
+        secrets_file: str
+        sops_file: str
 
 
 def gatherRotateAdd(payload: SecretsRotatePayload) -> DataGatherRequest | None:
@@ -450,14 +462,14 @@ def handleSetShamir(payload: SecretsSetShamirPayload) -> ResultPayload[None]:
     return ResultPayload(success=len(errors) == 0, message=messages, error=errors)
 
 
-def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[dict[str, Any]]:
+def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[SecEditData]:
     """Opens the secrets file in SOPS for editing.
 
     Args:
         payload (SecretsEditPayload): The payload containing context for editing secrets.
 
     Returns:
-        ResultPayload[dict[str, Any]]: The result payload containing related file paths and settings.
+        ResultPayload[SecEditData]: The result payload containing related file paths and settings.
     """
     from chaos.lib.secret_backends.crypto import is_vault_in_use
     from chaos.lib.secret_backends.utils import _resolveProvider, get_sops_files
@@ -492,7 +504,7 @@ def handleSecEdit(payload: SecretsEditPayload) -> ResultPayload[dict[str, Any]]:
         message=messages,
         error=errors,
         data={
-            "provider": provider if provider else None,
+            "provider": provider,
             "secrets_file": secretsFile,
             "sops_file": sopsFile,
         },
@@ -580,14 +592,16 @@ def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload[dict[str, str]
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
+def handleSecCat(
+    payload: SecretsCatPayload,
+) -> ResultPayload[dict[Literal["values"], list[tuple[str, str]]]]:
     """Decrypts the secrets file and returns the values of the specified keys.
 
     Args:
         payload (SecretsCatPayload): The payload detailing the keys to extract.
 
     Returns:
-        ResultPayload[dict[str, Any]]: The result payload containing a list of values found for the keys.
+        ResultPayload[dict[Literal["values"], list[tuple[str, str]]]]: The result payload containing a list of values found for the keys.
     """
     import subprocess
     from io import StringIO
@@ -640,7 +654,7 @@ def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
         from omegaconf import OmegaConf
 
         ocLoadResult = OmegaConf.load(StringIO(sopsDecryptResult))
-        values = []
+        values: list[tuple[str, str]] = []
         for key in payload.keys:
             value = OmegaConf.select(ocLoadResult, key, default=None)
             if value is None:
@@ -663,7 +677,7 @@ def handleSecCat(payload: SecretsCatPayload) -> ResultPayload[dict[str, Any]]:
         return ResultPayload(success=False, message=messages, error=errors)
 
 
-def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload[Any]:
+def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPayload:
     """Exports secrets via a resolved provider.
 
     Args:
@@ -671,7 +685,7 @@ def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPaylo
         global_config (dict | DictConfig): The global configuration.
 
     Returns:
-        ResultPayload[Any]: The result payload of the export operation.
+        ResultPayload: The result payload of the export operation.
     """
     from chaos.lib.secret_backends.utils import _getProviderByName
 
@@ -679,7 +693,7 @@ def handleExportSec(payload: SecretsExportPayload, global_config) -> ResultPaylo
     return provider.export_secrets(payload)
 
 
-def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload[Any]:
+def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPayload:
     """Imports secrets via a resolved provider.
 
     Args:
@@ -687,7 +701,7 @@ def handleImportSec(payload: SecretsImportPayload, global_config) -> ResultPaylo
         global_config (dict | DictConfig): The global configuration.
 
     Returns:
-        ResultPayload[Any]: The result payload of the import operation.
+        ResultPayload: The result payload of the import operation.
     """
     from chaos.lib.secret_backends.utils import _getProviderByName
 
