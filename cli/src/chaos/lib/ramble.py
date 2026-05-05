@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, cast
 
 from chaos.lib.args.dataclasses import (
     DataGatherPayload,
@@ -33,6 +33,20 @@ from chaos.lib.secret_backends.utils import (
     _handle_provider_arg,
     decrypt_secrets,
 )
+
+if TYPE_CHECKING:
+    from typing import Any, TypedDict
+
+    class CreateRambleData(TypedDict):
+        file_to_edit: str
+        should_encrypt: bool
+        target: str
+
+    class EditRambleData(TypedDict):
+        file_path: str
+        is_encrypted: bool
+        sops_config: str | None
+        edit_sops_file: bool
 
 
 def _get_ramble_dir(team) -> Path:
@@ -288,7 +302,7 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
     return None
 
 
-def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[dict[str, Any]]:
+def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[CreateRambleData]:
     """Creates a new ramble journal or page, and returns the file path to open.
 
     Args:
@@ -400,7 +414,7 @@ def gatherEditRamble(payload: RambleEditPayload) -> DataGatherRequest | None:
     return None
 
 
-def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[dict[str, Any]]:
+def handleEditRamble(payload: RambleEditPayload) -> ResultPayload[EditRambleData]:
     """Prepares editing of an existing ramble journal or page, returning info for the interface to handle it.
 
     Args:

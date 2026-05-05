@@ -4,8 +4,10 @@ Notes:
     + some validity checks for vault
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, cast
+from typing import cast
 
 from .args.dataclasses import CheckPayload, ResultPayload
 
@@ -134,14 +136,14 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
     return result
 
 
-def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, Any]]:
+def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, str]]:
     """Checks if the provided aliases are valid.
 
     Args:
         ROLE_ALIASES (dict): A dictionary of role aliases to check.
 
     Returns:
-        ResultPayload[dict[str, Any]]: The result payload containing the valid aliases, and any warnings/messages.
+        ResultPayload[dict[str, str]]: The result payload containing the valid aliases, and any warnings/messages.
     """
     payload, warnings, messages = _handleAliases(ROLE_ALIASES)
     result = ResultPayload(
@@ -232,14 +234,14 @@ def checkTemplates(keys) -> ResultPayload[list[str]]:
 
 def handle_check(
     payload: CheckPayload,
-) -> ResultPayload[list[str] | dict[str, Any] | None]:
+) -> ResultPayload[list[str] | dict[str, str] | None]:
     """Handles various check commands based on the payload.
 
     Args:
         payload (CheckPayload): The payload containing the check command and related context.
 
     Returns:
-        ResultPayload[list[str] | dict[str, Any] | None]: The result payload of the requested check.
+        ResultPayload[list[str] | dict[str, str] | None]: The result payload of the requested check.
     """
     match payload.checks:
         case "explanations":
@@ -252,7 +254,7 @@ def handle_check(
             from chaos.lib.plugDiscovery import get_plugins
 
             ROLE_ALIASES = get_plugins(payload.update_plugins)[1]
-            result_aliases: ResultPayload[dict[str, Any]] = checkAliases(ROLE_ALIASES)
+            result_aliases: ResultPayload[dict[str, str]] = checkAliases(ROLE_ALIASES)
             return result_aliases
         case "roles":
             from chaos.lib.plugDiscovery import get_plugins

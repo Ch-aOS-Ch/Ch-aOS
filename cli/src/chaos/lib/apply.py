@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+import json
+from typing import TYPE_CHECKING, Literal
 
 from omegaconf import DictConfig, ListConfig
 
@@ -13,16 +14,45 @@ from chaos.lib.args.dataclasses import (
     Delta,
     ResultPayload,
 )
-from chaos.lib.roles.role import Role
 
 if TYPE_CHECKING:
+    from typing import Any, TypedDict
+
     from pyinfra.api.host import Host
+    from pyinfra.api.inventory import Inventory
     from pyinfra.api.state import State
+
+    from chaos.lib.boats.base import Boat
+    from chaos.lib.roles.role import Role
+
+    class GatherApplyResultData(TypedDict):
+        loaded_roles: dict[str, Role]
+        global_config: DictConfig | None
+        any_role_needs_secrets: bool
+        sudo_password: str | None
+
+    class GatherFleetResultData(TypedDict):
+        hosts: list[str]
+        is_fleet: bool
+        parallels: int
+
+    class FilteredContextRoles(TypedDict):
+        role: Role
+        context: dict[str, Any]
+
+    class FilteredContextResultData(TypedDict):
+        host: Host
+        roles: dict[str, FilteredContextRoles]
+
+    class GetConfigsResultData(TypedDict):
+        chobolo_path: str | None
+        secrets_file_override: str | None
+        sops_file_override: str | None
 
 
 def gather_apply(
     payload: ApplyPayload,
-) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any] | None]]:
+) -> tuple[DataGatherRequest | None, ResultPayload[GatherApplyResultData | None]]:
     """Gather necessary data for applying roles, such as sudo password and secrets if needed.
 
     Args:
@@ -40,13 +70,12 @@ def gather_apply(
             success=False,
             message=[],
             error=[f"Error handling sudo password: {sudo_password_result.error}"],
-            data=None,
         )
 
     sudo_password = sudo_password_result.data
 
     request = DataGatherRequest(name="apply", fields=[])
-    result = ResultPayload(success=True, message=[], error=[], data={})
+    result = ResultPayload(success=True, message=[], error=[])
     i_know = payload.i_know_what_im_doing
 
     if not sudo_password:
@@ -65,7 +94,11 @@ def gather_apply(
 
     result_load = _load_role_eps(payload.tags)
     if not result_load.success:
-        return request, result_load
+        return request, ResultPayload(
+            success=False,
+            message=[],
+            error=[f"Error loading roles: {result_load.error}"],
+        )
 
     loaded_roles = result_load.data
     if not loaded_roles:
@@ -129,7 +162,7 @@ Do you want to provide them?""",
 
 def gather_fleet(
     payload: ApplyPayload, chobolo_config: DictConfig | ListConfig, chobolo_path: str
-) -> tuple[DataGatherRequest | None, ResultPayload[dict[str, Any]]]:
+) -> tuple[DataGatherRequest | None, ResultPayload[GatherFleetResultData | None]]:
     """Gather necessary data for fleet configuration, such as host information and parallelism settings.
 
     Args:
@@ -181,8 +214,6 @@ def gather_fleet(
 
     from typing import cast
 
-    from omegaconf import OmegaConf
-
     if not payload.fleet:
         return None, ResultPayload(
             success=True, data={"hosts": ["@local"], "is_fleet": False, "parallels": 0}
@@ -209,7 +240,7 @@ def gather_fleet(
                 )
             ],
         )
-        return request, ResultPayload(success=True, data={})
+        return request, ResultPayload(success=True)
 
     parallels = fleet_config.get("parallelism", 0)
     fleet_boats = fleet_config.get("boats", [])
@@ -248,11 +279,10 @@ def gather_fleet(
                 )
             ],
         )
-        return request, ResultPayload(success=True, data={})
+        return request, ResultPayload(success=True)
 
     hosts = []
-    container = OmegaConf.to_container(fleet_hosts, resolve=True)
-    container = cast(dict[str, dict[str, Any]], container)
+    container = json.loads(fleet_hosts)
 
     if not isinstance(container, dict):
         return None, ResultPayload(
@@ -290,7 +320,7 @@ def gather_fleet(
                 )
             ],
         )
-        return request, ResultPayload(success=True, message=messages, data={})
+        return request, ResultPayload(success=True, message=messages)
 
     return None, ResultPayload(
         success=True,
@@ -395,7 +425,6 @@ def run_delta(
             success=False,
             message=[],
             error=[f"Error computing delta for role '{role_name}': {str(e)}"],
-            data=None,
         )
     return ResultPayload(success=True, message=[], error=[], data=delta)
 
@@ -406,7 +435,7 @@ def run_plan(
     role: Role,
     role_name: str,
     host: Host,
-) -> ResultPayload[dict[str, Any]]:
+) -> ResultPayload[dict[Literal["plan"], ResultPayload]]:
     """Runs the plan method for a given role and host, computing the necessary
         operations to apply the role, while also checking against any allowlist or blacklist restrictions for the role and host.
 
@@ -445,7 +474,7 @@ def run_plan(
     return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
 
 
-def execute_plans(payload: ApplyPayload) -> ResultPayload[dict[str, Any] | None]:
+def execute_plans(payload: ApplyPayload) -> ResultPayload[None]:
     """Executes all computed state operations for the roles on the target hosts using pyinfra, and gathers the results of the execution.
 
     Args:
@@ -467,7 +496,6 @@ def execute_plans(payload: ApplyPayload) -> ResultPayload[dict[str, Any] | None]
             success=False,
             message=[],
             error=[f"Error executing plans with pyinfra: {str(e)}"],
-            data={},
         )
 
 
@@ -554,7 +582,7 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
     return ResultPayload(success=True, message=warnings, error=[], data=resolved_tags)
 
 
-def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
+def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[State | None]:
     """Set up the pyinfra state and inventory based on the gathered fleet configuration, and establish connections to the target hosts.
 
     Args:
@@ -598,7 +626,6 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
                     error=[
                         f"Error resolving limani for telemetry: {limani_result.error}"
                     ],
-                    data=None,
                 )
 
             if not limani_result.data:
@@ -606,7 +633,6 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
                     success=False,
                     message=[],
                     error=["No limani specified for telemetry."],
-                    data=None,
                 )
 
             ChaosTelemetry.load_limani_plugin(limani_result.data, payload.global_config)
@@ -639,13 +665,12 @@ def setup_pyinfra(payload: ApplyPayload) -> ResultPayload[Any | None]:
             success=False,
             message=[],
             error=[f"Error setting up pyinfra: {str(e)}"],
-            data=None,
         )
 
 
 def teardown_pyinfra(
     payload: ApplyPayload, run_status: Literal["success", "failure"]
-) -> ResultPayload[dict[str, Any]]:
+) -> ResultPayload[None]:
     """Teardown the pyinfra state and connections after the apply operation is complete.
 
     Args:
@@ -672,13 +697,12 @@ def teardown_pyinfra(
 
         if payload.pyinfra_state:
             disconnect_all(payload.pyinfra_state)
-        return ResultPayload(success=True, message=[], error=[], data={})
+        return ResultPayload(success=True, message=[], error=[])
     except Exception as e:
         return ResultPayload(
             success=False,
             message=[],
             error=[f"Error tearing down pyinfra: {str(e)}"],
-            data={},
         )
 
 
@@ -686,7 +710,7 @@ def resolve_allowlist_blacklist(
     restrictions: dict[str, dict[str, dict[str, bool]]],
     role_name: str,
     host: Host,
-) -> ResultPayload[dict[str, Any]] | None:
+) -> ResultPayload[None] | None:
     """This function resolves all blacklist and allowlist restrictions given for a role and host, and determines if the role should be ran
         in said host or if there are any conflicts in the configuration that should be reported as errors.
 
@@ -697,7 +721,7 @@ def resolve_allowlist_blacklist(
             to determine if the role should be applied to the host or if there are any conflicts in the configuration.
 
     Returns:
-        ResultPayload[dict[str, Any]] | None: A ResultPayload indicating the success or failure of the resolution process.
+        ResultPayload[None] | None: A ResultPayload indicating the success or failure of the resolution process.
 
     Notes:
         It should be called before running the get_context for a role on a host.
@@ -742,7 +766,6 @@ def resolve_allowlist_blacklist(
             error=[
                 f"Role '{role_name}' is both blacklisted and allowlisted for host '{host.name}'. Please resolve this conflict in your configuration."
             ],
-            data={},
         )
 
     if in_black and not in_allow:
@@ -750,7 +773,6 @@ def resolve_allowlist_blacklist(
             success=True,
             message=[],
             error=[f"Role '{role_name}' is blacklisted for host '{host.name}'."],
-            data={},
         )
 
     if (
@@ -762,7 +784,6 @@ def resolve_allowlist_blacklist(
             success=True,
             message=[],
             error=[f"Host '{host.name}' is completely blacklisted."],
-            data={},
         )
 
     if host.name in allow_list and not in_allow:
@@ -772,7 +793,6 @@ def resolve_allowlist_blacklist(
             error=[
                 f"Host '{host.name}' is allowlisted but role '{role_name}' is not on the allowlist."
             ],
-            data={},
         )
 
 
@@ -782,7 +802,7 @@ def run_filtered_context(
     payload: ApplyPayload,
     chobolo_config: dict[str, Any],
     restrictions: dict[str, dict[str, dict[str, bool]]],
-) -> ResultPayload[dict[str, Any]]:
+) -> ResultPayload[FilteredContextResultData]:
     """
     run_context implementation integrated with resolve_allowlist_blacklist to filter out roles that should not be applied to the host
         based on the restrictions specified in the chobolo configuration.
@@ -796,7 +816,7 @@ def run_filtered_context(
             roles and hosts, used to determine if each role should be applied to the host or if there are any conflicts in the configuration.
 
     Returns:
-        ResultPayload[dict[str, Any]]: A ResultPayload indicating the success or failure of the context gathering process for the host,
+        ResultPayload[FilteredContextResultData]: A ResultPayload indicating the success or failure of the context gathering process for the host,
             with the gathered context data for all applicable roles in the data field if successful, and any error messages in the
             error field.
 
@@ -862,7 +882,7 @@ def run_filtered_context(
 
 def get_configs(
     payload: ApplyPayload,
-) -> tuple[DictConfig, ResultPayload[dict[str, Any]]]:
+) -> tuple[DictConfig, ResultPayload[GetConfigsResultData | None]]:
     """Loads global configuration from a chobolo file and validates paths for chobolo,
          secrets file, and sops file based on the payload and global configuration.
 
@@ -892,7 +912,7 @@ def get_configs(
         global_config = OmegaConf.load(CONFIG_FILE_PATH) or OmegaConf.create()
     global_config = cast(DictConfig, global_config)
 
-    chobolo_path = payload.chobolo or global_config.get("chobolo_file", None)
+    chobolo_path: str = payload.chobolo or global_config.get("chobolo_file", None)
     try:
         validate_path(chobolo_path)
     except Exception as e:
@@ -900,10 +920,9 @@ def get_configs(
             success=False,
             message=[],
             error=[f"Error with chobolo file path: {str(e)}"],
-            data={},
         )
 
-    secrets_file_override = (
+    secrets_file_override: str = (
         payload.secrets_context.secrets_file_override
         or global_config.get("secrets_file", None)
     )
@@ -914,10 +933,9 @@ def get_configs(
             success=False,
             message=[],
             error=[f"Error with secrets file path: {str(e)}"],
-            data={},
         )
 
-    sops_file_override = (
+    sops_file_override: str = (
         payload.secrets_context.sops_file_override
         or global_config.get("sops_file", None)
     )
@@ -928,7 +946,6 @@ def get_configs(
             success=False,
             message=[],
             error=[f"Error with sops file path: {str(e)}"],
-            data={},
         )
 
     if not chobolo_path:
@@ -938,7 +955,6 @@ def get_configs(
                 success=False,
                 message=[],
                 error=["No chobolo file specified in payload or global config."],
-                data={},
             ),
         )
 
@@ -994,13 +1010,12 @@ def _resolve_limani(
             success=False,
             message=[],
             error=["No limani specified in payload or global config."],
-            data=None,
         )
 
     return ResultPayload(success=True, message=[], error=[], data=limani_name)
 
 
-def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[Any]]:
+def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[type[Boat]]]:
     """Loads boat plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.boats"
         It attempts to load all boat plugins and returns a list of the loaded boat classes.
 
@@ -1052,7 +1067,7 @@ def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[Any]]:
 
 def _handle_boats(
     global_state: DictConfig, boats: ListConfig
-) -> tuple[DictConfig, ResultPayload[list[Any] | None]]:
+) -> tuple[DictConfig, ResultPayload[list[type[Boat]] | None]]:
     """Handles the processing of boats for fleet configuration, including loading necessary boat plugins and invoking their
          get_fleet methods to gather host information.
 
@@ -1124,7 +1139,9 @@ def _handle_boats(
     return global_state, ResultPayload(success=True, message=[], error=[])
 
 
-def _setup_hosts(payload: ApplyPayload) -> tuple[Any, list[tuple[str, dict]], int]:
+def _setup_hosts(
+    payload: ApplyPayload,
+) -> tuple[Inventory, list[tuple[str, dict]], int]:
     """Sets up the inventory of hosts for pyinfra based on the fleet configuration gathered from the chobolo file,
          and determines the parallelism settings for executing plans on the fleet.
 
@@ -1284,7 +1301,6 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
                 success=False,
                 message=[],
                 error=[f"Error with sudo password file path: {str(e)}"],
-                data=None,
             )
 
         sudo_file = Path(payload.sudo_password_file)
@@ -1293,7 +1309,6 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
                 success=False,
                 message=[],
                 error=[f"Sudo password file not found: {sudo_file}"],
-                data=None,
             )
 
         if not sudo_file.is_file():
@@ -1301,7 +1316,6 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
                 success=False,
                 message=[],
                 error=[f"Sudo password file path is not a file: {sudo_file}"],
-                data=None,
             )
 
         with open(sudo_file, "r") as f:
@@ -1313,7 +1327,7 @@ def _handle_password(payload: ApplyPayload) -> ResultPayload[str | None]:
     return ResultPayload(success=True, message=[], error=[], data=sudo_password)
 
 
-def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Any]]:
+def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Role]]:
     """Loads role plugins using the importlib metadata entry points, specifically looking for plugins under "chaos.roles"
 
     Args:

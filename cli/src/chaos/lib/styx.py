@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import requests
 from omegaconf import DictConfig, OmegaConf
@@ -253,14 +255,14 @@ def install_styx_entries(payload: StyxPayload) -> ResultPayload[None]:
     return ResultPayload(success=success, message=messages, error=errors)
 
 
-def list_styx_entries(payload: StyxPayload) -> ResultPayload[dict[str, Any]]:
+def list_styx_entries(payload: StyxPayload) -> ResultPayload[dict[str, dict[str, str]]]:
     """Lists the available Styx registry entries.
 
     Args:
         payload (StyxPayload): The structured payload containing the list of registry entries to display.
 
     Returns:
-        ResultPayload[dict[str, Any]]: A payload containing matched registry details.
+        ResultPayload[dict[str, dict[str, str]]: A payload containing matched registry details.
     """
     entries = payload.entries
     raw_registry, error = get_styx_registry(payload)
@@ -285,7 +287,7 @@ def list_styx_entries(payload: StyxPayload) -> ResultPayload[dict[str, Any]]:
     styx_entries = registry_data.styx
     keys_to_show = entries if entries else list(styx_entries.keys())
 
-    output_data = {}
+    output_data: dict[str, dict[str, str]] = {}
     errors = []
     for name in keys_to_show:
         if name in styx_entries:
@@ -376,14 +378,16 @@ def uninstall_styx_entries(entries: list[str]) -> ResultPayload[None]:
     return ResultPayload(success=success, message=messages, error=errors)
 
 
-def handle_styx(payload: StyxPayload) -> ResultPayload[dict[str, Any] | None]:
+def handle_styx(
+    payload: StyxPayload,
+) -> ResultPayload[dict[str, dict[str, str]] | None]:
     """Handles parsing and routing for the specified styx subcommands.
 
     Args:
         payload (StyxPayload): The structured payload containing the requested action and corresponding details.
 
     Returns:
-        ResultPayload[dict[str, Any] | None]: The generic result of the styx operation.
+        ResultPayload[dict[str, dict[str, str]] | None]: The generic result of the styx operation.
     """
     try:
         match payload.styx_commands:
