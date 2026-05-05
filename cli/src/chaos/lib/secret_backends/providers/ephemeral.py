@@ -55,7 +55,7 @@ def mac_ram_disk():
     device = attach_cmd.stdout.strip()
 
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["diskutil", "erasevolume", "HFS+", "ChaosGPG", device],
             capture_output=True,
             check=True,
@@ -64,7 +64,7 @@ def mac_ram_disk():
         mount_point = "/Volumes/ChaosGPG"
         yield mount_point
     finally:
-        subprocess.run(
+        _ = subprocess.run(
             ["hdiutil", "detach", device, "-force"], capture_output=True, check=False
         )
 
@@ -107,7 +107,7 @@ def ephemeralGpgKey(key_bytes: bytes):
                 raise RuntimeError(f"Failed to generate GPG home: {e}")
 
             try:
-                subprocess.run(
+                _ = subprocess.run(
                     ["gpg", "--batch", "--import"],
                     input=key_bytes,
                     env={"GNUPGHOME": str(temp_path)},
@@ -132,7 +132,7 @@ def ephemeralGpgKey(key_bytes: bytes):
                 raise RuntimeError(f"Failed to generate GPG home: {e}")
 
             try:
-                subprocess.run(
+                _ = subprocess.run(
                     ["gpg", "--batch", "--import"],
                     input=key_bytes,
                     env={"GNUPGHOME": str(temp_path)},
@@ -178,7 +178,7 @@ def ephemeralVaultKeys(vault_token: str, vault_addr: str):
                 with os.fdopen(
                     os.open(token_file, os.O_WRONLY | os.O_CREAT, 0o600), "w"
                 ) as f:
-                    f.write(vault_token)
+                    _ = f.write(vault_token)
             except Exception as e:
                 os.close(r_addr)
                 raise RuntimeError(f"Failed to generate Vault home: {e}")
@@ -200,7 +200,7 @@ def ephemeralVaultKeys(vault_token: str, vault_addr: str):
                 with os.fdopen(
                     os.open(token_file, os.O_WRONLY | os.O_CREAT, 0o600), "w"
                 ) as f:
-                    f.write(vault_token)
+                    _ = f.write(vault_token)
             except Exception as e:
                 os.close(r_addr)
                 raise RuntimeError(f"Failed to generate Vault home: {e}")

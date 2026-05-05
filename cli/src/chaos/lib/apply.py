@@ -106,8 +106,8 @@ def gather_apply(
         result.error.append("No valid roles found for the specified tags.")
         return request, result
 
-    roles_that_need_secrets = []
-    secrets_needed = []
+    roles_that_need_secrets: list[str] = []
+    secrets_needed: list[str] = []
 
     for role in payload.tags:
         if role not in loaded_roles:
@@ -533,7 +533,7 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
     resolved_tags = []
     seen_aliases = set()
 
-    def _resolve_alias(tag: str, local_seen: set) -> None:
+    def _resolve_alias(tag: str, local_seen: set[str]) -> None:
         if tag in local_seen:
             if tag not in resolved_tags:
                 resolved_tags.append(tag)

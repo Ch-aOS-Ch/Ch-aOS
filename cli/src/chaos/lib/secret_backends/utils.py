@@ -120,7 +120,7 @@ def _getProviderByName(
     return provider
 
 
-def setup_gpg_keys(gnupghome) -> None:
+def setup_gpg_keys(gnupghome: Path) -> None:
     """Sets up a temporary GNUPGHOME directory to keep imported GPG keys ephemeral.
 
     Copies existing private keys and trustdb from the user's main GNUPGHOME (if present)
@@ -138,16 +138,16 @@ def setup_gpg_keys(gnupghome) -> None:
         return
 
     srcPriv = actualGnupgHome_path / "private-keys-v1.d"
-    detstPriv = temp_gnupg_path / "private-keys-v1.d"
+    detstPriv = Path(temp_gnupg_path) / "private-keys-v1.d"
 
-    shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
+    _ = shutil.copytree(srcPriv, detstPriv, dirs_exist_ok=True)
     os.chmod(detstPriv, 0o700)
 
-    pubKeyDump = temp_gnupg_path / "host_pubkeys.gpg"
+    pubKeyDump = Path(temp_gnupg_path) / "host_pubkeys.gpg"
 
     try:
         with open(pubKeyDump, "wb") as f:
-            subprocess.run(
+            _ = subprocess.run(
                 ["gpg", "--export"], stdout=f, check=True, stderr=subprocess.DEVNULL
             )
 
@@ -159,7 +159,7 @@ def setup_gpg_keys(gnupghome) -> None:
     temp_env = os.environ.copy()
     temp_env["GNUPGHOME"] = str(temp_gnupg_path)
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["gpg", "--batch", "--import", str(pubKeyDump)],
             check=True,
             stdout=subprocess.DEVNULL,
@@ -171,7 +171,7 @@ def setup_gpg_keys(gnupghome) -> None:
 
     src_trust = actualGnupgHome_path / "trustdb.gpg"
     if src_trust.exists():
-        shutil.copy2(src_trust, temp_gnupg_path / "trustdb.gpg")
+        _ = shutil.copy2(src_trust, Path(temp_gnupg_path) / "trustdb.gpg")
 
 
 def conc_age_keys(secKey: str) -> str:
@@ -245,7 +245,7 @@ def setup_pipe(token: str) -> int:
         int: The file descriptor (FD) number for the read end of the pipe.
     """
     r, w = os.pipe()
-    os.write(w, token.encode())
+    _ = os.write(w, token.encode())
     os.fchmod(w, 0o600)
     os.close(w)
     return r
@@ -316,7 +316,7 @@ def _is_valid_vault_key(key: str) -> tuple[bool, str]:
 
 
 def get_sops_files(
-    sops_file_override, secrets_file_override, team
+    sops_file_override: str | None, secrets_file_override: str | None, team: str | None
 ) -> tuple[str, str, DictConfig]:
     """Gets the appropriate SOPS and secrets files based on overrides, team context, and global configuration.
 
@@ -339,8 +339,8 @@ def get_sops_files(
 
     from omegaconf import DictConfig, OmegaConf
 
-    secretsFile = secrets_file_override
-    sopsFile = sops_file_override
+    secretsFile = secrets_file_override or ""
+    sopsFile = sops_file_override or ""
 
     CONFIG_DIR = os.getenv("CHAOS_CONFIG_DIR", Path.home() / ".config" / "chaos")
     CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.yml")
@@ -389,7 +389,7 @@ def get_sops_files(
         )
 
         if teamPath.exists():
-            sopsFile = teamPath / "sops-config.yml"
+            sopsFile = str(teamPath / "sops-config.yml")
             default_secrets_filename = "secrets/secrets.yml"
             if group:
                 groupPath = f"secrets/{group}"
@@ -398,7 +398,7 @@ def get_sops_files(
                         f"Group directory for '{group}' not found at {teamPath / groupPath}."
                     )
                 default_secrets_filename = f"{groupPath}/secrets.yml"
-            secretsFile = teamPath / default_secrets_filename
+            secretsFile = str(teamPath / default_secrets_filename)
 
             if sops_file_override:
                 if ".." in sops_file_override or sops_file_override.startswith("/"):
@@ -408,7 +408,7 @@ def get_sops_files(
                 override_path = (teamPath / sops_file_override).resolve(strict=False)
                 if not str(override_path).startswith(str(teamPath)):
                     raise ValueError("Path traversal detected.")
-                sopsFile = teamPath / sops_file_override
+                sopsFile = str(teamPath / sops_file_override)
 
             if secrets_file_override:
                 if ".." in secrets_file_override or secrets_file_override.startswith(
@@ -418,11 +418,13 @@ def get_sops_files(
                         f"Invalid team secrets file override '{secrets_file_override}'."
                     )
                 if not group:
-                    secretsFile = teamPath / "secrets" / secrets_file_override
+                    secretsFile = str(teamPath / "secrets" / secrets_file_override)
                 else:
-                    secretsFile = teamPath / "secrets" / group / secrets_file_override
+                    secretsFile = str(
+                        teamPath / "secrets" / group / secrets_file_override
+                    )
 
-            return str(secretsFile), str(sopsFile), global_config
+            return secretsFile, sopsFile, global_config
         else:
             raise FileNotFoundError(
                 f"Team directory for '{team_name}' not found at {teamPath}."
@@ -430,9 +432,9 @@ def get_sops_files(
 
     global_config = cast(DictConfig, global_config)
     if not secretsFile:
-        secretsFile = global_config.get("secrets_file")
+        secretsFile: str = global_config.get("secrets_file")
     if not sopsFile:
-        sopsFile = global_config.get("sops_file")
+        sopsFile: str = global_config.get("sops_file")
 
     if not secretsFile or not sopsFile:
         ChOboloPath = global_config.get("chobolo_file", None)
@@ -455,7 +457,7 @@ def get_sops_files(
     return secretsFile, sopsFile, global_config
 
 
-def flatten(items: list | ListConfig) -> Any:
+def flatten(items: list[str] | ListConfig) -> Any:
     """Turns a concatenated or nested list into a single flat generator.
 
     Args:
@@ -473,7 +475,7 @@ def flatten(items: list | ListConfig) -> Any:
             yield i
 
 
-def _save_to_config(backend: str, data_to_save: dict) -> None:
+def _save_to_config(backend: str, data_to_save: dict[str, str]) -> None:
     """Saves provider-specific data to the chaos global configuration file.
 
     Updates the '~/.config/chaos/config.yml' file with new settings under the

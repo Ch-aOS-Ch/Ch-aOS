@@ -14,7 +14,9 @@ Vault specific handlers for add/rem/list
 """
 
 
-def listVault(sops_file_override):
+def listVault(
+    sops_file_override: str,
+) -> tuple[set[str], list[str], list[str], list[str]]:
     """Lists all Vault instances/URIs found in the given SOPS configuration file.
 
     Args:
@@ -70,7 +72,7 @@ def handleVaultAdd(payload, sops_file_override, keys):
         keys (list[str]): The list of Vault URIs to add.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     messages = []
@@ -101,7 +103,7 @@ def handleVaultRem(payload, sops_file_override, keys):
         keys (list[str]): The list of Vault URIs to remove.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     messages = []

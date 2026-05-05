@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         edit_sops_file: bool
 
 
-def _get_ramble_dir(team) -> Path:
+def _get_ramble_dir(team: str) -> Path:
     """Validates and returns the ramble directory with the support for teams.
 
     Args:
@@ -103,7 +103,7 @@ def _get_ramble_dir(team) -> Path:
     )
 
 
-def is_safe_path(target_path: Path, team) -> bool:
+def is_safe_path(target_path: Path, team: str) -> bool:
     """Validates that the target path is within the ramble directory to prevent path traversal.
 
     Args:
@@ -288,12 +288,12 @@ def gatherCreateRamble(payload: RambleCreatePayload) -> DataGatherRequest | None
         directory = parts[0]
         page = parts[1]
         path = CONFIG_DIR / directory
-        CONFIG_FILE_PATH = path / f"{page}.yml"
+        config_file_path = path / f"{page}.yml"
     else:
         path = CONFIG_DIR / ramble
-        CONFIG_FILE_PATH = path / f"{ramble}.yml"
+        config_file_path = path / f"{ramble}.yml"
 
-    if CONFIG_FILE_PATH.exists():
+    if config_file_path.exists():
         return DataGatherRequest(
             name="ramble_create_confirm",
             fields=[
@@ -336,16 +336,16 @@ def handleCreateRamble(payload: RambleCreatePayload) -> ResultPayload[CreateRamb
                 success=False, error=["Invalid format for journal.page"]
             )
         path = CONFIG_DIR / directory
-        CONFIG_FILE_PATH = path / f"{page}.yml"
+        config_file_path = path / f"{page}.yml"
     else:
         if ".." in ramble or "/" in ramble:
             return ResultPayload(success=False, error=["Invalid format for journal"])
         path = CONFIG_DIR / ramble
         page = ramble
-        CONFIG_FILE_PATH = path / f"{ramble}.yml"
+        config_file_path = path / f"{ramble}.yml"
 
     try:
-        is_safe_path(CONFIG_FILE_PATH, team)
+        is_safe_path(config_file_path, team)
     except (PermissionError, FileNotFoundError, RuntimeError) as e:
         return ResultPayload(success=False, error=[str(e)])
 
@@ -361,8 +361,8 @@ scripts:
         path.mkdir(parents=True, exist_ok=True)
         messages.append(f"Created new journal: {path.name}!")
 
-    if not CONFIG_FILE_PATH.exists():
-        with open(CONFIG_FILE_PATH, "x") as f:
+    if not config_file_path.exists():
+        with open(config_file_path, "x") as f:
             f.write(base_text)
         messages.append(f"Page {page} created!")
     else:
@@ -373,7 +373,7 @@ scripts:
         success=True,
         message=messages,
         data={
-            "file_to_edit": str(CONFIG_FILE_PATH),
+            "file_to_edit": str(config_file_path),
             "should_encrypt": should_encrypt,
             "target": ramble,
         },

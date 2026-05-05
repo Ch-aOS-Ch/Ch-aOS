@@ -134,7 +134,7 @@ def gatherSetShamir(payload: SecretsSetShamirPayload) -> DataGatherRequest | Non
     Returns:
         DataGatherRequest | None: A request for user confirmation if required, else None.
     """
-    fields = []
+    fields: list[DataGatherPayload] = []
 
     if (
         payload.share <= 0
@@ -191,8 +191,8 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
     if not sops_file_override:
         return ResultPayload(success=False, error=["No sops config file found."])
 
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
 
     match payload.type:
         case "pgp":
@@ -213,6 +213,8 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
             msgs, errs = handleVaultAdd(payload, sops_file_override, keys)
             messages.extend(msgs)
             errors.extend(errs)
+        case _:
+            errors.append(f"Unsupported key type: {payload.type}")
 
     if (context.i_know_what_im_doing or payload.update_confirmed) and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets

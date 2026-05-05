@@ -47,6 +47,7 @@ def get_plugins(
     dict[str, str],
     dict[str, str],
     dict[str, str],
+    dict[str, str],
 ]:
     """
     Discover and load Ch-aOS plugins from specified directories and cache the results.

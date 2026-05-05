@@ -78,7 +78,7 @@ def pgp_exists(fingerprint: str) -> bool:
         bool: True if the key exists locally, False otherwise.
     """
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["gpg", "--list-keys", fingerprint],
             check=True,
             stdout=subprocess.DEVNULL,
@@ -168,9 +168,12 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
         return key_content
 
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to export GPG secret key: {e.stderr.strip()}"
-        ) from e
+        if not isinstance(e.stderr, str):  # pyright: ignore[reportAny]
+            error_message = "Unknown error occurred during GPG export."
+        else:
+            error_message = e.stderr.strip()
+
+        raise RuntimeError(f"Failed to export GPG secret key: {error_message}") from e
     except FileNotFoundError:
         raise RuntimeError(
             "The 'gpg' CLI tool is not installed or not found in PATH."
@@ -181,8 +184,8 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
 
 def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload[None]:
     currentPathAgeFile = Path.cwd() / "keys.txt"
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
 
     if currentPathAgeFile.exists() and not confirmed:
         return ResultPayload(
@@ -196,9 +199,9 @@ def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload
             sanitized_content = "\n".join(
                 line.lstrip() for line in key_content.splitlines()
             )
-            f.write(sanitized_content)
+            _ = f.write(sanitized_content)
             if not sanitized_content.endswith("\n"):
-                f.write("\n")
+                _ = f.write("\n")
         messages.append("Age key imported successfully to 'keys.txt'.")
     except Exception as e:
         errors.append(f"Error importing age key: {str(e)}")
@@ -209,12 +212,12 @@ def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload
 
 def _import_gpg_keys(secKey: str) -> ResultPayload[None]:
     decompressedKey = decompress(secKey)
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
 
     try:
         import_cmd = ["gpg", "--batch", "--import"]
-        subprocess.run(
+        _ = subprocess.run(
             import_cmd,
             input=decompressedKey,
             check=True,
@@ -222,7 +225,7 @@ def _import_gpg_keys(secKey: str) -> ResultPayload[None]:
         )
         messages.append("GPG key imported into your local GPG keyring successfully.")
     except subprocess.CalledProcessError as e:
-        errors.append(f"Error importing GPG key: {e.stderr.decode().strip()}")
+        errors.append(f"Error importing GPG key: {e.stderr.decode().strip()}")  # pyright: ignore[reportAny]
         return ResultPayload(success=False, error=errors)
 
     return ResultPayload(success=True, message=messages)
@@ -230,12 +233,12 @@ def _import_gpg_keys(secKey: str) -> ResultPayload[None]:
 
 def _import_vault_keys(key_content: str) -> ResultPayload[None]:
     currentPathVaultFile = Path.cwd() / "vault_key.txt"
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
 
     try:
         with currentPathVaultFile.open("w") as f:
-            f.write(key_content)
+            _ = f.write(key_content)
         messages.append("Vault key imported successfully to 'vault_key.txt'.")
     except Exception as e:
         errors.append(f"Error importing Vault key: {str(e)}")

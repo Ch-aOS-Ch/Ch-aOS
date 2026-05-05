@@ -9,7 +9,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
@@ -48,7 +48,7 @@ class Provider(ABC):
     def __init__(
         self,
         payload: SecretsContext | SecretsExportPayload | SecretsImportPayload,
-        global_config: dict,
+        global_config: dict[str, Any],
     ):
         """Initializes the Provider class.
 
@@ -56,8 +56,8 @@ class Provider(ABC):
             payload (SecretsContext | SecretsExportPayload | SecretsImportPayload): The contextual data governing operation constraints.
             global_config (dict): Global environment configurations.
         """
-        self.payload = payload
-        self.config = global_config
+        self.payload = payload  # pyright: ignore[reportUnannotatedClassAttribute]
+        self.config = global_config  # pyright: ignore[reportUnannotatedClassAttribute]
 
     @classmethod
     @abstractmethod

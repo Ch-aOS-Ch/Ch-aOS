@@ -47,7 +47,7 @@ def listAge(
             error.append("No 'creation_rules' found in the sops config. Nothing to do.")
             return set(), warnings, error, messages
 
-        all_age_keys_in_config = set()
+        all_age_keys_in_config: set[str] = set()
         for rule in creation_rules:
             for key_group in rule.get("key_groups", []):
                 if "age" in key_group and key_group.age is not None:
@@ -67,7 +67,7 @@ def listAge(
 
 def handleAgeAdd(
     payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
-):
+) -> tuple[list[str], list[str]]:
     """Handles the addition of Age public keys to the SOPS configuration.
 
     Validates Age keys and then updates the configuration with valid ones.
@@ -81,9 +81,9 @@ def handleAgeAdd(
         tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
-    valids = set()
-    messages = []
-    errors = []
+    valids: set[str] = set()
+    messages: list[str] = []
+    errors: list[str] = []
     for key in keys:
         clean_key = key.strip()
         if not is_valid_age_key(clean_key):
@@ -106,7 +106,7 @@ def handleAgeAdd(
 
 def handleAgeRem(
     payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
-):
+) -> tuple[list[str], list[str]]:
     """Handles the removal of Age public keys from the SOPS configuration.
 
     Args:
@@ -118,8 +118,8 @@ def handleAgeRem(
         tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
@@ -130,13 +130,13 @@ def handleAgeRem(
             )
             return messages, errors
 
-        all_age_keys_in_config = set()
+        all_age_keys_in_config: set[str] = set()
         for rule in creation_rules:
             for key_group in rule.get("key_groups", []):
                 if "age" in key_group and key_group.age is not None:
                     all_age_keys_in_config.update(flatten(key_group.age))
 
-        keys_to_remove = set()
+        keys_to_remove: set[str] = set()
         for key_to_check in keys:
             clean_key = key_to_check.strip()
 

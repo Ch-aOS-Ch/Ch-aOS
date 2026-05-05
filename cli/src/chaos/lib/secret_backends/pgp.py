@@ -49,7 +49,7 @@ def listPgp(
             error.append("No 'creation_rules' found in the sops config. Nothing to do.")
             return set(), warnings, error, messages
 
-        all_pgp_keys_in_config = set()
+        all_pgp_keys_in_config: set[str] = set()
         for rule in creation_rules:
             for key_group in rule.get("key_groups", []):
                 if "pgp" in key_group and key_group.pgp is not None:
@@ -85,9 +85,9 @@ def handlePgpAdd(
             and a list of error messages.
     """
     server = payload.pgp_server
-    valids = set()
-    errors = []
-    messages = []
+    valids: set[str] = set()
+    errors: list[str] = []
+    messages: list[str] = []
     for key in keys:
         clean_key = key.replace(" ", "")
         if len(clean_key) < 40:
@@ -149,8 +149,8 @@ def handlePgpRem(
         tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
-    messages = []
-    errors = []
+    messages: list[str] = []
+    errors: list[str] = []
     try:
         config_data = OmegaConf.load(sops_file_override)
         config_data = cast(DictConfig, config_data)
@@ -161,13 +161,13 @@ def handlePgpRem(
             )
             return messages, errors
 
-        all_pgp_keys_in_config = set()
+        all_pgp_keys_in_config: set[str] = set()
         for rule in creation_rules:
             for key_group in rule.get("key_groups", []):
                 if "pgp" in key_group and key_group.pgp is not None:
                     all_pgp_keys_in_config.update(flatten(key_group.pgp))
 
-        keys_to_remove = set()
+        keys_to_remove: set[str] = set()
         for key_to_check in keys:
             clean_key = key_to_check.replace(" ", "")
             if not is_valid_fp(clean_key):

@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+from typing import cast
 
 import yaml
 from omegaconf import DictConfig, ListConfig
@@ -31,13 +32,15 @@ def initChobolo(
     Notes:
         See `plugDiscovery.py` for more details on the keys format.
     """
-    messages = []
+    messages: list[str] = []
 
-    result = ResultPayload(success=True, message=messages, data=None)
+    result: ResultPayload[DictConfig] = ResultPayload(
+        success=True, message=messages, data=None
+    )
 
     if not targets:
         finalConf = oc.create()
-        addedKeys = set()
+        addedKeys: set[str] = set()
 
         for k in keys.values():
             lis = loadList(k)
@@ -52,9 +55,10 @@ def initChobolo(
                                 f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{k}'. Merging, but verify priority."
                             )
                         else:
-                            addedKeys.add(rootKey)
+                            addedKeys.add(str(rootKey))
 
                     finalConf = oc.merge(finalConf, newCfg)
+                    finalConf = cast(DictConfig, finalConf)
                     result.data = finalConf
             elif lis is not None:
                 result.message.append(f"Spec '{k}' did not return a list. Skipped.")
@@ -75,14 +79,14 @@ def initChobolo(
                                 f"Plugin conflict detected. The key '{rootKey}' is being redefined via '{target}'. Merging, but verify priority."
                             )
                         else:
-                            addedKeys.add(rootKey)
+                            addedKeys.add(str(rootKey))
                     finalConf = oc.merge(finalConf, newCfg)
 
             elif lis is not None:
                 result.message.append(
                     f"Spec '{target}' did not return a list. Skipped."
                 )
-    result.data = finalConf
+    result.data = cast(DictConfig, finalConf)
     return result
 
 
@@ -166,9 +170,11 @@ def setupSshToAge() -> tuple[str, str]:
             "[bold green]Success![/] Derived age public key from your SSH key."
         )
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to convert SSH key to age key: {e.stderr.strip()}"
-        ) from e
+        if not isinstance(e.stderr, str):  # pyright: ignore[reportAny]
+            error = "Unknown error"
+        else:
+            error = e.stderr.strip()
+        raise RuntimeError(f"Failed to convert SSH key to age key: {error}")
 
     try:
         proc = subprocess.run(
@@ -182,8 +188,13 @@ def setupSshToAge() -> tuple[str, str]:
         )
         private_key = proc.stdout.strip()
     except subprocess.CalledProcessError as e:
+        if not isinstance(e.stderr, str):  # pyright: ignore[reportAny]
+            error = "Unknown error"
+        else:
+            error = e.stderr.strip()
+
         raise RuntimeError(
-            f"Failed to derive private age key from SSH key: {e.stderr.strip()}"
+            f"Failed to derive private age key from SSH key: {error}"
         ) from e
 
     if not pubkey or not private_key:
@@ -203,15 +214,15 @@ def setupSshToAge() -> tuple[str, str]:
         if confirm:
             timestamp = int(time.time())
             try:
-                subprocess.run(
+                _ = subprocess.run(
                     ["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"], check=True
                 )
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Could not backup existing key: {e}") from e
     with open(ageFile, "w") as f:
-        f.write(f"# created: {time.strftime('%Y-%m-%dT%H:%M:%S%z')}\n")
-        f.write(f"# public key: {pubkey}\n")
-        f.write(private_key + "\n")
+        _ = f.write(f"# created: {time.strftime('%Y-%m-%dT%H:%M:%S%z')}\n")
+        _ = f.write(f"# public key: {pubkey}\n")
+        _ = f.write(private_key + "\n")
 
     return "age", pubkey
 
@@ -264,14 +275,14 @@ def setupAge() -> tuple[str, str]:
             )
             timestamp = int(time.time())
             try:
-                subprocess.run(
+                _ = subprocess.run(
                     ["mv", str(ageFile), f"{str(ageFile)}.{timestamp}.bak"], check=True
                 )
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Could not backup existing key: {e}") from e
             try:
                 with open(ageFile, "w") as f:
-                    subprocess.run(["age-keygen"], stdout=f, check=True)
+                    _ = subprocess.run(["age-keygen"], stdout=f, check=True)
                 proc = subprocess.run(
                     ["age-keygen", "-y", str(ageFile)],
                     capture_output=True,
@@ -302,7 +313,7 @@ def setupAge() -> tuple[str, str]:
         ageDir.mkdir(parents=True, exist_ok=True)
         try:
             with open(ageFile, "w") as f:
-                subprocess.run(["age-keygen"], stdout=f, check=True)
+                _ = subprocess.run(["age-keygen"], stdout=f, check=True)
             proc = subprocess.run(
                 ["age-keygen", "-y", str(ageFile)],
                 capture_output=True,
@@ -348,14 +359,14 @@ Expire-Date: 0
 %commit
 """
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
-        tmp.write(batch)
+        _ = tmp.write(batch)
         tmpPath = tmp.name
 
     try:
         console.print(
             "[cyan]Info:[/] Requesting GPG key generation\n[yellow]Attention:[/] A Pinentry prompt should appear asking for a [italic]Passphrase.[/]"
         )
-        subprocess.run(["gpg", "--batch", "--generate-key", tmpPath], check=True)
+        _ = subprocess.run(["gpg", "--batch", "--generate-key", tmpPath], check=True)
 
         proc = subprocess.run(
             ["gpg", "--list-secret-keys", "--with-colons", email],
@@ -531,7 +542,7 @@ def setupSsh() -> tuple[str, str]:
 
     loc = Path(os.path.expanduser("~/.ssh/id_ed25519"))
 
-    subprocess.run(
+    _ = subprocess.run(
         [
             "ssh-keygen",
             "-B",
@@ -578,7 +589,7 @@ def initSecrets() -> None:
             "Neither gpg nor age installed, both are needed for secure secret handling."
         )
 
-    choices = []
+    choices: list[str] = []
     if hasAge:
         choices.append("age")
         if hasSsh:
@@ -643,7 +654,7 @@ def initSecrets() -> None:
         console.print(
             "[dim]Hint: Use chaos secrets edit/chaos check s to both check your secrets and edit your secrets\nchaos check s will print your secrets to your screen to help with automation.[/]"
         )
-        subprocess.run(
+        _ = subprocess.run(
             [
                 "sops",
                 "--config",
