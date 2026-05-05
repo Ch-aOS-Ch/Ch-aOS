@@ -6,13 +6,16 @@ Notes:
 
 from __future__ import annotations
 
+import json
 import os
-from typing import cast
+from typing import Any, cast
 
 from .args.dataclasses import CheckPayload, ResultPayload
 
 
-def _handleAliases(dispatcher):
+def _handleAliases(
+    dispatcher: dict[str, str],
+) -> tuple[dict[str, str], list[str], list[str]]:
     """Handles aliases by merging user aliases with the dispatcher.
 
     Args:
@@ -45,7 +48,9 @@ def _handleAliases(dispatcher):
     return dispatcher, warnings, messages
 
 
-def _flatten_dict_keys(d, parent_key="", sep="."):
+def _flatten_dict_keys(
+    d: dict[str, Any], parent_key: str = "", sep: str = "."
+) -> list[str]:
     """Flattens a nested dictionary and returns a list of keys in dot notation.
 
     Args:
@@ -75,7 +80,7 @@ def _flatten_dict_keys(d, parent_key="", sep="."):
     return items
 
 
-def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
+def checkSecrets(secrets_file: str) -> ResultPayload[list[str]]:
     """Checks if the secrets in the specified file are valid.
 
     Args:
@@ -84,9 +89,8 @@ def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
     Returns:
         ResultPayload[list[str]]: The result payload containing a list of flattened secrets keys if successful.
     """
-    from omegaconf import OmegaConf
 
-    secrets_dict = OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True)
+    secrets_dict: dict[str, Any] = json.loads(secrets_file)
     flat_secrets = _flatten_dict_keys(secrets_dict)
     result = ResultPayload(
         success=True,
@@ -98,7 +102,7 @@ def checkSecrets(secrets_file) -> ResultPayload[list[str]]:
     return result
 
 
-def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
+def checkRoles(ROLES_DISPATCHER: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided roles are valid.
 
     Args:
@@ -117,7 +121,7 @@ def checkRoles(ROLES_DISPATCHER) -> ResultPayload[list[str]]:
     return result
 
 
-def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
+def checkExplanations(EXPLANATIONS: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided explanations are valid.
 
     Args:
@@ -136,7 +140,7 @@ def checkExplanations(EXPLANATIONS) -> ResultPayload[list[str]]:
     return result
 
 
-def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, str]]:
+def checkAliases(ROLE_ALIASES: dict[str, str]) -> ResultPayload[dict[str, str]]:
     """Checks if the provided aliases are valid.
 
     Args:
@@ -156,7 +160,7 @@ def checkAliases(ROLE_ALIASES) -> ResultPayload[dict[str, str]]:
     return result
 
 
-def checkProviders(providers) -> ResultPayload[list[str]]:
+def checkProviders(providers: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided providers are valid.
 
     Args:
@@ -175,7 +179,7 @@ def checkProviders(providers) -> ResultPayload[list[str]]:
     return result
 
 
-def checkBoats(boats) -> ResultPayload[list[str]]:
+def checkBoats(boats: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided boats are valid.
 
     Args:
@@ -194,7 +198,7 @@ def checkBoats(boats) -> ResultPayload[list[str]]:
     return result
 
 
-def checkLimanis(limanis) -> ResultPayload[list[str]]:
+def checkLimanis(limanis: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided limanis are valid.
 
     Args:
@@ -213,7 +217,7 @@ def checkLimanis(limanis) -> ResultPayload[list[str]]:
     return result
 
 
-def checkTemplates(keys) -> ResultPayload[list[str]]:
+def checkTemplates(keys: dict[str, str]) -> ResultPayload[list[str]]:
     """Checks if the provided templates are valid.
 
     Args:

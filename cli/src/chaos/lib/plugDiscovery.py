@@ -5,6 +5,10 @@ import sys
 from importlib import import_module
 from importlib.metadata import entry_points
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from chaos.lib.roles.role import Role
 
 """
 Module for discovering and loading Ch-aOS plugins.
@@ -33,7 +37,17 @@ if pluginDevPath:
 
 
 @functools.lru_cache(maxsize=None)
-def get_plugins(update_cache=False):
+def get_plugins(
+    update_cache: bool = False,
+) -> tuple[
+    dict[str, str],
+    dict[str, str],
+    dict[str, str],
+    dict[str, str],
+    dict[str, str],
+    dict[str, str],
+    dict[str, str],
+]:
     """
     Discover and load Ch-aOS plugins from specified directories and cache the results.
 
@@ -71,7 +85,7 @@ def get_plugins(update_cache=False):
     if not update_cache and cache_exists:
         with open(CACHE_FILE, "r") as f:
             try:
-                cache_data = json.load(f)
+                cache_data: dict[str, dict[str, str]] = json.load(f)
                 if (
                     "roles" in cache_data
                     and "aliases" in cache_data
@@ -178,12 +192,15 @@ def get_plugins(update_cache=False):
     )
 
 
-def load_roles(roles_spec, requested_names=None):
+def load_roles(
+    roles_spec: dict[str, str], requested_names: list[str] | None = None
+) -> dict[str, type[Role]]:
     """
     Load role functions based on their specifications.
     If requested_names is provided, only roles in that list will be loaded.
     """
-    loaded_roles = {}
+    requested_names = requested_names or []
+    loaded_roles: dict[str, type[Role]] = {}
     for name, spec in roles_spec.items():
         if requested_names is not None and name not in requested_names:
             continue
@@ -199,7 +216,7 @@ def load_roles(roles_spec, requested_names=None):
     return loaded_roles
 
 
-def loadList(spec):
+def loadList(spec: str) -> list[str] | None:
     """Load a key based on its specification."""
     try:
         moduleName, obj = spec.split(":", 1)

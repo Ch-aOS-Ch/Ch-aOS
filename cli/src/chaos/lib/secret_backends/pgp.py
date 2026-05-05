@@ -1,5 +1,5 @@
 import subprocess
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -11,12 +11,18 @@ from chaos.lib.secret_backends.utils import (
 
 from .crypto import is_valid_fp, pgp_exists
 
+if TYPE_CHECKING:
+    from chaos.lib.args.dataclasses import SecretsRotatePayload
+
+
 """
 GPG specific handlers for add/rem/list
 """
 
 
-def listPgp(sops_file_override):
+def listPgp(
+    sops_file_override: str,
+) -> tuple[set[str], list[str], list[str], list[str]]:
     """Lists all PGP key fingerprints found in the given SOPS configuration file.
 
     Args:
@@ -29,9 +35,9 @@ def listPgp(sops_file_override):
             - A list of error messages.
             - A list of informational messages.
     """
-    warnings = []
-    error = []
-    messages = []
+    warnings: list[str] = []
+    error: list[str] = []
+    messages: list[str] = []
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
@@ -61,10 +67,12 @@ def listPgp(sops_file_override):
         return set(), warnings, error, messages
 
 
-def handlePgpAdd(payload, sops_file_override, keys):
+def handlePgpAdd(
+    payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
+) -> tuple[list[str], list[str]]:
     """Handles the addition of PGP key fingerprints to the SOPS configuration.
 
-    Validates fingerprints, ensures they exist locally (fetching from a keyserver if specified), 
+    Validates fingerprints, ensures they exist locally (fetching from a keyserver if specified),
     and adds them to the configuration.
 
     Args:
@@ -73,7 +81,7 @@ def handlePgpAdd(payload, sops_file_override, keys):
         keys (list[str]): The list of PGP key fingerprints to add.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     server = payload.pgp_server
@@ -127,7 +135,9 @@ def handlePgpAdd(payload, sops_file_override, keys):
     return messages, errors
 
 
-def handlePgpRem(payload, sops_file_override, keys):
+def handlePgpRem(
+    payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
+) -> tuple[list[str], list[str]]:
     """Handles the removal of PGP key fingerprints from the SOPS configuration.
 
     Args:
@@ -136,7 +146,7 @@ def handlePgpRem(payload, sops_file_override, keys):
         keys (list[str]): The list of PGP key fingerprints to remove.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     messages = []

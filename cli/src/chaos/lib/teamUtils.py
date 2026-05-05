@@ -12,7 +12,7 @@ from chaos.lib.utils import checkDep
 from .utils import validate_path
 
 
-def _validate_deps():
+def _validate_deps() -> tuple[bool, bool]:
     """
     Checks the existence of some dependencies, be them required or optional.
 
@@ -76,7 +76,7 @@ def _symlink_teamDir(company: str, base_path: Path, team: str) -> str:
         raise RuntimeError(f"Failed to activate team: {e}") from e
 
 
-def _validate_paths(batch: str):
+def _validate_paths(batch: str) -> tuple[str, str, Optional[str]]:
     """Protection against path traversal and invalid names."""
 
     if "." not in batch:
@@ -102,10 +102,13 @@ def _validate_paths(batch: str):
     return company, team, person
 
 
-def _create_chaos_file(path, company: str, team: str, person: str | None, engine: str):
+def _create_chaos_file(
+    path: str, company: str, team: str, person: str | None, engine: str
+) -> None:
     """
     Creates a .chaos.yml file in the specified path with the given parameters.
     """
+
     chaos_file = (
         Path(os.path.join(os.getcwd())) / ".chaos.yml"
         if not path
@@ -156,7 +159,7 @@ def _create_chaos_file(path, company: str, team: str, person: str | None, engine
             yaml.dump(chaosContent, f, default_flow_style=False)
 
 
-def _get_chaos_file(path) -> DictConfig:
+def _get_chaos_file(path: str) -> DictConfig:
     """
     Loads and validates the .chaos.yml file in the specified path.
     """
@@ -183,7 +186,7 @@ def _get_chaos_file(path) -> DictConfig:
 
 
 def _create_sops_config(
-    teamDir,
+    teamDir: Path,
     person: str | None,
     engine: str,
     useVault: bool,

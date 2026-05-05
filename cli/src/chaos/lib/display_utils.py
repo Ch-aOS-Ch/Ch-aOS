@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 
-def render_list_as_table(items: list[str], panel_title: str):
+def render_list_as_table(items: list[str], panel_title: str) -> None:
     """Renders a list of strings into a responsive multi-column table using rich.
 
     Args:

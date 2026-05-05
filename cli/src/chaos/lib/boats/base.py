@@ -1,6 +1,7 @@
 """Base definitions and abstract classes for the Boat resource provisioner plugins."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -62,7 +63,7 @@ class Boat(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_fleet_config(self) -> dict:
+    def get_fleet_config(self) -> dict[str, Any]:
         """Handles the retrieval of the fleet configuration from the external provider.
 
         Returns:
@@ -71,7 +72,7 @@ class Boat(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_boat_logic(self, fleet_config: dict) -> dict | list:
+    def handle_boat_logic(self, fleet_config: dict[str, Any]) -> list[dict[str, Any]]:
         """Handles any boat-specific logic for managing the fleet.
 
         Args:

@@ -1,4 +1,4 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -10,12 +10,17 @@ from chaos.lib.secret_backends.utils import (
 
 from .crypto import is_valid_age_key
 
+if TYPE_CHECKING:
+    from chaos.lib.args.dataclasses import SecretsRotatePayload
+
 """
 AGE specific handlers for add/rem/list
 """
 
 
-def listAge(sops_file_override):
+def listAge(
+    sops_file_override: str,
+) -> tuple[set[str], list[str], list[str], list[str]]:
     """Lists all Age public keys found in the given SOPS configuration file.
 
     Args:
@@ -28,9 +33,9 @@ def listAge(sops_file_override):
             - A list of error messages.
             - A list of informational messages.
     """
-    warnings = []
-    error = []
-    messages = []
+    warnings: list[str] = []
+    error: list[str] = []
+    messages: list[str] = []
     try:
         sops_config = OmegaConf.load(sops_file_override)
         sops_config = cast(DictConfig, sops_config)
@@ -60,7 +65,9 @@ def listAge(sops_file_override):
         return set(), warnings, error, messages
 
 
-def handleAgeAdd(payload, sops_file_override, keys):
+def handleAgeAdd(
+    payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
+):
     """Handles the addition of Age public keys to the SOPS configuration.
 
     Validates Age keys and then updates the configuration with valid ones.
@@ -71,7 +78,7 @@ def handleAgeAdd(payload, sops_file_override, keys):
         keys (list[str]): The list of Age public keys to add.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     valids = set()
@@ -97,7 +104,9 @@ def handleAgeAdd(payload, sops_file_override, keys):
     return messages, errors
 
 
-def handleAgeRem(payload, sops_file_override, keys):
+def handleAgeRem(
+    payload: SecretsRotatePayload, sops_file_override: str, keys: list[str]
+):
     """Handles the removal of Age public keys from the SOPS configuration.
 
     Args:
@@ -106,7 +115,7 @@ def handleAgeRem(payload, sops_file_override, keys):
         keys (list[str]): The list of Age public keys to remove.
 
     Returns:
-        tuple[list[str], list[str]]: A tuple containing a list of informational messages 
+        tuple[list[str], list[str]]: A tuple containing a list of informational messages
             and a list of error messages.
     """
     messages = []

@@ -45,12 +45,16 @@ class Role(ABC):
             necessary_secret_dict_keys (list[str], optional): The list of secret keys required from the secrets store. Defaults to [].
         """
         self.name = name
-        self.necessary_chobolo_keys = necessary_chobolo_keys
         self.needs_secrets = needs_secrets
+        self.necessary_chobolo_keys = necessary_chobolo_keys
         self.necessary_secret_dict_keys = necessary_secret_dict_keys
 
     def get_context(
-        self, state: State, host: Host, chobolo: dict = {}, secrets: dict[str, Any] = {}
+        self,
+        state: State,
+        host: Host,
+        chobolo: dict[str, Any] = {},
+        secrets: dict[str, Any] = {},
     ) -> dict[str, Any]:
         """Optional method to implement for roles that require context data from the system.
 

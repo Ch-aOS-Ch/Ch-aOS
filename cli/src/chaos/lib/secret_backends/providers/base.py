@@ -1,5 +1,7 @@
 """Abstract base class for external secret provider integrations (e.g., password managers)."""
 
+from __future__ import annotations
+
 import argparse
 import os
 import shlex
@@ -7,7 +9,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import List, Tuple, Union
+from typing import TYPE_CHECKING
 
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
@@ -27,6 +29,14 @@ from ..crypto import (
 )
 from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
 
+if TYPE_CHECKING:
+    from typing import TypedDict
+
+    class EphemeralEnvReturn(TypedDict):
+        env: dict[str, str]
+        prefix: str
+        pass_fds: list[int]
+
 
 class Provider(ABC):
     """Abstract base class for secret backends.
@@ -37,13 +47,13 @@ class Provider(ABC):
 
     def __init__(
         self,
-        payload: Union[SecretsContext, SecretsExportPayload, SecretsImportPayload],
+        payload: SecretsContext | SecretsExportPayload | SecretsImportPayload,
         global_config: dict,
     ):
         """Initializes the Provider class.
 
         Args:
-            payload (Union[SecretsContext, SecretsExportPayload, SecretsImportPayload]): The contextual data governing operation constraints.
+            payload (SecretsContext | SecretsExportPayload | SecretsImportPayload): The contextual data governing operation constraints.
             global_config (dict): Global environment configurations.
         """
         self.payload = payload
@@ -70,7 +80,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def get_export_arg_names() -> List[str]:
+    def get_export_arg_names() -> list[str]:
         """Gets the list of provider-specific export argument names.
 
         Returns:
@@ -79,7 +89,7 @@ class Provider(ABC):
         return []
 
     @staticmethod
-    def get_import_arg_names() -> List[str]:
+    def get_import_arg_names() -> list[str]:
         """Gets the list of provider-specific import argument names.
 
         Returns:
@@ -128,7 +138,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def get_cli_name() -> Tuple[str, str]:
+    def get_cli_name() -> tuple[str, str]:
         """Returns the name of the attribute in the args object that corresponds
         to this provider's ephemeral key flag and name for config.
 
@@ -165,7 +175,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @contextmanager
-    def setupEphemeralEnv(self) -> Iterator[dict]:
+    def setupEphemeralEnv(self) -> Iterator[EphemeralEnvReturn]:
         """Context manager to set up an ephemeral environment for SOPS.
 
         Yields:
@@ -186,21 +196,21 @@ class Provider(ABC):
                 with ephemeralAgeKey(key_content) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
-                    yield context
+                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
 
             case "gpg":
                 _, secKey, _ = self.getGpgKeys(item_id)
                 actualKey = decompress(secKey)
                 with ephemeralGpgKey(actualKey) as gpg_env:
                     context["env"].update(gpg_env)
-                    yield context
+                    yield {"env": context["env"], "prefix": "", "pass_fds": []}
 
             case "vault":
                 vault_addr, vault_token, _ = self.getVaultKeys(item_id)
                 with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
                     context["prefix"] = prefix
                     context["pass_fds"] = fds
-                    yield context
+                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
             case _:
                 raise ValueError(f"Unsupported key type '{key_type}'.")
 
@@ -217,7 +227,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def check_status(self) -> None | Tuple[bool, str]:
+    def check_status(self) -> None | tuple[bool, str]:
         """Checks the status of the provider.
 
         Returns:
@@ -426,7 +436,7 @@ class Provider(ABC):
     @contextmanager
     def edit(
         self, secrets_file: str, sops_file: str
-    ) -> Iterator[Tuple[str, dict, List[int]]]:
+    ) -> Iterator[tuple[str, dict, list[int]]]:
         """Context manager to prepare the SOPS edit command and its environment.
 
         Args:
