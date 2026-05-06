@@ -18,9 +18,13 @@ def render_explanation(payload, result_data):
     from rich.text import Text
     from rich.tree import Tree
 
+    from chaos.lib.utils import checkDep
+
     class ChaosPager(Pager):
         def __init__(self, command=["less", "-RXF"]):
             self.command = os.getenv("PAGER", "").split() or command
+            if not checkDep(self.command[0]):
+                self.command = ["less", "-RXF"]
 
         def show(self, renderables):
             with subprocess.Popen(
