@@ -5,6 +5,7 @@ from typing import cast
 
 def render_ramble(ramble_data, target_name, no_pretty, json, values):
     import json as js
+    import os
     import subprocess
 
     from omegaconf import OmegaConf
@@ -19,7 +20,7 @@ def render_ramble(ramble_data, target_name, no_pretty, json, values):
 
     class ChaosPager(Pager):
         def __init__(self, command=["less", "-RXF"]):
-            self.command = command
+            self.command = os.getenv("PAGER", "").split() or command
 
         def show(self, renderables):
             with subprocess.Popen(

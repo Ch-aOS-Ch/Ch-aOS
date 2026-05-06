@@ -3,6 +3,7 @@ import sys
 
 def render_explanation(payload, result_data):
     import json
+    import os
     import subprocess
 
     from omegaconf import OmegaConf
@@ -19,7 +20,7 @@ def render_explanation(payload, result_data):
 
     class ChaosPager(Pager):
         def __init__(self, command=["less", "-RXF"]):
-            self.command = command
+            self.command = os.getenv("PAGER", "").split() or command
 
         def show(self, renderables):
             with subprocess.Popen(
