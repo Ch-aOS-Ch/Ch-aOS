@@ -27,12 +27,12 @@ if TYPE_CHECKING:
 
     class GatherApplyResultData(TypedDict):
         loaded_roles: dict[str, Role]
-        global_config: DictConfig | None
+        global_config: dict[str, Any] | None
         any_role_needs_secrets: bool
         sudo_password: str | None
 
     class GatherFleetResultData(TypedDict):
-        hosts: list[str]
+        hosts: list[tuple[str, dict[str, Any]] | str]
         is_fleet: bool
         parallels: int
 
@@ -70,12 +70,13 @@ def gather_apply(
             success=False,
             message=[],
             error=[f"Error handling sudo password: {sudo_password_result.error}"],
+            data=None,
         )
 
     sudo_password = sudo_password_result.data
 
     request = DataGatherRequest(name="apply", fields=[])
-    result = ResultPayload(success=True, message=[], error=[])
+    error: list[str] = []
     i_know = payload.i_know_what_im_doing
 
     if not sudo_password:
@@ -87,10 +88,6 @@ def gather_apply(
                 required=True,
             )
         )
-    else:
-        if not result.data:
-            result.data = {}
-        result.data["sudo_password"] = sudo_password
 
     result_load = _load_role_eps(payload.tags)
     if not result_load.success:
@@ -100,27 +97,26 @@ def gather_apply(
             error=[f"Error loading roles: {result_load.error}"],
         )
 
-    loaded_roles = result_load.data
-    if not loaded_roles:
-        result.success = False
-        result.error.append("No valid roles found for the specified tags.")
-        return request, result
+    loaded_roles: dict[str, Role] | None = result_load.data
+    if loaded_roles is None:
+        return request, ResultPayload(
+            success=False, message=[], error=["No valid roles loaded from tags."]
+        )
 
+    i_know_what_im_doing = payload.i_know_what_im_doing
     roles_that_need_secrets: list[str] = []
     secrets_needed: list[str] = []
 
     for role in payload.tags:
         if role not in loaded_roles:
-            result.success = False
-            result.error.append(f"Role '{role}' could not be loaded.")
+            error.append(f"Role '{role}' could not be loaded.")
             continue
 
         role_class = loaded_roles[role]
 
         if role_class.needs_secrets and not i_know:
             if not role_class.necessary_secret_dict_keys:
-                result.success = False
-                result.error.append(
+                error.append(
                     f"Role '{role}' requires secrets but does not specify necessary_secret_dict_keys."
                 )
                 continue
@@ -143,12 +139,16 @@ Do you want to provide them?""",
 
     global_config = payload.global_config
 
-    if not result.data:
-        result.data = {}
+    final_data: GatherApplyResultData = {
+        "sudo_password": sudo_password,
+        "loaded_roles": loaded_roles,
+        "global_config": global_config,
+        "any_role_needs_secrets": bool(roles_that_need_secrets),
+    }
 
-    result.data["loaded_roles"] = loaded_roles
-    result.data["global_config"] = global_config
-    result.data["any_role_needs_secrets"] = bool(roles_that_need_secrets)
+    success = len(error) == 0
+
+    result = ResultPayload(success=success, message=[], error=error, data=final_data)
 
     if payload.logbook:
         from .telemetry import ChaosTelemetry
@@ -220,7 +220,7 @@ def gather_fleet(
         )
 
     chobolo_config = cast(DictConfig, chobolo_config)
-    fleet_config = chobolo_config.get("fleet", {})
+    fleet_config: DictConfig | dict[str, Any] = chobolo_config.get("fleet", {})
 
     if not fleet_config:
         if payload.i_know_what_im_doing:
@@ -281,7 +281,7 @@ def gather_fleet(
         )
         return request, ResultPayload(success=True)
 
-    hosts = []
+    hosts: list[tuple[str, dict[str, Any]] | str] = []
     container = json.loads(fleet_hosts)
 
     if not isinstance(container, dict):
@@ -292,7 +292,7 @@ def gather_fleet(
             ],
         )
 
-    messages = []
+    messages: list[str] = []
     for hostname, host_data in container.items():
         if not isinstance(host_data, dict):
             messages.append(
@@ -322,11 +322,12 @@ def gather_fleet(
         )
         return request, ResultPayload(success=True, message=messages)
 
-    return None, ResultPayload(
-        success=True,
-        message=messages,
-        data={"hosts": hosts, "is_fleet": True, "parallels": parallels},
-    )
+    data: GatherFleetResultData = {
+        "hosts": hosts,
+        "is_fleet": True,
+        "parallels": parallels,
+    }
+    return None, ResultPayload(success=True, message=messages, data=data)
 
 
 def run_context(
@@ -435,7 +436,7 @@ def run_plan(
     role: Role,
     role_name: str,
     host: Host,
-) -> ResultPayload[dict[Literal["plan"], ResultPayload]]:
+) -> ResultPayload[dict[Literal["plan"], ResultPayload[Any]]]:
     """Runs the plan method for a given role and host, computing the necessary
         operations to apply the role, while also checking against any allowlist or blacklist restrictions for the role and host.
 
@@ -512,13 +513,13 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
 
     from .plugDiscovery import get_plugins
 
-    warnings = []
+    warnings: list[str] = []
 
-    plug_aliases = get_plugins()[1]
+    plug_aliases: dict[str, str] = get_plugins()[1]
     user_config = payload.global_config
-    user_aliases = user_config.get("aliases", {}) if user_config else {}
+    user_aliases: dict[str, str] = user_config.get("aliases", {}) if user_config else {}
 
-    merged_aliases = {}
+    merged_aliases: dict[str, str | list[str] | tuple[str, str]] = {}
     if plug_aliases:
         merged_aliases.update(plug_aliases)
 
@@ -530,8 +531,8 @@ def resolve_aliases(payload: ApplyPayload) -> ResultPayload[list[str]]:
                 )
             merged_aliases[k] = v
 
-    resolved_tags = []
-    seen_aliases = set()
+    resolved_tags: list[str] = []
+    seen_aliases: set[str] = set()
 
     def _resolve_alias(tag: str, local_seen: set[str]) -> None:
         if tag in local_seen:
@@ -844,8 +845,10 @@ def run_filtered_context(
     ```
     """
 
-    host_data = {"host": host, "roles": {}}
-    result = ResultPayload(success=True, message=[], error=[])
+    host_data: FilteredContextResultData = {"host": host, "roles": {}}
+    result: ResultPayload[FilteredContextResultData] = ResultPayload(
+        success=True, message=[], error=[]
+    )
     for role in roles:
         allowlist_blacklist_result = resolve_allowlist_blacklist(
             restrictions, role.name, host
@@ -985,13 +988,13 @@ def _collect_fleet_health(
     from .facts.facts import LoadAverage, RamUsage
     from .telemetry import ChaosTelemetry
 
-    def _fetch_and_record(host):
-        ram_data = host.get_fact(RamUsage)
-        load_data = host.get_fact(LoadAverage)
+    def _fetch_and_record(host: Host) -> None:
+        ram_data: dict[str, float] = host.get_fact(RamUsage)
+        load_data: tuple[float, float, float] = host.get_fact(LoadAverage)
         ChaosTelemetry.record_snapshot(host, ram_data, load_data, stage=stage)
 
     if state.pool:
-        state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
+        _ = state.pool.map(_fetch_and_record, state.inventory.iter_activated_hosts())
     else:
         for host in state.inventory.iter_activated_hosts():
             _fetch_and_record(host)
@@ -1003,7 +1006,7 @@ def _resolve_limani(
     if payload.limani:
         limani_name = payload.limani
     else:
-        limani_name = global_config.get("limani", "")
+        limani_name: str = global_config.get("limani", "")
 
     if not limani_name:
         return ResultPayload(
@@ -1037,7 +1040,7 @@ def _load_boats(necessary_boats: set[str]) -> ResultPayload[list[type[Boat]]]:
     from .plugDiscovery import get_plugins
 
     all_boats = get_plugins()[5]
-    loaded_boat_classes = []
+    loaded_boat_classes: list[type[Boat]] = []
     if not all_boats:
         return ResultPayload(success=True, message=[], error=[], data=[])
     for boat_name in necessary_boats:
@@ -1100,7 +1103,7 @@ def _handle_boats(
 
     from omegaconf import OmegaConf
 
-    necessary_boats = set()
+    necessary_boats: set[str] = set()
     for boat in boats:
         provider = boat.get("provider", None)
         if provider:
@@ -1229,7 +1232,7 @@ def _handle_secrets_for_role(
     if payload.logbook:
         from .telemetry import ChaosTelemetry
 
-        secret_strings = (
+        secret_strings: set[str] = (
             _get_secret_strings(decrypted_secrets) if decrypted_secrets else set()
         )
 
@@ -1244,7 +1247,7 @@ def _handle_secrets_for_role(
                 data={},
             )
 
-        secrets_for_role = {}
+        secrets_for_role: dict[str, Any] = {}
         for key in role.necessary_secret_dict_keys:
             if key == ".":
                 secrets_for_role["."] = decrypted_secrets
@@ -1344,7 +1347,7 @@ def _load_role_eps(role_names: list[str]) -> ResultPayload[dict[str, Role]]:
     from chaos.lib.utils import get_roleEps
 
     role_eps = get_roleEps()
-    loaded_roles = {}
+    loaded_roles: dict[str, Role] = {}
 
     ep_map = {}
     for ep in role_eps:

@@ -330,7 +330,11 @@ class ChaosTelemetry(BaseStateCallback):
 
     @classmethod
     def record_snapshot(
-        cls, host: Host, ram_data: dict, load_data: dict, stage: str = "checkpoint"
+        cls,
+        host: Host,
+        ram_data: dict[str, float],
+        load_data: tuple[float, float, float],
+        stage: str = "checkpoint",
     ) -> None:
         """Records a snapshot of the host's resource usage into the database.
 
@@ -1059,7 +1063,9 @@ class ChaosTelemetry(BaseStateCallback):
             print(f"Error writing final report: {e}")
 
     @classmethod
-    def load_limani_plugin(cls, limani_name: str, global_config: dict) -> None:
+    def load_limani_plugin(
+        cls, limani_name: str, global_config: dict[str, Any]
+    ) -> None:
         """Loads a given limani plugin by its name.
 
         Args:
