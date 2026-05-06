@@ -17,7 +17,7 @@ Notes:
 """
 
 
-def _serialize(value: Any):
+def _serialize(value: Any) -> Any:
     if isinstance(value, BasePayload):
         return value.to_dict()
 
@@ -713,7 +713,7 @@ class ProviderExportArgs(BasePayload):
 
     __slots__ = ()
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
 
@@ -726,7 +726,7 @@ class ProviderImportArgs(BasePayload):
 
     __slots__ = ()
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
 
@@ -781,7 +781,7 @@ class SecretsExportPayload(BasePayload):
         self.provider_specific_args = (
             provider_specific_args
             if provider_specific_args is not None
-            else ProviderExportArgs()
+            else ProviderExportArgs
         )
 
 
@@ -820,7 +820,7 @@ class SecretsImportPayload(BasePayload):
         self.provider_specific_args = (
             provider_specific_args
             if provider_specific_args is not None
-            else ProviderImportArgs()
+            else ProviderImportArgs
         )
 
 

@@ -1,4 +1,4 @@
-"""Base definitions and abstract classes for the Boat resource provisioner plugins."""
+"""Base definitions and abstrac) -> list[dict[str, str | intoat resource provisioner plugins."""
 
 from abc import ABC, abstractmethod
 from typing import Any

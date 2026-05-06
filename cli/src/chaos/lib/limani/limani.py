@@ -31,7 +31,7 @@ class Limani(ABC):
         self.werehouse = config.get("werehouse", "")
 
     @abstractmethod
-    def connect(self):
+    def connect(self) -> Any:
         """Connects to the data source.
 
         Returns:
@@ -40,13 +40,17 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnects from the data source."""
         raise NotImplementedError
 
     @abstractmethod
     def end_run_update(
-        self, run_id: str, end_time: float, status: str, summary: dict
+        self,
+        run_id: str,
+        end_time: float,
+        status: str,
+        summary: dict[str, int | float | str],
     ) -> None:
         """Updates a run at the end with final status, time, and summary.
 
@@ -95,11 +99,11 @@ class Limani(ABC):
         success: bool,
         duration: float,
         timestamp: float,
-        logs: dict,
+        logs: dict[str, str],
         diff: str,
-        arguments: dict,
-        retry_stats: dict,
-        command_n_facts: list,
+        arguments: dict[str, str],
+        retry_stats: dict[str, int | dict[str, int | bool | None]],
+        command_n_facts: list[dict[str, str | int | float]],
     ) -> None:
         """Inserts an operation into the data source.
 
@@ -123,7 +127,12 @@ class Limani(ABC):
 
     @abstractmethod
     def insert_snapshot(
-        self, run_id: str, host_id: int, stage: str, timestamp: float, metrics: dict
+        self,
+        run_id: str,
+        host_id: int,
+        stage: str,
+        timestamp: float,
+        metrics: dict[str, str | int | float | dict[str, float]],
     ) -> None:
         """Inserts a resource snapshot into the data source.
 
@@ -143,8 +152,8 @@ class Limani(ABC):
         run_id: str,
         run_id_human: str,
         start_time: float,
-        hailer_info: dict,
-        needed_secrets: set,
+        hailer_info: dict[str, str],
+        needed_secrets: set[str],
     ) -> str:
         """Creates a new run entry in the database.
 
@@ -159,7 +168,7 @@ class Limani(ABC):
         """
 
     @abstractmethod
-    def init_db(self):
+    def init_db(self) -> None:
         """Initializes the data source.
 
         Notes:
@@ -184,7 +193,7 @@ class Limani(ABC):
         """
 
     @abstractmethod
-    def get_run_data(self, run_id: str):
+    def get_run_data(self, run_id: str) -> dict[str, Any]:
         """Gets all data for a given run.
 
         Args:
@@ -198,7 +207,7 @@ class Limani(ABC):
     @abstractmethod
     def get_facts_for_timespan(
         self, run_id: str, start_time: float, end_time: float
-    ) -> list[dict]:
+    ) -> list[dict[str, str | int | float]]:
         """Gets all facts for a given run within a specific time span.
 
         Args:
@@ -213,7 +222,7 @@ class Limani(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_run_summary_stats(self, run_id: str) -> dict:
+    def get_run_summary_stats(self, run_id: str) -> dict[str, int | float | str]:
         """Gets summary statistics for a given run.
 
         Args:

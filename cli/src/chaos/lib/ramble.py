@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         edit_sops_file: bool
 
 
-def _get_ramble_dir(team: str) -> Path:
+def _get_ramble_dir(team: str | None) -> Path:
     """Validates and returns the ramble directory with the support for teams.
 
     Args:
@@ -103,7 +103,7 @@ def _get_ramble_dir(team: str) -> Path:
     )
 
 
-def is_safe_path(target_path: Path, team: str) -> bool:
+def is_safe_path(target_path: Path, team: str | None) -> bool:
     """Validates that the target path is within the ramble directory to prevent path traversal.
 
     Args:
@@ -1039,11 +1039,12 @@ def handleUpdateEncryptRamble(
         )
 
         GLOBAL_CONFIG_FILE_PATH = os.path.join(GLOBAL_CONFIG_DIR, "config.yml")
-        global_config = {}
+        global_config: dict[str, Any] | DictConfig = {}
 
         if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
-            global_config = (
-                OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create()
+            global_config = cast(
+                DictConfig,
+                OmegaConf.load(GLOBAL_CONFIG_FILE_PATH) or OmegaConf.create(),
             )
         global_config = cast(DictConfig, global_config)
 

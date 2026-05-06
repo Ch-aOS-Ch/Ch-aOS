@@ -1259,7 +1259,7 @@ def _handle_secrets_for_role(
                 for k in keys_path:
                     value = value[k]
             except (KeyError, TypeError):
-                value = None
+                value = {}
 
             if value is None:
                 return ResultPayload(
