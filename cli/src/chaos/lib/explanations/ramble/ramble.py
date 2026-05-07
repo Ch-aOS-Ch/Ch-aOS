@@ -162,8 +162,8 @@ class RambleExplain:
             return {
                 "concept": "In-Place SOPS Conversion",
                 "what": "Converts a plaintext YAML file into a SOPS-encrypted file based on your `.sops.yaml` creation rules.",
-                "how": "Calls `sops -e -i` on the file, using `--encrypted-regex` to protect specific fields while leaving `title` and `tags` plaintext.",
-                "equivalent": "sops -e -i --encrypted-regex '...' my-ramble.yml",
+                "how": "Calls `sops encrypt -i` on the file, using `--encrypted-regex` to protect specific fields while leaving `title` and `tags` plaintext.",
+                "equivalent": "sops encrypt -i --encrypted-regex '...' my-ramble.yml",
                 "examples": [
                     {
                         "yaml": "chaos ramble encrypt journal.page\nchaos ramble encrypt journal.page -k my_secret"
@@ -175,7 +175,7 @@ class RambleExplain:
                 "concept": "Encrypting a Note",
                 "what": "The `encrypt` command applies encryption to an existing, unencrypted ramble page.",
                 "how": "It uses `sops` to encrypt the file in-place, keeping metadata like `title` unencrypted by default.",
-                "equivalent": "sops -e ... my-ramble.yml",
+                "equivalent": "sops encrypt ... my-ramble.yml",
                 "examples": [
                     {
                         "yaml": "chaos ramble encrypt journal.page\nchaos ramble encrypt journal.page -k my_secret"

@@ -458,7 +458,7 @@ class Provider(ABC):
 
             yield cmd, env, pass_fds
 
-    def decrypt(self, secrets_file: str, sops_file: str) -> str:
+    def decrypt(self, secrets_file: str) -> str:
         """Decrypt secrets using SOPS.
 
         Args:
@@ -468,7 +468,7 @@ class Provider(ABC):
         Returns:
             str: Decrypted secrets content.
         """
-        sops_command = ["sops", "--config", sops_file, "-d", secrets_file]
+        sops_command = ["sops", "decrypt", secrets_file]
         result = self._run_sops_command(sops_command).stdout
         return result
 
