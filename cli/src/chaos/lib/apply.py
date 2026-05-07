@@ -103,7 +103,6 @@ def gather_apply(
             success=False, message=[], error=["No valid roles loaded from tags."]
         )
 
-    i_know_what_im_doing = payload.i_know_what_im_doing
     roles_that_need_secrets: list[str] = []
     secrets_needed: list[str] = []
 

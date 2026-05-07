@@ -913,10 +913,10 @@ def decrypt_secrets(
 
     try:
         if provider:
-            sopsDecryptResult = provider.decrypt(secrets_file, sops_file)
+            sopsDecryptResult = provider.decrypt(secrets_file)
         else:
             sopsDecryptResult = subprocess.run(
-                ["sops", "--config", sops_file, "--decrypt", secrets_file],
+                ["sops", "decrypt", secrets_file],
                 check=True,
                 capture_output=True,
                 text=True,
