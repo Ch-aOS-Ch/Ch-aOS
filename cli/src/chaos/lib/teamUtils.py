@@ -159,7 +159,7 @@ def _create_chaos_file(
             yaml.dump(chaosContent, f, default_flow_style=False)
 
 
-def _get_chaos_file(path: str) -> DictConfig:
+def _get_chaos_file(path: str | None) -> DictConfig:
     """
     Loads and validates the .chaos.yml file in the specified path.
     """

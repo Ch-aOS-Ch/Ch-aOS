@@ -310,15 +310,15 @@ def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
         case "pgp":
             from chaos.lib.secret_backends.pgp import listPgp
 
-            results, warnings, errors, messages = listPgp(sops_file_override)
+            results, _, errors, messages = listPgp(sops_file_override)
         case "age":
             from chaos.lib.secret_backends.age import listAge
 
-            results, warnings, errors, messages = listAge(sops_file_override)
+            results, _, errors, messages = listAge(sops_file_override)
         case "vault":
             from chaos.lib.secret_backends.vault import listVault
 
-            results, warnings, errors, messages = listVault(sops_file_override)
+            results, _, errors, messages = listVault(sops_file_override)
 
     response = ResultPayload(
         success=True if not errors else False,
