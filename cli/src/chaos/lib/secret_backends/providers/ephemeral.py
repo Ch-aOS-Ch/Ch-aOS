@@ -183,7 +183,12 @@ def ephemeralVaultKeys(vault_token: str, vault_addr: str):
                 os.close(r_addr)
                 raise RuntimeError(f"Failed to generate Vault home: {e}")
 
-            prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} "
+            gnupghome = {
+                "GNUPGHOME": str(
+                    os.getenv("GNUPGHOME", str(os.getenv("HOME")) + "/.gnupg")
+                )
+            }
+            prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
             try:
                 yield prefix, fds_to_pass
             finally:
