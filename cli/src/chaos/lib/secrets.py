@@ -574,9 +574,19 @@ def handleSecPrint(payload: SecretsPrintPayload) -> ResultPayload[dict[str, str]
         else:
             from .secret_backends.utils import decrypt_secrets
 
-            decrypted_output = decrypt_secrets(
+            decrypt_result = decrypt_secrets(
                 secretsFile, sopsFile, global_config, context
             )
+
+            if not decrypt_result.data:
+                errors.append("Decryption failed. No output received.")
+                return ResultPayload(success=False, message=messages, error=errors)
+
+            if not decrypt_result.success:
+                errors.extend(decrypt_result.error)
+                return ResultPayload(success=False, message=messages, error=errors)
+
+            decrypted_output = decrypt_result.data
 
         return ResultPayload(
             success=len(errors) == 0,
@@ -647,9 +657,19 @@ def handleSecCat(
         else:
             from .secret_backends.utils import decrypt_secrets
 
-            sopsDecryptResult = decrypt_secrets(
+            decrypt_result = decrypt_secrets(
                 secretsFile, sopsFile, global_config, context
             )
+
+            if not decrypt_result.data:
+                errors.append("Decryption failed. No output received.")
+                return ResultPayload(success=False, message=messages, error=errors)
+
+            if not decrypt_result.success:
+                errors.extend(decrypt_result.error)
+                return ResultPayload(success=False, message=messages, error=errors)
+
+            sopsDecryptResult = decrypt_result.data
 
         if sopsDecryptResult is None:
             errors.append("SOPS decryption result is None. This should not happen.")

@@ -190,9 +190,17 @@ def _read_ramble_content(
                 i_know_what_im_doing=context.i_know_what_im_doing,
             )
 
-            decrypted_text = decrypt_secrets(
+            decrypt_result = decrypt_secrets(
                 str(ramble_path), sops_config, global_config, new_context
             )
+
+            if not decrypt_result.data:
+                raise RuntimeError("Decryption failed without error message.")
+
+            if not decrypt_result.success:
+                raise RuntimeError(f"Decryption failed: {decrypt_result.error}")
+
+            decrypted_text = decrypt_result.data
 
             ramble_data = cast(DictConfig, OmegaConf.create(decrypted_text))
             return ramble_data, decrypted_text
@@ -596,6 +604,15 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                 str(fullPath), str(sops_file_override), global_config, new_context
             )
 
+            if not result.data:
+                return ResultPayload(
+                    success=False,
+                    error=["Decryption failed without error message."],
+                )
+
+            if not result.success:
+                return ResultPayload(success=False, error=result.error)
+
             import platform
             from contextlib import ExitStack
 
@@ -613,7 +630,7 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
                     mode="w", delete=False, dir=shm_dir, suffix=".yml"
                 ) as tmp:
                     os.chmod(tmp.name, 0o600)
-                    tmp.write(result)
+                    _ = tmp.write(result.data)
                     tmpPath = tmp.name
 
                 try:
