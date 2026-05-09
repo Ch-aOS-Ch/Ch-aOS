@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 from ..args.dataclasses import (
     ProviderConfigPayload,
+    ResultPayload,
     SecretsContext,
     SecretsExportPayload,
     SecretsImportPayload,
@@ -875,7 +876,7 @@ def _generic_handle_rem(
 
 def decrypt_secrets(
     secrets_file: str, sops_file: str, config, context: SecretsContext
-) -> str:
+) -> ResultPayload[str]:
     """Decrypts a secrets file using SOPS and the active environment context.
 
     Delegates decryption to a resolved secret provider plugin if available;
@@ -902,14 +903,17 @@ def decrypt_secrets(
     from chaos.lib.utils import checkDep
 
     if not checkDep("sops"):
-        raise EnvironmentError("The 'sops' CLI tool is required but not found in PATH.")
+        return ResultPayload(
+            success=False,
+            error=["The 'sops' CLI tool is required but not found in PATH."],
+        )
 
     provider = _resolveProvider(context, config)
 
     if is_vault_in_use(sops_file):
         is_authed, message = check_vault_auth()
         if not is_authed:
-            raise PermissionError(message)
+            return ResultPayload(success=False, error=[message])
 
     try:
         if provider:
@@ -922,11 +926,17 @@ def decrypt_secrets(
                 text=True,
             ).stdout
 
-        return sopsDecryptResult
+        return ResultPayload(success=True, data=sopsDecryptResult)
     except subprocess.CalledProcessError as e:
         details = e.stderr if e.stderr else "No output."
-        raise RuntimeError(f"SOPS decryption failed.\nDetails: {details}") from e
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
-            "'sops' command not found. Please ensure sops is installed and in your PATH."
-        ) from e
+        return ResultPayload(
+            success=False,
+            error=[f"SOPS decryption failed with exit code {e.returncode}.", details],
+        )
+    except FileNotFoundError:
+        return ResultPayload(
+            success=False,
+            error=[
+                "'sops' command not found. Please ensure sops is installed and in your PATH."
+            ],
+        )

@@ -217,21 +217,20 @@ def handleApply(args):  # noqa: C901
 
             from chaos.lib.secret_backends.utils import decrypt_secrets
 
-            try:
-                secrets = decrypt_secrets(
-                    payload.secrets_context.secrets_file_override,
-                    payload.secrets_context.sops_file_override,
-                    payload.global_config,
-                    payload.secrets_context,
-                )
-                raw_container = OmegaConf.to_container(
-                    OmegaConf.create(secrets), resolve=False
-                )
+            secrets_result = decrypt_secrets(
+                payload.secrets_context.secrets_file_override,
+                payload.secrets_context.sops_file_override,
+                payload.global_config,
+                payload.secrets_context,
+            )
+            _check_and_exit_on_error(secrets_result, console, "decrypt secrets")
 
-                payload.decrypted_secrets = cast(dict[str, Any], raw_container)
-            except Exception as e:
-                console.print(f"[bold red]ERROR:[/] Failed to decrypt secrets: {e}")
-                sys.exit(1)
+            secrets = secrets_result.data
+            raw_container = OmegaConf.to_container(
+                OmegaConf.create(secrets), resolve=False
+            )
+
+            payload.decrypted_secrets = cast(dict[str, Any], raw_container)
 
         chobolo_config = OmegaConf.to_container(chobolo_config_oc, resolve=False)
         chobolo_config = cast(dict[str, Any], chobolo_config)
