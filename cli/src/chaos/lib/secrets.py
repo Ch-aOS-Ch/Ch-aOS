@@ -179,6 +179,7 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
     Notes:
         Check `secret_backends/utils.py` for shared functions and their docs.
     """
+    from chaos.lib.secret_backends.key_backends.factory import get_key_backend
     from chaos.lib.secret_backends.utils import get_sops_files
 
     context = payload.context
@@ -194,27 +195,21 @@ def handleRotateAdd(payload: SecretsRotatePayload) -> ResultPayload[None]:
     messages: list[str] = []
     errors: list[str] = []
 
-    match payload.type:
-        case "pgp":
-            from chaos.lib.secret_backends.pgp import handlePgpAdd
+    backend = None
 
-            msgs, errs = handlePgpAdd(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
-        case "age":
-            from chaos.lib.secret_backends.age import handleAgeAdd
+    try:
+        backend = get_key_backend(payload.type)
+    except ImportError as e:
+        return ResultPayload(
+            success=False, error=[f"Failed to get key backend: {str(e)}"]
+        )
+    except ValueError as e:
+        return ResultPayload(success=False, error=[f"{str(e)}"])
 
-            msgs, errs = handleAgeAdd(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
-        case "vault":
-            from chaos.lib.secret_backends.vault import handleVaultAdd
-
-            msgs, errs = handleVaultAdd(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
-        case _:
-            errors.append(f"Unsupported key type: {payload.type}")
+    if backend is not None:
+        msgs, errs = backend.handle_add(payload, sops_file_override, keys)
+        errors.extend(errs)
+        messages.extend(msgs)
 
     if (context.i_know_what_im_doing or payload.update_confirmed) and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
@@ -235,6 +230,7 @@ def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload[None]:
     Returns:
         ResultPayload[None]: The result payload of the rotation remove operation.
     """
+    from chaos.lib.secret_backends.key_backends.factory import get_key_backend
     from chaos.lib.secret_backends.utils import get_sops_files
 
     context = payload.context
@@ -250,25 +246,21 @@ def handleRotateRemove(payload: SecretsRotatePayload) -> ResultPayload[None]:
     messages = []
     errors = []
 
-    match payload.type:
-        case "pgp":
-            from chaos.lib.secret_backends.pgp import handlePgpRem
+    backend = None
 
-            msgs, errs = handlePgpRem(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
-        case "age":
-            from chaos.lib.secret_backends.age import handleAgeRem
+    try:
+        backend = get_key_backend(payload.type)
+    except ImportError as e:
+        return ResultPayload(
+            success=False, error=[f"Failed to get key backend: {str(e)}"]
+        )
+    except ValueError as e:
+        return ResultPayload(success=False, error=[f"{str(e)}"])
 
-            msgs, errs = handleAgeRem(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
-        case "vault":
-            from chaos.lib.secret_backends.vault import handleVaultRem
-
-            msgs, errs = handleVaultRem(payload, sops_file_override, keys)
-            messages.extend(msgs)
-            errors.extend(errs)
+    if backend is not None:
+        msgs, errs = backend.handle_rem(payload, sops_file_override, keys)
+        errors.extend(errs)
+        messages.extend(msgs)
 
     if (context.i_know_what_im_doing or payload.update_confirmed) and not errors:
         from chaos.lib.secret_backends.utils import handleUpdateAllSecrets
@@ -292,6 +284,7 @@ def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
     Raises:
         FileNotFoundError: If no sops config file is found.
     """
+    from chaos.lib.secret_backends.key_backends.factory import get_key_backend
     from chaos.lib.secret_backends.utils import get_sops_files
 
     results = None
@@ -306,19 +299,21 @@ def listFp(payload: SecretsListPayload) -> ResultPayload[set[str]]:
     if not sops_file_override:
         raise FileNotFoundError("No sops config file found.")
 
-    match payload.type:
-        case "pgp":
-            from chaos.lib.secret_backends.pgp import listPgp
+    try:
+        try:
+            backend = get_key_backend(payload.type)
+        except ImportError as e:
+            return ResultPayload(
+                success=False, error=[f"Failed to get key backend: {str(e)}"]
+            )
+        except ValueError as e:
+            return ResultPayload(success=False, error=[f"{str(e)}"])
 
-            results, _, errors, messages = listPgp(sops_file_override)
-        case "age":
-            from chaos.lib.secret_backends.age import listAge
-
-            results, _, errors, messages = listAge(sops_file_override)
-        case "vault":
-            from chaos.lib.secret_backends.vault import listVault
-
-            results, _, errors, messages = listVault(sops_file_override)
+        results, _, errs, msgs = backend.list_keys(sops_file_override)
+        errors.extend(errs)
+        messages.extend(msgs)
+    except ValueError as e:
+        errors.append(str(e))
 
     response = ResultPayload(
         success=True if not errors else False,

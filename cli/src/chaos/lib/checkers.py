@@ -6,7 +6,6 @@ Notes:
 
 from __future__ import annotations
 
-import json
 import os
 from typing import Any, cast
 
@@ -90,7 +89,13 @@ def checkSecrets(secrets_file: str) -> ResultPayload[list[str]]:
         ResultPayload[list[str]]: The result payload containing a list of flattened secrets keys if successful.
     """
 
-    secrets_dict: dict[str, Any] = json.loads(secrets_file)
+    from omegaconf import OmegaConf
+
+    secrets_dict = cast(
+        dict[str, Any],
+        OmegaConf.to_container(OmegaConf.load(secrets_file), resolve=True),
+    )
+
     flat_secrets = _flatten_dict_keys(secrets_dict)
     result = ResultPayload(
         success=True,
