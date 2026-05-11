@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from chaos.lib.secret_backends.key_backends.backend import KeyBackend
+from chaos.lib.secret_backends.key_backends.backend import KeyBackend
 
 
 def get_key_backend(key_type: str) -> KeyBackend:
@@ -25,6 +23,11 @@ def get_key_backend(key_type: str) -> KeyBackend:
 
         class_name = f"{key_type.capitalize()}Backend"
         backend_class = getattr(module, class_name)
+
+        if not issubclass(backend_class, KeyBackend):
+            raise ValueError(
+                f"Class '{class_name}' in '{key_type}' module does not implement KeyBackend interface."
+            )
 
         return backend_class()
     except ImportError as e:

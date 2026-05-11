@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, cast
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Iterator, cast
 
 from omegaconf import DictConfig, OmegaConf
 
 from chaos.lib.secret_backends.utils import flatten
 
 if TYPE_CHECKING:
+    from typing import TypedDict
+
     from chaos.lib.args.dataclasses import SecretsExportPayload, SecretsRotatePayload
+
+    class EphemeralEnvironment(TypedDict):
+        env: dict[str, str]
+        prefix: str
+        pass_fds: list[int]
 
 
 class KeyBackend(ABC):
@@ -333,5 +341,43 @@ class KeyBackend(ABC):
             payload: The payload containing all necessary information for the export.
         Returns:
             tuple[str, list[str]]: (content_to_export, info_messages)
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def import_key(
+        self, key_content: str, confirmed: bool = False
+    ) -> tuple[list[str], list[str]]:
+        """
+        Imports a key into the backend if necessary (e.g., fetching from a server or vault).
+        Args:
+            key_content: The raw key content or identifier to import.
+            confirmed: Whether the user has confirmed the import action (if applicable).
+        Returns:
+            tuple[list[str], list[str]]: info_messages, error_messages
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def parse_key_content(
+        self, key_content: str, provider_name: str
+    ) -> tuple[str, str, str]:
+        """
+        Parses the raw key content to extract the relevant key identifiers (e.g., fingerprints).
+        Args:
+            key_content: The raw key content to parse.
+            provider_name: The name of the provider (for error messages).
+        Returns:
+            tuple[str, str, str]: public_key_identifier, secret_key_identifier, sanitized_key_content
+        """
+        raise NotImplementedError
+
+    @contextmanager
+    @abstractmethod
+    def ephemeral_key_context(
+        self, pub_key: str, sec_key: str, parsed_key_content: str
+    ) -> Iterator[EphemeralEnvironment]:
+        """
+        Sets up an ephemeral environment for the duration of a subprocess call
         """
         raise NotImplementedError

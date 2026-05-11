@@ -1,11 +1,19 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
+from contextlib import contextmanager
 
 from chaos.lib.secret_backends.crypto import extract_age_keys, is_valid_age_key
 from chaos.lib.secret_backends.key_backends.backend import KeyBackend
 
 if TYPE_CHECKING:
+    from typing import TypedDict
+
     from chaos.lib.args.dataclasses import SecretsExportPayload, SecretsRotatePayload
+
+    class EphemeralEnvironment(TypedDict):
+        env: dict[str, str]
+        prefix: str
+        pass_fds: list[int]
 
 
 class AgeBackend(KeyBackend):
@@ -65,3 +73,107 @@ class AgeBackend(KeyBackend):
 
         messages = [f"Exporting age public key: {pubkey}"]
         return key_content, messages
+
+    def import_key(
+        self, key_content: str, confirmed: bool = False
+    ) -> tuple[list[str], list[str]]:
+        currentPathAgeFile = Path.cwd() / "keys.txt"
+        messages: list[str] = []
+        errors: list[str] = []
+
+        if currentPathAgeFile.exists() and not confirmed:
+            return (
+                ["A 'keys.txt' file already exists in the current directory."],
+                ["Confirmation needed to overwrite 'keys.txt'."],
+            )
+
+        try:
+            with currentPathAgeFile.open("w") as f:
+                sanitized_content = "\n".join(
+                    line.lstrip() for line in key_content.splitlines()
+                )
+                _ = f.write(sanitized_content)
+                if not sanitized_content.endswith("\n"):
+                    _ = f.write("\n")
+            messages.append("Age key imported successfully to 'keys.txt'.")
+        except Exception as e:
+            errors.append(f"Error importing age key: {str(e)}")
+            return errors, []
+
+        return errors, messages
+
+    def parse_key_content(
+        self, key_content: str, provider_name: str
+    ) -> tuple[str, str, str]:
+        if not key_content:
+            raise ValueError(f"Retrieved key from {provider_name} is empty.")
+
+        sanitized_key_content = ""
+        for line in key_content.splitlines():
+            if line.startswith(" ") or line.startswith("\t"):
+                line = line.lstrip()
+            sanitized_key_content += line + "\n"
+
+        pubKey, secKey = extract_age_keys(key_content)
+
+        if not pubKey:
+            raise ValueError(
+                f"Could not find a public key in the secret from {provider_name}. Expected a line starting with '# public key:'."
+            )
+        if not secKey:
+            raise ValueError(
+                f"Could not find a secret key in the secret from {provider_name}. Expected a line starting with 'AGE-SECRET-KEY-'."
+            )
+
+        return pubKey, secKey, sanitized_key_content
+
+    @contextmanager
+    def ephemeral_key_context(
+        self, pub_key: str, sec_key: str, parsed_key_content: str
+    ) -> Iterator[EphemeralEnvironment]:
+        import os
+
+        from ..utils import setup_pipe
+
+        if not parsed_key_content:
+            yield {"env": {}, "prefix": "", "pass_fds": []}
+            return
+        sanitized_content = "\n".join(
+            line.lstrip() for line in parsed_key_content.splitlines()
+        )
+        final_content = self._conc_age_keys(sanitized_content)
+
+        r_age = setup_pipe(final_content)
+        prefix = f"SOPS_AGE_KEY_FILE=/dev/fd/{r_age} "
+        fds_to_pass = [r_age]
+
+        try:
+            yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
+        finally:
+            os.close(r_age)
+
+    @staticmethod
+    def _conc_age_keys(secKey: str) -> str:
+        """Concatenates existing Age keys from the environment with a new secret key.
+
+        Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends
+        the provided key, returning the combined string.
+
+        Args:
+            secKey (str): The new secret age key to append.
+
+        Returns:
+            str: The combined Age keys.
+        """
+        import os
+
+        sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
+        if not sops_file_env or not Path(sops_file_env).exists():
+            return secKey
+
+        with open(sops_file_env, "r") as f:
+            existing_keys_content = f.read()
+
+        concResult = existing_keys_content.strip() + "\n" + secKey
+
+        return concResult

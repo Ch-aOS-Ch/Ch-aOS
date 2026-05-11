@@ -20,14 +20,7 @@ from chaos.lib.args.dataclasses import (
     SecretsImportPayload,
 )
 
-from ..crypto import (
-    _import_age_keys,
-    _import_gpg_keys,
-    _import_vault_keys,
-    decompress,
-    extract_age_keys,
-)
-from .ephemeral import ephemeralAgeKey, ephemeralGpgKey, ephemeralVaultKeys
+from ..key_backends.factory import get_key_backend
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -190,29 +183,46 @@ class Provider(ABC):
 
         context = {"env": os.environ.copy(), "prefix": "", "pass_fds": []}
 
-        match key_type:
-            case "age":
-                _, _, key_content = self.getAgeKeys(item_id)
-                with ephemeralAgeKey(key_content) as (prefix, fds):
-                    context["prefix"] = prefix
-                    context["pass_fds"] = fds
-                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
+        try:
+            backend = get_key_backend(key_type)
+        except ValueError as e:
+            raise ValueError(
+                f"Error initializing key backend for ephemeral environment: {e}"
+            )
+        except ImportError as e:
+            raise ImportError(
+                f"Error importing key backend for ephemeral environment: {e}"
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Unexpected error initializing key backend for ephemeral environment: {e}"
+            )
 
-            case "gpg":
-                _, secKey, _ = self.getGpgKeys(item_id)
-                actualKey = decompress(secKey)
-                with ephemeralGpgKey(actualKey) as gpg_env:
-                    context["env"].update(gpg_env)
-                    yield {"env": context["env"], "prefix": "", "pass_fds": []}
+        key_content = self.readKeys(item_id)
 
-            case "vault":
-                vault_addr, vault_token, _ = self.getVaultKeys(item_id)
-                with ephemeralVaultKeys(vault_token, vault_addr) as (prefix, fds):
-                    context["prefix"] = prefix
-                    context["pass_fds"] = fds
-                    yield {"env": context["env"], "prefix": prefix, "pass_fds": fds}
-            case _:
-                raise ValueError(f"Unsupported key type '{key_type}'.")
+        try:
+            pub_key, sec_key, parsed_key_content = backend.parse_key_content(
+                key_content, self.name
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Error parsing key content for ephemeral environment: {e}"
+            )
+
+        context: EphemeralEnvReturn = {
+            "env": os.environ.copy(),
+            "prefix": "",
+            "pass_fds": [],
+        }
+
+        with backend.ephemeral_key_context(
+            pub_key, sec_key, parsed_key_content
+        ) as env_ctx:
+            context["env"].update(env_ctx.get("env", {}))
+            context["prefix"] = env_ctx.get("prefix", "")
+            context["pass_fds"] = env_ctx.get("pass_fds", [])
+
+            yield context
 
     @abstractmethod
     def readKeys(self, item_id: str) -> str:
@@ -250,106 +260,7 @@ class Provider(ABC):
             message=["Export not implemented for this provider."],
         )
 
-    def getAgeKeys(self, item_id: str) -> tuple[str, str, str]:
-        """Retrieves Age keys from the provider.
-
-        Args:
-            item_id (str): The ID of the item to retrieve.
-
-        Returns:
-            tuple[str, str, str]: Public key, Secret key, Key content.
-
-        Raises:
-            ValueError: If the key format is incompatible or no public/private pairs are discovered within payload bounds.
-        """
-        key_content = self.readKeys(item_id)
-        if not key_content:
-            raise ValueError(f"Retrieved key from {self.name} is empty.")
-
-        sanitized_key_content = ""
-        for line in key_content.splitlines():
-            if line.startswith(" ") or line.startswith("\t"):
-                line = line.lstrip()
-            sanitized_key_content += line + "\n"
-
-        pubKey, secKey = extract_age_keys(key_content)
-
-        if not pubKey:
-            raise ValueError(
-                f"Could not find a public key in the secret from {self.name}. Expected a line starting with '# public key:'."
-            )
-        if not secKey:
-            raise ValueError(
-                f"Could not find a secret key in the secret from {self.name}. Expected a line starting with 'AGE-SECRET-KEY-'."
-            )
-
-        return pubKey, secKey, sanitized_key_content
-
-    def getGpgKeys(self, item_id: str) -> tuple[str, str, str]:
-        """Retrieves GPG keys from the provider.
-
-        Args:
-            item_id (str): The ID of the item to retrieve.
-
-        Returns:
-            tuple[str, str, str]: Fingerprints, Secret key, Raw key Content.
-
-        Raises:
-            ValueError: On content empty evaluation or if the returned text doesn't evaluate as PGP syntax structures.
-        """
-        key_content = self.readKeys(item_id)
-        if not key_content:
-            raise ValueError(f"Retrieved GPG key from {self.name} is empty.")
-
-        fingerprints = ""
-        for line in key_content.splitlines():
-            if line.strip().startswith("# fingerprints:"):
-                fingerprints = line.split(":", 1)[1].strip()
-                break
-
-        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
-            raise ValueError(
-                f"The secret read from {self.name} does not appear to be a GPG private key block."
-            )
-
-        noHeadersSecKey = key_content.split("-----BEGIN PGP PRIVATE KEY BLOCK-----", 1)[
-            1
-        ].rsplit("-----END PGP PRIVATE KEY BLOCK-----", 1)[0]
-        secKey = noHeadersSecKey.strip()
-
-        return fingerprints, secKey, key_content
-
-    def getVaultKeys(self, item_id: str) -> tuple[str, str, str]:
-        """Retrieves Vault keys from the provider.
-
-        Args:
-            item_id (str): The ID of the item to retrieve.
-
-        Returns:
-            tuple[str, str, str]: Vault address, Vault token, Raw key Content.
-
-        Raises:
-            ValueError: When extracted content defaults out as null sets missing essential variables.
-        """
-        key_content = self.readKeys(item_id)
-        if not key_content:
-            raise ValueError(f"Retrieved key from {self.name} is empty.")
-
-        vault_addr, vault_token = None, None
-        for line in key_content.splitlines():
-            if line.strip().startswith("# Vault Address:"):
-                vault_addr = line.split("::", 1)[1].strip()
-            if line.strip().startswith("Vault Key:"):
-                vault_token = line.split(":", 1)[1].strip()
-
-        if not vault_addr or not vault_token:
-            raise ValueError(
-                f"Could not extract both Vault address and token from {self.name} item."
-            )
-
-        return vault_addr, vault_token, key_content
-
-    def import_secrets(self, payload: SecretsImportPayload) -> ResultPayload:
+    def import_secrets(self, payload: SecretsImportPayload) -> ResultPayload[None]:
         """Imports remote keys from the provider to local.
 
         Args:
@@ -362,6 +273,20 @@ class Provider(ABC):
         errors = []
 
         try:
+            backend = get_key_backend(payload.key_type)
+        except ValueError as e:
+            errors.append(str(e))
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        except ImportError as e:
+            errors.append(f"Error importing key backend for {payload.key_type}: {e}")
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        except Exception as e:
+            errors.append(f"Unexpected error initializing key backend: {e}")
+            return ResultPayload(success=False, error=errors, message=messages)
+
+        try:
             self.check_status()
 
             keyType = payload.key_type
@@ -371,61 +296,35 @@ class Provider(ABC):
             if not item_id:
                 raise ValueError("Item ID must be specified for import.")
 
-            match keyType:
-                case "age":
-                    pubKey, secKey, key_content = self.getAgeKeys(item_id)
-                    if "# NO-IMPORT" in key_content:
-                        raise ValueError(
-                            f"The age key from {self.name} contains a NO-IMPORT marker and will not be imported."
-                        )
+            key_content = self.readKeys(item_id)
+            try:
+                pubKey, secKey, parsed_key_content = backend.parse_key_content(
+                    key_content, self.name
+                )
+            except ValueError as e:
+                raise ValueError(f"Error parsing key content: {e}") from e
 
-                    import_result = _import_age_keys(
-                        key_content, confirmed=payload.confirmed
-                    )
-                    if not import_result.success:
-                        return import_result
+            if "# NO-IMPORT" in parsed_key_content:
+                raise ValueError(
+                    f"The {keyType} key from {self.name} contains a NO-IMPORT marker and will not be imported."
+                )
 
-                    messages.append(f"Successfully imported age key from {self.name}.")
-                    messages.append(f"Public Key: {pubKey}")
-                    messages.append(f"Secret Key: {secKey}")
-                    messages.extend(import_result.message)
+            import_errors, import_messages = backend.import_key(
+                parsed_key_content, confirmed=payload.confirmed
+            )
 
-                case "gpg":
-                    fingerprints, secKey, key_content = self.getGpgKeys(item_id)
-                    if "# NO-IMPORT" in key_content:
-                        raise ValueError(
-                            f"The GPG key from {self.name} contains a NO-IMPORT marker and will not be imported."
-                        )
+            if import_errors:
+                errors.extend(import_errors)
+                messages.extend(import_messages)
+                return ResultPayload(success=False, error=errors, message=messages)
 
-                    import_result = _import_gpg_keys(secKey)
-                    if not import_result.success:
-                        return import_result
+            messages.append(f"Successfully imported {keyType} key from {self.name}.")
 
-                    messages.append(f"Successfully imported GPG key from {self.name}.")
-                    if fingerprints:
-                        messages.append(f"Fingerprints: {fingerprints}")
-                    messages.extend(import_result.message)
+            if pubKey:
+                messages.append(f"Public Key(s): {pubKey}")
 
-                case "vault":
-                    vault_addr, vault_token, key_content = self.getVaultKeys(item_id)
-                    if "# NO-IMPORT" in key_content:
-                        raise ValueError(
-                            f"The Vault key from {self.name} contains a NO-IMPORT marker and will not be imported."
-                        )
-
-                    import_result = _import_vault_keys(key_content)
-                    if not import_result.success:
-                        return import_result
-
-                    messages.append(
-                        f"Successfully imported Vault key from {self.name}."
-                    )
-                    messages.append(f"Vault Address: {vault_addr}")
-                    messages.append(f"Vault Token: {vault_token}")
-                    messages.extend(import_result.message)
-
-                case _:
-                    raise ValueError(f"Unsupported key type '{keyType}'.")
+            if secKey:
+                messages.append(f"Secret Key: {secKey[0:3]}... (hidden for security)")
 
         except Exception as e:
             errors.append(str(e))
@@ -447,18 +346,21 @@ class Provider(ABC):
             tuple[str, dict, List[int]]: (command_string, environment_dict, pass_fds_list)
         """
         sops_command = ["sops", "--config", sops_file, secrets_file]
-        with self.setupEphemeralEnv() as ctx:
-            prefix = ctx.get("prefix", "")
-            pass_fds = ctx.get("pass_fds", [])
-            env = ctx.get("env", os.environ.copy())
-            cmd = shlex.join(sops_command)
+        try:
+            with self.setupEphemeralEnv() as ctx:
+                prefix = ctx.get("prefix", "")
+                pass_fds = ctx.get("pass_fds", [])
+                env = ctx.get("env", os.environ.copy())
+                cmd = shlex.join(sops_command)
 
-            if prefix:
-                cmd = f"{prefix} {cmd}"
+                if prefix:
+                    cmd = f"{prefix} {cmd}"
 
-            yield cmd, env, pass_fds
+                yield cmd, env, pass_fds
+        except Exception as e:
+            raise RuntimeError(f"Error setting up SOPS edit environment: {e}") from e
 
-    def decrypt(self, secrets_file: str) -> str:
+    def decrypt(self, secrets_file: str, sops_file: str) -> str:
         """Decrypt secrets using SOPS.
 
         Args:
@@ -468,7 +370,7 @@ class Provider(ABC):
         Returns:
             str: Decrypted secrets content.
         """
-        sops_command = ["sops", "decrypt", secrets_file]
+        sops_command = ["sops", "--config", sops_file, "decrypt", secrets_file]
         result = self._run_sops_command(sops_command).stdout
         return result
 
@@ -517,3 +419,5 @@ class Provider(ABC):
         except subprocess.CalledProcessError as e:
             err = e.stderr.strip() if e.stderr else "No additional error information."
             raise RuntimeError(f"Error running SOPS command: {err}") from e
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error running SOPS command: {e}") from e

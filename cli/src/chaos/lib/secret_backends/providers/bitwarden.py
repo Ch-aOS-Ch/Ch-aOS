@@ -4,7 +4,6 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import List, Optional, Tuple, cast
 
 from chaos.lib.args.dataclasses import (
@@ -15,13 +14,9 @@ from chaos.lib.args.dataclasses import (
 )
 from chaos.lib.utils import checkDep
 
-from ..crypto import (
-    extract_gpg_keys,
-)
 from ..utils import (
     _save_to_config,
     get_sops_files,
-    setup_vault_keys,
 )
 from .base import Provider
 
@@ -425,104 +420,6 @@ class BitwardenSecretsProvider(Provider):
         if isinstance(self.payload, SecretsContext) and self.payload.provider_config:
             return self.payload.provider_config.ephemeral_provider_args.get("from_bws")
         return None
-
-    def _get_age_key_content(self, key_path: Path) -> str:
-        with key_path.open("r") as f:
-            content = f.read()
-        if "# public" not in content or "AGE-SECRET-KEY-" not in content:
-            raise ValueError(
-                "The specified key file does not appear to be a valid age key."
-            )
-        return content
-
-    def _exportBwsVaultKey(
-        self,
-        keyPath: Path,
-        vaultAddr: str,
-        key: str,
-        project_id: str,
-        save_to_config: bool,
-        no_import: bool,
-    ) -> ResultPayload:
-        messages = []
-        key_content = setup_vault_keys(vaultAddr, keyPath)
-        if no_import:
-            key_content = f"# NO-IMPORT\n{key_content}"
-
-        cmd = ["bws", "secret", "create", key, key_content, project_id]
-        messages.append(f"Exporting Vault key from {keyPath}")
-
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            created_item = json.loads(result.stdout)
-            item_id = created_item.get("id")
-            messages.append(
-                f"Successfully exported Vault key '{key}' to Bitwarden with id {item_id}"
-            )
-
-            if save_to_config and item_id:
-                data_to_save = {"vault_id": item_id, "project_id": project_id}
-                _save_to_config(backend="bws", data_to_save=data_to_save)
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Error exporting Vault key to Bitwarden: {e.stderr.strip()}"
-            ) from e
-        except FileNotFoundError:
-            raise RuntimeError(
-                "Bitwarden Secrets CLI ('bws') is not installed or not found in PATH."
-            ) from None
-        except Exception as e:
-            raise RuntimeError(
-                f"Unexpected error exporting Vault key to Bitwarden: {str(e)}"
-            ) from e
-
-        return ResultPayload(success=True, message=messages)
-
-    def _exportBwsGpgKey(
-        self,
-        key: str,
-        project_id: str,
-        fingerprints: list[str],
-        save_to_config: bool,
-        no_import: bool,
-    ) -> ResultPayload:
-        messages = []
-        key_content = extract_gpg_keys(fingerprints)
-        if no_import:
-            key_content = f"# NO-IMPORT\n{key_content}"
-
-        cmd = ["bws", "secret", "create", key, key_content, project_id]
-        messages.append(
-            f"Exporting GPG key for fingerprints: {', '.join(fingerprints)}"
-        )
-
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            created_item = json.loads(result.stdout)
-            item_id = created_item.get("id")
-            messages.append(
-                f"Successfully exported GPG key '{key}' to Bitwarden with id {item_id}"
-            )
-
-            if save_to_config and item_id:
-                data_to_save = {"gpg_id": item_id, "project_id": project_id}
-                _save_to_config(backend="bws", data_to_save=data_to_save)
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Error exporting GPG key to Bitwarden: {e.stderr.strip()}"
-            ) from e
-        except FileNotFoundError:
-            raise RuntimeError(
-                "Bitwarden Secrets CLI ('bws') is not installed or not found in PATH."
-            ) from None
-        except Exception as e:
-            raise RuntimeError(
-                f"Unexpected error exporting GPG key to Bitwarden: {str(e)}"
-            ) from e
-
-        return ResultPayload(success=True, message=messages)
 
 
 class BitwardenRbwProvider(Provider):

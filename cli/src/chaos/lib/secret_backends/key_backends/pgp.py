@@ -1,12 +1,25 @@
 import subprocess
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
+from contextlib import contextmanager
 
-from chaos.lib.secret_backends.crypto import extract_gpg_keys, is_valid_fp, pgp_exists
+from chaos.lib.secret_backends.crypto import (
+    decompress,
+    extract_gpg_keys,
+    is_valid_fp,
+    pgp_exists,
+)
 from chaos.lib.secret_backends.key_backends.backend import KeyBackend
 from chaos.lib.utils import checkDep
 
 if TYPE_CHECKING:
+    from typing import TypedDict
+
     from chaos.lib.args.dataclasses import SecretsExportPayload, SecretsRotatePayload
+
+    class EphemeralEnvironment(TypedDict):
+        env: dict[str, str]
+        prefix: str
+        pass_fds: list[int]
 
 
 class PgpBackend(KeyBackend):
@@ -95,3 +108,137 @@ class PgpBackend(KeyBackend):
         key_content = extract_gpg_keys(fingerprints)
         messages = [f"Exporting GPG keys for fingerprints: {', '.join(fingerprints)}"]
         return key_content, messages
+
+    def import_key(
+        self, key_content: str, confirmed: bool = False
+    ) -> tuple[list[str], list[str]]:
+        decompressedKey = decompress(key_content)
+        messages: list[str] = []
+        errors: list[str] = []
+
+        try:
+            import_cmd = ["gpg", "--batch", "--import"]
+            _ = subprocess.run(
+                import_cmd,
+                input=decompressedKey,
+                check=True,
+                capture_output=True,
+            )
+            messages.append(
+                "GPG key imported into your local GPG keyring successfully."
+            )
+        except subprocess.CalledProcessError as e:
+            errors.append(f"Error importing GPG key: {e.stderr.decode().strip()}")  # pyright: ignore[reportAny]
+            return errors, messages
+
+        return errors, messages
+
+    def parse_key_content(
+        self, key_content: str, provider_name: str
+    ) -> tuple[str, str, str]:
+        if not key_content:
+            raise ValueError(f"Retrieved GPG key from {provider_name} is empty.")
+
+        fingerprints = ""
+        for line in key_content.splitlines():
+            if line.strip().startswith("# fingerprints:"):
+                fingerprints = line.split(":", 1)[1].strip()
+                break
+
+        if "-----BEGIN PGP PRIVATE KEY BLOCK-----" not in key_content:
+            raise ValueError(
+                f"The secret read from {provider_name} does not appear to be a GPG private key block."
+            )
+
+        noHeadersSecKey = key_content.split("-----BEGIN PGP PRIVATE KEY BLOCK-----", 1)[
+            1
+        ].rsplit("-----END PGP PRIVATE KEY BLOCK-----", 1)[0]
+        secKey = noHeadersSecKey.strip()
+
+        return fingerprints, secKey, key_content
+
+    @contextmanager
+    def ephemeral_key_context(
+        self, pub_key: str, sec_key: str, parsed_key_content: str
+    ) -> Iterator[EphemeralEnvironment]:
+        import os
+        import platform
+        import tempfile
+        from pathlib import Path
+
+        from ..crypto import decompress
+        from ..utils import mac_ram_disk, setup_gpg_keys
+
+        key_bytes = decompress(parsed_key_content)
+
+        if not key_bytes:
+            yield {"env": {}, "prefix": "", "pass_fds": []}
+            return
+
+        is_mac = platform.system() == "Darwin"
+
+        if is_mac:
+            from contextlib import ExitStack
+
+            with ExitStack() as stack:
+                try:
+                    ram_dir = stack.enter_context(mac_ram_disk())
+                    temp_dir_name = stack.enter_context(
+                        tempfile.TemporaryDirectory(dir=ram_dir, prefix="chaos-gpg-")
+                    )
+
+                    temp_path = Path(temp_dir_name)
+                    setup_gpg_keys(temp_path)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to generate GPG home: {e}")
+
+                try:
+                    _ = subprocess.run(
+                        ["gpg", "--batch", "--import"],
+                        input=key_bytes,
+                        env={"GNUPGHOME": str(temp_path)},
+                        check=True,
+                        capture_output=True,
+                    )
+
+                except subprocess.CalledProcessError as e:
+                    err_msg = (
+                        e.stderr.decode() if getattr(e, "stderr", None) else str(e)
+                    )
+                    raise RuntimeError(f"Failed to import GPG key: {err_msg}")
+
+                yield {
+                    "env": {"GNUPGHOME": str(temp_path)},
+                    "prefix": "",
+                    "pass_fds": [],
+                }
+        else:
+            shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+            with tempfile.TemporaryDirectory(
+                dir=shm_dir, prefix="chaos-gpg-"
+            ) as temp_dir_name:
+                try:
+                    temp_path = Path(temp_dir_name)
+                    setup_gpg_keys(temp_path)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to generate GPG home: {e}")
+
+                try:
+                    _ = subprocess.run(
+                        ["gpg", "--batch", "--import"],
+                        input=key_bytes,
+                        env={"GNUPGHOME": str(temp_path)},
+                        check=True,
+                        capture_output=True,
+                    )
+                except subprocess.CalledProcessError as e:
+                    err_msg = (
+                        e.stderr.decode() if getattr(e, "stderr", None) else str(e)
+                    )
+                    raise RuntimeError(f"Failed to import GPG key: {err_msg}")
+
+                yield {
+                    "env": {"GNUPGHOME": str(temp_path)},
+                    "prefix": "",
+                    "pass_fds": [],
+                }

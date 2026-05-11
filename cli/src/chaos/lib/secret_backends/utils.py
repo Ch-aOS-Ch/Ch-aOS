@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -173,28 +174,37 @@ def setup_gpg_keys(gnupghome: Path) -> None:
         _ = shutil.copy2(src_trust, Path(temp_gnupg_path) / "trustdb.gpg")
 
 
-def conc_age_keys(secKey: str) -> str:
-    """Concatenates existing Age keys from the environment with a new secret key.
-
-    Reads keys from the SOPS_AGE_KEY_FILE environment variable (if set) and appends
-    the provided key, returning the combined string.
-
-    Args:
-        secKey (str): The new secret age key to append.
-
-    Returns:
-        str: The combined Age keys.
+@contextmanager
+def mac_ram_disk():
+    """Creates an ephemeral RAM Disk on macOS
+    Yields:
+        The mount point of the RAM Disk
     """
-    sops_file_env = os.getenv("SOPS_AGE_KEY_FILE")
-    if not sops_file_env or not Path(sops_file_env).exists():
-        return secKey
+    import subprocess
 
-    with open(sops_file_env, "r") as f:
-        existing_keys_content = f.read()
+    # 4096 sectors of 512 bytes = 2MB in RAM
+    mb = os.getenv("CHAOS_RAM_DISK_SIZE_MB", "2")
+    attach_cmd = subprocess.run(
+        ["hdiutil", "attach", "-nomount", f"ram://{mb * 2048}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    device = attach_cmd.stdout.strip()
 
-    concResult = existing_keys_content.strip() + "\n" + secKey
-
-    return concResult
+    try:
+        _ = subprocess.run(
+            ["diskutil", "erasevolume", "HFS+", "ChaosGPG", device],
+            capture_output=True,
+            check=True,
+        )
+        os.chmod("/Volumes/ChaosGPG", 0o700)
+        mount_point = "/Volumes/ChaosGPG"
+        yield mount_point
+    finally:
+        _ = subprocess.run(
+            ["hdiutil", "detach", device, "-force"], capture_output=True, check=False
+        )
 
 
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
@@ -730,10 +740,10 @@ def decrypt_secrets(
 
     try:
         if provider:
-            sopsDecryptResult = provider.decrypt(secrets_file)
+            sopsDecryptResult = provider.decrypt(secrets_file, sops_file)
         else:
             sopsDecryptResult = subprocess.run(
-                ["sops", "decrypt", secrets_file],
+                ["sops", "--config", sops_file, "decrypt", secrets_file],
                 check=True,
                 capture_output=True,
                 text=True,
