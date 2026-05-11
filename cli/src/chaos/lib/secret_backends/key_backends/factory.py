@@ -30,10 +30,8 @@ def get_key_backend(key_type: str) -> KeyBackend:
             )
 
         return backend_class()
-    except ImportError as e:
-        raise ValueError(f"Module for key type '{key_type}' not found.") from e
+    except ImportError:
+        raise ValueError(f"Module for key type '{key_type}' not found.")
 
-    except AttributeError as e:
-        raise ValueError(
-            f"Class '{class_name}' not found in '{key_type}' module."
-        ) from e
+    except AttributeError:
+        raise ValueError(f"Class '{class_name}' not found in '{key_type}' module.")
