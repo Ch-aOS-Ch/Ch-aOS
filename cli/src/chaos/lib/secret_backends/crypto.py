@@ -4,9 +4,6 @@ import base64
 import re
 import subprocess
 import zlib
-from pathlib import Path
-
-from chaos.lib.args.dataclasses import ResultPayload
 
 
 def compress(data: bytes) -> str:
@@ -43,10 +40,12 @@ def decompress(encoded_data: str) -> bytes:
     Raises:
         RuntimeError: If data decoding or decompression fails.
     """
+    from base64 import b85decode
+    from zlib import decompress as zdecomp
 
     try:
-        compressed_data = base64.b85decode(encoded_data.encode("utf-8"))
-        data = zlib.decompress(compressed_data)
+        compressed_data = b85decode(encoded_data.encode("utf-8"))
+        data = zdecomp(compressed_data)
         return data
     except Exception as e:
         raise RuntimeError(f"Failed to decode and decompress data: {e}") from e
@@ -180,71 +179,6 @@ def extract_gpg_keys(fingerprints: list[str]) -> str:
         ) from None
     except Exception as e:
         raise RuntimeError(f"Unexpected error exporting GPG key: {str(e)}") from e
-
-
-def _import_age_keys(key_content: str, confirmed: bool = False) -> ResultPayload[None]:
-    currentPathAgeFile = Path.cwd() / "keys.txt"
-    messages: list[str] = []
-    errors: list[str] = []
-
-    if currentPathAgeFile.exists() and not confirmed:
-        return ResultPayload(
-            success=False,
-            message=["A 'keys.txt' file already exists in the current directory."],
-            error=["Confirmation needed to overwrite 'keys.txt'."],
-        )
-
-    try:
-        with currentPathAgeFile.open("w") as f:
-            sanitized_content = "\n".join(
-                line.lstrip() for line in key_content.splitlines()
-            )
-            _ = f.write(sanitized_content)
-            if not sanitized_content.endswith("\n"):
-                _ = f.write("\n")
-        messages.append("Age key imported successfully to 'keys.txt'.")
-    except Exception as e:
-        errors.append(f"Error importing age key: {str(e)}")
-        return ResultPayload(success=False, error=errors)
-
-    return ResultPayload(success=True, message=messages)
-
-
-def _import_gpg_keys(secKey: str) -> ResultPayload[None]:
-    decompressedKey = decompress(secKey)
-    messages: list[str] = []
-    errors: list[str] = []
-
-    try:
-        import_cmd = ["gpg", "--batch", "--import"]
-        _ = subprocess.run(
-            import_cmd,
-            input=decompressedKey,
-            check=True,
-            capture_output=True,
-        )
-        messages.append("GPG key imported into your local GPG keyring successfully.")
-    except subprocess.CalledProcessError as e:
-        errors.append(f"Error importing GPG key: {e.stderr.decode().strip()}")  # pyright: ignore[reportAny]
-        return ResultPayload(success=False, error=errors)
-
-    return ResultPayload(success=True, message=messages)
-
-
-def _import_vault_keys(key_content: str) -> ResultPayload[None]:
-    currentPathVaultFile = Path.cwd() / "vault_key.txt"
-    messages: list[str] = []
-    errors: list[str] = []
-
-    try:
-        with currentPathVaultFile.open("w") as f:
-            _ = f.write(key_content)
-        messages.append("Vault key imported successfully to 'vault_key.txt'.")
-    except Exception as e:
-        errors.append(f"Error importing Vault key: {str(e)}")
-        return ResultPayload(success=False, error=errors)
-
-    return ResultPayload(success=True, message=messages)
 
 
 def is_vault_in_use(sops_file_path: str) -> bool:

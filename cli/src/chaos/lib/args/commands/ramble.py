@@ -489,6 +489,9 @@ def handleRamble(args):  # noqa: C901
                         "[bold red]ERROR:[/] `sops` command not found. Please install sops."
                     )
                     sys.exit(1)
+                except ValueError as e:
+                    console.print(f"[bold red]ERROR:[/] {e}")
+                    sys.exit(1)
             else:
                 editor = os.getenv("EDITOR", "nano")
                 import subprocess
