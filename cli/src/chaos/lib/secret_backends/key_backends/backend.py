@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Iterator, cast
 
 from omegaconf import DictConfig, OmegaConf
 
-from chaos.lib.secret_backends.utils import flatten
-
 if TYPE_CHECKING:
     from typing import TypedDict
 
@@ -43,9 +41,16 @@ class KeyBackend(ABC):
                 - A list of warning messages.
                 - A list of error messages.
         """
+        from ..utils import flatten
+
         warnings: list[str] = []
         errors: list[str] = []
         messages: list[str] = []
+
+        key_type = self.key_type
+        if key_type == "vault":
+            key_type = "hc_vault"
+
         try:
             sops_config = OmegaConf.load(sops_file_override)
             sops_config = cast(DictConfig, sops_config)
@@ -63,12 +68,10 @@ class KeyBackend(ABC):
             for rule in creation_rules:
                 for key_group in rule.get("key_groups", []):
                     if (
-                        self.key_type in key_group
-                        and getattr(key_group, self.key_type) is not None
+                        key_type in key_group
+                        and getattr(key_group, key_type) is not None
                     ):
-                        all_keys_in_config.update(
-                            flatten(getattr(key_group, self.key_type))
-                        )
+                        all_keys_in_config.update(flatten(getattr(key_group, key_type)))
 
             if not all_keys_in_config:
                 messages.append("No keys to be shown.")
@@ -118,7 +121,6 @@ class KeyBackend(ABC):
         errors: list[str] = []
 
         try:
-            # Get existing keys to verify what to remove
             all_keys_in_config, _, list_errs, _ = self.list_keys(sops_file_override)
             if list_errs and "Failed to read" in list_errs[0]:
                 return messages, list_errs
@@ -154,6 +156,8 @@ class KeyBackend(ABC):
         """
         Generic internal handler for adding validated keys to the config.
         """
+        from ..utils import flatten
+
         messages: list[str] = []
         errors: list[str] = []
         if not valids:
@@ -239,6 +243,8 @@ class KeyBackend(ABC):
         """
         Generic internal handler for removing specific keys from the config.
         """
+        from ..utils import flatten
+
         messages: list[str] = []
         errors: list[str] = []
         rule_index = payload.index

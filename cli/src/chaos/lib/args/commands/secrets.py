@@ -252,16 +252,19 @@ def handleSecrets(args):  # noqa: C901
                     if payload.no_pretty:
                         if payload.value:
                             print("\n".join(results))
+                            return
 
                         elif payload.json:
                             import json
 
                             print(json.dumps(list(results), indent=2))
+                            return
 
                         else:
                             from omegaconf import OmegaConf
 
                             print(OmegaConf.to_yaml(list(results)))
+                            return
 
                     from chaos.lib.display_utils import render_list_as_table
 
