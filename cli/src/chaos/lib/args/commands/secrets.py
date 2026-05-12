@@ -87,7 +87,7 @@ def handleSecrets(args):  # noqa: C901
                     no_import=getattr(args, "no_import", False),
                     save_to_config=getattr(args, "save_to_config", False),
                     item_name=getattr(args, "item_name", None),
-                    keys=getattr(args, "keys", None),
+                    keys=getattr(args, "key_file", None),
                     vault_addr=getattr(args, "vault_addr", None),
                     fingerprints=getattr(args, "fingerprints", None),
                     provider_specific_args=provider_specific_args,
@@ -167,7 +167,7 @@ def handleSecrets(args):  # noqa: C901
 
                 payload = SecretsRotatePayload(
                     type=args.type,
-                    keys=args.keys,
+                    keys=args.key_file,
                     context=context,
                     index=getattr(args, "index", None),
                     pgp_server=getattr(args, "pgp_server", None),
@@ -205,7 +205,7 @@ def handleSecrets(args):  # noqa: C901
 
                 payload = SecretsRotatePayload(
                     type=args.type,
-                    keys=args.keys,
+                    keys=args.key_file,
                     context=context,
                     index=getattr(args, "index", None),
                 )
@@ -424,7 +424,7 @@ def handleSecrets(args):  # noqa: C901
                 from ...secrets import handleSecCat
 
                 payload = SecretsCatPayload(
-                    keys=args.keys,
+                    keys=args.key_file,
                     context=context,
                     cat_sops_file=getattr(args, "sops", False),
                     as_json=getattr(args, "json", False),

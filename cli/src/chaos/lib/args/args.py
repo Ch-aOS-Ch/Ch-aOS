@@ -55,6 +55,7 @@ class ChaosParser(argparse.ArgumentParser):
     def error(self, message):
         import sys
 
+        print(f"Error: {message}\n", file=sys.stderr)
         self.print_help(sys.stderr)
         sys.exit(2)
 
@@ -107,6 +108,7 @@ def add_provider_export_subcommands(subparsers):
             "-t",
             "--key-type",
             choices=["age", "gpg", "vault"],
+            required=True,
             help="The type of key you want to export.",
         )
         providerSub.add_argument(
@@ -116,12 +118,15 @@ def add_provider_export_subcommands(subparsers):
             help="Add a check to incapacitate importing of secrets.",
         )
         providerSub.add_argument(
-            "-n", "--item-name", help="Name of the item to export the key."
+            "-n",
+            "--item-name",
+            help="Name of the item to export the key.",
+            required=True,
         )
         providerSub.add_argument(
             "-k",
-            "--keys",
-            help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys.).",
+            "--key-file",
+            help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys).",
         ).completer = FilesCompleter()  # type: ignore
         providerSub.add_argument(
             "-a",
@@ -153,10 +158,14 @@ def add_provider_import_subcommands(subparsers):
             "-t",
             "--key-type",
             choices=["age", "gpg", "vault"],
+            required=True,
             help="The type of key you want to import.",
         )
         providerSub.add_argument(
-            "-i", "--item-id", help="The item ID/URL to import the key from."
+            "-i",
+            "--item-id",
+            help="The item ID/URL to import the key from.",
+            required=True,
         )
 
 
@@ -186,7 +195,11 @@ def argParsing():
         help="Edit the Ch-obolo file using the default editor.",
     )
 
-    subParser = parser.add_subparsers(dest="command", help="Available subcommands")
+    subParser = parser.add_subparsers(
+        dest="command",
+        help="Available subcommands",
+        parser_class=ChaosParser,
+    )
 
     styxParser = subParser.add_parser("styx", help="Manage Styx registry entries.")
     teamParser = subParser.add_parser("team", help="Manage your teams.")
@@ -255,7 +268,10 @@ def argParsing():
 
 def addSecParsers(secParser):
     secSubParser = secParser.add_subparsers(
-        dest="secrets_commands", help="Secret subcommands", required=True
+        dest="secrets_commands",
+        help="Secret subcommands",
+        required=True,
+        parser_class=ChaosParser,
     )
 
     secExport = secSubParser.add_parser(
@@ -263,7 +279,10 @@ def addSecParsers(secParser):
         help="Export Keys to a Password or Secret Manager.",
     )
     secSubExport = secExport.add_subparsers(
-        dest="export_commands", help="Secret export subcommands", required=True
+        dest="export_commands",
+        help="Secret export subcommands",
+        required=True,
+        parser_class=ChaosParser,
     )
     add_provider_export_subcommands(secSubExport)
 
@@ -271,7 +290,10 @@ def addSecParsers(secParser):
         "import", help="Import keys from a Password Manager."
     )
     secSubImport = secImport.add_subparsers(
-        dest="import_commands", help="Secret import subcommands", required=True
+        dest="import_commands",
+        help="Secret import subcommands",
+        required=True,
+        parser_class=ChaosParser,
     )
     add_provider_import_subcommands(secSubImport)
 
@@ -534,7 +556,10 @@ def addSecParsers(secParser):
 def addRambleParsers(rambleParser):
 
     rambSubParser = rambleParser.add_subparsers(
-        dest="ramble_commands", help="Ramble subcommands", required=True
+        dest="ramble_commands",
+        help="Ramble subcommands",
+        required=True,
+        parser_class=ChaosParser,
     )
     rambleCreate = rambSubParser.add_parser(
         "create", help="Create a new ramble or a rambling inside a ramble."
@@ -834,7 +859,9 @@ def addCheckParsers(checkParser):
 
 
 def addSetParsers(setParser):
-    setSubParser = setParser.add_subparsers(dest="set_command")
+    setSubParser = setParser.add_subparsers(
+        dest="set_command", parser_class=ChaosParser
+    )
 
     chParser = setSubParser.add_parser(
         "chobolo", aliases=["c", "ch"], help="Set default chobolo file"
@@ -964,7 +991,10 @@ def addApplyParsers(applyParser):
 
 def addTeamParsers(teamParser):
     teamSubParser = teamParser.add_subparsers(
-        dest="team_commands", help="Team management commands", required=True
+        dest="team_commands",
+        help="Team management commands",
+        required=True,
+        parser_class=ChaosParser,
     )
 
     teamPrune = teamSubParser.add_parser(
@@ -1056,7 +1086,10 @@ def addTeamParsers(teamParser):
 
 def addInitParsers(initParser):
     initSubParser = initParser.add_subparsers(
-        dest="init_command", help="What to initialize", required=True
+        dest="init_command",
+        help="What to initialize",
+        required=True,
+        parser_class=ChaosParser,
     )
 
     chobolo_parser = initSubParser.add_parser(
@@ -1093,7 +1126,10 @@ def addInitParsers(initParser):
 
 def addStyxParsers(styxParser):
     styxSubParser = styxParser.add_subparsers(
-        dest="styx_commands", help="Styx subcommands", required=True
+        dest="styx_commands",
+        help="Styx subcommands",
+        required=True,
+        parser_class=ChaosParser,
     )
 
     styxInstall = styxSubParser.add_parser(
