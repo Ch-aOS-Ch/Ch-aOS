@@ -13,7 +13,6 @@ from chaos.lib.args.dataclasses import (
 )
 from chaos.lib.utils import checkDep
 
-from ..utils import get_sops_files
 from .base import Provider
 
 
@@ -104,7 +103,8 @@ class OnePasswordProvider(Provider):
             save_to_config = payload.save_to_config
             no_import = payload.no_import
 
-            _, _, config = get_sops_files(None, None, None)
+            config = self.config
+
             path = (
                 config.get("secret_providers", {})
                 .get("op", {})
@@ -135,9 +135,6 @@ class OnePasswordProvider(Provider):
                 messages.extend(prep_msgs)
             except ValueError as e:
                 raise ValueError(f"Unsupported key type or error loading backend: {e}")
-
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
 
             if not all([key_content, path, loc]):
                 raise ValueError(

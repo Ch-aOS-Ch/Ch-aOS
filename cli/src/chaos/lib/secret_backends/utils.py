@@ -697,6 +697,22 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
     )
 
 
+def zero_out(s: str) -> None:
+    """Overwrites the contents of a string in memory to reduce the risk of sensitive data lingering.
+    Args:
+        s (str): The string to be zeroed out.
+    Returns:
+        None
+    """
+    import ctypes
+    import sys
+
+    memory_location = id(s) + sys.getsizeof("")
+    size = sys.getsizeof(s) - sys.getsizeof("")
+
+    ctypes.memset(memory_location, 0, size)
+
+
 def decrypt_secrets(
     secrets_file: str, sops_file: str, config, context: SecretsContext
 ) -> ResultPayload[str]:

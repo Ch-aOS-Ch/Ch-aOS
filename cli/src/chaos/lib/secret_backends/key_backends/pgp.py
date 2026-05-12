@@ -1,6 +1,6 @@
 import subprocess
-from typing import TYPE_CHECKING, Iterator
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Iterator
 
 from chaos.lib.secret_backends.crypto import (
     decompress,
@@ -106,6 +106,9 @@ class PgpBackend(KeyBackend):
             )
 
         key_content = extract_gpg_keys(fingerprints)
+        if payload.no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
         messages = [f"Exporting GPG keys for fingerprints: {', '.join(fingerprints)}"]
         return key_content, messages
 

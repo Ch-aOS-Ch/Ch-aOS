@@ -1,6 +1,6 @@
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
-from contextlib import contextmanager
 
 from chaos.lib.secret_backends.key_backends.backend import KeyBackend
 from chaos.lib.secret_backends.utils import _is_valid_vault_key, setup_vault_keys
@@ -64,6 +64,9 @@ class VaultBackend(KeyBackend):
             raise FileNotFoundError(f"Path {key_path} is not a file.")
 
         key_content = setup_vault_keys(vaultAddr, key_path)
+        if payload.no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
+
         messages = [f"Exporting Vault key from {key_path}"]
         return key_content, messages
 

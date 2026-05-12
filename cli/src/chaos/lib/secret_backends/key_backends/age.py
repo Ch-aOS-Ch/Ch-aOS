@@ -1,6 +1,6 @@
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
-from contextlib import contextmanager
 
 from chaos.lib.secret_backends.crypto import extract_age_keys, is_valid_age_key
 from chaos.lib.secret_backends.key_backends.backend import KeyBackend
@@ -70,6 +70,9 @@ class AgeBackend(KeyBackend):
             raise ValueError(
                 "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
             )
+
+        if payload.no_import:
+            key_content = f"# NO-IMPORT\n{key_content}"
 
         messages = [f"Exporting age public key: {pubkey}"]
         return key_content, messages
