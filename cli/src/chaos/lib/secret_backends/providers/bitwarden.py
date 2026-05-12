@@ -16,7 +16,6 @@ from chaos.lib.utils import checkDep
 
 from ..utils import (
     _save_to_config,
-    get_sops_files,
 )
 from .base import Provider
 
@@ -136,8 +135,6 @@ class BitwardenPasswordProvider(Provider):
 
             if not key_content:
                 raise ValueError("No key content to export.")
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
 
             template_str = subprocess.run(
                 ["bw", "get", "template", "item"],
@@ -326,7 +323,7 @@ class BitwardenSecretsProvider(Provider):
             save_to_config = payload.save_to_config
             no_import = payload.no_import
 
-            _, _, config = get_sops_files(None, None, None)
+            config = self.config
 
             project_id = (
                 config.get("secret_providers", {}).get("bws", {}).get("project_id", "")
@@ -354,9 +351,6 @@ class BitwardenSecretsProvider(Provider):
                 raise ImportError(
                     f"Error importing key backend for type '{keyType}': {e}"
                 ) from e
-
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
 
             cmd = ["bws", "secret", "create", key, key_content, project_id]
             try:
@@ -485,6 +479,7 @@ class BitwardenRbwProvider(Provider):
 
                 key_content, prep_msgs = key_backend.prepare_export_content(payload)
                 messages.extend(prep_msgs)
+
             except ValueError as e:
                 raise ValueError(f"Unsupported key type or error loading backend: {e}")
             except ImportError as e:
@@ -497,9 +492,6 @@ class BitwardenRbwProvider(Provider):
 
             if not item_name:
                 raise ValueError("No item name provided for export.")
-
-            if no_import:
-                key_content = f"# NO-IMPORT\n{key_content}"
 
             processed_key_content = "\n".join(
                 f" {line}" if line.startswith("#") else line
@@ -518,7 +510,7 @@ class BitwardenRbwProvider(Provider):
 
             item_id = self._get_item_id(f"Ch-aOS {keyType.upper()} Key: {item_name}")
             messages.append(
-                f"Successfully exported {keyType} key to Bitwarden item with ID: {item_id}."
+                f"Successfully exported {keyType} key to Bitwarden item (ID: {item_id})."
             )
             if item_id and save_to_config:
                 messages.append(
