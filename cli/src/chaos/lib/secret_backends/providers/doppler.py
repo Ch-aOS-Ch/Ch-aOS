@@ -235,7 +235,7 @@ class DopplerProvider(Provider):
                 return ResultPayload(success=False, error=errors, message=messages)
 
         messages.append(
-            f"Successfully exported {payload.key_type} key to Doppler (ID: {item_id})."
+            f"Successfully exported {payload.key_type} key to Doppler (ID: '{item_id}')."
         )
         return ResultPayload(success=True, message=messages)
 
