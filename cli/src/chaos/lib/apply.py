@@ -462,15 +462,18 @@ def run_plan(
             data={},
         )
 
-    try:
-        plan = role.plan(payload.pyinfra_state, host, delta)
-    except Exception as e:
-        return ResultPayload(
-            success=False,
-            message=[],
-            error=[f"Error computing plan for role '{role_name}': {str(e)}"],
-            data={},
-        )
+    from pyinfra.context import ctx_host
+
+    with ctx_host.use(host):
+        try:
+            plan = role.plan(payload.pyinfra_state, host, delta)
+        except Exception as e:
+            return ResultPayload(
+                success=False,
+                message=[],
+                error=[f"Error computing plan for role '{role_name}': {str(e)}"],
+                data={},
+            )
     return ResultPayload(success=True, message=[], error=[], data={"plan": plan})
 
 
