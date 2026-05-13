@@ -424,7 +424,7 @@ def handleSecrets(args):  # noqa: C901
                 from ...secrets import handleSecCat
 
                 payload = SecretsCatPayload(
-                    keys=args.key_file,
+                    keys=args.keys,
                     context=context,
                     cat_sops_file=getattr(args, "sops", False),
                     as_json=getattr(args, "json", False),

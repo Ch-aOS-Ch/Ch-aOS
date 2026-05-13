@@ -590,7 +590,7 @@ def addRambleParsers(rambleParser):
         help="Encrypt the rambling upon creation.",
     )
     rc_sec.add_argument(
-        "-k", "--key-file", nargs="+", help="Encrypt keys in a granular way"
+        "-k", "--keys", nargs="+", help="Encrypt keys in a granular way"
     )
 
     rambleEdit = rambSubParser.add_parser(
