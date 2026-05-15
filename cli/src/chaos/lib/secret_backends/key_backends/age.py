@@ -51,7 +51,7 @@ class AgeBackend(KeyBackend):
         self, payload: SecretsExportPayload
     ) -> tuple[str, list[str]]:
         if not payload.keys:
-            raise ValueError("No age key path passed via --keys.")
+            raise ValueError("No age key path passed via --key-file.")
 
         key_path = Path(payload.keys).expanduser()
         if not key_path.is_file():

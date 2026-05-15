@@ -73,6 +73,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
+    @abstractmethod
     def get_export_arg_names() -> list[str]:
         """Gets the list of provider-specific export argument names.
 
@@ -82,6 +83,7 @@ class Provider(ABC):
         return []
 
     @staticmethod
+    @abstractmethod
     def get_import_arg_names() -> list[str]:
         """Gets the list of provider-specific import argument names.
 
@@ -131,6 +133,7 @@ class Provider(ABC):
         raise NotImplementedError
 
     @staticmethod
+    @abstractmethod
     def get_cli_name() -> tuple[str, str]:
         """Returns the name of the attribute in the args object that corresponds
         to this provider's ephemeral key flag and name for config.
@@ -143,6 +146,98 @@ class Provider(ABC):
             e.g., ('from_bw', 'bw')
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
+        """Gets the provider-specific arguments for creating an ephemeral environment.
+
+        Returns:
+            tuple[str, str] | None: Yields the internal key references mapping to specific operations, or None.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def readKeys(self, item_id: str) -> str:
+        """Reads keys from the provider.
+
+        Args:
+            item_id (str): Reference ID identifying the external vault entry.
+
+        Returns:
+            str: Acquired unencrypted raw value representing the query string.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_status(self) -> None | tuple[bool, str]:
+        """Checks the status of the provider.
+
+        Returns:
+            None | Tuple[bool, str]: None, or a boolean status indicator alongside error strings defining backend failure cases.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        """Exports local keys to the provider.
+
+        Args:
+            payload (SecretsExportPayload): Export payload structure.
+
+        Returns:
+            ResultPayload: Export execution final state.
+        """
+        return ResultPayload(
+            success=False,
+            message=["Export not implemented for this provider."],
+        )
+
+    def __init_subclass__(cls, **kwargs):
+        """Ensures that all subclasses implement required abstract methods."""
+        super().__init_subclass__(**kwargs)
+        protected_methods = [
+            "edit",
+            "setupEphemeralEnv",
+            "import_secrets",
+            "decrypt",
+            "updatekeys",
+            "_run_sops_command",
+            "name",
+        ]
+
+        for method in protected_methods:
+            if method in cls.__dict__:
+                raise TypeError(
+                    f"{method} is a protected method and cannot be overridden in {cls.__name__}."
+                )
+
+    @contextmanager
+    def edit(
+        self, secrets_file: str, sops_file: str
+    ) -> Iterator[tuple[str, dict, list[int]]]:
+        """Context manager to prepare the SOPS edit command and its environment.
+
+        Args:
+            secrets_file (str): Defined context point locating editable YAML sets.
+            sops_file (str): The configuration constraint establishing encryptions metrics.
+
+        Yields:
+            tuple[str, dict, List[int]]: (command_string, environment_dict, pass_fds_list)
+        """
+        sops_command = ["sops", "--config", sops_file, secrets_file]
+        try:
+            with self.setupEphemeralEnv() as ctx:
+                prefix = ctx.get("prefix", "")
+                pass_fds = ctx.get("pass_fds", [])
+                env = ctx.get("env", os.environ.copy())
+                cmd = shlex.join(sops_command)
+
+                if prefix:
+                    cmd = f"{prefix} {cmd}"
+
+                yield cmd, env, pass_fds
+        except Exception as e:
+            raise RuntimeError(f"Error setting up SOPS edit environment: {e}") from e
 
     @property
     def name(self) -> str:
@@ -157,15 +252,6 @@ class Provider(ABC):
         return self.__class__.__name__.replace("PasswordProvider", "").replace(
             "SecretProvider", ""
         )
-
-    @abstractmethod
-    def get_ephemeral_key_args(self) -> tuple[str, str] | None:
-        """Gets the provider-specific arguments for creating an ephemeral environment.
-
-        Returns:
-            tuple[str, str] | None: Yields the internal key references mapping to specific operations, or None.
-        """
-        raise NotImplementedError
 
     @contextmanager
     def setupEphemeralEnv(self) -> Iterator[EphemeralEnvReturn]:
@@ -223,42 +309,6 @@ class Provider(ABC):
             context["pass_fds"] = env_ctx.get("pass_fds", [])
 
             yield context
-
-    @abstractmethod
-    def readKeys(self, item_id: str) -> str:
-        """Reads keys from the provider.
-
-        Args:
-            item_id (str): Reference ID identifying the external vault entry.
-
-        Returns:
-            str: Acquired unencrypted raw value representing the query string.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def check_status(self) -> None | tuple[bool, str]:
-        """Checks the status of the provider.
-
-        Returns:
-            None | Tuple[bool, str]: None, or a boolean status indicator alongside error strings defining backend failure cases.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
-        """Exports local keys to the provider.
-
-        Args:
-            payload (SecretsExportPayload): Export payload structure.
-
-        Returns:
-            ResultPayload: Export execution final state.
-        """
-        return ResultPayload(
-            success=False,
-            message=["Export not implemented for this provider."],
-        )
 
     def import_secrets(self, payload: SecretsImportPayload) -> ResultPayload[None]:
         """Imports remote keys from the provider to local.
@@ -331,34 +381,6 @@ class Provider(ABC):
             return ResultPayload(success=False, error=errors, message=messages)
 
         return ResultPayload(success=True, message=messages)
-
-    @contextmanager
-    def edit(
-        self, secrets_file: str, sops_file: str
-    ) -> Iterator[tuple[str, dict, list[int]]]:
-        """Context manager to prepare the SOPS edit command and its environment.
-
-        Args:
-            secrets_file (str): Defined context point locating editable YAML sets.
-            sops_file (str): The configuration constraint establishing encryptions metrics.
-
-        Yields:
-            tuple[str, dict, List[int]]: (command_string, environment_dict, pass_fds_list)
-        """
-        sops_command = ["sops", "--config", sops_file, secrets_file]
-        try:
-            with self.setupEphemeralEnv() as ctx:
-                prefix = ctx.get("prefix", "")
-                pass_fds = ctx.get("pass_fds", [])
-                env = ctx.get("env", os.environ.copy())
-                cmd = shlex.join(sops_command)
-
-                if prefix:
-                    cmd = f"{prefix} {cmd}"
-
-                yield cmd, env, pass_fds
-        except Exception as e:
-            raise RuntimeError(f"Error setting up SOPS edit environment: {e}") from e
 
     def decrypt(self, secrets_file: str, sops_file: str) -> str:
         """Decrypt secrets using SOPS.
