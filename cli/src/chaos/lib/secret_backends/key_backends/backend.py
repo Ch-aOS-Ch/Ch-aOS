@@ -28,6 +28,22 @@ class KeyBackend(ABC):
         """Returns the type of key (e.g., 'pgp', 'age', 'vault')"""
         pass
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        protected_methods = [
+            "list_keys",
+            "handle_add",
+            "handle_rem",
+            "_generic_add",
+            "_generic_rem",
+        ]
+
+        for method in protected_methods:
+            if method in cls.__dict__:
+                raise TypeError(
+                    f"{method} is a protected method and must not be overridden."
+                )
+
     def list_keys(
         self, sops_file_override: str
     ) -> tuple[set[str], list[str], list[str], list[str]]:
