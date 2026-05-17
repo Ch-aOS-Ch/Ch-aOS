@@ -41,6 +41,10 @@ class BitwardenPasswordProvider(Provider):
         return ["organization_id", "collection_id", "bw_tags"]
 
     @staticmethod
+    def get_import_arg_names():
+        return []
+
+    @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_bw", "bw"
 
@@ -102,7 +106,6 @@ class BitwardenPasswordProvider(Provider):
             item_name = payload.item_name
             tags = provider_args.bw_tags
             save_to_config = payload.save_to_config
-            no_import = payload.no_import
 
             collection_id = (
                 self.config.get("secret_providers", {})
@@ -270,6 +273,10 @@ class BitwardenSecretsProvider(Provider):
         return ["project_id"]
 
     @staticmethod
+    def get_import_arg_names():
+        return []
+
+    @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_bws", "bws"
 
@@ -321,7 +328,6 @@ class BitwardenSecretsProvider(Provider):
             keyType = payload.key_type
             key = payload.item_name
             save_to_config = payload.save_to_config
-            no_import = payload.no_import
 
             config = self.config
 
@@ -426,6 +432,10 @@ class BitwardenRbwProvider(Provider):
         return ProviderImportArgs()
 
     @staticmethod
+    def get_import_arg_names():
+        return []
+
+    @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_rbw", "rbw"
 
@@ -466,7 +476,6 @@ class BitwardenRbwProvider(Provider):
             keyType = payload.key_type
             item_name = payload.item_name
             save_to_config = payload.save_to_config
-            no_import = payload.no_import
 
             isUnlocked, msg = self.check_status()
             if not isUnlocked:

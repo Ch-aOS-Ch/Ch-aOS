@@ -42,6 +42,10 @@ class OnePasswordProvider(Provider):
         return ["op_export_item_id", "op_location", "op_tags"]
 
     @staticmethod
+    def get_import_arg_names():
+        return []
+
+    @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_op", "op"
 
@@ -101,7 +105,6 @@ class OnePasswordProvider(Provider):
             keyType = payload.key_type
             tags = provider_args.op_tags
             save_to_config = payload.save_to_config
-            no_import = payload.no_import
 
             config = self.config
 
