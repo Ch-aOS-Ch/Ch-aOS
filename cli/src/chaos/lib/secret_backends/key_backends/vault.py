@@ -180,7 +180,12 @@ class VaultBackend(KeyBackend):
                     os.close(r_addr)
                     raise RuntimeError(f"Failed to generate Vault home: {e}")
 
-                prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} "
+                gnupghome = {
+                    "GNUPGHOME": str(
+                        os.getenv("GNUPGHOME", str(os.getenv("HOME")) + "/.gnupg")
+                    )
+                }
+                prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
                 try:
                     yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
                 finally:

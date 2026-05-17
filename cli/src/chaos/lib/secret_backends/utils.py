@@ -181,25 +181,32 @@ def mac_ram_disk():
         The mount point of the RAM Disk
     """
     import subprocess
+    import time
 
     # 4096 sectors of 512 bytes = 2MB in RAM
-    mb = os.getenv("CHAOS_RAM_DISK_SIZE_MB", "2")
+    mb_str = os.getenv("CHAOS_RAM_DISK_SIZE_MB", "2")
+    mb = int(mb_str)
+    sectors = mb * 2048
     attach_cmd = subprocess.run(
-        ["hdiutil", "attach", "-nomount", f"ram://{mb * 2048}"],
+        ["hdiutil", "attach", "-nomount", f"ram://{sectors}"],
         capture_output=True,
         text=True,
         check=True,
     )
     device = attach_cmd.stdout.strip()
 
+    timestamp = int(time.time())
+
+    volume_name = f"ChaosGPG-{timestamp}"
+    mount_point = f"/Volumes/{volume_name}"
+
     try:
         _ = subprocess.run(
-            ["diskutil", "erasevolume", "HFS+", "ChaosGPG", device],
+            ["diskutil", "erasevolume", "HFS+", volume_name, device],
             capture_output=True,
             check=True,
         )
-        os.chmod("/Volumes/ChaosGPG", 0o700)
-        mount_point = "/Volumes/ChaosGPG"
+        os.chmod(mount_point, 0o700)
         yield mount_point
     finally:
         _ = subprocess.run(

@@ -167,6 +167,7 @@ class PgpBackend(KeyBackend):
         import os
         import platform
         import tempfile
+        import time
         from pathlib import Path
 
         from ..crypto import decompress
@@ -187,7 +188,9 @@ class PgpBackend(KeyBackend):
                 try:
                     ram_dir = stack.enter_context(mac_ram_disk())
                     temp_dir_name = stack.enter_context(
-                        tempfile.TemporaryDirectory(dir=ram_dir, prefix="chaos-gpg-")
+                        tempfile.TemporaryDirectory(
+                            dir=ram_dir, prefix=f"chaos-gpg-{time.time_ns()}-"
+                        )
                     )
 
                     temp_path = Path(temp_dir_name)
@@ -218,7 +221,7 @@ class PgpBackend(KeyBackend):
         else:
             shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
             with tempfile.TemporaryDirectory(
-                dir=shm_dir, prefix="chaos-gpg-"
+                dir=shm_dir, prefix=f"chaos-gpg-{time.time_ns()}"
             ) as temp_dir_name:
                 try:
                     temp_path = Path(temp_dir_name)

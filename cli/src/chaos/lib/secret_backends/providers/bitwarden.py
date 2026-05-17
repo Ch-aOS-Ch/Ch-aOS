@@ -436,6 +436,10 @@ class BitwardenRbwProvider(Provider):
         return []
 
     @staticmethod
+    def get_export_arg_names():
+        return []
+
+    @staticmethod
     def get_cli_name() -> Tuple[str, str]:
         return "from_rbw", "rbw"
 
