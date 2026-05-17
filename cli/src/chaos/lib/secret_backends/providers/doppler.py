@@ -10,6 +10,7 @@ from chaos.lib.args.dataclasses import (
     ResultPayload,
     SecretsExportPayload,
 )
+from chaos.lib.secret_backends.utils import _save_to_config
 from chaos.lib.utils import checkDep
 
 from .base import Provider
@@ -39,6 +40,10 @@ class DopplerProvider(Provider):
     @staticmethod
     def get_export_arg_names() -> list[str]:
         return ["project_name", "visibility", "note", "config_name"]
+
+    @staticmethod
+    def get_import_arg_names():
+        return []
 
     @staticmethod
     def register_flags(parser: argparse.ArgumentParser) -> None:
@@ -100,6 +105,7 @@ class DopplerProvider(Provider):
         payload.provider_specific_args = cast(
             DopplerExportArgs, payload.provider_specific_args
         )
+        save_to_config = payload.save_to_config
 
         token = os.getenv("DOPPLER_TOKEN", "")
 
@@ -214,6 +220,10 @@ class DopplerProvider(Provider):
                 env=env,
             )
         except subprocess.CalledProcessError as e:
+            if "Invalid reference format" in e.stderr.strip():
+                # Replace e.stderr with a more user-friendly message about escaping special characters
+                # Also, the normal message leaked the secret value to the stdout, which is a security risk
+                e.stderr = "Doppler CLI error: Invalid reference format. This often occurs when the secret value contains characters that are not properly escaped."
             errors.append(
                 f"Failed to export secret to Doppler.\nError details: {e.stderr.strip()}"
             )
@@ -237,6 +247,10 @@ class DopplerProvider(Provider):
         messages.append(
             f"Successfully exported {payload.key_type} key to Doppler (ID: '{item_id}')."
         )
+        if item_id and save_to_config:
+            messages.append(f"Saving Doppler item ID '{item_id}' to chaos config.")
+            data_to_save = {f"{payload.key_type}_id": item_id}
+            _save_to_config(backend="dp", data_to_save=data_to_save)
         return ResultPayload(success=True, message=messages)
 
     def check_status(self) -> None | tuple[bool, str]:

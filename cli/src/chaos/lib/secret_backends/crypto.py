@@ -10,6 +10,7 @@ def compress(data: bytes) -> str:
     """Compresses data to base85-encoded zlib representation.
 
     This is primarily used for GPG keys so they can fit inside a Bitwarden note.
+    (mainly because of RSA GPG keys exceding Bitwarden's 10KB note size limit when exported in ASCII-armored format)
 
     Args:
         data (bytes): The raw bytes data to compress.
@@ -23,6 +24,22 @@ def compress(data: bytes) -> str:
     try:
         compressed_data = zlib.compress(data, level=9)
         encoded_data = base64.b85encode(compressed_data).decode("utf-8")
+
+        # base85 can include characters that may not be ideal for all storage backends
+        # like Doppler (resulting in an error that prints the key to the stderr btw),
+        # so we replace them with safe alternatives.
+        #
+        # ".", "[", "]" and "," are chosen as they are not part of the base85 character set
+        # to check it, run
+        # python3 -c "import base64; b = bytes(range(256))*4; s=base64.b85encode(b).decode(); print(''.join(sorted(set(s))))"
+        # The output is !#$%&()*+-0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz{|}~
+        encoded_data = (
+            encoded_data.replace("$", ".")
+            .replace(";", ",")
+            .replace("|", "[")
+            .replace("&", "]")
+            .replace("{", ":")
+        )
     except Exception as e:
         raise RuntimeError(f"Failed to compress and encode data: {e}") from e
     return encoded_data
@@ -44,6 +61,15 @@ def decompress(encoded_data: str) -> bytes:
     from zlib import decompress as zdecomp
 
     try:
+        # Revert safe characters back to their base85 originals
+        encoded_data = (
+            encoded_data.replace(".", "$")
+            .replace(",", ";")
+            .replace("[", "|")
+            .replace("]", "&")
+            .replace(":", "{")
+        )
+
         compressed_data = b85decode(encoded_data.encode("utf-8"))
         data = zdecomp(compressed_data)
         return data
