@@ -164,7 +164,12 @@ class VaultBackend(KeyBackend):
                 finally:
                     os.close(r_addr)
         else:
-            shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+            shm_dir = "/dev/shm"
+            if not os.path.isdir(shm_dir) or not os.access(shm_dir, os.W_OK):
+                os.close(r_addr)
+                raise RuntimeError(
+                    f"Shared memory directory {shm_dir} is not available. Cannot create ephemeral Vault home."
+                )
             with tempfile.TemporaryDirectory(
                 dir=shm_dir, prefix="chaos-vault-"
             ) as temp_dir_name:

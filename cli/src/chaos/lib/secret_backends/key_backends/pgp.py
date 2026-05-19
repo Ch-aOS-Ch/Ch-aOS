@@ -219,7 +219,11 @@ class PgpBackend(KeyBackend):
                     "pass_fds": [],
                 }
         else:
-            shm_dir = "/dev/shm" if os.path.exists("/dev/shm") else None
+            shm_dir = "/dev/shm"
+            if not os.path.exists(shm_dir) or not os.access(shm_dir, os.W_OK):
+                raise EnvironmentError(
+                    f"Shared memory directory {shm_dir} is not available or writable. Cannot create ephemeral GPG home."
+                )
             with tempfile.TemporaryDirectory(
                 dir=shm_dir, prefix=f"chaos-gpg-{time.time_ns()}"
             ) as temp_dir_name:
