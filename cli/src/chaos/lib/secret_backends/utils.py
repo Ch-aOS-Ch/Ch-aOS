@@ -216,9 +216,7 @@ def mac_ram_disk():
 
 def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
     """Reads and validates a Vault token for exporting.
-
     Constructs a formatted string containing the Vault address and token for storing in an external provider.
-
     Args:
         vaultAddr (str): The HashiCorp Vault server address.
         keyPath (Path): The file path containing the Vault token.
@@ -244,6 +242,14 @@ def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
     for line in lines:
         clean_line = line.strip()
         if clean_line and not clean_line.startswith("#"):
+            if (
+                not key.startswith("hvs.")
+                and not clean_line.startswith("s.")
+                and not clean_line.startswith("token ")
+            ):
+                continue
+            if clean_line.startswith("token "):
+                clean_line = clean_line.split(" ", 1)[1].strip()
             key = clean_line
             break
 

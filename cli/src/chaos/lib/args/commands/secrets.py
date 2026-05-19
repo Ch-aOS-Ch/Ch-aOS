@@ -133,12 +133,6 @@ def handleSecrets(args):  # noqa: C901
                             )
 
                     if args.key_type == "vault":
-                        if not getattr(args, "vault_addr", None):
-                            print(
-                                "Error: --vault-addr is required when --key-type is 'vault'."
-                            )
-                            sys.exit(1)
-
                         if not key_file_val:
                             console.print(
                                 "[yellow]No token file provided. Opening a secure RAM-based file to paste your Vault token...[/]"

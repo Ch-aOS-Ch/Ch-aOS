@@ -65,7 +65,6 @@ class DopplerProvider(Provider):
             "-p",
             "--project-name",
             type=str,
-            required=True,
             help="Doppler project name to export secrets from",
         )
         secDopExport.add_argument(

@@ -51,7 +51,7 @@ class VaultBackend(KeyBackend):
 
         vaultAddr = payload.vault_addr
         if not payload.keys:
-            raise ValueError("No Vault key path passed via --keys.")
+            raise ValueError("No Vault key path passed via --key-file.")
 
         if not vaultAddr:
             vaultAddr = os.getenv("VAULT_ADDR")
