@@ -358,9 +358,21 @@ class BitwardenSecretsProvider(Provider):
                     f"Error importing key backend for type '{keyType}': {e}"
                 ) from e
 
-            cmd = ["bws", "secret", "create", key, key_content, project_id]
+            cmd = [
+                "xargs",
+                "-I",
+                "{}",
+                "bws",
+                "secret",
+                "create",
+                key,
+                "{}",
+                project_id,
+            ]
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, check=True, input=key_content
+                )
                 created_item = json.loads(result.stdout)
                 item_id = created_item.get("id")
                 messages.append(

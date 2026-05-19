@@ -180,7 +180,7 @@ class InfisicalProvider(Provider):
             "infisical",
             "secrets",
             "set",
-            f"{item_id}",
+            f"{item_id}=@/dev/stdin",
             "--env",
             env_name,
             "--path",
