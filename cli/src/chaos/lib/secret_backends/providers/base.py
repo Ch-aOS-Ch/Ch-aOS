@@ -371,7 +371,9 @@ class Provider(ABC):
             messages.append(f"Successfully imported {keyType} key from {self.name}.")
 
             if pubKey:
-                messages.append(f"Public Key(s): {pubKey}")
+                messages.append(
+                    f"Public Key(s): {pubKey[0:10]}... (truncated for display)"
+                )
 
             if secKey:
                 messages.append(f"Secret Key: {secKey[0:3]}... (hidden for security)")

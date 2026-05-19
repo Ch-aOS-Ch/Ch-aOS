@@ -138,23 +138,25 @@ def is_valid_age_secret_key(secKey: str) -> bool:
     return re.fullmatch(r"AGE-SECRET-KEY-1[A-Za-z0-9]{58}", secKey) is not None
 
 
-def extract_age_keys(key_content: str) -> tuple[str | None, str | None]:
+def extract_age_keys(key_content: str) -> tuple[list[str], list[str], list[str]]:
     """Extracts age public and private keys from a text block.
 
     Args:
         key_content (str): The multiline string content containing the age keys.
 
     Returns:
-        tuple[str | None, str | None]: A tuple containing the public key and secret key, respectively.
+        tuple[list[str], list[str], list[str]]: A tuple containing lists of public keys, secret keys, and headers found.
     """
-    pubKey, secKey = None, None
+    pubKeys, secKeys, headers = [], [], []
     for line in key_content.splitlines():
         line = line.strip()
         if line.startswith("# public key:"):
-            pubKey = line.split(":", 1)[1].strip()
+            pubKeys.append(line.split(":", 1)[1].strip())
         if line.startswith("AGE-SECRET-KEY-"):
-            secKey = line
-    return pubKey, secKey
+            secKeys.append(line)
+        if line.startswith("# created:"):
+            headers.append(line)
+    return pubKeys, secKeys, headers
 
 
 def extract_gpg_keys(fingerprints: list[str]) -> str:

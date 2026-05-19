@@ -236,13 +236,25 @@ def setup_vault_keys(vaultAddr: str, keyPath: Path) -> str:
         raise EnvironmentError(
             "The 'vault' CLI tool is required but not found in PATH."
         )
+
     with open(keyPath, "r") as f:
-        key = f.read().strip()
-    if not _is_valid_vault_key(key):
+        lines = f.readlines()
+
+    key = ""
+    for line in lines:
+        clean_line = line.strip()
+        if clean_line and not clean_line.startswith("#"):
+            key = clean_line
+            break
+
+    if not key:
+        raise ValueError("No Vault key found in the provided file.")
+
+    if not _is_valid_vault_key(vaultAddr)[0]:
         raise ValueError("The provided Vault key does not appear to be valid.")
     if not key.startswith("hvs.") and not key.startswith("s."):
         raise ValueError(
-            'The provided Vault key does not appear to be a valid HCP Vault URI (must start with "hvs." or "s.").'
+            'The provided Vault key does not appear to be a valid HCP Vault token (must start with "hvs." or "s.").'
         )
 
     key_content = f"""# Vault Address:: {vaultAddr}

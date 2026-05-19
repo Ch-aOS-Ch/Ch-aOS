@@ -1,6 +1,62 @@
 import sys
+from contextlib import contextmanager
 
 from chaos.lib.args.dataclasses import ResultPayload
+
+
+@contextmanager
+def interactive_ephemeral_file(key_type: str):
+    """Opens a secure, RAM-based temporary file in the user's editor.
+
+    Args:
+        key_type (str): The type of key being requested (e.g., 'age', 'vault').
+
+    Yields:
+        str: The path to the ephemeral file.
+    """
+    import os
+    import platform
+    import subprocess
+    import tempfile
+    from contextlib import ExitStack
+    from pathlib import Path
+
+    from chaos.lib.secret_backends.utils import mac_ram_disk
+
+    is_mac = platform.system() == "Darwin"
+
+    with ExitStack() as stack:
+        if is_mac:
+            ram_dir = stack.enter_context(mac_ram_disk())
+            temp_dir = stack.enter_context(
+                tempfile.TemporaryDirectory(dir=ram_dir, prefix="chaos-export-")
+            )
+        else:
+            shm_dir = "/dev/shm"
+            if not os.path.exists(shm_dir) or not os.access(shm_dir, os.W_OK):
+                raise RuntimeError("Shared memory (/dev/shm) is not available.")
+            temp_dir = stack.enter_context(
+                tempfile.TemporaryDirectory(dir=shm_dir, prefix="chaos-export-")
+            )
+
+        temp_path = Path(temp_dir) / f"{key_type}_key.txt"
+        temp_path.touch(mode=0o600)
+
+        with open(temp_path, "w") as f:
+            f.write(f"""\n
+# ---- Ch-aOS Interactive Export ----
+# Please paste your {key_type.upper()} key above this footer.
+# Save and exit your editor when done.
+# This file exists entirely in volatile memory (RAM).
+""")
+
+        editor = os.getenv("EDITOR", "nano")
+        try:
+            subprocess.run([editor, str(temp_path)], check=True)
+        except subprocess.CalledProcessError:
+            raise RuntimeError("Editor was closed with an error.")
+
+        yield str(temp_path)
 
 
 def handleSecrets(args):  # noqa: C901
@@ -57,79 +113,106 @@ def handleSecrets(args):  # noqa: C901
 
         match args.secrets_commands:
             case "export":
+                import time
+                from contextlib import ExitStack
+
                 from ...secrets import handleExportSec
 
-                if hasattr(args, "key_type") and args.key_type == "age":
-                    if not getattr(args, "key_file", None):
-                        print("Error: --key-file is required when --key-type is 'age'.")
+                key_file_val = getattr(args, "key_file", None)
+                fingerprints = getattr(args, "fingerprints", None)
+
+                with ExitStack() as stack:
+                    if args.key_type == "age":
+                        if not key_file_val:
+                            console.print(
+                                "[yellow]No key file provided. Opening a secure RAM-based file to paste your AGE key...[/]"
+                            )
+                            time.sleep(1)
+                            key_file_val = stack.enter_context(
+                                interactive_ephemeral_file("age")
+                            )
+
+                    if args.key_type == "vault":
+                        if not getattr(args, "vault_addr", None):
+                            print(
+                                "Error: --vault-addr is required when --key-type is 'vault'."
+                            )
+                            sys.exit(1)
+
+                        if not key_file_val:
+                            console.print(
+                                "[yellow]No token file provided. Opening a secure RAM-based file to paste your Vault token...[/]"
+                            )
+                            time.sleep(1)
+                            key_file_val = stack.enter_context(
+                                interactive_ephemeral_file("vault")
+                            )
+
+                    if args.key_type == "gpg":
+                        if not getattr(args, "fingerprints", None):
+                            console.print(
+                                "[yellow]No fingerprints provided. Opening a secure RAM-based file to paste your fingerprints...[/]"
+                            )
+                            fingerprints = []
+                            time.sleep(1)
+                            file_fps = stack.enter_context(
+                                interactive_ephemeral_file("gpg")
+                            )
+                            with open(file_fps, "r") as f:
+                                lines = f.readlines()
+
+                            for line in lines:
+                                if not line.startswith("#"):
+                                    line = line.strip()
+                                    if line:
+                                        fingerprints.append(line)
+
+                    provider_name = args.export_commands
+                    provider_class = None
+                    if provider_eps:
+                        for ep in provider_eps:
+                            p_class = ep.load()
+                            _, p_cli_name = p_class.get_cli_name()
+                            if p_cli_name == provider_name:
+                                provider_class = p_class
+                                break
+
+                    if not provider_class:
+                        raise ValueError(f"Provider '{provider_name}' not found.")
+
+                    export_arg_names = provider_class.get_export_arg_names()
+                    kwargs = {
+                        name: getattr(args, name)
+                        for name in export_arg_names
+                        if hasattr(args, name)
+                    }
+
+                    provider_specific_args = provider_class.build_export_args(**kwargs)
+
+                    payload = SecretsExportPayload(
+                        provider_name=args.export_commands,
+                        key_type=args.key_type,
+                        no_import=getattr(args, "no_import", False),
+                        save_to_config=getattr(args, "save_to_config", False),
+                        item_name=getattr(args, "item_name", None),
+                        keys=key_file_val,
+                        vault_addr=getattr(args, "vault_addr", None),
+                        fingerprints=fingerprints,
+                        provider_specific_args=provider_specific_args,
+                    )
+
+                    result = handleExportSec(payload, global_config)
+
+                    if result.message:
+                        for msg in result.message:
+                            console.print(msg)
+
+                    if result.error:
+                        for err in result.error:
+                            console.print(f"[bold red]ERROR:[/] {err}")
+
+                    if not result.success:
                         sys.exit(1)
-
-                if hasattr(args, "key_type") and args.key_type == "vault":
-                    if not getattr(args, "vault_addr", None):
-                        print(
-                            "Error: --vault-addr is required when --key-type is 'vault'."
-                        )
-                        sys.exit(1)
-
-                    if not getattr(args, "key_file", None):
-                        print(
-                            "Error: --key-file is required when --key-type is 'vault'."
-                        )
-                        sys.exit(1)
-
-                if hasattr(args, "key_type") and args.key_type == "gpg":
-                    if not getattr(args, "fingerprints", None):
-                        print(
-                            "Error: --fingerprints is required when --key-type is 'gpg'."
-                        )
-                        sys.exit(1)
-
-                provider_name = args.export_commands
-                provider_class = None
-                if provider_eps:
-                    for ep in provider_eps:
-                        p_class = ep.load()
-                        _, p_cli_name = p_class.get_cli_name()
-                        if p_cli_name == provider_name:
-                            provider_class = p_class
-                            break
-
-                if not provider_class:
-                    raise ValueError(f"Provider '{provider_name}' not found.")
-
-                export_arg_names = provider_class.get_export_arg_names()
-                kwargs = {
-                    name: getattr(args, name)
-                    for name in export_arg_names
-                    if hasattr(args, name)
-                }
-
-                provider_specific_args = provider_class.build_export_args(**kwargs)
-
-                payload = SecretsExportPayload(
-                    provider_name=args.export_commands,
-                    key_type=args.key_type,
-                    no_import=getattr(args, "no_import", False),
-                    save_to_config=getattr(args, "save_to_config", False),
-                    item_name=getattr(args, "item_name", None),
-                    keys=getattr(args, "key_file", None),
-                    vault_addr=getattr(args, "vault_addr", None),
-                    fingerprints=getattr(args, "fingerprints", None),
-                    provider_specific_args=provider_specific_args,
-                )
-
-                result = handleExportSec(payload, global_config)
-
-                if result.message:
-                    for msg in result.message:
-                        console.print(msg)
-
-                if result.error:
-                    for err in result.error:
-                        console.print(f"[bold red]ERROR:[/] {err}")
-
-                if not result.success:
-                    sys.exit(1)
 
             case "import":
                 from ...secrets import gatherImportSec, handleImportSec

@@ -60,21 +60,32 @@ class AgeBackend(KeyBackend):
         with open(key_path, "r") as f:
             key_content = f.read()
 
-        pubkey, seckey = extract_age_keys(key_content)
+        pubkeys, seckeys, headers = extract_age_keys(key_content)
 
-        if not pubkey:
+        if not pubkeys:
             raise ValueError(
-                "Could not find a public key in the provided age key file. Expected a line starting with '# public key:'."
+                "Could not find any public keys in the provided age key file. Expected at least one line starting with '# public key:'."
             )
-        if not seckey:
+        if not seckeys:
             raise ValueError(
-                "Could not find a secret key in the provided age key file. Expected a line starting with 'AGE-SECRET-KEY-'."
+                "Could not find any secret keys in the provided age key file. Expected at least one line starting with 'AGE-SECRET-KEY-'."
             )
 
+        if len(pubkeys) != len(seckeys):
+            raise ValueError(
+                f"Mismatch in age keys found: {len(pubkeys)} public keys vs {len(seckeys)} secret keys."
+            )
+
+        blocks = []
+        for i in range(len(pubkeys)):
+            header = headers[i] if i < len(headers) else "# created: exported_by_chaos"
+            blocks.append(f"{header}\n# public key: {pubkeys[i]}\n{seckeys[i]}")
+
+        key_content = "\n\n".join(blocks)
         if payload.no_import:
             key_content = f"# NO-IMPORT\n{key_content}"
 
-        messages = [f"Exporting age public key: {pubkey}"]
+        messages = [f"Exporting {len(pubkeys)} age keys"]
         return key_content, messages
 
     def import_key(
@@ -117,18 +128,18 @@ class AgeBackend(KeyBackend):
                 line = line.lstrip()
             sanitized_key_content += line + "\n"
 
-        pubKey, secKey = extract_age_keys(key_content)
+        pubKeys, secKeys, _ = extract_age_keys(key_content)
 
-        if not pubKey:
+        if not pubKeys:
             raise ValueError(
-                f"Could not find a public key in the secret from {provider_name}. Expected a line starting with '# public key:'."
+                f"Could not find any public keys in the secret from {provider_name}. Expected at least one line starting with '# public key:'."
             )
-        if not secKey:
+        if not secKeys:
             raise ValueError(
-                f"Could not find a secret key in the secret from {provider_name}. Expected a line starting with 'AGE-SECRET-KEY-'."
+                f"Could not find any secret keys in the secret from {provider_name}. Expected at least one line starting with 'AGE-SECRET-KEY-'."
             )
 
-        return pubKey, secKey, sanitized_key_content
+        return ",".join(pubKeys), "\n".join(secKeys), sanitized_key_content
 
     @contextmanager
     def ephemeral_key_context(
