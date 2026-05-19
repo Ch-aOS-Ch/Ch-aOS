@@ -126,7 +126,7 @@ def add_provider_export_subcommands(subparsers):
         providerSub.add_argument(
             "-k",
             "--key-file",
-            help="Path to the key file to be exported (required for age and vault keys, needs to contain all keys).",
+            help="Path to the key file to be exported.",
         ).completer = FilesCompleter()  # type: ignore
         providerSub.add_argument(
             "-a",
