@@ -249,7 +249,12 @@ class DopplerProvider(Provider):
         )
         if item_id and save_to_config:
             messages.append(f"Saving Doppler item ID '{item_id}' to chaos config.")
-            data_to_save = {f"{payload.key_type}_id": item_id}
+
+            id_to_save = f"{item_id}:{project}"
+            if config_name:
+                id_to_save += f":{config_name}"
+
+            data_to_save = {f"{payload.key_type}_id": id_to_save}
             _save_to_config(backend="dp", data_to_save=data_to_save)
         return ResultPayload(success=True, message=messages)
 

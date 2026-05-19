@@ -26,7 +26,7 @@ def get_key_backend(key_type: str) -> KeyBackend:
 
         if not issubclass(backend_class, KeyBackend):
             raise ValueError(
-                f"Class '{class_name}' in '{key_type}' module does not implement KeyBackend interface."
+                f"Class '{class_name}' in '{key_type}' module does not implement KeyBackend."
             )
 
         return backend_class()

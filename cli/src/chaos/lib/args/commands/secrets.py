@@ -59,6 +59,31 @@ def handleSecrets(args):  # noqa: C901
             case "export":
                 from ...secrets import handleExportSec
 
+                if hasattr(args, "key_type") and args.key_type == "age":
+                    if not getattr(args, "key_file", None):
+                        print("Error: --key-file is required when --key-type is 'age'.")
+                        sys.exit(1)
+
+                if hasattr(args, "key_type") and args.key_type == "vault":
+                    if not getattr(args, "vault_addr", None):
+                        print(
+                            "Error: --vault-addr is required when --key-type is 'vault'."
+                        )
+                        sys.exit(1)
+
+                    if not getattr(args, "key_file", None):
+                        print(
+                            "Error: --key-file is required when --key-type is 'vault'."
+                        )
+                        sys.exit(1)
+
+                if hasattr(args, "key_type") and args.key_type == "gpg":
+                    if not getattr(args, "fingerprints", None):
+                        print(
+                            "Error: --fingerprints is required when --key-type is 'gpg'."
+                        )
+                        sys.exit(1)
+
                 provider_name = args.export_commands
                 provider_class = None
                 if provider_eps:

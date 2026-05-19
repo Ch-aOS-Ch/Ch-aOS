@@ -704,6 +704,12 @@ def _handle_provider_arg(context: SecretsContext, config) -> SecretsContext:
     )
 
 
+# Still trying to figure out a way to use this without breaking Python's
+# immutability of strings and running into GC issues. This is NOT dead code,
+# We just iterating a lil around these parts
+#
+# Please note we should NOT use this ANYWHERE in the codebase at the current
+# state of implementation.
 def zero_out(s: str) -> None:
     """Overwrites the contents of a string in memory to reduce the risk of sensitive data lingering.
     Args:
