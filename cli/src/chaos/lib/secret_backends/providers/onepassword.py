@@ -256,23 +256,31 @@ class OnePasswordProvider(Provider):
     ) -> tuple[bool, list]:
         messages = []
         try:
-            field_args = []
-            for tag in tags:
-                field_args.extend(["--tag", tag])
+            item_json = {
+                "title": title,
+                "category": "PASSWORD",
+                "tags": tags,
+                "fields": [
+                    {
+                        "id": field,
+                        "type": "CONCEALED",
+                        "label": field,
+                        "value": key,
+                    }
+                ],
+            }
+            json_data = json.dumps(item_json)
 
-            field_args.extend(["--field", f"{field}={key}"])
             subprocess.run(
                 [
                     "op",
                     "item",
                     "create",
-                    "--title",
-                    title,
                     "--vault",
                     vault,
-                    "--category=password",
-                ]
-                + field_args,
+                    "-",
+                ],
+                input=json_data,
                 capture_output=True,
                 text=True,
                 check=True,
