@@ -180,7 +180,7 @@ class InfisicalProvider(Provider):
             "infisical",
             "secrets",
             "set",
-            f"{item_id}={key_content}",
+            f"{item_id}",
             "--env",
             env_name,
             "--path",
@@ -198,6 +198,7 @@ class InfisicalProvider(Provider):
                 text=True,
                 capture_output=True,
                 check=True,
+                input=key_content,
             )
         except subprocess.CalledProcessError as e:
             errors.append(
