@@ -131,8 +131,8 @@ class VaultBackend(KeyBackend):
             yield {"env": {}, "prefix": "", "pass_fds": []}
             return
 
-        r_addr = setup_pipe(vault_addr)
-        fds_to_pass = [r_addr]
+        addr_path, r_addr = setup_pipe(vault_addr)
+        fds_to_pass = [r_addr] if r_addr is not None else []
         is_mac = platform.system() == "Darwin"
 
         if is_mac:
@@ -152,7 +152,8 @@ class VaultBackend(KeyBackend):
                     ) as f:
                         _ = f.write(vault_token)
                 except Exception as e:
-                    os.close(r_addr)
+                    if r_addr is not None:
+                        os.close(r_addr)
                     raise RuntimeError(f"Failed to generate Vault home: {e}")
 
                 gnupghome = {
@@ -160,15 +161,17 @@ class VaultBackend(KeyBackend):
                         os.getenv("GNUPGHOME", str(os.getenv("HOME")) + "/.gnupg")
                     )
                 }
-                prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
+                prefix = f"VAULT_ADDR=$(cat {addr_path}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
                 try:
                     yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
                 finally:
-                    os.close(r_addr)
+                    if r_addr is not None:
+                        os.close(r_addr)
         else:
             shm_dir = "/dev/shm"
             if not os.path.isdir(shm_dir) or not os.access(shm_dir, os.W_OK):
-                os.close(r_addr)
+                if r_addr is not None:
+                    os.close(r_addr)
                 raise RuntimeError(
                     f"Shared memory directory {shm_dir} is not available. Cannot create ephemeral Vault home."
                 )
@@ -184,7 +187,8 @@ class VaultBackend(KeyBackend):
                     ) as f:
                         _ = f.write(vault_token)
                 except Exception as e:
-                    os.close(r_addr)
+                    if r_addr is not None:
+                        os.close(r_addr)
                     raise RuntimeError(f"Failed to generate Vault home: {e}")
 
                 gnupghome = {
@@ -192,8 +196,9 @@ class VaultBackend(KeyBackend):
                         os.getenv("GNUPGHOME", str(os.getenv("HOME")) + "/.gnupg")
                     )
                 }
-                prefix = f"VAULT_ADDR=$(cat /dev/fd/{r_addr}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
+                prefix = f"VAULT_ADDR=$(cat {addr_path}) HOME={temp_path} GNUPGHOME={gnupghome['GNUPGHOME']} "
                 try:
                     yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
                 finally:
-                    os.close(r_addr)
+                    if r_addr is not None:
+                        os.close(r_addr)

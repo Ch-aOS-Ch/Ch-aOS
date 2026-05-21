@@ -269,20 +269,41 @@ Vault Key: {key}
     return key_content
 
 
-def setup_pipe(token: str) -> int:
-    """Creates a Unix pipe to pass a token securely via a File Descriptor (FD).
+def setup_pipe(token: str) -> tuple[str, int | None]:
+    """Creates a Unix pipe or FIFO to pass a token securely.
 
     Args:
-        token (str): The secret token string to pass into the pipe.
+        token (str): The secret token string to pass.
 
     Returns:
-        int: The file descriptor (FD) number for the read end of the pipe.
+        tuple[str, int | None]: The file path to access the pipe, and the file descriptor (FD) number if applicable.
     """
-    r, w = os.pipe()
-    _ = os.write(w, token.encode())
-    os.fchmod(w, 0o600)
-    os.close(w)
-    return r
+    import os
+    import platform
+
+    if platform.system() == "Darwin":
+        import tempfile
+        import threading
+
+        temp_dir = tempfile.mkdtemp(prefix="chaos-fifo-")
+        fifo_path = os.path.join(temp_dir, "secret.fifo")
+        os.mkfifo(fifo_path, 0o600)
+
+        def write_fifo():
+            try:
+                with open(fifo_path, "w") as f:
+                    f.write(token)
+            except Exception:
+                pass
+
+        threading.Thread(target=write_fifo, daemon=True).start()
+        return fifo_path, None
+    else:
+        r, w = os.pipe()
+        _ = os.write(w, token.encode())
+        os.fchmod(w, 0o600)
+        os.close(w)
+        return f"/dev/fd/{r}", r
 
 
 def _is_valid_vault_key(key: str) -> tuple[bool, str]:
