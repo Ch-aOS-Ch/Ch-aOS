@@ -17,6 +17,7 @@ def interactive_ephemeral_file(key_type: str):
     import os
     import platform
     import subprocess
+    import sys
     import tempfile
     from contextlib import ExitStack
     from pathlib import Path
@@ -42,19 +43,25 @@ def interactive_ephemeral_file(key_type: str):
         temp_path = Path(temp_dir) / f"{key_type}_key.txt"
         temp_path.touch(mode=0o600)
 
-        with open(temp_path, "w") as f:
-            f.write(f"""\n
+        content = f"""\n
 # ---- Ch-aOS Interactive Export ----
 # Please paste your {key_type.upper()} key above this footer.
 # Save and exit your editor when done.
 # This file exists entirely in volatile memory (RAM).
-""")
+"""
 
-        editor = os.getenv("EDITOR", "nano")
-        try:
-            subprocess.run([editor, str(temp_path)], check=True)
-        except subprocess.CalledProcessError:
-            raise RuntimeError("Editor was closed with an error.")
+        if not sys.stdin.isatty():
+            content = f"{sys.stdin.read()}\n{content}"
+
+        with open(temp_path, "w") as f:
+            f.write(content)
+
+        if not sys.stdin.isatty():
+            editor = os.getenv("EDITOR", "nano")
+            try:
+                subprocess.run([editor, str(temp_path)], check=True)
+            except subprocess.CalledProcessError:
+                raise RuntimeError("Editor was closed with an error.")
 
         yield str(temp_path)
 
