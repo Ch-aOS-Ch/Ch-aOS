@@ -1,5 +1,7 @@
 """Scripts for initializing various parts of Ch-aOS, including Chobolo configurations and secret management."""
 
+from __future__ import annotations
+
 import os
 import subprocess
 import tempfile

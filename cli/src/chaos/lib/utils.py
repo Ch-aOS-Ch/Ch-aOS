@@ -1,5 +1,7 @@
 """General utility functions for path validation, dependency checking, and plugin entrypoint retrieval."""
 
+from __future__ import annotations
+
 from functools import lru_cache
 from importlib.metadata import EntryPoint
 

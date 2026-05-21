@@ -1,5 +1,7 @@
 """Utility functions for validating, initializing, and managing team structures and symlinks."""
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from typing import Optional, cast

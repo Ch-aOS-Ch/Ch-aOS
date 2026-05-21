@@ -1,5 +1,7 @@
 """Telemetry engine and pyinfra callbacks for tracking and recording operation execution metrics."""
 
+from __future__ import annotations
+
 import contextvars
 import json
 import logging

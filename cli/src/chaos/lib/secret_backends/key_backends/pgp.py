@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import subprocess
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Iterator

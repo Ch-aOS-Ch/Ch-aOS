@@ -5,6 +5,8 @@ Amazing for keeping track of random knowledge, scripts, concepts, and ideas rela
 Also, great for documenting secrets management strategies, configurations, and best practices.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -616,7 +618,7 @@ def handleEncryptRamble(payload: RambleEncryptPayload) -> ResultPayload[None]:
             import platform
             from contextlib import ExitStack
 
-            from chaos.lib.secret_backends.providers.ephemeral import mac_ram_disk
+            from chaos.lib.secret_backends.utils import mac_ram_disk
 
             is_mac = platform.system() == "Darwin"
 

@@ -1,5 +1,7 @@
 """Module for managing team structures, including initialization, activation, deactivation, listing, cloning, and pruning."""
 
+from __future__ import annotations
+
 import os
 import shutil
 import subprocess

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 def runChoboloEdit(chobolo_path: str) -> None:
     """
     This is quite literally a tiny script to open the Ch-obolo file in the user's preferred text editor.
