@@ -148,8 +148,11 @@ class AgeBackend(KeyBackend):
         self, pub_key: str, sec_key: str, parsed_key_content: str
     ) -> Iterator[EphemeralEnvironment]:
         import os
+        import platform
+        import tempfile
+        from pathlib import Path
 
-        from ..utils import setup_pipe
+        from ..utils import mac_ram_disk, setup_pipe
 
         if not parsed_key_content:
             yield {"env": {}, "prefix": "", "pass_fds": []}
@@ -159,14 +162,38 @@ class AgeBackend(KeyBackend):
         )
         final_content = self._conc_age_keys(sanitized_content)
 
-        r_age = setup_pipe(final_content)
-        prefix = f"SOPS_AGE_KEY_FILE=/dev/fd/{r_age} "
-        fds_to_pass = [r_age]
+        is_mac = platform.system() == "Darwin"
 
-        try:
-            yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
-        finally:
-            os.close(r_age)
+        if is_mac:
+            from contextlib import ExitStack
+
+            with ExitStack() as stack:
+                try:
+                    ram_dir = stack.enter_context(mac_ram_disk())
+                    temp_dir_name = stack.enter_context(
+                        tempfile.TemporaryDirectory(dir=ram_dir, prefix="chaos-age-")
+                    )
+                    temp_path = Path(temp_dir_name)
+
+                    key_file = temp_path / "keys.txt"
+                    with os.fdopen(
+                        os.open(key_file, os.O_WRONLY | os.O_CREAT, 0o600), "w"
+                    ) as f:
+                        _ = f.write(final_content)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to generate age keys file: {e}")
+
+                prefix = f"SOPS_AGE_KEY_FILE={key_file} "
+                yield {"env": {}, "prefix": prefix, "pass_fds": []}
+        else:
+            r_age = setup_pipe(final_content)
+            prefix = f"SOPS_AGE_KEY_FILE=/dev/fd/{r_age} "
+            fds_to_pass = [r_age]
+
+            try:
+                yield {"env": {}, "prefix": prefix, "pass_fds": fds_to_pass}
+            finally:
+                os.close(r_age)
 
     @staticmethod
     def _conc_age_keys(secKey: str) -> str:
