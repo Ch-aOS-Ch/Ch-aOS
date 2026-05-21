@@ -13,6 +13,8 @@ def validate_path(path: str) -> None:
     Raises:
         ValueError: If the path contains relative directory jumping commands or invalid multiple slashes.
     """
+    if not path:
+        return
     if ".." in path or "//" in path:
         raise ValueError(f"Invalid file path {path}.")
 
