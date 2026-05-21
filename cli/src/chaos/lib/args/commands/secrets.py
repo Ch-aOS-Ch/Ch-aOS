@@ -56,7 +56,7 @@ def interactive_ephemeral_file(key_type: str):
         with open(temp_path, "w") as f:
             f.write(content)
 
-        if not sys.stdin.isatty():
+        if sys.stdin.isatty():
             editor = os.getenv("EDITOR", "nano")
             try:
                 subprocess.run([editor, str(temp_path)], check=True)
