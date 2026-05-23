@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
-import json
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -93,6 +91,9 @@ class BitwardenPasswordProvider(Provider):
         return secBwImport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        import base64
+        import json
+
         """
         Exports keys to Bitwarden as new notes.
         """
@@ -197,6 +198,8 @@ class BitwardenPasswordProvider(Provider):
         return ResultPayload(success=True, message=messages)
 
     def check_status(self):
+        import json
+
         if not checkDep("bw"):
             raise EnvironmentError(
                 "The 'bw' CLI tool is required but not found in PATH."
@@ -318,6 +321,8 @@ class BitwardenSecretsProvider(Provider):
         return secBwsImport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        import json
+
         messages = []
         errors = []
         try:

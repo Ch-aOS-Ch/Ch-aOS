@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Iterator, cast
 
-from omegaconf import DictConfig, OmegaConf
-
 if TYPE_CHECKING:
     from typing import TypedDict
 
@@ -57,6 +55,8 @@ class KeyBackend(ABC):
                 - A list of warning messages.
                 - A list of error messages.
         """
+        from omegaconf import DictConfig, OmegaConf
+
         from ..utils import flatten
 
         warnings: list[str] = []
@@ -172,6 +172,8 @@ class KeyBackend(ABC):
         """
         Generic internal handler for adding validated keys to the config.
         """
+        from omegaconf import DictConfig, OmegaConf
+
         from ..utils import flatten
 
         messages: list[str] = []
@@ -259,6 +261,8 @@ class KeyBackend(ABC):
         """
         Generic internal handler for removing specific keys from the config.
         """
+        from omegaconf import DictConfig, OmegaConf
+
         from ..utils import flatten
 
         messages: list[str] = []
