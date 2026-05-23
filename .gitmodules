@@ -1,12 +1,12 @@
 [submodule "Ch-aronte"]
 	path = Ch-aronte
-	url = git@github.com:Ch-aOS-Ch/Ch-aronte
+	url = git@gitlab.com:Ch-aOS/Ch-aronte
 [submodule "external_plugins/chaos-dots"]
 	path = external_plugins/chaos-dots
-	url = git@github.com:Ch-aOS-Ch/chaos-dots
+	url = git@gitlab.com:Ch-aOS/chaos-dots
 [submodule "external_plugins/chaos-secrets"]
 	path = external_plugins/chaos-secrets
-	url = git@github.com:Ch-aOS-Ch/chaos-secrets
+	url = git@gitlab.com:Ch-aOS/chaos-secrets
 [submodule "tui"]
 	path = tui
-	url = git@github.com:Ch-aOS-Ch/Ch-apetanios
+	url = git@gitlab.com:Ch-aOS/Ch-apetanios

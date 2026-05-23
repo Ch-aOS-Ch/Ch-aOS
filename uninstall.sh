@@ -5,4 +5,4 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 rm -rf /opt/chaos-app/
-rm -rf /usr/bin/chaos
+rm -rf /usr/local/bin/chaos

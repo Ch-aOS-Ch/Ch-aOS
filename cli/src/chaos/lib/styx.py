@@ -27,7 +27,7 @@ def get_styx_registry(payload: StyxPayload) -> tuple[str | None, str | None]:
     if not url:
         url = os.getenv(
             "CHAOS_STYX_REGISTRY",
-            "https://raw.githubusercontent.com/Ch-aOS-Ch/styx/main/registry.yaml",
+            "https://gitlab.com/Ch-aOS/styx/-/raw/main/registry.yaml",
         )
 
     try:
@@ -157,7 +157,12 @@ def install_styx_entries(payload: StyxPayload) -> ResultPayload[None]:
         normalized_name = pkg_name.replace("-", "_")
         wheel_remote_name = f"{normalized_name}-{clean_version}-py3-none-any.whl"
 
-        download_url = f"{url}/releases/download/{tag_version}/{wheel_remote_name}"
+        if url.startswith("https://github.com"):
+            download_url = f"{url}/releases/download/{tag_version}/{wheel_remote_name}"
+        else:
+            download_url = (
+                f"{url}/-/releases/{tag_version}/downloads/{wheel_remote_name}"
+            )
 
         wheel_local_filename = f"{pkg_name}.whl"
 

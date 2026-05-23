@@ -3,14 +3,14 @@ set -e
 
 REPO_OWNER="Ch-aOS-Ch"
 REPO_NAME="Ch-aOS"
-VERSION="0.6.9"
+VERSION="0.7.0"
 ARTIFACT_FILENAME="chaos-v${VERSION}-shiv-dist.tar.gz"
 SIG_FILE="${ARTIFACT_FILENAME}.asc"
 
-GPG_KEY_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/chaos_pubkey.asc"
+GPG_KEY_URL="https://gitlab.com/${REPO_OWNER}/${REPO_NAME}/-/raw/main/chaos_pubkey.asc"
 
-DOWNLOAD_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${ARTIFACT_FILENAME}"
-SIGNATURE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${VERSION}/${SIG_FILE}"
+DOWNLOAD_URL="https://gitlab.com/${REPO_OWNER}/${REPO_NAME}/-/releases/v${VERSION}/downloads/${ARTIFACT_FILENAME}"
+SIGNATURE_URL="https://gitlab.com/${REPO_OWNER}/${REPO_NAME}/-/releases/v${VERSION}/downloads/${SIG_FILE}"
 
 TEMP_DIR=$(mktemp -d)
 INSTALLER_SCRIPT="install.sh"
