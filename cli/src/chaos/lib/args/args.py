@@ -170,7 +170,29 @@ def add_provider_import_subcommands(subparsers):
 
 
 def argParsing():
-    parser = ChaosParser(description="Ch-aOS system management CLI.", prog="chaos")
+    GOLD = "\033[38;2;255;215;0m"
+    PURP = "\033[38;2;170;100;255m"
+    GRAY = "\033[38;2;150;150;150m"
+    RESET = "\033[0m"
+
+    example_usage = f"""{GOLD}chaos{RESET} {PURP}<command>{RESET} {PURP}<subcommand>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}apply{RESET} {PURP}<role tags>{RESET} {GRAY}-c /path/to/chobolo.yaml -t company.team.group{RESET}
+        $ {GOLD}chaos{RESET} {PURP}secrets{RESET} {PURP}export{RESET} {PURP}(provider) -n "item name" -k /path/to/keyfile -t age{RESET}
+        $ {GOLD}chaos{RESET} {PURP}team{RESET} {PURP}prune{RESET} company1 company2 {GRAY}-y{RESET}
+        $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic(.subtopic|list)?{RESET} {GRAY}-d (basic|intermediate|advanced){RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}create{RESET} {PURP}ramble.rambling{RESET} {GRAY}-e -k key_to_encrypt1 key_to_encrypt2 -t company.team.person{RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}read{RESET} {PURP}ramble.rambling{RESET} {GRAY}-t company.team.person --no-pretty -v key_to_print{RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}find{RESET} keyword {GRAY}--tag tagname -t company.team.person{RESET}
+        $ {GOLD}chaos{RESET} {PURP}check{RESET} {PURP}explanations{RESET}
+        $ {GOLD}chaos{RESET} {PURP}set{RESET} {PURP}(ch|sec|sop){RESET} /path/to/file
+        $ {GOLD}chaos{RESET} {PURP}init{RESET} {PURP}secrets{RESET}
+"""
+    parser = ChaosParser(
+        description="Ch-aOS system management CLI.",
+        prog="chaos",
+        usage=example_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     global_opts = parser.add_argument_group("Base Options")
     global_opts.add_argument(
@@ -201,26 +223,126 @@ def argParsing():
         parser_class=ChaosParser,
     )
 
-    styxParser = subParser.add_parser("styx", help="Manage Styx registry entries.")
-    teamParser = subParser.add_parser("team", help="Manage your teams.")
-    expParser = subParser.add_parser(
-        "explain", help="Explain a role topic or subtopic."
+    styx_usage = f"""{GOLD}chaos{RESET} {PURP}styx{RESET} {PURP}<subcommand>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}styx{RESET} {PURP}invoke{RESET} my_entry
+        $ {GOLD}chaos{RESET} {PURP}styx{RESET} {PURP}list{RESET}
+        $ {GOLD}chaos{RESET} {PURP}styx{RESET} {PURP}destroy{RESET} my_entry
+"""
+    styxParser = subParser.add_parser(
+        "styx",
+        help="Manage Styx registry entries.",
+        description="Manage Styx registry entries.",
+        usage=styx_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
+    team_usage = f"""{GOLD}chaos{RESET} {PURP}team{RESET} {PURP}<subcommand>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}team{RESET} {PURP}list{RESET}
+        $ {GOLD}chaos{RESET} {PURP}team{RESET} {PURP}init{RESET} company.team.person
+        $ {GOLD}chaos{RESET} {PURP}team{RESET} {PURP}clone{RESET} git@github.com:company/team.git
+"""
+    teamParser = subParser.add_parser(
+        "team",
+        help="Manage your teams.",
+        description="Manage your teams.",
+        usage=team_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    exp_usage = f"""{GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}<topic>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic.subtopic{RESET}
+        $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic.list{RESET} {GRAY}-d advanced{RESET}
+"""
+    expParser = subParser.add_parser(
+        "explain",
+        help="Explain a role topic or subtopic.",
+        description="Explain a role topic or subtopic.",
+        usage=exp_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    sec_usage = f"""{GOLD}chaos{RESET} {PURP}secrets{RESET} {PURP}<subcommand>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}secrets{RESET} {PURP}export{RESET} {PURP}(provider){RESET} {GRAY}-n "item name" -t age{RESET}
+        $ {GOLD}chaos{RESET} {PURP}secrets{RESET} {PURP}list{RESET} age {GRAY}-t company.team.group{RESET}
+        $ {GOLD}chaos{RESET} {PURP}secrets{RESET} {PURP}print{RESET} {GRAY}-sf /path/to/secrets.yaml{RESET}
+"""
     secParser = subParser.add_parser(
         "secrets",
         help="Manage your secrets.",
+        description="Manage your secrets.",
+        usage=sec_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    applyParser = subParser.add_parser("apply", help="Apply an available role")
+
+    apply_usage = f"""{GOLD}chaos{RESET} {PURP}apply{RESET} {PURP}<role tags>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}apply{RESET} {PURP}webserver db{RESET} {GRAY}-c /path/to/chobolo.yaml{RESET}
+        $ {GOLD}chaos{RESET} {PURP}apply{RESET} {PURP}all{RESET} {GRAY}-f -t company.team.group{RESET}
+"""
+    applyParser = subParser.add_parser(
+        "apply",
+        help="Apply an available role",
+        description="Apply an available role",
+        usage=apply_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    provision_usage = f"""{GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}<stack_name>{RESET} {PURP}<project_name>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}my-stack my-project{RESET} {GRAY}-c /path/to/chobolo.yaml{RESET}
+"""
     provisionParser = subParser.add_parser(
-        "provision", help="Provision infrastructure using Pelago"
+        "provision",
+        help="Provision infrastructure using Pelago",
+        description="Provision infrastructure using Pelago",
+        usage=provision_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
+    check_usage = f"""{GOLD}chaos{RESET} {PURP}check{RESET} {PURP}<operation>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}check{RESET} {PURP}roles{RESET}
+        $ {GOLD}chaos{RESET} {PURP}check{RESET} {PURP}aliases{RESET} {GRAY}-c /path/to/chobolo.yaml{RESET}
+"""
     checkParser = subParser.add_parser(
-        "check", help="Check and list roles, aliases and explanations"
+        "check",
+        help="Check and list roles, aliases and explanations",
+        description="Check and list roles, aliases and explanations",
+        usage=check_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    setParser = subParser.add_parser("set", help="Set configuration files")
-    rambleParser = subParser.add_parser("ramble", help="Annotate your rambles!")
+
+    set_usage = f"""{GOLD}chaos{RESET} {PURP}set{RESET} {PURP}<configuration>{RESET} {PURP}<path>{RESET}
+        $ {GOLD}chaos{RESET} {PURP}set{RESET} {PURP}chobolo{RESET} /path/to/chobolo.yaml
+        $ {GOLD}chaos{RESET} {PURP}set{RESET} {PURP}secrets{RESET} /path/to/secrets.yaml
+"""
+    setParser = subParser.add_parser(
+        "set",
+        help="Set configuration files",
+        description="Set configuration files",
+        usage=set_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    ramble_usage = f"""{GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}<subcommand>{RESET} {GRAY}[options]{RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}create{RESET} {PURP}ramble.rambling{RESET} {GRAY}-e -k my_key{RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}read{RESET} {PURP}ramble.rambling{RESET}
+        $ {GOLD}chaos{RESET} {PURP}ramble{RESET} {PURP}find{RESET} keyword
+"""
+    rambleParser = subParser.add_parser(
+        "ramble",
+        help="Annotate your rambles!",
+        description="Annotate your rambles!",
+        usage=ramble_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    init_usage = f"""{GOLD}chaos{RESET} {PURP}init{RESET} {PURP}<target>{RESET}
+        $ {GOLD}chaos{RESET} {PURP}init{RESET} {PURP}chobolo{RESET}
+        $ {GOLD}chaos{RESET} {PURP}init{RESET} {PURP}secrets{RESET}
+"""
     initParser = subParser.add_parser(
-        "init", help="Let Ch-aOS handle the boiler plates!"
+        "init",
+        help="Let Ch-aOS handle the boiler plates!",
+        usage=init_usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     if "_ARGCOMPLETE" in os.environ:
