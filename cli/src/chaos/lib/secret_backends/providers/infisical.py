@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 from dataclasses import dataclass
 from typing import cast
 
@@ -11,7 +10,6 @@ from chaos.lib.args.dataclasses import (
     ResultPayload,
     SecretsExportPayload,
 )
-from chaos.lib.secret_backends.utils import _save_to_config
 from chaos.lib.utils import checkDep
 
 from .base import Provider
@@ -103,7 +101,10 @@ class InfisicalProvider(Provider):
         return secInfImport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        import subprocess
+
         from chaos.lib.secret_backends.key_backends.factory import get_key_backend
+        from chaos.lib.secret_backends.utils import _save_to_config
 
         self.check_status()
         payload.provider_specific_args = cast(
@@ -236,6 +237,8 @@ class InfisicalProvider(Provider):
         return True, "Infisical CLI is installed."
 
     def readKeys(self, item_id: str) -> str:
+        import subprocess
+
         env_name = (
             self.config.get("secret_backends", {}).get("in", {}).get("env_name", "dev")
         )

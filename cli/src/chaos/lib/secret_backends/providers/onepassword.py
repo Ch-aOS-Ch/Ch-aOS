@@ -98,6 +98,7 @@ class OnePasswordProvider(Provider):
         return secOpImport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        self.check_status()
         messages = []
         errors = []
 

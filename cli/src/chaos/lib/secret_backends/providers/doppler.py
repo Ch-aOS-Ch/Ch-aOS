@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 from dataclasses import dataclass
 from typing import Literal, cast
 
@@ -12,8 +11,6 @@ from chaos.lib.args.dataclasses import (
     ResultPayload,
     SecretsExportPayload,
 )
-from chaos.lib.secret_backends.utils import _save_to_config
-from chaos.lib.utils import checkDep
 
 from .base import Provider
 
@@ -100,7 +97,10 @@ class DopplerProvider(Provider):
         return secDopImport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        import subprocess
+
         from chaos.lib.secret_backends.key_backends.factory import get_key_backend
+        from chaos.lib.secret_backends.utils import _save_to_config
 
         self.check_status()
         payload.provider_specific_args = cast(
@@ -260,6 +260,10 @@ class DopplerProvider(Provider):
         return ResultPayload(success=True, message=messages)
 
     def check_status(self) -> None | tuple[bool, str]:
+        import subprocess
+
+        from chaos.lib.utils import checkDep
+
         if not checkDep("doppler"):
             raise RuntimeError("The Doppler CLI is required but not found in PATH.")
 
@@ -281,6 +285,8 @@ class DopplerProvider(Provider):
         return True, "Doppler CLI is installed and authenticated."
 
     def readKeys(self, item_id: str) -> str:
+        import subprocess
+
         token = os.getenv("DOPPLER_TOKEN", "")
 
         project: str = ""

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import base64
 import re
 import subprocess
-import zlib
 
 
 def compress(data: bytes) -> str:
+    from base64 import b85encode
+    from zlib import compress as zcomp
+
     """Compresses data to base85-encoded zlib representation.
 
     This is primarily used for GPG keys so they can fit inside a Bitwarden note.
@@ -24,8 +25,8 @@ def compress(data: bytes) -> str:
         RuntimeError: If data compression or encoding fails.
     """
     try:
-        compressed_data = zlib.compress(data, level=9)
-        encoded_data = base64.b85encode(compressed_data).decode("utf-8")
+        compressed_data = zcomp(data, level=9)
+        encoded_data = b85encode(compressed_data).decode("utf-8")
 
         # base85 can include characters that may not be ideal for all storage backends
         # like Doppler (resulting in an error that prints the key to the stderr btw),

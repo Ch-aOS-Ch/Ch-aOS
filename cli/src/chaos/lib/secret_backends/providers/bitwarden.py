@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, cast
+from dataclasses import dataclass
+from typing import cast
 
 from chaos.lib.args.dataclasses import (
     ProviderExportArgs,
@@ -12,19 +11,15 @@ from chaos.lib.args.dataclasses import (
     ResultPayload,
     SecretsExportPayload,
 )
-from chaos.lib.utils import checkDep
 
-from ..utils import (
-    _save_to_config,
-)
 from .base import Provider
 
 
 @dataclass(frozen=True)
 class BitwardenExportArgs(ProviderExportArgs):
-    organization_id: Optional[str] = None
-    collection_id: Optional[str] = None
-    bw_tags: List[str] = field(default_factory=list)
+    organization_id: str | None = None
+    collection_id: str | None = None
+    bw_tags: tuple[str, ...] = ()
 
 
 class BitwardenPasswordProvider(Provider):
@@ -37,7 +32,7 @@ class BitwardenPasswordProvider(Provider):
         return ProviderImportArgs()
 
     @staticmethod
-    def get_export_arg_names() -> List[str]:
+    def get_export_arg_names() -> list[str]:
         return ["organization_id", "collection_id", "bw_tags"]
 
     @staticmethod
@@ -45,7 +40,7 @@ class BitwardenPasswordProvider(Provider):
         return []
 
     @staticmethod
-    def get_cli_name() -> Tuple[str, str]:
+    def get_cli_name() -> tuple[str, str]:
         return "from_bw", "bw"
 
     @staticmethod
@@ -93,16 +88,18 @@ class BitwardenPasswordProvider(Provider):
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
         import base64
         import json
+        import subprocess
+
+        from ..utils import _save_to_config
 
         """
         Exports keys to Bitwarden as new notes.
         """
+        self.check_status()
         messages = []
         errors = []
 
         try:
-            self.check_status()
-
             provider_args = cast(BitwardenExportArgs, payload.provider_specific_args)
 
             keyType = payload.key_type
@@ -199,6 +196,9 @@ class BitwardenPasswordProvider(Provider):
 
     def check_status(self):
         import json
+        import subprocess
+
+        from chaos.lib.utils import checkDep
 
         if not checkDep("bw"):
             raise EnvironmentError(
@@ -232,7 +232,8 @@ class BitwardenPasswordProvider(Provider):
             raise RuntimeError(f"Failed to parse Bitwarden status: {e}")
 
     def readKeys(self, item_id: str) -> str:
-        self.check_status()
+        import subprocess
+
         try:
             result = subprocess.run(
                 ["bw", "get", "notes", item_id],
@@ -261,7 +262,7 @@ class BitwardenPasswordProvider(Provider):
 
 @dataclass(frozen=True)
 class BitwardenSecretsExportArgs(ProviderExportArgs):
-    project_id: Optional[str] = None
+    project_id: str | None = None
 
 
 class BitwardenSecretsProvider(Provider):
@@ -274,7 +275,7 @@ class BitwardenSecretsProvider(Provider):
         return ProviderImportArgs()
 
     @staticmethod
-    def get_export_arg_names() -> List[str]:
+    def get_export_arg_names() -> list[str]:
         return ["project_id"]
 
     @staticmethod
@@ -282,7 +283,7 @@ class BitwardenSecretsProvider(Provider):
         return []
 
     @staticmethod
-    def get_cli_name() -> Tuple[str, str]:
+    def get_cli_name() -> tuple[str, str]:
         return "from_bws", "bws"
 
     @staticmethod
@@ -322,12 +323,13 @@ class BitwardenSecretsProvider(Provider):
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
         import json
+        import subprocess
+
+        self.check_status()
 
         messages = []
         errors = []
         try:
-            self.check_status()
-
             provider_args = cast(
                 BitwardenSecretsExportArgs, payload.provider_specific_args
             )
@@ -404,6 +406,8 @@ class BitwardenSecretsProvider(Provider):
         return ResultPayload(success=True, message=messages)
 
     def check_status(self):
+        from chaos.lib.utils import checkDep
+
         if not checkDep("bws"):
             raise EnvironmentError(
                 "The Bitwarden Secrets CLI ('bws') is required but not found in PATH."
@@ -415,6 +419,8 @@ class BitwardenSecretsProvider(Provider):
         return True, "Bitwarden Secrets CLI is ready."
 
     def readKeys(self, item_id: str) -> str:
+        import subprocess
+
         from omegaconf import DictConfig, OmegaConf
 
         try:
@@ -459,7 +465,7 @@ class BitwardenRbwProvider(Provider):
         return []
 
     @staticmethod
-    def get_cli_name() -> Tuple[str, str]:
+    def get_cli_name() -> tuple[str, str]:
         return "from_rbw", "rbw"
 
     @staticmethod
@@ -492,6 +498,12 @@ class BitwardenRbwProvider(Provider):
         return secRbwExport
 
     def export_secrets(self, payload: SecretsExportPayload) -> ResultPayload:
+        import subprocess
+
+        from ..utils import _save_to_config
+
+        self.check_status()
+
         messages = []
         errors = []
 
@@ -499,10 +511,6 @@ class BitwardenRbwProvider(Provider):
             keyType = payload.key_type
             item_name = payload.item_name
             save_to_config = payload.save_to_config
-
-            isUnlocked, msg = self.check_status()
-            if not isUnlocked:
-                raise PermissionError(msg)
 
             from chaos.lib.secret_backends.key_backends.factory import get_key_backend
 
@@ -557,7 +565,11 @@ class BitwardenRbwProvider(Provider):
 
         return ResultPayload(success=True, message=messages)
 
-    def check_status(self) -> Tuple[bool, str]:
+    def check_status(self) -> tuple[bool, str]:
+        import subprocess
+
+        from chaos.lib.utils import checkDep
+
         if not checkDep("rbw"):
             raise EnvironmentError(
                 "The 'rbw' CLI tool is required but not found in PATH."
@@ -578,9 +590,7 @@ class BitwardenRbwProvider(Provider):
             )
 
     def readKeys(self, item_id: str) -> str:
-        isUnlocked, msg = self.check_status()
-        if not isUnlocked:
-            raise PermissionError(msg)
+        import subprocess
 
         try:
             result = subprocess.run(
@@ -610,6 +620,8 @@ class BitwardenRbwProvider(Provider):
         return None
 
     def _get_item_id(self, name: str) -> str:
+        import subprocess
+
         try:
             items_raw = subprocess.Popen(
                 ["rbw", "list", "--fields", "id", "--fields", "name"],
