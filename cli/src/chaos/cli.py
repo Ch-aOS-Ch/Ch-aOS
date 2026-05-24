@@ -82,7 +82,7 @@ Best practices for this project:
 
         Let it be known that this is not a "You must only code python like this", but rather a architecture choice for this specific project,
             and that we will not change it any time soon, as this gives us some pretty nice benefits (I mean, the CLI started in 0.5 seconds before,
-            now it starts in about 0.1s to 0.069s depending on the state of the machine, so it is a pretty nice improvement)
+            now it starts in about 0.1s to 0.069s (I AM NOT JOKING, IT IS FR FR) depending on the state of the machine, so it is a pretty nice improvement)
 
         Once PEP 810 hits the scene, we will check if its a good fit for our codebase (we need it to work with py3.11 in some way, since its our
             minimum supported version, if it does, we will go back to PEP8 standards for imports, just with "lazy" in front of them.
@@ -201,11 +201,6 @@ def main():
                 from .lib.args.commands.apply import handleApply
 
                 handleApply(args)
-
-            case "provision":
-                from .lib.args.commands.provision import handleProvision
-
-                handleProvision(args)
 
             case "secrets":
                 from .lib.args.commands.secrets import handleSecrets
