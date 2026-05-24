@@ -4,7 +4,7 @@ set -e
 REPO_OWNER="Ch-aOS-Ch"
 REPO_NAME="Ch-aOS"
 VERSION="0.7.0"
-ARTIFACT_FILENAME="chaos-v${VERSION}-shiv-dist.tar.gz"
+ARTIFACT_FILENAME="chaos-v${VERSION}.tar.gz"
 SIG_FILE="${ARTIFACT_FILENAME}.asc"
 
 GPG_KEY_URL="https://gitlab.com/${REPO_OWNER}/${REPO_NAME}/-/raw/main/chaos_pubkey.asc"
