@@ -74,7 +74,7 @@ from chaos.lib.apply import (
     teardown_pyinfra
 )
 
-# This loads the actual role classes from the plugins
+# This loads the actual role classes from the Souls
 apply_request, apply_result = gather_apply(payload)
 
 if not apply_result.success:

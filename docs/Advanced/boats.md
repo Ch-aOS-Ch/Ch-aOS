@@ -107,7 +107,7 @@ class Boat(ABC):
         return new_state
 ```
 
-As you can see, boats are abstract base classes that require plugins to implement specific methods for connecting to external providers and retrieve the fleet data and get the specific hosts to be added to the fleet.
+As you can see, boats are abstract base classes that require Souls to implement specific methods for connecting to external providers and retrieve the fleet data and get the specific hosts to be added to the fleet.
 
 
 ## Using Boats in Your Fleet
@@ -171,7 +171,7 @@ So, you see those @abstractmethod decorators in the Boat class? Those are the me
 
 So you need to create a new Python class that inherits from the Boat base class and implement the required methods, that means that all of the logic for connecting and retrieving the data is up to you (since I can't really read minds you know?)
 
-After allat, you just need to register your boat class in the Ch-aOS plugin system, so it can be discovered and used when specified in the fleet configuration.
+After allat, you just need to register your boat class in the Ch-aOS Soul system, so it can be discovered and used when specified in the fleet configuration.
 ```toml
 [project.entry_points."chaos.boats"]
 my-boat = "my_module:MyBoatClass"

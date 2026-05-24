@@ -6,7 +6,7 @@
 
 - **Declarative**: Define the desired state of your system using simple YAML files. The Ch-aOS SDK takes care of the rest, ensuring your system matches your declaration.
 
-- **Modular**: Extend the functionality of Ch-aOS by creating or adding plugins. Whether you need to manage a different distribution, handle dotfiles, or integrate with a new secret provider, the plugin architecture makes it possible.
+- **Modular**: Extend the functionality of Ch-aOS by creating or adding Souls. Whether you need to manage a different distribution, handle dotfiles, or integrate with a new secret provider, the architecture makes it possible.
 
 - **Safe**: Preview changes before they are applied with dry runs. Manage your secrets securely with integrated support for `sops` and various secret providers.
 
@@ -31,6 +31,6 @@ Ready to get started? Head over to the **[Getting Started](getting-started.md)**
 
 Want to learn more about advanced features? Check some of the **[Advanced Topics](Advanced/providers.md)**!
 
-Want to create your own plugins or use the SDK? Dive into the **[Plugin Development](Plugins/development.md)** documentation!
+Want to create your own Souls or use the SDK? Dive into the **[Soul Development](Souls/development.md)** documentation!
 
 Or you just want to follow the code's planned features? Check out our **[Chopping Board](./chopping-board.md)**!

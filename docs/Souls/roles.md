@@ -1,4 +1,4 @@
-# Ch-aOS Roles Plugin Documentation
+# Ch-aOS Roles Soul Documentation
 
 In Ch-aOS, roles are Python classes that inherit from our base SDK `Role` class. They leverage Pyinfra's [API mode](https://docs.pyinfra.com/en/3.x/api/reference.html) to orchestrate infrastructure, giving you the full power of Python and OOP. 
 
@@ -23,7 +23,7 @@ By sticking to this lifecycle, you allow the Ch-aOS engine to accurately track c
 First, add it to your `pyproject.toml` like so:
 ```toml
 [project.entry-points."chaos.roles"]
-my-role = "my_chaos_plugin.roles:MyAwesomeRole"
+my-role = "my_chaos_Soul.roles:MyAwesomeRole"
 ```
 
 Then, in your `roles.py` file, define the role class:

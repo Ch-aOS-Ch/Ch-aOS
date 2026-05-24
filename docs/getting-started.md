@@ -15,8 +15,8 @@ curl -LsSf https://raw.githubusercontent.com/Ch-aOS-Ch/Ch-aOS/refs/heads/main/in
 
 After installation, you can verify that the CLI is working and see the available commands.
 
-1.  **Update the plugin cache:**
-    Run the following command to make sure `chaos` discovers all installed plugins.
+1.  **Update the Soul cache:**
+    Run the following command to make sure `chaos` discovers all installed Souls.
     ```bash
     chaos -u
     ```
@@ -27,7 +27,7 @@ After installation, you can verify that the CLI is working and see the available
     ```
 
 3.  **Check available components:**
-    You can list all the roles, explanations, and aliases provided by your installed plugins.
+    You can list all the roles, explanations, and aliases provided by your installed Souls.
     ```bash
     chaos check roles
     chaos check explanations

@@ -20,7 +20,7 @@ chaos apply [tags...] [options]
 
 ### Tags (`[tags...]`)
 
-Tags are the primary mechanism for selecting which roles to execute. You can specify one or more tags to run multiple roles in sequence. Plugins can also provide shorter aliases for tags.
+Tags are the primary mechanism for selecting which roles to execute. You can specify one or more tags to run multiple roles in sequence. Souls can also provide shorter aliases for tags.
 
 **Why?** They allow you to manage your system modularly. You can apply just the `users` configuration, or just `packages`, or both, without running your entire configuration every time.
 
@@ -29,7 +29,7 @@ Tags are the primary mechanism for selecting which roles to execute. You can spe
 # Apply the configuration for users and packages
 chaos apply users packages
 
-# You can also use aliases defined by plugins
+# You can also use aliases defined by Souls, for example:
 chaos apply usr pkgs
 ```
 
@@ -68,9 +68,6 @@ chaos apply --dry packages
 # Combine with verbosity for more detail
 chaos apply -d -vvv packages
 ```
-
-!!! note about secret having plugins
-    You NEED to have a "secret_plugins" section inside of your global config file (~/.config/chaos/config.yml) in order to use secrets inside of a specific role.
 
 ### Fleet Mode (`-f`, `--fleet`)
 

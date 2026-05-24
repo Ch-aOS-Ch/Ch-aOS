@@ -38,7 +38,7 @@ Returns:
   "concept": "The Ch-aOS Command-Line Interface",
   "what": "`chaos` is the main entry point for the Ch-aOS tool. It acts as a CLI to orchestrate system configuration, manage secrets, and handle team Ch-aOS configurations and documentation.",
   "why": "It provides a single interface to some backend tools (like `pyinfra` and `sops`), simplifying complex workflows and making system management declarative and repeatable (I'M WORKING ON ATOMICITY OK?).",
-  "how": "When you run a command like `chaos apply users -s`, the CLI parses your arguments, loads the necessary configuration from your \"Ch-obolo\" file, discovers the appropriate role from its plugins, and executes the underlying logic.",
+  "how": "When you run a command like `chaos apply users -s`, the CLI parses your arguments, loads the necessary configuration from your \"Ch-obolo\" file, discovers the appropriate role from its Souls, and executes the underlying logic.",
   "learn_more": [
     "run `chaos --help` to see all available commands."
   ]
@@ -61,7 +61,7 @@ why: It provides a single interface to some backend tools (like `pyinfra` and `s
   (I'M WORKING ON ATOMICITY OK?).
 how: When you run a command like `chaos apply users -s`, the CLI parses your arguments,
   loads the necessary configuration from your "Ch-obolo" file, discovers the appropriate
-  role from its plugins, and executes the underlying logic.
+  role from its Souls, and executes the underlying logic.
 learn_more:
 - run `chaos --help` to see all available commands.
 ```

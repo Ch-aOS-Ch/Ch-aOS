@@ -1,24 +1,24 @@
-# Ch-aOS Limani Plugin
+# Ch-aOS Limani Soul
 
-So, the Ch-aOS Logbook is great and all, but what if you want to take it a step further? What if you need to store it in a better format like a database, or maybe you want to visualize it in a fancy dashboard? That's where the Limani plugin comes in!
+So, the Ch-aOS Logbook is great and all, but what if you want to take it a step further? What if you need to store it in a better format like a database, or maybe you want to visualize it in a fancy dashboard? That's where the Limani Soul comes in!
 
-Limanis are the greek word for "harbors", and just like a harbor is a safe place for ships to dock, the Limani plugin provides a safe place for your logbook data to dock and be managed.
+Limanis are the greek word for "harbors", and just like a harbor is a safe place for ships to dock, the Limani Soul provides a safe place for your logbook data to dock and be managed.
 
-Limanis are purely optional plugins that simply add a database for your Logbook data. You can choose one Limani plugin to use in each `chaos apply --logbook --limani <limani>` command.
+Limanis are purely optional Souls that simply add a database for your Logbook data. You can choose one Limani Soul to use in each `chaos apply --logbook --limani <limani>` command.
 
 ## Why?
 
-Well, the default Logbook stores data in a simple SQLite database (through the Ch-rima Limani) which is great for small-scale use, but if you're running a larger operation or need more advanced features, you might want to consider using a different Limani plugin.
+Well, the default Logbook stores data in a simple SQLite database (through the Ch-rima Limani) which is great for small-scale use, but if you're running a larger operation or need more advanced features, you might want to consider using a different Limani Soul.
 
 ## How to use?
 
-Simply install the Limani plugin of your choice, and then use the `--limani <limani>` flag when applying your logbook. For example, if you wanted to use the Ch-aOS PostgreSQL Limani, you would run `chaos apply <tags> --logbook --limani chaos-limani-postgresql`, easy as that!
+Simply install the Limani Soul of your choice, and then use the `--limani <limani>` flag when applying your logbook. For example, if you wanted to use the Ch-aOS PostgreSQL Limani, you would run `chaos apply <tags> --logbook --limani chaos-limani-postgresql`, easy as that!
 
-## Now the juicy part: Developing your own Limani plugin
+## Now the juicy part: Developing your own Limani Soul
 
-You see, a plugin system without a good interface is not a real plugin system, is it? So, to make sure that all Limani plugins play nicely together, we've defined a simple interface that all Limani plugins must implement.
+You see, a Soul system without a good interface is not a real Soul system, is it? So, to make sure that all Limani Souls play nicely together, we've defined a simple interface that all Limani Souls must implement.
 
-Here's the base Limani abstract class that all Limani plugins must inherit from:
+Here's the base Limani abstract class that all Limani Souls must inherit from:
 
 ```python
 from abc import ABC, abstractmethod
@@ -207,8 +207,8 @@ class Limani(ABC):
         raise NotImplementedError
 ```
 
-As you can see, the Limani class only defines _read_ and _write_ methods for the Logbook data. This means that you can implement your own Limani plugin to connect to any data source you want, as long as you implement the required methods.
+As you can see, the Limani class only defines _read_ and _write_ methods for the Logbook data. This means that you can implement your own Limani Soul to connect to any data source you want, as long as you implement the required methods.
 
-The Logbook system automatically loads and uses the Limani plugin specified in the `--limani` flag when applying the logbook, and then uses these methods to interact with the data source.
+The Logbook system automatically loads and uses the Limani Soul specified in the `--limani` flag when applying the logbook, and then uses these methods to interact with the data source.
 
-A _complete_ Limani plugin can be seen in [here](https://github.com/Ch-aOS-Ch/Ch-aOS/blob/main/cli/src/chaos/lib/limani/chrima.py)
+A _complete_ Limani Soul can be seen in [here](https://github.com/Ch-aOS-Ch/Ch-aOS/blob/main/cli/src/chaos/lib/limani/chrima.py)

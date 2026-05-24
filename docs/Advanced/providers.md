@@ -83,7 +83,7 @@ Ch-aOS has built-in support for:
 
 -   **1Password (`op`)**: Integrates with the 1Password CLI (`op`).
 
-The provider system is extensible, allowing new plugins to add support for other backends.
+The provider system is extensible, allowing new Souls to add support for other backends.
 
 ## `import` / `export`
 

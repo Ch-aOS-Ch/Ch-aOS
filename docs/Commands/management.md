@@ -12,7 +12,7 @@ The `chaos init` command is a setup wizard that creates boilerplate configuratio
 
 #### `init chobolo`
 
-This command scans your installed plugins for their required configuration keys and generates a template `ch-obolo.yml` file. This is a great way to discover the data your roles need.
+This command scans your installed souls for their required configuration keys and generates a template `ch-obolo.yml` file. This is a great way to discover the data your roles need.
 
 **Usage:**
 ```bash
@@ -76,7 +76,7 @@ chaos set sops ~/my-chaos-configs/.sops.yaml
 
 ## `chaos check`
 
-The `chaos check` command helps you discover what functionality is available from your installed plugins.
+The `chaos check` command helps you discover what functionality is available from your installed souls.
 
 ### Subcommands
 

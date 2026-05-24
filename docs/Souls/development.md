@@ -1,18 +1,18 @@
-# Plugin Development
+# Soul Development
 
-Ch-aOS is designed to be a powerful SDK and an extensible CLI. Most functionality is provided through external plugins. This guide covers the basics of creating your own plugin.
+Ch-aOS is designed to be a powerful SDK and an extensible CLI. Most functionality is provided through external Souls. This guide covers the basics of creating your own Soul.
 
-A plugin is a standard Python package that uses `entry_points` to register its classes and functionality with the Ch-aOS engine.
+A Soul is a standard Python package that uses `entry_points` to register its classes and functionality with the Ch-aOS engine.
 
 ## Project Structure
 
-A basic plugin has the following structure:
+A basic Soul has the following structure:
 
 ```
-my-chaos-plugin/
+my-chaos-soul/
 ├── pyproject.toml
 └── src/
-    └── my_chaos_plugin/
+    └── my_chaos_soul/
         ├── __init__.py
         ├── roles.py
         └── explain.py
@@ -20,29 +20,29 @@ my-chaos-plugin/
 
 ## `pyproject.toml`
 
-The `pyproject.toml` file is where you define your plugin's metadata and, most importantly, its entry points.
+The `pyproject.toml` file is where you define your Soul's metadata and, most importantly, its entry points.
 
 ```toml
 [project]
-name = "my-chaos-plugin"
+name = "my-chaos-soul"
 version = "0.1.0"
-description = "A new plugin for Ch-aOS."
+description = "A new Soul for Ch-aOS."
 requires-python = ">=3.10"
 
 [project.entry-points]
 # Entry points are defined here
-"chaos.roles" = { my-role = "my_chaos_plugin.roles:MyRoleClass" }
-"chaos.explain" = { my-role = "my_chaos_plugin.explain:MyRoleExplain" }
+"chaos.roles" = { my-role = "my_chaos_soul.roles:MyRoleClass" }
+"chaos.explain" = { my-role = "my_chaos_soul.explain:MyRoleExplain" }
 "chaos.aliases" = { mr = "my-role" }
-"chaos.keys" = { my-role = "my_chaos_plugin.roles:my_role_keys" }
-"chaos.providers" = { myprovider = "my_chaos_plugin.providers:MyProviderClass" }
-"chaos.boats" = { myboat = "my_chaos_plugin.boats:MyBoatClass" }
-"chaos.limanis" = { mylimani = "my_chaos_plugin.limanis:MyLimaniClass" }
+"chaos.keys" = { my-role = "my_chaos_soul.roles:my_role_keys" }
+"chaos.providers" = { myprovider = "my_chaos_soul.providers:MyProviderClass" }
+"chaos.boats" = { myboat = "my_chaos_soul.boats:MyBoatClass" }
+"chaos.limanis" = { mylimani = "my_chaos_soul.limanis:MyLimaniClass" }
 ```
 
 ## Entry Points
 
-Ch-aOS uses several entry point groups to discover plugin functionality.
+Ch-aOS uses several entry point groups to discover Soul functionality.
 
 ### `chaos.roles`
 
@@ -78,7 +78,7 @@ class MyRoleClass(Role):
             )
         return ResultPayload(success=True)
 ```
-*(For a more detailed explanation of `get_context` and `delta`, see [Roles Plugin Documentation](./roles.md))*
+*(For a more detailed explanation of `get_context` and `delta`, see [Roles Soul Documentation](./roles.md))*
 
 ### `chaos.explain`
 
@@ -99,7 +99,7 @@ class MyRoleExplain:
         return {
             'concept': 'My Custom Role',
             'what': 'This role ensures a specific directory exists.',
-            'why': 'To demonstrate how to create a Ch-aOS plugin using the SDK.',
+            'why': 'To demonstrate how to create a Ch-aOS soul using the SDK.',
             'how': 'It utilizes the Role class lifecycle and pyinfra operations.',
         }
 
@@ -143,12 +143,12 @@ my_role_keys = [{
 
 ### `chaos.providers`
 
-Registers a new secret provider class. See **[Plugin Providers](./provider-plugins.md)** for examples.
+Registers a new secret provider class. See **[Provider Souls](./provider-plugins.md)** for examples.
 
 ### `chaos.boats`
 
-Registers a new boat for use with `chaos apply --fleet`. See **[Boat Plugins](../Advanced/boats.md)** for more details.
+Registers a new boat for use with `chaos apply --fleet`. See **[Boat Souls](../Advanced/boats.md)** for more details.
 
 ### `chaos.limanis`
 
-Enables a new database to use with `chaos apply --logbook --limani`. See **[Limani Plugins](./limani.md)** for more information.
+Enables a new database to use with `chaos apply --logbook --limani`. See **[Limani Souls](./limani.md)** for more information.

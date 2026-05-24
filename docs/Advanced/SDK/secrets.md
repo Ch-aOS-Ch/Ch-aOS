@@ -25,7 +25,7 @@ provider_cfg = ProviderConfigPayload(
     ephemeral_provider_args="from_bw": ('item_id_here', "key_type_here(age)") # not necessary, provider was already passed.
 )
 
-# Let it be known that ephemeral provider args come from plugins, therefore the plugin must document how to use them and what they do. The SDK will not validate or understand these arguments, it just passes them through to the provider plugin.
+# Let it be known that ephemeral provider args come from Souls, therefore the Soul must document how to use them and what they do. The SDK will not validate or understand these arguments, it just passes them through to the provider Soul.
 
 advanced_context = SecretsContext(
     team="my_company.my_team.backend",

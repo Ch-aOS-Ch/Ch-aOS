@@ -33,14 +33,14 @@ base_config = OmegaConf.create({
 
 ### 2. Resolving the Fleet
 
-The SDK provides a helper function `gather_fleet` in the `chaos.lib.apply` module. This function automatically loads the required Boat plugins, executes their logic, and merges the resulting hosts into a unified list.
+The SDK provides a helper function `gather_fleet` in the `chaos.lib.apply` module. This function automatically loads the required Boat Souls, executes their logic, and merges the resulting hosts into a unified list.
 
 ```python
 from chaos.lib.apply import gather_fleet
 from chaos.lib.args.dataclasses import ApplyPayload, SecretsContext
 
 payload = ApplyPayload(
-    update_plugins=False,
+    update_Souls=False,
     i_know_what_im_doing=True, # Skips fallback prompts
     dry=False,
     verbose=0,

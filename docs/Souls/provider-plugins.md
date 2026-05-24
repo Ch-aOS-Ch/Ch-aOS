@@ -1,10 +1,10 @@
-# Provider Plugin Development
+# Provider Soul Development
 
-A "Provider" plugin integrates Ch-aOS with an external secret manager, enabling the secure storage and retrieval of master encryption keys. This guide details how to build a custom provider plugin.
+A "Provider" Soul integrates Ch-aOS with an external secret manager, enabling the secure storage and retrieval of master encryption keys. This guide details how to build a custom provider Soul.
 
 ## Core Concepts
 
-A provider plugin is a Python package that:
+A provider Soul is a Python package that:
 1.  Implements the `Provider` abstract base class from `chaos.lib.secret_backends.base`.
 
 2.  Registers itself using the `chaos.providers` entry point and the Provider required functions.
@@ -25,7 +25,7 @@ You must create a class that inherits `chaos.lib.secret_backends.base`'s Provide
 
 ### `pyproject.toml` Entry Point
 
-First, register your class in your plugin's `pyproject.toml`:
+First, register your class in your Soul's `pyproject.toml`:
 
 ```toml
 [project.entry-points."chaos.providers"]

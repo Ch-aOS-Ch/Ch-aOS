@@ -27,7 +27,7 @@ fleet:
     - 'my_remote_server': {} # This one uses the default SSH connector
 ```
 
-Since Ch-aOS uses Pyinfra under the hood, you can use any Pyinfra Connector available on [PyPI](https://pypi.org/search/?q=pyinfra+connector&type=packages) or even create your own! Since Ch-aOS' plugins are simple .whl files that install Python packages, you can easily create/install any custom connectors through `chaos styx invoke`, since it is quite literally just an entry point to Pyinfra's connector system.
+Since Ch-aOS uses Pyinfra under the hood, you can use any Pyinfra Connector available on [PyPI](https://pypi.org/search/?q=pyinfra+connector&type=packages) or even create your own! Since Ch-aOS' Souls are simple .whl files that install Python packages, you can easily create/install any custom connectors through `chaos styx invoke`, since it is quite literally just an entry point to Pyinfra's connector system.
 
 This means that, since there are multiple Pyinfra plugins are being developped inside of [Pyinfra-dev](https://github.com/pyinfra-dev), Ch-aOS could, theoretically, support even [windows](https://github.com/pyinfra-dev/pyinfra-windows) in the future!
 

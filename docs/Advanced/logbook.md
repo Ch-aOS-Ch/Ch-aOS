@@ -48,11 +48,11 @@ You see, when I was developing the logbook system, I quickly realized that stori
 
 Then I made a SQLite database backend for the Logbook, which was cool and all, but then I realized that not everyone would want to deal with databases, and that SQLite doesn't really scale well for concurrent access.
 
-So, the final solution was quite simple: plugins (Duh)! Ch-aOS has a plugin system for almost everything, so why not for the Logbook storage as well?
+So, the final solution was quite simple: Souls (Duh)! Ch-aOS has a Soul system for almost everything, so why not for the Logbook storage as well?
 
-Learn more [here](../Plugins/limani.md).!
+Learn more [here](../Souls/limani.md).!
 
-They can be found in these places while using the default "chrima" plugin:
+They can be found in these places while using the default "chrima" Soul:
 
 - `./chaos-logbook.json`
 

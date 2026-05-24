@@ -2,7 +2,7 @@
 
 The `chaos explain` command provides a built-in documentation system. It offers a didactic way to learn about Ch-aOS concepts, commands, and features directly from the command line.
 
-The content is provided by plugins, meaning the documentation lives alongside the functionality it describes.
+The content is provided by souls, meaning the documentation lives alongside the functionality it describes.
 
 ## Usage
 
@@ -16,7 +16,7 @@ chaos explain [topic] [options]
 
 ## Discovering Topics
 
-You can discover all available topics provided by your installed plugins using `chaos check`.
+You can discover all available topics provided by your installed souls using `chaos check`.
 
 ```bash
 chaos check explanations
