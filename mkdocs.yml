@@ -49,6 +49,7 @@ nav:
   - 'Getting Started': 'getting-started.md'
   - 'Core Concepts': 'core-concepts.md'
   - 'The Chopping Board': 'chopping-board.md'
+  - 'Glossary': 'glossary.md'
   - 'Commands':
     - 'Apply': 'Commands/apply.md'
     - 'Management': 'Commands/management.md'
@@ -107,10 +108,10 @@ nav:
           - 'Core': 'Advanced/SDK/Reference/limani/core.md'
         - 'Roles':
           - 'Core': 'Advanced/SDK/Reference/roles/core.md'
-  - 'Plugins':
-    - 'Provider Plugins': 'Plugins/provider-plugins.md'
-    - 'Registry': 'Plugins/styx.md'
-    - 'Development': 'Plugins/development.md'
-    - 'Connector development': 'Plugins/connectors.md'
-    - 'Roles': 'Plugins/roles.md'
-    - 'Limani': 'Plugins/limani.md'
+  - 'Souls':
+    - 'Provider Souls': 'Souls/provider-plugins.md'
+    - 'Registry': 'Souls/styx.md'
+    - 'Development': 'Souls/development.md'
+    - 'Connector development': 'Souls/connectors.md'
+    - 'Roles': 'Souls/roles.md'
+    - 'Limani': 'Souls/limani.md'
