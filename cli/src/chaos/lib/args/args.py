@@ -982,7 +982,10 @@ def addCheckParsers(checkParser):
 
 def addSetParsers(setParser):
     setSubParser = setParser.add_subparsers(
-        dest="set_command", parser_class=ChaosParser
+        dest="set_command",
+        parser_class=ChaosParser,
+        required=True,
+        help="Set configuration files",
     )
 
     chParser = setSubParser.add_parser(
