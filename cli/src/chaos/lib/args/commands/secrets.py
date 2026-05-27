@@ -524,7 +524,6 @@ def handleSecrets(args):  # noqa: C901
                         ),
                         indent=2,
                     )
-                    return
 
                 print(decrypted_output)
                 zero_out(decrypted_output)
