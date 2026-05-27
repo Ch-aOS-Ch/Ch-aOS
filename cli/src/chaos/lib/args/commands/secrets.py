@@ -492,7 +492,6 @@ def handleSecrets(args):  # noqa: C901
                     sys.exit(1)
 
             case "print":
-                from ...secret_backends.utils import zero_out
                 from ...secrets import handleSecPrint
 
                 payload = SecretsPrintPayload(
@@ -526,7 +525,6 @@ def handleSecrets(args):  # noqa: C901
                     )
 
                 print(decrypted_output)
-                zero_out(decrypted_output)
 
             case "cat":
                 from ...secrets import handleSecCat
