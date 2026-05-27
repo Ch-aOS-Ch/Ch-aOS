@@ -251,7 +251,7 @@ def argParsing():
 
     exp_usage = f"""{GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}<topic>{RESET} {GRAY}[options]{RESET}
         $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic.subtopic{RESET}
-        $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic.list{RESET} {GRAY}-d advanced{RESET}
+        $ {GOLD}chaos{RESET} {PURP}explain{RESET} {PURP}topic.list{RESET}
 """
     expParser = subParser.add_parser(
         "explain",
@@ -286,16 +286,16 @@ def argParsing():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    provision_usage = f"""{GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}<stack_name>{RESET} {PURP}<project_name>{RESET} {GRAY}[options]{RESET}
-        $ {GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}my-stack my-project{RESET} {GRAY}-c /path/to/chobolo.yaml{RESET}
-"""
-    provisionParser = subParser.add_parser(
-        "provision",
-        help="Provision infrastructure using Pelago",
-        description="Provision infrastructure using Pelago",
-        usage=provision_usage,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
+    # provision_usage = f"""{GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}<stack_name>{RESET} {PURP}<project_name>{RESET} {GRAY}[options]{RESET}
+    #     $ {GOLD}chaos{RESET} {PURP}provision{RESET} {PURP}my-stack my-project{RESET} {GRAY}-c /path/to/chobolo.yaml{RESET}
+    # """
+    # provisionParser = subParser.add_parser(
+    #     "provision",
+    #     help="Provision infrastructure using Pelago",
+    #     description="Provision infrastructure using Pelago",
+    #     usage=provision_usage,
+    #     formatter_class=argparse.RawDescriptionHelpFormatter,
+    # )
 
     check_usage = f"""{GOLD}chaos{RESET} {PURP}check{RESET} {PURP}<operation>{RESET} {GRAY}[options]{RESET}
         $ {GOLD}chaos{RESET} {PURP}check{RESET} {PURP}roles{RESET}
@@ -352,7 +352,7 @@ def argParsing():
         addTeamParsers(teamParser)
         addExplainParsers(expParser)
         addApplyParsers(applyParser)
-        addProvisionParsers(provisionParser)
+        # addProvisionParsers(provisionParser)
         addSecParsers(secParser)
         addCheckParsers(checkParser)
         addSetParsers(setParser)
@@ -372,8 +372,8 @@ def argParsing():
                 addExplainParsers(expParser)
             case "apply":
                 addApplyParsers(applyParser)
-            case "provision":
-                addProvisionParsers(provisionParser)
+            # case "provision":
+            #     addProvisionParsers(provisionParser)
             case "secrets":
                 addSecParsers(secParser)
             case "check":
