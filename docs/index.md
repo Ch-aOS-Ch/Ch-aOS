@@ -1,6 +1,6 @@
 # Welcome to the Ch-aOS Project Suite
 
-**Ch-aOS** is a powerful Python SDK and CLI suite designed to declaratively manage your Unix system, from initial installation to post-install configuration. It provides a modular, safe, and didactic way to handle your entire infrastructure.
+**Ch-aOS** is a Python SDK and CLI suite designed to declaratively manage your Unix system, from initial installation to post-install configuration. It provides a modular, safe, and didactic way to handle your entire infrastructure.
 
 ## Core Principles
 
@@ -14,7 +14,7 @@
 
 ## How It Works
 
-At its heart, **Ch-aOS is a Software Development Kit (SDK)** powered by Python, Pyinfra, and OmegaConf. While it ships with a powerful CLI, the true magic lies in its API. It uses "Ch-obolos" (YAML files) to read data and executes "Roles" (Python classes inheriting from our base SDK) to apply the desired state to your system. This strict separation of data from logic makes your configurations readable, reusable, and version-controllable.
+Ch-aOS is a SDK powered by Pyinfra. It uses "Ch-obolos" (YAML files) to read data and executes "Roles" (Python classes inheriting from our base SDK) to apply the desired state to your system. This separation of data from logic makes your configurations readable, reusable, and version-controllable.
 
 ## Little example:
 
